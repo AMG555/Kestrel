@@ -10,6 +10,7 @@ import (
 	"go.uber.org/zap"
 	"kestrel/internal/config"
 	"kestrel/internal/database"
+	"kestrel/internal/llm"
 	"kestrel/internal/mcp"
 )
 
@@ -78,12 +79,13 @@ type Runner struct {
 	cfg      *config.AgentConfig
 	db       *database.DB
 	registry *mcp.Registry
+	llm      *llm.Manager
 	logger   *zap.Logger
 }
 
 // NewRunner creates an agent runner.
-func NewRunner(cfg *config.AgentConfig, db *database.DB, registry *mcp.Registry, logger *zap.Logger) *Runner {
-	return &Runner{cfg: cfg, db: db, registry: registry, logger: logger}
+func NewRunner(cfg *config.AgentConfig, db *database.DB, registry *mcp.Registry, llmMgr *llm.Manager, logger *zap.Logger) *Runner {
+	return &Runner{cfg: cfg, db: db, registry: registry, llm: llmMgr, logger: logger}
 }
 
 // Run executes the agent loop and sends step events to the events channel (if non-nil).
@@ -122,7 +124,9 @@ func (r *Runner) Run(ctx context.Context, params RunParams, events chan<- StepEv
 	}
 }
 
-// runSingle implements the basic ReAct loop: think → act → observe → repeat.
+// runSingle implements the ReAct loop: think → act → observe → repeat.
+// When a real LLM is configured it drives decisions; otherwise falls back to
+// the rule-based stub.
 func (r *Runner) runSingle(
 	ctx context.Context,
 	params RunParams,
@@ -132,34 +136,56 @@ func (r *Runner) runSingle(
 	emit func(StepEvent),
 ) (*RunResult, error) {
 	tools := r.registry.ListToolsForRole(params.AllowedTools)
-	// System prompt is passed to the LLM in a real implementation.
-	_ = buildSystemPrompt(tools, params.AllowedTools)
+	sysPrompt := buildSystemPrompt(tools, params.AllowedTools)
 
 	history = append(history, Message{Role: "user", Content: params.Intent})
+
+	useLLM := r.llm != nil && !r.llm.IsStub()
 
 	for iter := 0; iter < maxIter; iter++ {
 		result.Iterations = iter + 1
 
-		// Compose current context.
 		emit(StepEvent{Type: "thinking", Content: fmt.Sprintf("Iteration %d/%d", iter+1, maxIter)})
 
-		// In a real deployment this calls an LLM; here we use a rule-based stub
-		// that parses intent and decides whether to call a tool or answer directly.
-		toolCall, thinking, answer := r.planNextAction(params.Intent, history, tools)
+		var toolCall *ToolCall
+		var thinking, answer string
+
+		if useLLM {
+			tc, th, ans, err := r.planNextActionLLM(ctx, sysPrompt, history, tools)
+			if err != nil {
+				r.logger.Warn("LLM call failed — falling back to rule-based", zap.Error(err))
+				useLLM = false
+				toolCall, thinking, answer = r.planNextAction(params.Intent, history, tools)
+			} else {
+				toolCall, thinking, answer = tc, th, ans
+			}
+		} else {
+			toolCall, thinking, answer = r.planNextAction(params.Intent, history, tools)
+		}
 
 		if thinking != "" {
 			emit(StepEvent{Type: "thinking", Content: thinking})
 		}
 
 		if toolCall != nil {
-			// Emit proposed tool call and wait for HITL approval if required.
 			tcJSON, _ := json.Marshal(toolCall)
 			emit(StepEvent{Type: "tool_call", Data: tcJSON})
 
+			// HITL: create a DB approval record and block until decided (or timeout).
 			if params.HITLMode == "require_approval" {
-				// In a full implementation this would block on a DB row.
-				// For now we emit an event and continue (auto-approve after emit).
-				emit(StepEvent{Type: "thinking", Content: "[HITL] Tool call proposed — awaiting operator approval"})
+				approved, err := r.requestHITLApproval(ctx, params, toolCall)
+				if err != nil || !approved {
+					reason := "rejected by operator"
+					if err != nil {
+						reason = err.Error()
+					}
+					emit(StepEvent{Type: "thinking", Content: fmt.Sprintf("[HITL] Tool call %q was %s", toolCall.ToolName, reason)})
+					result.ToolExecutions = append(result.ToolExecutions, ToolExecSummary{
+						ToolName: toolCall.ToolName, Status: "rejected",
+					})
+					continue
+				}
+				emit(StepEvent{Type: "thinking", Content: fmt.Sprintf("[HITL] Tool call %q approved", toolCall.ToolName)})
 			}
 
 			execResult, err := r.executeTool(ctx, params, toolCall)
@@ -172,24 +198,15 @@ func (r *Runner) runSingle(
 					summary.Truncated = true
 				}
 				resJSON, _ := json.Marshal(map[string]interface{}{
-					"tool": toolCall.ToolName,
-					"output": execResult.Output,
-					"truncated": execResult.Truncated,
+					"tool": toolCall.ToolName, "output": execResult.Output, "truncated": execResult.Truncated,
 				})
 				emit(StepEvent{Type: "tool_result", Data: resJSON})
-
-				// Add tool result to history.
-				history = append(history, Message{
-					Role:       "tool",
-					Content:    execResult.Output,
-					ToolCallID: toolCall.ID,
-				})
+				history = append(history, Message{Role: "tool", Content: execResult.Output, ToolCallID: toolCall.ID})
 			}
 			result.ToolExecutions = append(result.ToolExecutions, summary)
 			continue
 		}
 
-		// Agent has a final answer.
 		if answer != "" {
 			result.FinalAnswer = answer
 			emit(StepEvent{Type: "final", Content: answer})
@@ -199,15 +216,121 @@ func (r *Runner) runSingle(
 			return result, nil
 		}
 
-		// No tool and no answer — something went wrong.
 		break
 	}
 
 	if result.FinalAnswer == "" {
-		result.FinalAnswer = "I have completed the available analysis. Please review the tool outputs above."
+		result.FinalAnswer = "Analysis complete. Please review the tool outputs above."
 		emit(StepEvent{Type: "final", Content: result.FinalAnswer})
 	}
 	return result, nil
+}
+
+// planNextActionLLM asks the configured LLM what to do next.
+func (r *Runner) planNextActionLLM(
+	ctx context.Context,
+	sysPrompt string,
+	history []Message,
+	tools []*mcp.ToolDefinition,
+) (*ToolCall, string, string, error) {
+	// Build LLM messages.
+	msgs := []llm.Message{{Role: llm.RoleSystem, Content: sysPrompt}}
+	for _, m := range history {
+		msgs = append(msgs, llm.Message{Role: m.Role, Content: m.Content, ToolCallID: m.ToolCallID})
+	}
+
+	// Build tool specs.
+	var toolSpecs []llm.ToolSpec
+	for _, t := range tools {
+		toolSpecs = append(toolSpecs, llm.ToolSpec{
+			Type: "function",
+			Function: llm.ToolFunctionSpec{
+				Name:        t.Name,
+				Description: t.Description,
+				Parameters:  t.Parameters,
+			},
+		})
+	}
+
+	resp, err := r.llm.Default().Complete(ctx, llm.CompletionRequest{
+		Messages:    msgs,
+		Tools:       toolSpecs,
+		Temperature: 0.2,
+	})
+	if err != nil {
+		return nil, "", "", err
+	}
+
+	// Tool call proposed by LLM.
+	if len(resp.ToolCalls) > 0 {
+		tc := resp.ToolCalls[0]
+		var argMap map[string]interface{}
+		_ = json.Unmarshal([]byte(tc.Function.Arguments), &argMap)
+		return &ToolCall{
+			ID:        tc.ID,
+			ToolName:  tc.Function.Name,
+			Arguments: argMap,
+		}, fmt.Sprintf("[LLM] Calling tool: %s", tc.Function.Name), "", nil
+	}
+
+	// Text answer from LLM.
+	return nil, "", resp.Content, nil
+}
+
+// requestHITLApproval creates a HITL pending record and polls until decided or timeout.
+func (r *Runner) requestHITLApproval(ctx context.Context, params RunParams, tc *ToolCall) (bool, error) {
+	argsJSON, _ := json.Marshal(tc.Arguments)
+	summary := fmt.Sprintf("Agent wants to call tool %q\nArguments: %s", tc.ToolName, string(argsJSON))
+
+	timeout := 5 * time.Minute // configurable in the future
+
+	h := map[string]interface{}{
+		"session_id":      params.SessionID,
+		"user_id":         params.UserID,
+		"tool_name":       tc.ToolName,
+		"arguments_json":  string(argsJSON),
+		"context_summary": summary,
+		"status":          "pending",
+		"expires_at":      time.Now().UTC().Add(timeout).Format(time.RFC3339),
+		"created_at":      time.Now().UTC().Format(time.RFC3339),
+	}
+
+	id := fmt.Sprintf("hitl_%d", time.Now().UnixNano())
+	_, err := r.db.Exec(`
+		INSERT INTO hitl_pending
+		  (id,session_id,user_id,tool_name,arguments_json,context_summary,status,expires_at,created_at)
+		VALUES (?,?,?,?,?,?,?,?,?)`,
+		id, h["session_id"], h["user_id"], h["tool_name"],
+		h["arguments_json"], h["context_summary"], "pending",
+		h["expires_at"], h["created_at"],
+	)
+	if err != nil {
+		r.logger.Warn("failed to create HITL record", zap.Error(err))
+		return false, err
+	}
+
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		select {
+		case <-ctx.Done():
+			return false, ctx.Err()
+		case <-time.After(3 * time.Second):
+		}
+
+		var status string
+		if err := r.db.QueryRow(`SELECT status FROM hitl_pending WHERE id=?`, id).Scan(&status); err != nil {
+			continue
+		}
+		switch status {
+		case "approved":
+			return true, nil
+		case "rejected":
+			return false, nil
+		}
+	}
+	// Expire the record.
+	_, _ = r.db.Exec(`UPDATE hitl_pending SET status='expired' WHERE id=?`, id)
+	return false, fmt.Errorf("HITL approval timed out after %v", timeout)
 }
 
 // runPlanExecute generates a plan first, then executes each step.
