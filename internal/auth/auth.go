@@ -25,6 +25,7 @@ const (
 type Claims struct {
 	UserID             string `json:"uid"`
 	Username           string `json:"sub"`
+	SessionID          string `json:"sid,omitempty"`
 	MustChangePassword bool   `json:"mcp,omitempty"`
 	jwt.RegisteredClaims
 }
@@ -176,4 +177,49 @@ func hashToken(token string) string {
 func (s *Service) PurgeExpiredSessions() error {
 	_, err := s.db.Exec(`DELETE FROM sessions WHERE expires_at < ?`, time.Now().UTC())
 	return err
+}
+
+// IssueToken creates a signed JWT for a user ID and optional session ID.
+// It does NOT persist a session record — use Login for real auth flows.
+// Exposed for use in tests and internal tooling.
+func (s *Service) IssueToken(userID, sessionID string) (string, error) {
+	now := time.Now().UTC()
+	claims := Claims{
+		UserID:    userID,
+		SessionID: sessionID,
+		RegisteredClaims: jwt.RegisteredClaims{
+			IssuedAt:  jwt.NewNumericDate(now),
+			ExpiresAt: jwt.NewNumericDate(now.Add(s.sessionTTL)),
+			Issuer:    "kestrel",
+		},
+	}
+	tok := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return tok.SignedString(s.jwtSecret)
+}
+
+// ValidateTokenInsecure parses a JWT without checking the session DB.
+// Use only in tests and internal tooling — NOT in request handlers.
+func (s *Service) ValidateTokenInsecure(tokenStr string) (*Claims, error) {
+	tok, err := jwt.ParseWithClaims(tokenStr, &Claims{}, func(t *jwt.Token) (interface{}, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method")
+		}
+		return s.jwtSecret, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	claims, ok := tok.Claims.(*Claims)
+	if !ok || !tok.Valid {
+		return nil, errors.New("invalid token")
+	}
+	return claims, nil
+}
+
+// NewForTest creates a Service without a database dependency for unit testing.
+func NewForTest(jwtSecret string) *Service {
+	return &Service{
+		jwtSecret:  []byte(jwtSecret),
+		sessionTTL: 12 * time.Hour,
+	}
 }
