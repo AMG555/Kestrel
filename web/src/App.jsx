@@ -11,6 +11,12 @@ import UsersPage from './pages/Users.jsx'
 import RolesPage from './pages/Roles.jsx'
 import KnowledgePage from './pages/Knowledge.jsx'
 import ChangePasswordPage from './pages/ChangePassword.jsx'
+import ProjectsPage from './pages/Projects.jsx'
+import BatchTasksPage from './pages/BatchTasks.jsx'
+import AttackChainPage from './pages/AttackChain.jsx'
+import WorkflowsPage from './pages/Workflows.jsx'
+import HITLPage from './pages/HITL.jsx'
+import ConversationsPage from './pages/Conversations.jsx'
 
 // ── Auth context ────────────────────────────────────────────────────────────
 export const AuthCtx = createContext(null)
@@ -60,14 +66,19 @@ function Protected({ children }) {
 
 // ── Sidebar nav ─────────────────────────────────────────────────────────────
 const NAV = [
-  { to: '/',            label: '⬡  Dashboard' },
-  { to: '/agent',       label: '🤖 Agent' },
-  { to: '/assets',      label: '📦 Assets' },
-  { to: '/vulns',       label: '🛡  Vulnerabilities' },
-  { to: '/knowledge',   label: '📚 Knowledge' },
-  { to: '/audit',       label: '📋 Audit Logs' },
-  { to: '/users',       label: '👤 Users' },
-  { to: '/roles',       label: '🔑 Roles' },
+  { to: '/',              label: '⬡  Dashboard' },
+  { to: '/projects',      label: '📁 Projects' },
+  { to: '/agent',         label: '🤖 Agent' },
+  { to: '/conversations', label: '💬 Conversations' },
+  { to: '/batch',         label: '⚙  Batch Tasks' },
+  { to: '/workflows',     label: '🔀 Workflows' },
+  { to: '/hitl',          label: '✋ Approvals' },
+  { to: '/assets',        label: '📦 Assets' },
+  { to: '/vulns',         label: '🛡  Vulnerabilities' },
+  { to: '/knowledge',     label: '📚 Knowledge' },
+  { to: '/audit',         label: '📋 Audit Logs' },
+  { to: '/users',         label: '👤 Users' },
+  { to: '/roles',         label: '🔑 Roles' },
 ]
 
 function Sidebar() {
@@ -90,10 +101,10 @@ function Sidebar() {
         <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--accent)' }}>⚔ Kestrel</div>
         <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>Under Development</div>
       </div>
-      <nav style={{ flex: 1, padding: '8px 0' }}>
+      <nav style={{ flex: 1, padding: '8px 0', overflowY: 'auto' }}>
         {NAV.map(({ to, label }) => (
           <Link key={to} to={to} style={{
-            display: 'block', padding: '8px 16px', fontSize: 13,
+            display: 'block', padding: '7px 16px', fontSize: 13,
             color: location.pathname === to ? 'var(--accent)' : 'var(--text)',
             background: location.pathname === to ? 'var(--surface2)' : 'transparent',
             textDecoration: 'none', borderLeft: location.pathname === to ? '3px solid var(--accent)' : '3px solid transparent',
@@ -138,6 +149,12 @@ export default function App() {
           <Route path="/users" element={<Protected><Layout><UsersPage /></Layout></Protected>} />
           <Route path="/roles" element={<Protected><Layout><RolesPage /></Layout></Protected>} />
           <Route path="/knowledge" element={<Protected><Layout><KnowledgePage /></Layout></Protected>} />
+          <Route path="/projects" element={<Protected><Layout><ProjectsPage /></Layout></Protected>} />
+          <Route path="/projects/:id/attack-chain" element={<Protected><Layout><AttackChainPage /></Layout></Protected>} />
+          <Route path="/batch" element={<Protected><Layout><BatchTasksPage /></Layout></Protected>} />
+          <Route path="/workflows" element={<Protected><Layout><WorkflowsPage /></Layout></Protected>} />
+          <Route path="/hitl" element={<Protected><Layout><HITLPage /></Layout></Protected>} />
+          <Route path="/conversations" element={<Protected><Layout><ConversationsPage /></Layout></Protected>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AuthProvider>

@@ -76,6 +76,53 @@ export const api = {
 
   // Agent
   runAgent:       (d)     => request('POST', '/agent/run', d),
+
+  // Projects
+  listProjects:        (q)           => request('GET',    `/projects?${new URLSearchParams(q || {})}`),
+  createProject:       (d)           => request('POST',   '/projects', d),
+  getProject:          (id)          => request('GET',    `/projects/${id}`),
+  updateProject:       (id, d)       => request('PATCH',  `/projects/${id}`, d),
+  deleteProject:       (id)          => request('DELETE', `/projects/${id}`),
+  listProjectFacts:    (id)          => request('GET',    `/projects/${id}/facts`),
+  upsertProjectFact:   (id, d)       => request('POST',   `/projects/${id}/facts`, d),
+  deleteProjectFact:   (pid, fid)    => request('DELETE', `/projects/${pid}/facts/${fid}`),
+  getAttackChain:      (id)          => request('GET',    `/projects/${id}/attack-chain`),
+  addChainNode:        (id, d)       => request('POST',   `/projects/${id}/attack-chain/nodes`, d),
+  addChainEdge:        (id, d)       => request('POST',   `/projects/${id}/attack-chain/edges`, d),
+
+  // Batch task queues
+  listQueues:          (q)           => request('GET',    `/batch/queues?${new URLSearchParams(q || {})}`),
+  createQueue:         (d)           => request('POST',   '/batch/queues', d),
+  getQueue:            (id)          => request('GET',    `/batch/queues/${id}`),
+  runQueue:            (id)          => request('POST',   `/batch/queues/${id}/run`),
+  cancelQueue:         (id)          => request('POST',   `/batch/queues/${id}/cancel`),
+  deleteQueue:         (id)          => request('DELETE', `/batch/queues/${id}`),
+
+  // HITL approvals
+  listPendingHITL:     ()            => request('GET',    '/hitl/pending'),
+  decideHITL:          (id, d)       => request('POST',   `/hitl/${id}/decide`, d),
+
+  // Conversations
+  listConversations:   (q)           => request('GET',    `/conversations?${new URLSearchParams(q || {})}`),
+  createConversation:  (d)           => request('POST',   '/conversations', d),
+  updateConversation:  (id, d)       => request('PATCH',  `/conversations/${id}`, d),
+  deleteConversation:  (id)          => request('DELETE', `/conversations/${id}`),
+  getConvMessages:     (id)          => request('GET',    `/conversations/${id}/messages`),
+
+  // MCP servers
+  listMCPServers:      ()            => request('GET',    '/mcp/servers'),
+  upsertMCPServer:     (d)           => request('POST',   '/mcp/servers', d),
+  deleteMCPServer:     (id)          => request('DELETE', `/mcp/servers/${id}`),
+  resetCircuit:        (id)          => request('POST',   `/mcp/servers/${id}/reset-circuit`),
+
+  // Workflows
+  listWorkflows:       ()            => request('GET',    '/workflows'),
+  createWorkflow:      (d)           => request('POST',   '/workflows', d),
+  getWorkflow:         (id)          => request('GET',    `/workflows/${id}`),
+  updateWorkflow:      (id, d)       => request('PATCH',  `/workflows/${id}`, d),
+  deleteWorkflow:      (id)          => request('DELETE', `/workflows/${id}`),
+  runWorkflow:         (id, d)       => request('POST',   `/workflows/${id}/run`, d),
+  getWorkflowRun:      (runId)       => request('GET',    `/workflows/runs/${runId}`),
 }
 
 // WebSocket helper for streaming agent execution.
