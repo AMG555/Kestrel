@@ -1,0 +1,88 @@
+# ============================================================
+# Kestrel — AI-native Security Operations Platform
+# Configuration Reference (copy to config.yaml and edit)
+# ============================================================
+# AUTHORIZED USE ONLY: Use Kestrel only on systems you own
+# or are explicitly authorized to test.
+# ============================================================
+
+version: "v0.1.0"
+
+server:
+  host: "127.0.0.1"
+  port: 8080
+  # TLS configuration (recommended for production)
+  tls_enabled: false
+  tls_auto_self_sign: false    # generate self-signed cert on startup
+  # tls_cert_path: /path/to/fullchain.pem
+  # tls_key_path:  /path/to/privkey.pem
+
+auth:
+  session_duration_hours: 12
+  # jwt_secret is auto-generated if not set
+  # jwt_secret: "${KESTREL_JWT_SECRET}"
+
+log:
+  level: "info"          # debug | info | warn | error
+  output: "stdout"       # stdout | stderr | /path/to/file.log
+
+database:
+  path: "data/kestrel.db"
+
+audit:
+  enabled: true
+  retention_days: 90
+  max_detail_bytes: 8192
+
+# AI channel configuration (required for agent features)
+ai:
+  default_channel: ""
+  channels: {}
+  # Example:
+  # default_channel: openai-main
+  # channels:
+  #   openai-main:
+  #     provider: openai_compatible
+  #     api_key: "${OPENAI_API_KEY}"
+  #     base_url: "https://api.openai.com/v1"
+  #     model: "gpt-4o"
+  #     max_total_tokens: 120000
+  #     max_completion_tokens: 16384
+
+agent:
+  max_iterations: 15
+  output_cap_bytes: 102400    # 100 KB cap on individual tool output
+  workspace_dir: "tmp/workspace"
+
+# MCP tool registry — only recon-class tools are wired by default.
+# Exploitation, credential-dumping, and remote-shell tool classes
+# are deliberately excluded from the default recipe set.
+mcp:
+  worker_pool_size: 4
+  call_timeout_seconds: 120
+  output_cap_bytes: 102400
+  servers: {}
+  # Example stdio MCP server:
+  # servers:
+  #   recon:
+  #     transport: stdio
+  #     command: ["python3", "mcp_servers/recon/main.py"]
+  #     allowed_tools: ["subdomain_enum", "port_scan", "http_probe"]
+
+# Role directories
+roles_dir: "roles"
+
+# Human-in-the-loop approval configuration
+hitl:
+  enabled: true
+  default_mode: "auto"         # auto | require_approval
+  approval_timeout_seconds: 300
+
+# Knowledge base (RAG) configuration
+knowledge:
+  enabled: false
+  vector_store_path: "data/vectors"
+  embedding_model: ""          # leave empty to disable embeddings
+  chunk_size: 512
+  chunk_overlap: 64
+  top_k: 5

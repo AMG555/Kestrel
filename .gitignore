@@ -1,0 +1,26 @@
+# Kestrel binaries
+kestrel
+kestrel.exe
+
+# Data directory
+data/
+tmp/
+
+# Log files
+*.log
+log/
+
+# Frontend build
+web/dist/
+web/node_modules/
+
+# Go toolchain
+*.test
+vendor/
+
+# Config with real secrets — copy config.example.yaml
+config.yaml
+
+# OS
+.DS_Store
+Thumbs.db
