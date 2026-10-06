@@ -2,17 +2,22 @@ import { useState, useEffect, useRef } from 'react'
 import { api, connectAgentStream } from '../api.js'
 
 export default function AgentPage() {
-  const [tools, setTools] = useState([])
-  const [intent, setIntent] = useState('')
-  const [mode, setMode] = useState('single')
+  const [tools, setTools]       = useState([])
+  const [projects, setProjects] = useState([])
+  const [intent, setIntent]     = useState('')
+  const [projectID, setProjectID] = useState('')
+  const [title, setTitle]       = useState('')
+  const [mode, setMode]         = useState('single')
   const [hitlMode, setHitlMode] = useState('auto')
-  const [events, setEvents] = useState([])
-  const [running, setRunning] = useState(false)
-  const [wsRef, setWsRef] = useState(null)
+  const [events, setEvents]     = useState([])
+  const [running, setRunning]   = useState(false)
+  const [wsRef, setWsRef]       = useState(null)
+  const [sessionID, setSessionID] = useState(null)
   const logRef = useRef(null)
 
   useEffect(() => {
     api.listTools().then(d => setTools(d.tools || []))
+    api.listProjects().then(d => setProjects(d.projects || [])).catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -22,20 +27,28 @@ export default function AgentPage() {
   const run = () => {
     if (!intent.trim() || running) return
     setEvents([])
+    setSessionID(null)
     setRunning(true)
 
     const ws = connectAgentStream(
       (ev) => {
         setEvents(prev => [...prev, ev])
         if (ev.type === 'final' || ev.type === 'error') setRunning(false)
+        // Capture session_id from first event carrying it.
+        if (ev.session_id && !sessionID) setSessionID(ev.session_id)
       },
       () => setRunning(false),
     )
     setWsRef(ws)
 
-    // Send the run request once connected.
     ws.onopen = () => {
-      ws.send(JSON.stringify({ intent, mode, hitl_mode: hitlMode }))
+      ws.send(JSON.stringify({
+        intent,
+        mode,
+        hitl_mode:  hitlMode,
+        project_id: projectID || undefined,
+        title:      title || undefined,
+      }))
     }
   }
 
@@ -70,15 +83,35 @@ export default function AgentPage() {
       <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>Agent</h1>
 
       <div className="card" style={{ marginBottom: 16 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 12, marginBottom: 12 }}>
+        {/* Row 1: Intent */}
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ display: 'block', color: 'var(--muted)', fontSize: 12, marginBottom: 4 }}>Intent *</label>
+          <input
+            type="text"
+            value={intent}
+            onChange={e => setIntent(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && run()}
+            placeholder="e.g. Enumerate subdomains for example.com"
+            style={{ width: '100%' }}
+          />
+        </div>
+
+        {/* Row 2: Project / Title / Mode / HITL */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: 12, marginBottom: 12 }}>
           <div>
-            <label style={{ display: 'block', color: 'var(--muted)', fontSize: 12, marginBottom: 4 }}>Intent</label>
+            <label style={{ display: 'block', color: 'var(--muted)', fontSize: 12, marginBottom: 4 }}>Project (optional)</label>
+            <select value={projectID} onChange={e => setProjectID(e.target.value)}>
+              <option value="">— No project —</option>
+              {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={{ display: 'block', color: 'var(--muted)', fontSize: 12, marginBottom: 4 }}>Session title (optional)</label>
             <input
               type="text"
-              value={intent}
-              onChange={e => setIntent(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && run()}
-              placeholder="e.g. Enumerate subdomains for example.com"
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              placeholder="Auto-generated from intent"
             />
           </div>
           <div>
@@ -91,17 +124,23 @@ export default function AgentPage() {
           </div>
           <div>
             <label style={{ display: 'block', color: 'var(--muted)', fontSize: 12, marginBottom: 4 }}>HITL</label>
-            <select value={hitlMode} onChange={e => setHitlMode(e.target.value)} style={{ width: 140 }}>
+            <select value={hitlMode} onChange={e => setHitlMode(e.target.value)} style={{ width: 148 }}>
               <option value="auto">Auto</option>
               <option value="require_approval">Require Approval</option>
             </select>
           </div>
         </div>
+
         <div className="flex gap-8">
           <button className="primary" onClick={run} disabled={running || !intent.trim()}>
             {running ? '⏳ Running…' : '▶ Run'}
           </button>
           {running && <button className="danger" onClick={cancel}>■ Cancel</button>}
+          {sessionID && !running && (
+            <a href={`/sessions/${sessionID}`} style={{ fontSize: 12, color: 'var(--accent)', alignSelf: 'center', marginLeft: 8 }}>
+              View session →
+            </a>
+          )}
         </div>
       </div>
 

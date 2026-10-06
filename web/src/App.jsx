@@ -17,6 +17,10 @@ import AttackChainPage from './pages/AttackChain.jsx'
 import WorkflowsPage from './pages/Workflows.jsx'
 import HITLPage from './pages/HITL.jsx'
 import ConversationsPage from './pages/Conversations.jsx'
+import SessionsPage from './pages/Sessions.jsx'
+import SessionDetailPage from './pages/SessionDetail.jsx'
+import ToolExecutionsPage from './pages/ToolExecutions.jsx'
+import SettingsPage from './pages/Settings.jsx'
 
 // ── Auth context ────────────────────────────────────────────────────────────
 export const AuthCtx = createContext(null)
@@ -66,19 +70,22 @@ function Protected({ children }) {
 
 // ── Sidebar nav ─────────────────────────────────────────────────────────────
 const NAV = [
-  { to: '/',              label: '⬡  Dashboard' },
-  { to: '/projects',      label: '📁 Projects' },
-  { to: '/agent',         label: '🤖 Agent' },
-  { to: '/conversations', label: '💬 Conversations' },
-  { to: '/batch',         label: '⚙  Batch Tasks' },
-  { to: '/workflows',     label: '🔀 Workflows' },
-  { to: '/hitl',          label: '✋ Approvals' },
-  { to: '/assets',        label: '📦 Assets' },
-  { to: '/vulns',         label: '🛡  Vulnerabilities' },
-  { to: '/knowledge',     label: '📚 Knowledge' },
-  { to: '/audit',         label: '📋 Audit Logs' },
-  { to: '/users',         label: '👤 Users' },
-  { to: '/roles',         label: '🔑 Roles' },
+  { to: '/',               label: '⬡  Dashboard' },
+  { to: '/projects',       label: '📁 Projects' },
+  { to: '/agent',          label: '🤖 Agent' },
+  { to: '/sessions',       label: '🗂  Sessions' },
+  { to: '/tool-executions',label: '🔧 Tool History' },
+  { to: '/conversations',  label: '💬 Conversations' },
+  { to: '/batch',          label: '⚙  Batch Tasks' },
+  { to: '/workflows',      label: '🔀 Workflows' },
+  { to: '/hitl',           label: '✋ Approvals' },
+  { to: '/assets',         label: '📦 Assets' },
+  { to: '/vulns',          label: '🛡  Vulnerabilities' },
+  { to: '/knowledge',      label: '📚 Knowledge' },
+  { to: '/audit',          label: '📋 Audit Logs' },
+  { to: '/users',          label: '👤 Users' },
+  { to: '/roles',          label: '🔑 Roles' },
+  { to: '/settings',       label: '⚙  Settings' },
 ]
 
 function Sidebar() {
@@ -89,6 +96,12 @@ function Sidebar() {
   const handleLogout = async () => {
     await logout()
     navigate('/login')
+  }
+
+  // Highlight sessions/:id under the Sessions nav entry.
+  const isActive = (to) => {
+    if (to === '/sessions') return location.pathname === '/sessions' || location.pathname.startsWith('/sessions/')
+    return location.pathname === to
   }
 
   return (
@@ -105,9 +118,9 @@ function Sidebar() {
         {NAV.map(({ to, label }) => (
           <Link key={to} to={to} style={{
             display: 'block', padding: '7px 16px', fontSize: 13,
-            color: location.pathname === to ? 'var(--accent)' : 'var(--text)',
-            background: location.pathname === to ? 'var(--surface2)' : 'transparent',
-            textDecoration: 'none', borderLeft: location.pathname === to ? '3px solid var(--accent)' : '3px solid transparent',
+            color: isActive(to) ? 'var(--accent)' : 'var(--text)',
+            background: isActive(to) ? 'var(--surface2)' : 'transparent',
+            textDecoration: 'none', borderLeft: isActive(to) ? '3px solid var(--accent)' : '3px solid transparent',
             transition: 'background .1s',
           }}>
             {label}
@@ -155,6 +168,10 @@ export default function App() {
           <Route path="/workflows" element={<Protected><Layout><WorkflowsPage /></Layout></Protected>} />
           <Route path="/hitl" element={<Protected><Layout><HITLPage /></Layout></Protected>} />
           <Route path="/conversations" element={<Protected><Layout><ConversationsPage /></Layout></Protected>} />
+          <Route path="/sessions" element={<Protected><Layout><SessionsPage /></Layout></Protected>} />
+          <Route path="/sessions/:id" element={<Protected><Layout><SessionDetailPage /></Layout></Protected>} />
+          <Route path="/tool-executions" element={<Protected><Layout><ToolExecutionsPage /></Layout></Protected>} />
+          <Route path="/settings" element={<Protected><Layout><SettingsPage /></Layout></Protected>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AuthProvider>
