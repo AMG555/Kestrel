@@ -221,6 +221,97 @@ func (db *DB) initSchema() error {
 			created_at DATETIME NOT NULL,
 			FOREIGN KEY (document_id) REFERENCES knowledge_documents(id) ON DELETE CASCADE
 		)`},
+		{"project_facts", `CREATE TABLE IF NOT EXISTS project_facts (
+			id TEXT PRIMARY KEY,
+			project_id TEXT NOT NULL,
+			fact_key TEXT NOT NULL,
+			category TEXT NOT NULL DEFAULT 'note',
+			summary TEXT NOT NULL DEFAULT '',
+			body TEXT,
+			confidence TEXT NOT NULL DEFAULT 'tentative',
+			source_session_id TEXT,
+			pinned INTEGER NOT NULL DEFAULT 0,
+			created_at DATETIME NOT NULL,
+			updated_at DATETIME NOT NULL,
+			FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+			UNIQUE(project_id, fact_key)
+		)`},
+		{"attack_chain_nodes", `CREATE TABLE IF NOT EXISTS attack_chain_nodes (
+			id TEXT PRIMARY KEY,
+			project_id TEXT NOT NULL,
+			session_id TEXT NOT NULL DEFAULT '',
+			node_type TEXT NOT NULL,
+			node_name TEXT NOT NULL,
+			tool_exec_id TEXT NOT NULL DEFAULT '',
+			metadata_json TEXT NOT NULL DEFAULT '{}',
+			risk_score INTEGER NOT NULL DEFAULT 0,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+		)`},
+		{"attack_chain_edges", `CREATE TABLE IF NOT EXISTS attack_chain_edges (
+			id TEXT PRIMARY KEY,
+			project_id TEXT NOT NULL,
+			source_node_id TEXT NOT NULL,
+			target_node_id TEXT NOT NULL,
+			edge_type TEXT NOT NULL DEFAULT 'leads_to',
+			weight INTEGER NOT NULL DEFAULT 1,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+			FOREIGN KEY (source_node_id) REFERENCES attack_chain_nodes(id) ON DELETE CASCADE,
+			FOREIGN KEY (target_node_id) REFERENCES attack_chain_nodes(id) ON DELETE CASCADE
+		)`},
+		{"batch_task_queues", `CREATE TABLE IF NOT EXISTS batch_task_queues (
+			id TEXT PRIMARY KEY,
+			project_id TEXT,
+			title TEXT NOT NULL DEFAULT '',
+			role_id TEXT NOT NULL DEFAULT '',
+			agent_mode TEXT NOT NULL DEFAULT 'single',
+			hitl_mode TEXT NOT NULL DEFAULT 'auto',
+			concurrency INTEGER NOT NULL DEFAULT 1,
+			status TEXT NOT NULL DEFAULT 'pending',
+			current_index INTEGER NOT NULL DEFAULT 0,
+			created_by TEXT NOT NULL DEFAULT '',
+			created_at DATETIME NOT NULL,
+			started_at DATETIME,
+			completed_at DATETIME
+		)`},
+		{"batch_tasks", `CREATE TABLE IF NOT EXISTS batch_tasks (
+			id TEXT PRIMARY KEY,
+			queue_id TEXT NOT NULL,
+			intent TEXT NOT NULL,
+			session_id TEXT,
+			status TEXT NOT NULL DEFAULT 'pending',
+			result TEXT,
+			error TEXT NOT NULL DEFAULT '',
+			started_at DATETIME,
+			completed_at DATETIME,
+			FOREIGN KEY (queue_id) REFERENCES batch_task_queues(id) ON DELETE CASCADE
+		)`},
+		{"hitl_pending", `CREATE TABLE IF NOT EXISTS hitl_pending (
+			id TEXT PRIMARY KEY,
+			session_id TEXT NOT NULL,
+			user_id TEXT NOT NULL DEFAULT '',
+			tool_name TEXT NOT NULL,
+			arguments_json TEXT NOT NULL DEFAULT '{}',
+			context_summary TEXT NOT NULL DEFAULT '',
+			status TEXT NOT NULL DEFAULT 'pending',
+			decision TEXT NOT NULL DEFAULT '',
+			decided_by TEXT NOT NULL DEFAULT '',
+			decided_at DATETIME,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			expires_at DATETIME NOT NULL
+		)`},
+		{"conversations", `CREATE TABLE IF NOT EXISTS conversations (
+			id TEXT PRIMARY KEY,
+			project_id TEXT,
+			user_id TEXT NOT NULL DEFAULT '',
+			title TEXT NOT NULL DEFAULT 'New conversation',
+			agent_mode TEXT NOT NULL DEFAULT 'single',
+			role_id TEXT NOT NULL DEFAULT '',
+			pinned INTEGER NOT NULL DEFAULT 0,
+			created_at DATETIME NOT NULL,
+			updated_at DATETIME NOT NULL
+		)`},
 	}
 
 	for _, s := range stmts {
@@ -255,6 +346,16 @@ func (db *DB) initIndexes() error {
 		`CREATE INDEX IF NOT EXISTS idx_tool_exec_status ON tool_executions(status)`,
 		`CREATE INDEX IF NOT EXISTS idx_user_roles_user_id ON user_roles(user_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_user_roles_role_id ON user_roles(role_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_project_facts_project ON project_facts(project_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_project_facts_key ON project_facts(project_id, fact_key)`,
+		`CREATE INDEX IF NOT EXISTS idx_attack_chain_nodes_project ON attack_chain_nodes(project_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_attack_chain_edges_project ON attack_chain_edges(project_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_batch_tasks_queue ON batch_tasks(queue_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_batch_tasks_status ON batch_tasks(status)`,
+		`CREATE INDEX IF NOT EXISTS idx_hitl_pending_session ON hitl_pending(session_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_hitl_pending_status ON hitl_pending(status)`,
+		`CREATE INDEX IF NOT EXISTS idx_conversations_user ON conversations(user_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_conversations_project ON conversations(project_id)`,
 	}
 	for _, idx := range indexes {
 		if _, err := db.Exec(idx); err != nil {
