@@ -29,8 +29,37 @@ jobs:
       - name: Vet
         run: go vet ./...
 
-      - name: Test (short — skip network-dependent tests)
-        run: go test ./... -short -timeout 60s -count=1
+      - name: Unit tests — toolguard (no CGO required)
+        run: go test ./internal/toolguard/... -v -count=1 -timeout 30s
+
+      - name: Unit tests — middleware (no CGO required)
+        run: go test ./internal/middleware/... -v -count=1 -timeout 30s
+
+      - name: Unit tests — auth (no CGO required)
+        run: go test ./internal/auth/... -v -count=1 -timeout 30s
+
+      - name: Unit tests — config (no CGO required)
+        run: go test ./internal/config/... -v -count=1 -timeout 30s
+
+      - name: Integration tests — database (CGO + sqlite3)
+        run: go test ./internal/database/... -v -count=1 -timeout 120s
+        env:
+          CGO_ENABLED: "1"
+
+      - name: Integration tests — handler security (CGO + sqlite3)
+        run: go test ./internal/handler/... -v -count=1 -timeout 60s
+        env:
+          CGO_ENABLED: "1"
+
+      - name: Integration tests — mcp registry
+        run: go test ./internal/mcp/... -v -count=1 -timeout 60s
+        env:
+          CGO_ENABLED: "1"
+
+      - name: Full test suite
+        run: go test ./... -short -timeout 120s -count=1
+        env:
+          CGO_ENABLED: "1"
 
   frontend:
     name: Frontend build
