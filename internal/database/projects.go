@@ -202,6 +202,11 @@ type ProjectStats struct {
 	SessionCount  int `json:"session_count"`
 	FactCount     int `json:"fact_count"`
 	ToolExecCount int `json:"tool_exec_count"`
+	// Severity counts — populated by caller (e.g. report generator).
+	CriticalCount int `json:"critical_count"`
+	HighCount     int `json:"high_count"`
+	MediumCount   int `json:"medium_count"`
+	LowCount      int `json:"low_count"`
 }
 
 // GetProjectStats returns statistics for a project.
