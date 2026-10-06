@@ -34,20 +34,33 @@ audit:
   retention_days: 90
   max_detail_bytes: 8192
 
-# AI channel configuration (required for agent features)
+# AI channel configuration
+# When no channels are configured, Kestrel uses a rule-based stub — no API key required.
 ai:
   default_channel: ""
   channels: {}
-  # Example:
-  # default_channel: openai-main
+  # --- OpenAI (or compatible endpoint) ---
+  # default_channel: openai
   # channels:
-  #   openai-main:
-  #     provider: openai_compatible
+  #   openai:
+  #     provider: openai
   #     api_key: "${OPENAI_API_KEY}"
   #     base_url: "https://api.openai.com/v1"
   #     model: "gpt-4o"
-  #     max_total_tokens: 120000
-  #     max_completion_tokens: 16384
+  #     max_completion_tokens: 4096
+  #
+  # --- Anthropic Claude ---
+  #   anthropic:
+  #     provider: anthropic
+  #     api_key: "${ANTHROPIC_API_KEY}"
+  #     model: "claude-3-5-sonnet-20241022"
+  #     max_completion_tokens: 8192
+  #
+  # --- Local Ollama ---
+  #   ollama:
+  #     provider: ollama
+  #     base_url: "http://localhost:11434"
+  #     model: "llama3.2"
 
 agent:
   max_iterations: 15
