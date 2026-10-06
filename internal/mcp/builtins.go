@@ -80,6 +80,9 @@ func (r *Registry) registerBuiltins() {
 			"required": []string{"hostname"},
 		}),
 	}, dnsLookupHandler)
+
+	// Register the extended set (whois, ssl, tech fingerprint, port scan).
+	r.registerExtendedBuiltins()
 }
 
 // --- Handlers ---
