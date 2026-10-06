@@ -73,11 +73,22 @@ func setupAuthRouter(t *testing.T) (*gin.Engine, *database.DB, *auth.Service) {
 	return r, db, authSvc
 }
 
-func makeToken(t *testing.T, svc *auth.Service, userID string) string {
+func makeToken(t *testing.T, svc *auth.Service, db *database.DB, userID string) string {
 	t.Helper()
-	token, err := svc.IssueToken(userID, "sess-1")
+	token, err := svc.IssueToken(userID, "")
 	if err != nil {
 		t.Fatalf("IssueToken() error: %v", err)
+	}
+	// Insert a matching session row so ValidateToken's token_hash check passes.
+	tokenHash := auth.HashTokenForTest(token)
+	_, err = db.Exec(
+		`INSERT INTO sessions (id,user_id,token_hash,created_at,expires_at,last_seen_at)
+		 VALUES (?,?,?,?,?,?)`,
+		"test-sess-"+userID, userID, tokenHash,
+		time.Now(), time.Now().Add(12*time.Hour), time.Now(),
+	)
+	if err != nil {
+		t.Fatalf("insert test session: %v", err)
 	}
 	return token
 }
@@ -168,12 +179,7 @@ func TestMeWithValidToken(t *testing.T) {
 	hash, _ := auth.HashPassword("pw")
 	user, _ := db.CreateUser("meuser", hash, "", "Me User")
 
-	// Create a DB session for the token.
-	db.Exec(`INSERT INTO sessions (id,user_id,token_hash,created_at,expires_at,last_seen_at)
-		VALUES ('s1',?,'thash',?,?,?)`,
-		user.ID, time.Now(), time.Now().Add(time.Hour), time.Now())
-
-	token := makeToken(t, svc, user.ID)
+	token := makeToken(t, svc, db, user.ID)
 	w := do(t, router, "GET", "/api/auth/me", "", token)
 	if w.Code != http.StatusOK {
 		t.Errorf("/me with valid token = %d, want 200", w.Code)
@@ -193,7 +199,7 @@ func TestMeWithTamperedToken(t *testing.T) {
 	hash, _ := auth.HashPassword("pw")
 	user, _ := db.CreateUser("tampuser", hash, "", "")
 
-	token := makeToken(t, svc, user.ID)
+	token := makeToken(t, svc, db, user.ID)
 	// Flip last character to corrupt the signature.
 	tampered := token[:len(token)-1] + "X"
 	w := do(t, router, "GET", "/api/auth/me", "", tampered)
@@ -248,12 +254,7 @@ func TestChangePasswordSuccess(t *testing.T) {
 	router, db, svc := setupAuthRouter(t)
 	hash, _ := auth.HashPassword("OldP@ssw0rd!99")
 	user, _ := db.CreateUser("changeuser", hash, "", "")
-
-	db.Exec(`INSERT INTO sessions (id,user_id,token_hash,created_at,expires_at,last_seen_at)
-		VALUES ('s2',?,'thash2',?,?,?)`,
-		user.ID, time.Now(), time.Now().Add(time.Hour), time.Now())
-
-	token := makeToken(t, svc, user.ID)
+	token := makeToken(t, svc, db, user.ID)
 	w := do(t, router, "POST", "/api/auth/change-password",
 		`{"current_password":"OldP@ssw0rd!99","new_password":"N3wP@ssw0rd!99"}`, token)
 	if w.Code != http.StatusOK {
@@ -265,12 +266,7 @@ func TestChangePasswordWrongCurrent(t *testing.T) {
 	router, db, svc := setupAuthRouter(t)
 	hash, _ := auth.HashPassword("R3alP@ssw0rd!99")
 	user, _ := db.CreateUser("chguser2", hash, "", "")
-
-	db.Exec(`INSERT INTO sessions (id,user_id,token_hash,created_at,expires_at,last_seen_at)
-		VALUES ('s3',?,'thash3',?,?,?)`,
-		user.ID, time.Now(), time.Now().Add(time.Hour), time.Now())
-
-	token := makeToken(t, svc, user.ID)
+	token := makeToken(t, svc, db, user.ID)
 	w := do(t, router, "POST", "/api/auth/change-password",
 		`{"current_password":"Wr0ngP@ss!99","new_password":"N3wP@ssw0rd!99"}`, token)
 	if w.Code != http.StatusUnauthorized && w.Code != http.StatusBadRequest {
@@ -333,11 +329,7 @@ func TestListUsersWithValidToken(t *testing.T) {
 
 	hash, _ := auth.HashPassword("pw")
 	user, _ := db.CreateUser("listuser", hash, "", "")
-	db.Exec(`INSERT INTO sessions (id,user_id,token_hash,created_at,expires_at,last_seen_at)
-		VALUES ('ls1',?,'lhash',?,?,?)`,
-		user.ID, time.Now(), time.Now().Add(time.Hour), time.Now())
-
-	token := makeToken(t, authSvc, user.ID)
+	token := makeToken(t, authSvc, db, user.ID)
 	w := do(t, r, "GET", "/api/users", "", token)
 	if w.Code != http.StatusOK {
 		t.Errorf("/users with auth status = %d, want 200", w.Code)
@@ -363,14 +355,18 @@ func TestMustChangePasswordGate(t *testing.T) {
 		userH.ListUsers,
 	)
 
+	// Create user with must_change_password=1 (the schema default).
 	hash, _ := auth.HashPassword("pw")
 	user, _ := db.CreateUser("mustchg", hash, "", "")
-	// must_change_password defaults to 1 in the schema.
-	db.Exec(`INSERT INTO sessions (id,user_id,token_hash,created_at,expires_at,last_seen_at)
-		VALUES ('mc1',?,'mchash',?,?,?)`,
-		user.ID, time.Now(), time.Now().Add(time.Hour), time.Now())
 
-	token := makeToken(t, authSvc, user.ID)
+	// Issue a token that includes must_change_password=true in claims.
+	// We use Login so the token is issued via the full auth flow which reads the DB.
+	token, _, err := authSvc.Login("mustchg", "pw", "127.0.0.1", "test")
+	if err != nil {
+		t.Fatalf("Login() error: %v", err)
+	}
+	_ = user
+
 	w := do(t, r, "GET", "/api/users", "", token)
 	if w.Code != http.StatusForbidden {
 		t.Errorf("must-change-password gate = %d, want 403", w.Code)

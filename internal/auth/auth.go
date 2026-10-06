@@ -173,6 +173,10 @@ func hashToken(token string) string {
 	return hex.EncodeToString(h[:])
 }
 
+// HashTokenForTest is exported solely for use in package-level tests that need
+// to insert matching session rows. Do not use in production handlers.
+func HashTokenForTest(token string) string { return hashToken(token) }
+
 // PurgeExpiredSessions removes expired sessions from the database.
 func (s *Service) PurgeExpiredSessions() error {
 	_, err := s.db.Exec(`DELETE FROM sessions WHERE expires_at < ?`, time.Now().UTC())
