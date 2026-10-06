@@ -1,5 +1,7 @@
 /* ── Kestrel Design System ─────────────────────────────────────────────── */
-:root {
+
+/* Dark theme (default) */
+:root, [data-theme="dark"] {
   --bg: #0d1117;
   --surface: #161b22;
   --surface2: #21262d;
@@ -18,6 +20,27 @@
   --info: #8b949e;
   --radius: 6px;
   --shadow: 0 1px 3px rgba(0,0,0,.4);
+}
+
+/* Light theme */
+[data-theme="light"] {
+  --bg: #f6f8fa;
+  --surface: #ffffff;
+  --surface2: #eaeef2;
+  --border: #d0d7de;
+  --text: #1f2328;
+  --muted: #57606a;
+  --accent: #0969da;
+  --accent-hover: #0550ae;
+  --danger: #cf222e;
+  --warn: #9a6700;
+  --success: #1a7f37;
+  --critical: #cf222e;
+  --high: #9a6700;
+  --medium: #0969da;
+  --low: #1a7f37;
+  --info: #57606a;
+  --shadow: 0 1px 3px rgba(0,0,0,.12);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }

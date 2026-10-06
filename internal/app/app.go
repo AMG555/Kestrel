@@ -176,6 +176,7 @@ func (a *App) registerRoutes() {
 	workflowH  := handler.NewWorkflowHandler(a.db, a.workflow, a.logger)
 	reportH    := handler.NewReportHandler(report.NewGenerator(a.db))
 	sessionH   := handler.NewSessionHandler(a.db)
+	toolguardH := handler.NewToolGuardHandler(a.registry, a.db)
 
 	// Disclaimer / consent check on all routes.
 	a.router.Use(middleware.AuditContext())
@@ -222,12 +223,14 @@ func (a *App) registerRoutes() {
 
 	// Assets.
 	authed.GET("/assets", assetH.ListAssets)
+	authed.GET("/assets/export.csv", assetH.ExportAssetsCSV)
 	authed.POST("/assets", assetH.CreateAsset)
 	authed.GET("/assets/:id", assetH.GetAsset)
 	authed.DELETE("/assets/:id", assetH.DeleteAsset)
 
 	// Vulnerabilities.
 	authed.GET("/vulnerabilities", vulnH.ListVulnerabilities)
+	authed.GET("/vulnerabilities/export.csv", vulnH.ExportVulnsCSV)
 	authed.POST("/vulnerabilities", vulnH.CreateVulnerability)
 	authed.GET("/vulnerabilities/:id", vulnH.GetVulnerability)
 	authed.PATCH("/vulnerabilities/:id", vulnH.UpdateVulnerability)
@@ -235,6 +238,8 @@ func (a *App) registerRoutes() {
 
 	// Audit logs.
 	authed.GET("/audit", auditH.ListAuditLogs)
+	authed.GET("/audit/summary", auditH.AuditSummary)
+	authed.GET("/audit/export.csv", auditH.ExportAuditCSV)
 
 	// Tools.
 	authed.GET("/tools", agentH.ListTools)
@@ -297,6 +302,20 @@ func (a *App) registerRoutes() {
 
 	// Tool executions.
 	authed.GET("/tool-executions", sessionH.ListToolExecutions)
+
+	// ToolGuard config.
+	authed.GET("/tool-guard/config", toolguardH.GetConfig)
+	authed.PUT("/tool-guard/config", toolguardH.UpdateConfig)
+
+	// Token usage stats.
+	authed.GET("/stats/token-usage", func(c *gin.Context) {
+		summary, err := a.db.TokenUsageSummary()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retrieve token usage"})
+			return
+		}
+		c.JSON(http.StatusOK, summary)
+	})
 
 	// Workflows.
 	authed.GET("/workflows", workflowH.ListWorkflows)

@@ -289,13 +289,21 @@ func (r *Runner) planNextActionLLM(
 		})
 	}
 
-	resp, err := r.llm.Default().Complete(ctx, llm.CompletionRequest{
+	client := r.llm.Default()
+	resp, err := client.Complete(ctx, llm.CompletionRequest{
 		Messages:    msgs,
 		Tools:       toolSpecs,
 		Temperature: 0.2,
 	})
 	if err != nil {
 		return nil, "", "", err
+	}
+
+	// Persist token usage asynchronously — don't fail the call if writing fails.
+	if resp.InputTokens > 0 || resp.OutputTokens > 0 {
+		go func() {
+			_ = r.db.RecordTokenUsage("", "", client.Provider(), resp.InputTokens, resp.OutputTokens)
+		}()
 	}
 
 	// Tool call proposed by LLM.

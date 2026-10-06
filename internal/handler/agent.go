@@ -150,6 +150,8 @@ func (h *AgentHandler) ListTools(c *gin.Context) {
 func (h *AgentHandler) ExecuteTool(c *gin.Context) {
 	userID, _ := c.Get(middleware.CtxUserID)
 	uid, _ := userID.(string)
+	username, _ := c.Get(middleware.CtxUsername)
+	uname, _ := username.(string)
 	toolName := c.Param("name")
 
 	var req struct {
@@ -175,9 +177,28 @@ func (h *AgentHandler) ExecuteTool(c *gin.Context) {
 
 	result, err := h.registry.Execute(c.Request.Context(), toolName, req.Arguments, roleAllowed)
 	if err != nil {
+		_ = h.db.WriteAuditLog(database.AuditParams{
+			ActorID: uid, ActorName: uname,
+			Action: "execute_tool", Category: "tool", Result: "blocked",
+			ResourceType: "tool", ResourceID: toolName,
+			Message:   fmt.Sprintf("tool %q blocked: %s", toolName, err.Error()),
+			ClientIP:  c.ClientIP(), UserAgent: c.Request.UserAgent(),
+		})
 		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 		return
 	}
+
+	auditResult := "success"
+	if result.Error != "" {
+		auditResult = "failure"
+	}
+	_ = h.db.WriteAuditLog(database.AuditParams{
+		ActorID: uid, ActorName: uname,
+		Action: "execute_tool", Category: "tool", Result: auditResult,
+		ResourceType: "tool", ResourceID: toolName,
+		Message:   fmt.Sprintf("tool %q executed in %dms", toolName, result.DurationMs),
+		ClientIP:  c.ClientIP(), UserAgent: c.Request.UserAgent(),
+	})
 	c.JSON(http.StatusOK, gin.H{"result": result})
 }
 

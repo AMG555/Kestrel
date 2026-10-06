@@ -48,7 +48,10 @@ export default function VulnsPage() {
     <div>
       <div className="flex items-center justify-between mb-16">
         <h1 style={{ fontSize: 20, fontWeight: 700 }}>Vulnerabilities <span style={{ color: 'var(--muted)', fontSize: 14, fontWeight: 400 }}>({total})</span></h1>
-        <button className="primary" onClick={() => setShowForm(s => !s)}>+ Add</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => { window.location.href = '/api/vulnerabilities/export.csv' }}>⬇ Export CSV</button>
+          <button className="primary" onClick={() => setShowForm(s => !s)}>+ Add</button>
+        </div>
       </div>
 
       {error && <div className="error-msg mb-16">{error}</div>}

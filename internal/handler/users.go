@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -38,6 +39,11 @@ type createUserRequest struct {
 
 // CreateUser handles POST /api/users.
 func (h *UserHandler) CreateUser(c *gin.Context) {
+	actorID, _ := c.Get(middleware.CtxUserID)
+	aID, _ := actorID.(string)
+	actorName, _ := c.Get(middleware.CtxUsername)
+	aName, _ := actorName.(string)
+
 	var req createUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "username and password are required"})
@@ -56,9 +62,23 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 
 	user, err := h.db.CreateUser(req.Username, hash, req.Email, req.DisplayName)
 	if err != nil {
+		_ = h.db.WriteAuditLog(database.AuditParams{
+			ActorID: aID, ActorName: aName,
+			Action: "create_user", Category: "users", Result: "failure",
+			ResourceType: "user", Message: "user creation failed: " + err.Error(),
+			ClientIP: c.ClientIP(), UserAgent: c.Request.UserAgent(),
+		})
 		c.JSON(http.StatusConflict, gin.H{"error": "username already exists or database error"})
 		return
 	}
+
+	_ = h.db.WriteAuditLog(database.AuditParams{
+		ActorID: aID, ActorName: aName,
+		Action: "create_user", Category: "users", Result: "success",
+		ResourceType: "user", ResourceID: user.ID,
+		Message:   fmt.Sprintf("user created: %s", user.Username),
+		ClientIP:  c.ClientIP(), UserAgent: c.Request.UserAgent(),
+	})
 	c.JSON(http.StatusCreated, gin.H{"user": user})
 }
 
@@ -82,6 +102,11 @@ type updateUserRequest struct {
 
 // UpdateUser handles PATCH /api/users/:id.
 func (h *UserHandler) UpdateUser(c *gin.Context) {
+	actorID, _ := c.Get(middleware.CtxUserID)
+	aID, _ := actorID.(string)
+	actorName, _ := c.Get(middleware.CtxUsername)
+	aName, _ := actorName.(string)
+
 	id := c.Param("id")
 	var req updateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -112,28 +137,60 @@ func (h *UserHandler) UpdateUser(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update user"})
 		return
 	}
+
+	_ = h.db.WriteAuditLog(database.AuditParams{
+		ActorID: aID, ActorName: aName,
+		Action: "update_user", Category: "users", Result: "success",
+		ResourceType: "user", ResourceID: id,
+		Message:   fmt.Sprintf("user updated: %s", user.Username),
+		ClientIP:  c.ClientIP(), UserAgent: c.Request.UserAgent(),
+	})
 	c.JSON(http.StatusOK, gin.H{"message": "user updated"})
 }
 
 // DeleteUser handles DELETE /api/users/:id.
 func (h *UserHandler) DeleteUser(c *gin.Context) {
+	actorID, _ := c.Get(middleware.CtxUserID)
+	aID, _ := actorID.(string)
+	actorName, _ := c.Get(middleware.CtxUsername)
+	aName, _ := actorName.(string)
+
 	callerID, _ := c.Get(middleware.CtxUserID)
 	id := c.Param("id")
 	if callerID == id {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "cannot delete your own account"})
 		return
 	}
+
+	user, _ := h.db.GetUserByID(id)
+	uname := id
+	if user != nil {
+		uname = user.Username
+	}
+
 	if err := h.db.DeleteUser(id); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete user"})
 		return
 	}
+
+	_ = h.db.WriteAuditLog(database.AuditParams{
+		ActorID: aID, ActorName: aName,
+		Action: "delete_user", Category: "users", Result: "success",
+		ResourceType: "user", ResourceID: id,
+		Message:   fmt.Sprintf("user deleted: %s", uname),
+		ClientIP:  c.ClientIP(), UserAgent: c.Request.UserAgent(),
+	})
 	c.JSON(http.StatusOK, gin.H{"message": "user deleted"})
 }
 
 // AssignRole handles POST /api/users/:id/roles.
 func (h *UserHandler) AssignRole(c *gin.Context) {
+	actorID, _ := c.Get(middleware.CtxUserID)
+	aID, _ := actorID.(string)
+	actorName, _ := c.Get(middleware.CtxUsername)
+	aName, _ := actorName.(string)
+
 	userID := c.Param("id")
-	callerID, _ := c.Get(middleware.CtxUserID)
 	var req struct {
 		RoleID string `json:"role_id" binding:"required"`
 	}
@@ -141,22 +198,42 @@ func (h *UserHandler) AssignRole(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "role_id is required"})
 		return
 	}
-	callerStr, _ := callerID.(string)
-	if err := h.db.AssignRole(userID, req.RoleID, callerStr); err != nil {
+	if err := h.db.AssignRole(userID, req.RoleID, aID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to assign role"})
 		return
 	}
+
+	_ = h.db.WriteAuditLog(database.AuditParams{
+		ActorID: aID, ActorName: aName,
+		Action: "assign_role", Category: "rbac", Result: "success",
+		ResourceType: "user", ResourceID: userID,
+		Message:   fmt.Sprintf("role %s assigned to user %s", req.RoleID, userID),
+		ClientIP:  c.ClientIP(), UserAgent: c.Request.UserAgent(),
+	})
 	c.JSON(http.StatusOK, gin.H{"message": "role assigned"})
 }
 
 // RevokeRole handles DELETE /api/users/:id/roles/:role_id.
 func (h *UserHandler) RevokeRole(c *gin.Context) {
+	actorID, _ := c.Get(middleware.CtxUserID)
+	aID, _ := actorID.(string)
+	actorName, _ := c.Get(middleware.CtxUsername)
+	aName, _ := actorName.(string)
+
 	userID := c.Param("id")
 	roleID := c.Param("role_id")
 	if err := h.db.RevokeRole(userID, roleID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to revoke role"})
 		return
 	}
+
+	_ = h.db.WriteAuditLog(database.AuditParams{
+		ActorID: aID, ActorName: aName,
+		Action: "revoke_role", Category: "rbac", Result: "success",
+		ResourceType: "user", ResourceID: userID,
+		Message:   fmt.Sprintf("role %s revoked from user %s", roleID, userID),
+		ClientIP:  c.ClientIP(), UserAgent: c.Request.UserAgent(),
+	})
 	c.JSON(http.StatusOK, gin.H{"message": "role revoked"})
 }
 

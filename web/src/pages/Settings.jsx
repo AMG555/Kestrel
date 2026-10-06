@@ -1,6 +1,15 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api.js'
 
+// Read/write the theme preference from localStorage + document root class.
+function getStoredTheme() {
+  return localStorage.getItem('theme') || 'dark'
+}
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme)
+  localStorage.setItem('theme', theme)
+}
+
 export default function SettingsPage() {
   const [info, setInfo]         = useState(null)
   const [mcpServers, setMcpSvrs] = useState([])
@@ -10,6 +19,13 @@ export default function SettingsPage() {
   const [mcpForm, setMcpForm]   = useState({ name: '', transport: 'http', url: '', timeout_seconds: 120 })
   const [saving, setSaving]     = useState(false)
   const [saveMsg, setSaveMsg]   = useState('')
+  const [theme, setTheme]       = useState(getStoredTheme)
+
+  const toggleTheme = () => {
+    const next = theme === 'dark' ? 'light' : 'dark'
+    setTheme(next)
+    applyTheme(next)
+  }
 
   const load = () => {
     setLoading(true)
@@ -62,7 +78,16 @@ export default function SettingsPage() {
 
   return (
     <div>
-      <h2 style={{ margin: '0 0 20px' }}>Settings</h2>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+        <h2 style={{ margin: 0 }}>Settings</h2>
+        <button
+          onClick={toggleTheme}
+          style={{ fontSize: 13, padding: '6px 14px', minWidth: 120 }}
+          title="Toggle light/dark mode"
+        >
+          {theme === 'dark' ? '☀ Light mode' : '🌙 Dark mode'}
+        </button>
+      </div>
 
       {error && <div className="error-banner" style={{ marginBottom: 12 }}>{error}</div>}
       {saveMsg && <div style={{ background: '#22c55e22', color: '#22c55e', border: '1px solid #22c55e55', borderRadius: 6, padding: '8px 12px', marginBottom: 12, fontSize: 13 }}>{saveMsg}</div>}

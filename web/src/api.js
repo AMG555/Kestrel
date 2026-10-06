@@ -73,6 +73,14 @@ export const api = {
 
   // Audit
   listAudit:      (q)     => request('GET',  `/audit?${new URLSearchParams(q || {})}`),
+  auditSummary:   ()      => request('GET',  '/audit/summary'),
+
+  // ToolGuard config
+  getToolGuardConfig:    ()  => request('GET', '/tool-guard/config'),
+  updateToolGuardConfig: (d) => request('PUT', '/tool-guard/config', d),
+
+  // Token usage stats
+  tokenUsageStats: () => request('GET', '/stats/token-usage'),
 
   // Agent
   runAgent:       (d)     => request('POST', '/agent/run', d),

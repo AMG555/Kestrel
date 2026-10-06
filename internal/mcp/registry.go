@@ -253,6 +253,11 @@ func (r *Registry) Execute(ctx context.Context, toolName string, args map[string
 	return result, nil
 }
 
+// GetGuardManager returns the toolguard Manager for live config updates.
+func (r *Registry) GetGuardManager() *toolguard.Manager {
+	return r.guardMgr
+}
+
 // isAllowed checks if a tool is in an allowlist. An empty allowlist means all allowed.
 func isAllowed(toolName string, allowedTools []string) bool {
 	if len(allowedTools) == 0 {

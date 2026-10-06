@@ -9,6 +9,37 @@ import (
 	"github.com/google/uuid"
 )
 
+// RecordTokenUsage writes a token usage record after an LLM call.
+// sessionID and userID may be empty strings if the call happened outside a session context.
+func (db *DB) RecordTokenUsage(sessionID, userID, provider string, promptTokens, completionTokens int) error {
+	total := promptTokens + completionTokens
+	_, err := db.Exec(`
+		INSERT INTO token_usage (id,session_id,user_id,provider,model,prompt_tokens,completion_tokens,total_tokens,created_at)
+		VALUES (?,?,?,?,?,?,?,?,?)`,
+		uuid.New().String(),
+		sessionID, userID, provider, "", // model left blank; can be enriched later
+		promptTokens, completionTokens, total,
+		time.Now().UTC(),
+	)
+	return err
+}
+
+// TokenUsageSummary returns aggregate token usage stats.
+func (db *DB) TokenUsageSummary() (map[string]interface{}, error) {
+	var totalCalls int
+	var totalPrompt, totalCompletion int
+	_ = db.QueryRow(`SELECT COUNT(*), COALESCE(SUM(prompt_tokens),0), COALESCE(SUM(completion_tokens),0) FROM token_usage`).
+		Scan(&totalCalls, &totalPrompt, &totalCompletion)
+	return map[string]interface{}{
+		"total_calls":        totalCalls,
+		"total_prompt":       totalPrompt,
+		"total_completion":   totalCompletion,
+		"total_tokens":       totalPrompt + totalCompletion,
+	}, nil
+}
+
+
+
 // BatchTaskQueue is a named queue of agent tasks to be executed sequentially.
 type BatchTaskQueue struct {
 	ID           string     `json:"id"`
