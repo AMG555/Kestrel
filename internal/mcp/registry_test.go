@@ -2,6 +2,7 @@ package mcp_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"go.uber.org/zap"
@@ -123,3 +124,60 @@ func TestOutputCap(t *testing.T) {
 		t.Errorf("output len = %d, want <= 10", len(result.Output))
 	}
 }
+
+func TestToolGuardBlocksGovernmentDomain(t *testing.T) {
+	cfg := &config.MCPConfig{
+		WorkerPoolSize:     2,
+		CallTimeoutSeconds: 10,
+		OutputCapBytes:     102400,
+	}
+	r := mcp.NewRegistry(cfg, zap.NewNop()) // uses default government-domain rule
+
+	// Register a harmless echo tool.
+	r.RegisterTool(&mcp.ToolDefinition{
+		Name:  "echo_tool",
+		Class: mcp.ToolClassReadOnly,
+	}, func(_ context.Context, args map[string]interface{}) (string, error) {
+		return "ok", nil
+	})
+
+	// Call with a government domain in the arguments — must be blocked.
+	_, err := r.Execute(context.Background(), "echo_tool",
+		map[string]interface{}{"target": "https://agency.gov/login"},
+		nil,
+	)
+	if err == nil {
+		t.Fatal("toolguard should have blocked the government domain call")
+	}
+	if !strings.Contains(err.Error(), "blocked by security rule") {
+		t.Errorf("unexpected error message: %v", err)
+	}
+}
+
+func TestToolGuardAllowsNormalDomain(t *testing.T) {
+	cfg := &config.MCPConfig{
+		WorkerPoolSize:     2,
+		CallTimeoutSeconds: 10,
+		OutputCapBytes:     102400,
+	}
+	r := mcp.NewRegistry(cfg, zap.NewNop())
+
+	r.RegisterTool(&mcp.ToolDefinition{
+		Name:  "safe_tool",
+		Class: mcp.ToolClassReadOnly,
+	}, func(_ context.Context, _ map[string]interface{}) (string, error) {
+		return "done", nil
+	})
+
+	result, err := r.Execute(context.Background(), "safe_tool",
+		map[string]interface{}{"target": "https://example.com"},
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("safe domain should not be blocked: %v", err)
+	}
+	if result.Output != "done" {
+		t.Errorf("output = %q, want done", result.Output)
+	}
+}
+

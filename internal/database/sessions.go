@@ -273,4 +273,3 @@ func (db *DB) ListToolExecutions(p ListToolExecutionsParams) ([]*ToolExecution, 
 	}
 	return execs, total, rows.Err()
 }
-

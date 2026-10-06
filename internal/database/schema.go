@@ -312,6 +312,29 @@ func (db *DB) initSchema() error {
 			created_at DATETIME NOT NULL,
 			updated_at DATETIME NOT NULL
 		)`},
+		{"vulnerability_alerts", `CREATE TABLE IF NOT EXISTS vulnerability_alerts (
+			id TEXT PRIMARY KEY,
+			vuln_id TEXT NOT NULL,
+			project_id TEXT NOT NULL DEFAULT '',
+			severity TEXT NOT NULL,
+			title TEXT NOT NULL,
+			status TEXT NOT NULL DEFAULT 'new',
+			acknowledged_by TEXT NOT NULL DEFAULT '',
+			acknowledged_at DATETIME,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (vuln_id) REFERENCES vulnerabilities(id) ON DELETE CASCADE
+		)`},
+		{"token_usage", `CREATE TABLE IF NOT EXISTS token_usage (
+			id TEXT PRIMARY KEY,
+			session_id TEXT NOT NULL DEFAULT '',
+			user_id TEXT NOT NULL DEFAULT '',
+			provider TEXT NOT NULL DEFAULT '',
+			model TEXT NOT NULL DEFAULT '',
+			prompt_tokens INTEGER NOT NULL DEFAULT 0,
+			completion_tokens INTEGER NOT NULL DEFAULT 0,
+			total_tokens INTEGER NOT NULL DEFAULT 0,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)`},
 	}
 
 	for _, s := range stmts {
