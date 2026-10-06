@@ -23,8 +23,10 @@ import (
 	"kestrel/internal/database"
 	"kestrel/internal/handler"
 	"kestrel/internal/knowledge"
+	"kestrel/internal/llm"
 	"kestrel/internal/mcp"
 	"kestrel/internal/middleware"
+	"kestrel/internal/report"
 	"kestrel/internal/workflow"
 )
 
@@ -68,8 +70,11 @@ func New(cfg *config.Config, logger *zap.Logger) (*App, error) {
 	// Build knowledge service.
 	kb := knowledge.New(&cfg.Knowledge, db, logger)
 
+	// Build LLM manager (multi-provider: OpenAI / Anthropic / Ollama / stub).
+	llmMgr := llm.NewManager(&cfg.AI, logger)
+
 	// Build agent runner.
-	runner := agent.NewRunner(&cfg.Agent, db, registry, logger)
+	runner := agent.NewRunner(&cfg.Agent, db, registry, llmMgr, logger)
 
 	// Cancel any orphaned running tool executions from a previous run.
 	if _, err := db.CancelOrphanedRunningToolExecutions(time.Now(), "server_restart"); err != nil {
@@ -160,6 +165,7 @@ func (a *App) registerRoutes() {
 	convH    := handler.NewConversationHandler(a.db)
 	mcpSrvH  := handler.NewMCPServerHandler(a.db)
 	workflowH := handler.NewWorkflowHandler(a.db, a.workflow, a.logger)
+	reportH   := handler.NewReportHandler(report.NewGenerator(a.db))
 
 	// Disclaimer / consent check on all routes.
 	a.router.Use(middleware.AuditContext())
@@ -246,6 +252,7 @@ func (a *App) registerRoutes() {
 	authed.GET("/projects/:id/attack-chain", projH.GetAttackChain)
 	authed.POST("/projects/:id/attack-chain/nodes", projH.AddChainNode)
 	authed.POST("/projects/:id/attack-chain/edges", projH.AddChainEdge)
+	authed.GET("/projects/:id/report", reportH.GenerateReport)
 
 	// Batch task queues.
 	authed.GET("/batch/queues", batchH.ListQueues)
