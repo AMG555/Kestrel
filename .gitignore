@@ -1,26 +1,37 @@
-# Kestrel binaries
+# ── Kestrel binaries ────────────────────────────────────────
 kestrel
 kestrel.exe
+server
+server.exe
+*.exe
+*.out
 
-# Data directory
+# ── Runtime data ─────────────────────────────────────────────
 data/
 tmp/
 
-# Log files
+# ── Logs ────────────────────────────────────────────────────
 *.log
 log/
 
-# Frontend build
+# ── Frontend build & packages ────────────────────────────────
 web/dist/
 web/node_modules/
+web/.vite/
 
-# Go toolchain
+# ── Go toolchain ─────────────────────────────────────────────
 *.test
 vendor/
+coverage.out
+coverage.html
 
-# Config with real secrets — copy config.example.yaml
+# ── Secrets (never commit real config) ───────────────────────
 config.yaml
+.env
+.env.*
 
-# OS
+# ── IDE / OS ─────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
+.idea/
+.vscode/settings.json
