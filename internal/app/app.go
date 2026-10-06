@@ -25,18 +25,20 @@ import (
 	"kestrel/internal/knowledge"
 	"kestrel/internal/mcp"
 	"kestrel/internal/middleware"
+	"kestrel/internal/workflow"
 )
 
 // App is the root application container.
 type App struct {
-	cfg       *config.Config
-	db        *database.DB
-	auth      *auth.Service
-	registry  *mcp.Registry
-	runner    *agent.Runner
-	knowledge *knowledge.Service
-	router    *gin.Engine
-	logger    *zap.Logger
+	cfg      *config.Config
+	db       *database.DB
+	auth     *auth.Service
+	registry *mcp.Registry
+	runner   *agent.Runner
+	kb       *knowledge.Service
+	workflow *workflow.Engine
+	router   *gin.Engine
+	logger   *zap.Logger
 }
 
 // New builds an App from the given config and logger.
@@ -69,6 +71,14 @@ func New(cfg *config.Config, logger *zap.Logger) (*App, error) {
 	// Build agent runner.
 	runner := agent.NewRunner(&cfg.Agent, db, registry, logger)
 
+	// Cancel any orphaned running tool executions from a previous run.
+	if _, err := db.CancelOrphanedRunningToolExecutions(time.Now(), "server_restart"); err != nil {
+		logger.Warn("could not cancel orphaned tool executions", zap.Error(err))
+	}
+
+	// Build workflow engine.
+	wfEngine := workflow.NewEngine(db, runner, registry, logger)
+
 	// Build router.
 	if cfg.Log.Level != "debug" {
 		gin.SetMode(gin.ReleaseMode)
@@ -77,14 +87,15 @@ func New(cfg *config.Config, logger *zap.Logger) (*App, error) {
 	router.Use(gin.Recovery())
 
 	a := &App{
-		cfg:       cfg,
-		db:        db,
-		auth:      authSvc,
-		registry:  registry,
-		runner:    runner,
-		knowledge: kb,
-		router:    router,
-		logger:    logger,
+		cfg:      cfg,
+		db:       db,
+		auth:     authSvc,
+		registry: registry,
+		runner:   runner,
+		kb:       kb,
+		workflow: wfEngine,
+		router:   router,
+		logger:   logger,
 	}
 	a.registerRoutes()
 	return a, nil
@@ -135,14 +146,20 @@ func (a *App) Serve(ctx context.Context) error {
 // registerRoutes wires all API routes onto the Gin engine.
 func (a *App) registerRoutes() {
 	// Handlers.
-	authH  := handler.NewAuthHandler(a.auth, a.db)
-	userH  := handler.NewUserHandler(a.db)
-	roleH  := handler.NewRoleHandler(a.db)
-	assetH := handler.NewAssetHandler(a.db)
-	vulnH  := handler.NewVulnHandler(a.db)
-	auditH := handler.NewAuditHandler(a.db)
-	agentH := handler.NewAgentHandler(a.runner, a.db, a.registry, a.logger)
-	kbH    := handler.NewKnowledgeHandler(a.knowledge)
+	authH    := handler.NewAuthHandler(a.auth, a.db)
+	userH    := handler.NewUserHandler(a.db)
+	roleH    := handler.NewRoleHandler(a.db)
+	assetH   := handler.NewAssetHandler(a.db)
+	vulnH    := handler.NewVulnHandler(a.db)
+	auditH   := handler.NewAuditHandler(a.db)
+	agentH   := handler.NewAgentHandler(a.runner, a.db, a.registry, a.logger)
+	kbH      := handler.NewKnowledgeHandler(a.kb)
+	projH    := handler.NewProjectHandler(a.db)
+	batchH   := handler.NewBatchHandler(a.db, a.runner, a.registry, a.logger)
+	hitlH    := handler.NewHITLHandler(a.db)
+	convH    := handler.NewConversationHandler(a.db)
+	mcpSrvH  := handler.NewMCPServerHandler(a.db)
+	workflowH := handler.NewWorkflowHandler(a.db, a.workflow, a.logger)
 
 	// Disclaimer / consent check on all routes.
 	a.router.Use(middleware.AuditContext())
@@ -216,6 +233,53 @@ func (a *App) registerRoutes() {
 	authed.POST("/knowledge/ingest", kbH.IngestText)
 	authed.POST("/knowledge/query", kbH.Query)
 	authed.DELETE("/knowledge/documents/:id", kbH.DeleteDocument)
+
+	// Projects.
+	authed.GET("/projects", projH.ListProjects)
+	authed.POST("/projects", projH.CreateProject)
+	authed.GET("/projects/:id", projH.GetProject)
+	authed.PATCH("/projects/:id", projH.UpdateProject)
+	authed.DELETE("/projects/:id", projH.DeleteProject)
+	authed.GET("/projects/:id/facts", projH.ListProjectFacts)
+	authed.POST("/projects/:id/facts", projH.UpsertProjectFact)
+	authed.DELETE("/projects/:id/facts/:fact_id", projH.DeleteProjectFact)
+	authed.GET("/projects/:id/attack-chain", projH.GetAttackChain)
+	authed.POST("/projects/:id/attack-chain/nodes", projH.AddChainNode)
+	authed.POST("/projects/:id/attack-chain/edges", projH.AddChainEdge)
+
+	// Batch task queues.
+	authed.GET("/batch/queues", batchH.ListQueues)
+	authed.POST("/batch/queues", batchH.CreateQueue)
+	authed.GET("/batch/queues/:id", batchH.GetQueue)
+	authed.POST("/batch/queues/:id/run", batchH.RunQueue)
+	authed.POST("/batch/queues/:id/cancel", batchH.CancelQueue)
+	authed.DELETE("/batch/queues/:id", batchH.DeleteQueue)
+
+	// HITL approvals.
+	authed.GET("/hitl/pending", hitlH.ListPending)
+	authed.POST("/hitl/:id/decide", hitlH.Decide)
+
+	// Conversations.
+	authed.GET("/conversations", convH.ListConversations)
+	authed.POST("/conversations", convH.CreateConversation)
+	authed.PATCH("/conversations/:id", convH.UpdateConversation)
+	authed.DELETE("/conversations/:id", convH.DeleteConversation)
+	authed.GET("/conversations/:id/messages", convH.GetConversationMessages)
+
+	// MCP server management.
+	authed.GET("/mcp/servers", mcpSrvH.ListMCPServers)
+	authed.POST("/mcp/servers", mcpSrvH.UpsertMCPServer)
+	authed.DELETE("/mcp/servers/:id", mcpSrvH.DeleteMCPServer)
+	authed.POST("/mcp/servers/:id/reset-circuit", mcpSrvH.ResetCircuit)
+
+	// Workflows.
+	authed.GET("/workflows", workflowH.ListWorkflows)
+	authed.POST("/workflows", workflowH.CreateWorkflow)
+	authed.GET("/workflows/:id", workflowH.GetWorkflow)
+	authed.PATCH("/workflows/:id", workflowH.UpdateWorkflow)
+	authed.DELETE("/workflows/:id", workflowH.DeleteWorkflow)
+	authed.POST("/workflows/:id/run", workflowH.RunWorkflow)
+	authed.GET("/workflows/runs/:run_id", workflowH.GetRun)
 }
 
 // buildTLSConfig returns a *tls.Config, generating a self-signed cert if needed.
