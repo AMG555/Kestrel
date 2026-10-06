@@ -10,6 +10,7 @@ import (
 
 	"go.uber.org/zap"
 	"kestrel/internal/config"
+	"kestrel/internal/toolguard"
 )
 
 // ToolClass categorises tools by risk level. Only ReadOnly tools are wired in by default.
@@ -72,12 +73,35 @@ type Registry struct {
 	executions   map[string]*Execution
 	workerPool   chan struct{}
 	outputCapB   int
+	guardMgr     *toolguard.Manager
 	mu           sync.RWMutex
 	execMu       sync.RWMutex
 }
 
 // NewRegistry creates a tool registry and pre-registers built-in recon tools.
+// guardCfg is the toolguard policy; pass nil to use the default government-domain rule.
+func NewRegistryWithGuard(cfg *config.MCPConfig, guardCfg *toolguard.Config, logger *zap.Logger) *Registry {
+	var gc toolguard.Config
+	if guardCfg != nil {
+		gc = *guardCfg
+	} else {
+		gc = toolguard.DefaultConfig()
+	}
+	mgr, err := toolguard.NewManager(gc)
+	if err != nil {
+		logger.Warn("toolguard: failed to compile policy, using default", zap.Error(err))
+		defCfg := toolguard.DefaultConfig()
+		mgr, _ = toolguard.NewManager(defCfg)
+	}
+	return newRegistry(cfg, mgr, logger)
+}
+
+// NewRegistry creates a tool registry with the default toolguard policy.
 func NewRegistry(cfg *config.MCPConfig, logger *zap.Logger) *Registry {
+	return NewRegistryWithGuard(cfg, nil, logger)
+}
+
+func newRegistry(cfg *config.MCPConfig, guardMgr *toolguard.Manager, logger *zap.Logger) *Registry {
 	poolSize := cfg.WorkerPoolSize
 	if poolSize <= 0 {
 		poolSize = 4
@@ -95,6 +119,7 @@ func NewRegistry(cfg *config.MCPConfig, logger *zap.Logger) *Registry {
 		executions: make(map[string]*Execution),
 		workerPool: make(chan struct{}, poolSize),
 		outputCapB: capB,
+		guardMgr:   guardMgr,
 	}
 
 	// Pre-fill the worker pool semaphore.
@@ -175,6 +200,18 @@ func (r *Registry) Execute(ctx context.Context, toolName string, args map[string
 	// Only read-only tools are allowed by default guards.
 	if def.Class == ToolClassDestructive {
 		return nil, errors.New("destructive tools are not enabled in this deployment")
+	}
+
+	// ToolGuard: check configured blocking rules (e.g. government domains).
+	if r.guardMgr != nil {
+		if m := r.guardMgr.Check(toolName, args); m != nil {
+			r.logger.Warn("toolguard blocked tool call",
+				zap.String("tool", toolName),
+				zap.String("rule", m.RuleID),
+				zap.String("matched", m.MatchedText),
+			)
+			return nil, fmt.Errorf("blocked by security rule %q: %s", m.RuleID, m.Message)
+		}
 	}
 
 	// Acquire a worker pool slot.

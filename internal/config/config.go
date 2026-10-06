@@ -8,22 +8,25 @@ import (
 	"strings"
 
 	"gopkg.in/yaml.v3"
+	"kestrel/internal/toolguard"
 )
 
 // Config is the root configuration structure.
 type Config struct {
-	Version  string         `yaml:"version,omitempty"`
-	Server   ServerConfig   `yaml:"server"`
-	Auth     AuthConfig     `yaml:"auth"`
-	Log      LogConfig      `yaml:"log"`
-	Database DatabaseConfig `yaml:"database"`
-	Audit    AuditConfig    `yaml:"audit"`
-	AI       AIConfig       `yaml:"ai"`
-	Agent    AgentConfig    `yaml:"agent"`
-	MCP      MCPConfig      `yaml:"mcp"`
-	HITL     HITLConfig     `yaml:"hitl"`
-	Knowledge KnowledgeConfig `yaml:"knowledge"`
-	RolesDir string         `yaml:"roles_dir"`
+	Version   string           `yaml:"version,omitempty"`
+	Server    ServerConfig     `yaml:"server"`
+	Auth      AuthConfig       `yaml:"auth"`
+	Log       LogConfig        `yaml:"log"`
+	Database  DatabaseConfig   `yaml:"database"`
+	Audit     AuditConfig      `yaml:"audit"`
+	AI        AIConfig         `yaml:"ai"`
+	Agent     AgentConfig      `yaml:"agent"`
+	MCP       MCPConfig        `yaml:"mcp"`
+	HITL      HITLConfig       `yaml:"hitl"`
+	Knowledge KnowledgeConfig  `yaml:"knowledge"`
+	ToolGuard *toolguard.Config `yaml:"tool_guard,omitempty"`
+	RateLimit RateLimitConfig  `yaml:"rate_limit"`
+	RolesDir  string           `yaml:"roles_dir"`
 }
 
 // ServerConfig holds HTTP/HTTPS server settings.
@@ -35,6 +38,12 @@ type ServerConfig struct {
 	TLSCertPath     string   `yaml:"tls_cert_path"`
 	TLSKeyPath      string   `yaml:"tls_key_path"`
 	CORSOrigins     []string `yaml:"cors_allowed_origins"`
+}
+
+// RateLimitConfig holds brute-force protection settings.
+type RateLimitConfig struct {
+	LoginMaxAttempts int `yaml:"login_max_attempts"` // max per window
+	LoginWindowSecs  int `yaml:"login_window_secs"`  // rolling window length
 }
 
 // AuthConfig holds authentication settings.
@@ -120,6 +129,15 @@ type KnowledgeConfig struct {
 	TopK            int    `yaml:"top_k"`
 }
 
+// EffectiveToolGuard returns the active ToolGuard config, defaulting to the
+// conservative government-domain rule when no explicit config is present.
+func (c *Config) EffectiveToolGuard() toolguard.Config {
+	if c.ToolGuard == nil {
+		return toolguard.DefaultConfig()
+	}
+	return *c.ToolGuard
+}
+
 // Load reads and parses a YAML config file, expanding ${ENV_VAR} references.
 func Load(path string) (*Config, error) {
 	data, err := os.ReadFile(path)
@@ -181,6 +199,10 @@ func defaults() *Config {
 			TopK:         5,
 		},
 		RolesDir: "roles",
+		RateLimit: RateLimitConfig{
+			LoginMaxAttempts: 10,
+			LoginWindowSecs:  60,
+		},
 	}
 }
 

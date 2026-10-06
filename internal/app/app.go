@@ -64,8 +64,9 @@ func New(cfg *config.Config, logger *zap.Logger) (*App, error) {
 		return nil, fmt.Errorf("seeding system roles: %w", err)
 	}
 
-	// Build MCP registry with built-in recon tools.
-	registry := mcp.NewRegistry(&cfg.MCP, logger)
+	// Compile the toolguard policy from config (defaults to government-domain rule).
+	tgCfg := cfg.EffectiveToolGuard()
+	registry := mcp.NewRegistryWithGuard(&cfg.MCP, &tgCfg, logger)
 
 	// Build knowledge service.
 	kb := knowledge.New(&cfg.Knowledge, db, logger)
@@ -90,6 +91,8 @@ func New(cfg *config.Config, logger *zap.Logger) (*App, error) {
 	}
 	router := gin.New()
 	router.Use(gin.Recovery())
+	router.Use(middleware.SecurityHeaders())
+	router.Use(middleware.CORS(cfg.Server.CORSOrigins))
 
 	a := &App{
 		cfg:      cfg,
@@ -150,6 +153,12 @@ func (a *App) Serve(ctx context.Context) error {
 
 // registerRoutes wires all API routes onto the Gin engine.
 func (a *App) registerRoutes() {
+	// Rate limiter for login endpoint.
+	loginRL := middleware.NewRateLimiter(
+		a.cfg.RateLimit.LoginMaxAttempts,
+		a.cfg.RateLimit.LoginWindowSecs,
+	)
+
 	// Handlers.
 	authH    := handler.NewAuthHandler(a.auth, a.db)
 	userH    := handler.NewUserHandler(a.db)
@@ -181,7 +190,7 @@ func (a *App) registerRoutes() {
 
 	// Public endpoints.
 	api.GET("/system/info", agentH.SystemInfo)
-	api.POST("/auth/login", authH.Login)
+	api.POST("/auth/login", middleware.LoginRateLimit(loginRL), authH.Login)
 
 	// Authenticated endpoints.
 	authed := api.Group("/")
