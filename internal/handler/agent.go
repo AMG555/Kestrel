@@ -37,6 +37,8 @@ func NewAgentHandler(runner *agent.Runner, db *database.DB, registry *mcp.Regist
 type runRequest struct {
 	Intent       string          `json:"intent" binding:"required"`
 	SessionID    string          `json:"session_id"`
+	ProjectID    string          `json:"project_id"`
+	Title        string          `json:"title"`
 	Mode         string          `json:"mode"`
 	HITLMode     string          `json:"hitl_mode"`
 	AllowedTools []string        `json:"allowed_tools"`
@@ -62,6 +64,8 @@ func (h *AgentHandler) Run(c *gin.Context) {
 	params := agent.RunParams{
 		SessionID:    sessionID,
 		UserID:       uid,
+		ProjectID:    req.ProjectID,
+		Title:        req.Title,
 		Intent:       req.Intent,
 		History:      req.History,
 		Mode:         agent.Mode(req.Mode),
@@ -113,6 +117,8 @@ func (h *AgentHandler) RunStream(c *gin.Context) {
 		params := agent.RunParams{
 			SessionID:    sessionID,
 			UserID:       uid,
+			ProjectID:    req.ProjectID,
+			Title:        req.Title,
 			Intent:       req.Intent,
 			History:      req.History,
 			Mode:         agent.Mode(req.Mode),
@@ -180,17 +186,48 @@ func (h *AgentHandler) DashboardStats(c *gin.Context) {
 	tools := h.registry.ListTools()
 
 	var toolExecCount, assetCount, vulnCount, sessionCount int
+	var projectCount, hitlPending, criticalVulns, highVulns int
 	_ = h.db.QueryRow(`SELECT COUNT(*) FROM tool_executions`).Scan(&toolExecCount)
 	_ = h.db.QueryRow(`SELECT COUNT(*) FROM assets`).Scan(&assetCount)
 	_ = h.db.QueryRow(`SELECT COUNT(*) FROM vulnerabilities`).Scan(&vulnCount)
 	_ = h.db.QueryRow(`SELECT COUNT(*) FROM agent_sessions`).Scan(&sessionCount)
+	_ = h.db.QueryRow(`SELECT COUNT(*) FROM projects`).Scan(&projectCount)
+	_ = h.db.QueryRow(`SELECT COUNT(*) FROM hitl_pending WHERE status='pending'`).Scan(&hitlPending)
+	_ = h.db.QueryRow(`SELECT COUNT(*) FROM vulnerabilities WHERE severity='critical' AND status='open'`).Scan(&criticalVulns)
+	_ = h.db.QueryRow(`SELECT COUNT(*) FROM vulnerabilities WHERE severity='high' AND status='open'`).Scan(&highVulns)
+
+	// Recent tool execution trend (last 7 days by day).
+	trendRows, _ := h.db.Query(`
+		SELECT date(started_at) as day, COUNT(*) as count
+		FROM tool_executions
+		WHERE started_at >= date('now','-7 days')
+		GROUP BY day ORDER BY day`)
+	type trend struct {
+		Day   string `json:"day"`
+		Count int    `json:"count"`
+	}
+	var toolTrend []trend
+	if trendRows != nil {
+		defer trendRows.Close()
+		for trendRows.Next() {
+			var t trend
+			if err := trendRows.Scan(&t.Day, &t.Count); err == nil {
+				toolTrend = append(toolTrend, t)
+			}
+		}
+	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"tools_available": len(tools),
-		"tool_executions": toolExecCount,
-		"assets":          assetCount,
-		"vulnerabilities": vulnCount,
-		"agent_sessions":  sessionCount,
+		"tools_available":  len(tools),
+		"tool_executions":  toolExecCount,
+		"assets":           assetCount,
+		"vulnerabilities":  vulnCount,
+		"agent_sessions":   sessionCount,
+		"projects":         projectCount,
+		"hitl_pending":     hitlPending,
+		"critical_vulns":   criticalVulns,
+		"high_vulns":       highVulns,
+		"tool_exec_trend":  toolTrend,
 	})
 }
 

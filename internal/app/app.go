@@ -164,8 +164,9 @@ func (a *App) registerRoutes() {
 	hitlH    := handler.NewHITLHandler(a.db)
 	convH    := handler.NewConversationHandler(a.db)
 	mcpSrvH  := handler.NewMCPServerHandler(a.db)
-	workflowH := handler.NewWorkflowHandler(a.db, a.workflow, a.logger)
-	reportH   := handler.NewReportHandler(report.NewGenerator(a.db))
+	workflowH  := handler.NewWorkflowHandler(a.db, a.workflow, a.logger)
+	reportH    := handler.NewReportHandler(report.NewGenerator(a.db))
+	sessionH   := handler.NewSessionHandler(a.db)
 
 	// Disclaimer / consent check on all routes.
 	a.router.Use(middleware.AuditContext())
@@ -278,6 +279,15 @@ func (a *App) registerRoutes() {
 	authed.POST("/mcp/servers", mcpSrvH.UpsertMCPServer)
 	authed.DELETE("/mcp/servers/:id", mcpSrvH.DeleteMCPServer)
 	authed.POST("/mcp/servers/:id/reset-circuit", mcpSrvH.ResetCircuit)
+
+	// Agent sessions.
+	authed.GET("/sessions", sessionH.ListSessions)
+	authed.GET("/sessions/:id", sessionH.GetSession)
+	authed.PATCH("/sessions/:id", sessionH.UpdateSession)
+	authed.DELETE("/sessions/:id", sessionH.DeleteSession)
+
+	// Tool executions.
+	authed.GET("/tool-executions", sessionH.ListToolExecutions)
 
 	// Workflows.
 	authed.GET("/workflows", workflowH.ListWorkflows)

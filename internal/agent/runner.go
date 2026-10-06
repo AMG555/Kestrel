@@ -49,6 +49,8 @@ type RunParams struct {
 	SessionID    string
 	UserID       string
 	RoleID       string
+	ProjectID    string
+	Title        string
 	Intent       string
 	History      []Message
 	Mode         Mode
@@ -89,7 +91,7 @@ func NewRunner(cfg *config.AgentConfig, db *database.DB, registry *mcp.Registry,
 }
 
 // Run executes the agent loop and sends step events to the events channel (if non-nil).
-// It persists tool executions and messages to the database.
+// It persists a session record, tool executions and messages to the database.
 func (r *Runner) Run(ctx context.Context, params RunParams, events chan<- StepEvent) (*RunResult, error) {
 	maxIter := params.MaxIter
 	if maxIter <= 0 {
@@ -99,6 +101,31 @@ func (r *Runner) Run(ctx context.Context, params RunParams, events chan<- StepEv
 	result := &RunResult{SessionID: params.SessionID}
 	history := make([]Message, len(params.History))
 	copy(history, params.History)
+
+	// Create or update the agent session record.
+	title := params.Title
+	if title == "" {
+		title = params.Intent
+		if len(title) > 80 {
+			title = title[:80] + "…"
+		}
+	}
+	sess, err := r.db.CreateAgentSession(&database.AgentSession{
+		ID:        params.SessionID,
+		ProjectID: params.ProjectID,
+		UserID:    params.UserID,
+		RoleID:    params.RoleID,
+		Title:     title,
+		AgentMode: string(params.Mode),
+		Status:    "active",
+		HITLMode:  params.HITLMode,
+	})
+	if err != nil {
+		r.logger.Warn("failed to create agent session record", zap.Error(err))
+	} else {
+		params.SessionID = sess.ID
+		result.SessionID = sess.ID
+	}
 
 	// Persist user message.
 	if err := r.persistMessage(params.SessionID, "user", params.Intent, ""); err != nil {
@@ -114,14 +141,24 @@ func (r *Runner) Run(ctx context.Context, params RunParams, events chan<- StepEv
 		}
 	}
 
+	var runErr error
 	switch params.Mode {
 	case ModePlanExecute:
-		return r.runPlanExecute(ctx, params, history, result, maxIter, emit)
+		result, runErr = r.runPlanExecute(ctx, params, history, result, maxIter, emit)
 	case ModeSupervisor:
-		return r.runSupervisor(ctx, params, history, result, maxIter, emit)
+		result, runErr = r.runSupervisor(ctx, params, history, result, maxIter, emit)
 	default:
-		return r.runSingle(ctx, params, history, result, maxIter, emit)
+		result, runErr = r.runSingle(ctx, params, history, result, maxIter, emit)
 	}
+
+	// Update session status on completion.
+	finalStatus := "completed"
+	if runErr != nil {
+		finalStatus = "failed"
+	}
+	_ = r.db.UpdateAgentSession(params.SessionID, "", finalStatus, nil)
+
+	return result, runErr
 }
 
 // runSingle implements the ReAct loop: think → act → observe → repeat.
