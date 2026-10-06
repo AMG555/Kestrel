@@ -77,6 +77,15 @@ export const api = {
   // Agent
   runAgent:       (d)     => request('POST', '/agent/run', d),
 
+  // Agent sessions
+  listSessions:        (q)       => request('GET',   `/sessions?${new URLSearchParams(q || {})}`),
+  getSession:          (id)      => request('GET',   `/sessions/${id}`),
+  updateSession:       (id, d)   => request('PATCH', `/sessions/${id}`, d),
+  deleteSession:       (id)      => request('DELETE',`/sessions/${id}`),
+
+  // Tool executions
+  listToolExecutions:  (q)       => request('GET',   `/tool-executions?${new URLSearchParams(q || {})}`),
+
   // Projects
   listProjects:        (q)           => request('GET',    `/projects?${new URLSearchParams(q || {})}`),
   createProject:       (d)           => request('POST',   '/projects', d),
