@@ -246,7 +246,7 @@ func TestLoginRateLimitEnforced(t *testing.T) {
 
 func TestChangePasswordSuccess(t *testing.T) {
 	router, db, svc := setupAuthRouter(t)
-	hash, _ := auth.HashPassword("OldPass1!")
+	hash, _ := auth.HashPassword("OldP@ssw0rd!99")
 	user, _ := db.CreateUser("changeuser", hash, "", "")
 
 	db.Exec(`INSERT INTO sessions (id,user_id,token_hash,created_at,expires_at,last_seen_at)
@@ -255,7 +255,7 @@ func TestChangePasswordSuccess(t *testing.T) {
 
 	token := makeToken(t, svc, user.ID)
 	w := do(t, router, "POST", "/api/auth/change-password",
-		`{"current_password":"OldPass1!","new_password":"NewPass2@"}`, token)
+		`{"current_password":"OldP@ssw0rd!99","new_password":"N3wP@ssw0rd!99"}`, token)
 	if w.Code != http.StatusOK {
 		t.Errorf("change-password status = %d, body = %s", w.Code, w.Body.String())
 	}
@@ -263,7 +263,7 @@ func TestChangePasswordSuccess(t *testing.T) {
 
 func TestChangePasswordWrongCurrent(t *testing.T) {
 	router, db, svc := setupAuthRouter(t)
-	hash, _ := auth.HashPassword("RealPass1!")
+	hash, _ := auth.HashPassword("R3alP@ssw0rd!99")
 	user, _ := db.CreateUser("chguser2", hash, "", "")
 
 	db.Exec(`INSERT INTO sessions (id,user_id,token_hash,created_at,expires_at,last_seen_at)
@@ -272,7 +272,7 @@ func TestChangePasswordWrongCurrent(t *testing.T) {
 
 	token := makeToken(t, svc, user.ID)
 	w := do(t, router, "POST", "/api/auth/change-password",
-		`{"current_password":"WrongPass!","new_password":"NewPass2@"}`, token)
+		`{"current_password":"Wr0ngP@ss!99","new_password":"N3wP@ssw0rd!99"}`, token)
 	if w.Code != http.StatusUnauthorized && w.Code != http.StatusBadRequest {
 		t.Errorf("wrong current password status = %d, want 400 or 401", w.Code)
 	}

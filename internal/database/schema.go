@@ -72,6 +72,7 @@ func (db *DB) initSchema() error {
 			scope_json TEXT NOT NULL DEFAULT '[]',
 			status TEXT NOT NULL DEFAULT 'active',
 			owner_user_id TEXT NOT NULL DEFAULT '',
+			pinned INTEGER NOT NULL DEFAULT 0,
 			created_at DATETIME NOT NULL,
 			updated_at DATETIME NOT NULL
 		)`},
@@ -120,7 +121,7 @@ func (db *DB) initSchema() error {
 		{"sessions_agent", `CREATE TABLE IF NOT EXISTS agent_sessions (
 			id TEXT PRIMARY KEY,
 			project_id TEXT,
-			user_id TEXT NOT NULL,
+			user_id TEXT NOT NULL DEFAULT '',
 			role_id TEXT NOT NULL DEFAULT '',
 			title TEXT NOT NULL DEFAULT '',
 			agent_mode TEXT NOT NULL DEFAULT 'single',
@@ -129,8 +130,7 @@ func (db *DB) initSchema() error {
 			pinned INTEGER NOT NULL DEFAULT 0,
 			created_at DATETIME NOT NULL,
 			updated_at DATETIME NOT NULL,
-			FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL,
-			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+			FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL
 		)`},
 		{"messages", `CREATE TABLE IF NOT EXISTS messages (
 			id TEXT PRIMARY KEY,
