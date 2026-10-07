@@ -1,4 +1,4 @@
-﻿package workflow
+package workflow
 
 import (
 	"encoding/json"
@@ -43,7 +43,7 @@ type graphIndex struct {
 func parseGraph(raw string) (*graphDef, error) {
 	var g graphDef
 	if err := json.Unmarshal([]byte(strings.TrimSpace(raw)), &g); err != nil {
-		return nil, fmt.Errorf("解析工作流图失败: %w", err)
+		return nil, fmt.Errorf("解析workflow graphfailed: %w", err)
 	}
 	if len(g.Nodes) == 0 {
 		return nil, fmt.Errorf("工作流没有节点")

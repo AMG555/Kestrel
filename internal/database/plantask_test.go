@@ -1,4 +1,4 @@
-﻿package database
+package database
 
 import (
 	"os"
@@ -29,9 +29,9 @@ func TestListConversationPlanTasksSortedAndToleratesMissingDirectory(t *testing.
 		t.Fatalf("MkdirAll: %v", err)
 	}
 	files := map[string]string{
-		"10.json":  `{"id":"10","subject":"最后检查","status":"pending"}`,
-		"2.json":   `{"id":"2","subject":"实现接口","status":"in_progress","activeForm":"正在实现接口"}`,
-		"1.json":   `{"id":"1","subject":"梳理需求","status":"completed"}`,
+		"10.json":  `{"id":"10","subject":"final check","status":"pending"}`,
+		"2.json":   `{"id":"2","subject":"implement interface","status":"in_progress","activeForm":"implementing interface"}`,
+		"1.json":   `{"id":"1","subject":"analyze requirements","status":"completed"}`,
 		"bad.json": `{`,
 	}
 	for name, content := range files {
@@ -53,7 +53,7 @@ func TestListConversationPlanTasksSortedAndToleratesMissingDirectory(t *testing.
 	if tasks[0].ID != "1" || tasks[1].ID != "2" || tasks[2].ID != "10" {
 		t.Fatalf("task order = %q, %q, %q", tasks[0].ID, tasks[1].ID, tasks[2].ID)
 	}
-	if tasks[1].ActiveForm != "正在实现接口" {
+	if tasks[1].ActiveForm != "implementing interface" {
 		t.Fatalf("activeForm = %q", tasks[1].ActiveForm)
 	}
 }
@@ -73,7 +73,7 @@ func TestListConversationPlanTasksSinceHidesPreviousRunUntilTaskCreate(t *testin
 		t.Fatalf("MkdirAll: %v", err)
 	}
 	oldPath := filepath.Join(dir, "1.json")
-	if err := os.WriteFile(oldPath, []byte(`{"id":"1","subject":"上一轮任务","status":"in_progress"}`), 0o644); err != nil {
+	if err := os.WriteFile(oldPath, []byte(`{"id":"1","subject":"previous round task","status":"in_progress"}`), 0o644); err != nil {
 		t.Fatalf("WriteFile(old): %v", err)
 	}
 	runStartedAt := time.Now().Add(-time.Second)
@@ -91,7 +91,7 @@ func TestListConversationPlanTasksSinceHidesPreviousRunUntilTaskCreate(t *testin
 	}
 
 	newPath := filepath.Join(dir, "2.json")
-	if err := os.WriteFile(newPath, []byte(`{"id":"2","subject":"本轮任务","status":"pending"}`), 0o644); err != nil {
+	if err := os.WriteFile(newPath, []byte(`{"id":"2","subject":"current round task","status":"pending"}`), 0o644); err != nil {
 		t.Fatalf("WriteFile(new): %v", err)
 	}
 	tasks, err = db.ListConversationPlanTasksSince("conversation-current-run", runStartedAt)

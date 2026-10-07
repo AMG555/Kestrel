@@ -1,4 +1,4 @@
-﻿package multiagent
+package multiagent
 
 import (
 	"context"
@@ -15,7 +15,7 @@ import (
 // --- buildUserContextSupplement tests ---
 
 func TestBuildUserContextSupplement_SingleMessage(t *testing.T) {
-	result := buildUserContextSupplement("http://8.163.32.73:8081 测试命令执行", nil, 0)
+	result := buildUserContextSupplement("http://8.163.32.73:8081 testCommand execution", nil, 0)
 	if result == "" {
 		t.Fatal("expected non-empty supplement")
 	}
@@ -26,10 +26,10 @@ func TestBuildUserContextSupplement_SingleMessage(t *testing.T) {
 
 func TestBuildUserContextSupplement_MultiTurn(t *testing.T) {
 	history := []agent.ChatMessage{
-		{Role: "user", Content: "http://8.163.32.73:8081 这是一个pikachu靶场，尝试测试命令执行"},
-		{Role: "assistant", Content: "好的，我来测试..."},
-		{Role: "user", Content: "继续，并持久化webshell"},
-		{Role: "assistant", Content: "正在处理..."},
+		{Role: "user", Content: "http://8.163.32.73:8081 这yes一个pikachu靶场，尝试testCommand execution"},
+		{Role: "assistant", Content: "好的，我来test..."},
+		{Role: "user", Content: "continue，并persistencewebshell"},
+		{Role: "assistant", Content: "processing..."},
 	}
 	result := buildUserContextSupplement("你好", history, 0)
 	if !strings.Contains(result, "http://8.163.32.73:8081") {
@@ -56,10 +56,10 @@ func TestBuildUserContextSupplement_Deduplicate(t *testing.T) {
 
 func TestBuildUserContextSupplement_SkipsNonUser(t *testing.T) {
 	history := []agent.ChatMessage{
-		{Role: "user", Content: "目标是 10.0.0.1"},
+		{Role: "user", Content: "目标yes 10.0.0.1"},
 		{Role: "assistant", Content: "不应该出现"},
 	}
-	result := buildUserContextSupplement("确认", history, 0)
+	result := buildUserContextSupplement("confirm", history, 0)
 	if strings.Contains(result, "不应该出现") {
 		t.Error("assistant message should not be included")
 	}
@@ -102,7 +102,7 @@ func TestBuildUserContextSupplement_TruncateKeepsFirstAndLast(t *testing.T) {
 
 func TestTaskContextEnrichMiddleware_EnrichesTaskDescription(t *testing.T) {
 	mw := newTaskContextEnrichMiddleware(
-		"继续测试",
+		"continuetest",
 		[]agent.ChatMessage{{Role: "user", Content: "http://8.163.32.73:8081 pikachu靶场"}},
 		0,
 		"",
@@ -126,7 +126,7 @@ func TestTaskContextEnrichMiddleware_EnrichesTaskDescription(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	taskArgs := `{"subagent_type":"recon","description":"扫描目标端口"}`
+	taskArgs := `{"subagent_type":"recon","description":"scan目标port"}`
 	wrapped(context.Background(), taskArgs)
 
 	if !called {
@@ -138,13 +138,13 @@ func TestTaskContextEnrichMiddleware_EnrichesTaskDescription(t *testing.T) {
 		t.Fatalf("enriched args not valid JSON: %v", err)
 	}
 	desc := parsed["description"].(string)
-	if !strings.Contains(desc, "扫描目标端口") {
+	if !strings.Contains(desc, "scan目标port") {
 		t.Error("original description should be preserved")
 	}
 	if !strings.Contains(desc, "http://8.163.32.73:8081") {
 		t.Error("user context should be appended to description")
 	}
-	if !strings.Contains(desc, "继续测试") {
+	if !strings.Contains(desc, "continuetest") {
 		t.Error("current user message should be in description")
 	}
 }

@@ -2,8 +2,8 @@
 
 import "sync"
 
-// TaskEventBus 将主 SSE 连接上的事件镜像给后订阅的客户端（例如刷新页面后、HITL 审批通过需继续收事件）。
-// 每个 payload 为完整 SSE 行： "data: {...}\n\n"
+// TaskEventBus mirrors events from the main SSE connection to later-subscribing clients (e.g. after page refresh, or when HITL approval is granted and the client needs to continue receiving events).
+// Each payload is a complete SSE line: "data: {...}\n\n".
 type TaskEventBus struct {
 	mu   sync.RWMutex
 	subs map[string]map[*taskEventSub]struct{}
@@ -51,7 +51,7 @@ func NewTaskEventBus() *TaskEventBus {
 	}
 }
 
-// Subscribe 注册订阅；cancel 时需调用 Unsubscribe。
+// Subscribe registers a subscription; call Unsubscribe when cancelling.
 func (b *TaskEventBus) Subscribe(conversationID string) (sub *taskEventSub, ch <-chan []byte) {
 	chBuf := make(chan []byte, 256)
 	sub = &taskEventSub{ch: chBuf}
@@ -82,7 +82,7 @@ func (b *TaskEventBus) Unsubscribe(conversationID string, sub *taskEventSub) {
 	sub.closeOnce()
 }
 
-// Publish 非阻塞投递；慢消费者丢帧（HITL 场景以最新状态为准，丢帧可接受）。
+// Publish delivers non-blocking; slow consumers may drop frames (HITL scenarios use the latest status, so dropped frames are acceptable).
 func (b *TaskEventBus) Publish(conversationID string, line []byte) {
 	if b == nil || conversationID == "" || len(line) == 0 {
 		return
@@ -101,7 +101,7 @@ func (b *TaskEventBus) Publish(conversationID string, line []byte) {
 	}
 }
 
-// CloseConversation 任务结束时关闭该会话所有订阅 channel。
+// CloseConversation closes all subscription channels for a conversation when the task ends.
 func (b *TaskEventBus) CloseConversation(conversationID string) {
 	if b == nil || conversationID == "" {
 		return

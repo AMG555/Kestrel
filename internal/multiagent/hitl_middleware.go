@@ -1,4 +1,4 @@
-﻿package multiagent
+package multiagent
 
 import (
 	"context"
@@ -43,7 +43,7 @@ func WithHITLToolInterceptor(ctx context.Context, fn HITLToolInterceptor) contex
 }
 
 // hitlToolCallMiddleware 同时注册 Invokable 与 Streamable。
-// Eino filesystem 的 execute 为流式工具（StreamableTool），仅挂 Invokable 时人机协同不会拦截，会直接执行。
+// Eino filesystem 的 execute 为流式tool（StreamableTool），仅挂 Invokable 时人机协同不会拦截，会直接执行。
 func hitlToolCallMiddleware() compose.ToolMiddleware {
 	return compose.ToolMiddleware{
 		Invokable:  hitlInvokableToolCallMiddleware(),
@@ -107,11 +107,11 @@ func hitlInvokableToolCallMiddleware() compose.InvokableToolMiddleware {
 					if err != nil {
 						if IsHumanRejectError(err) {
 							// Human rejection should be a soft tool result so the model can continue iterating.
-							// tool_search 须保持 JSON，否则 Eino toolsearch 中间件解析历史时会硬崩 ChatModel。
+							// tool_search 须保持 JSON，no则 Eino toolsearch 中间件解析历史时会硬崩 ChatModel。
 							msg := HitlRejectToolResult(input.Name, err.Error())
-							// transfer_to_agent 在 Eino 中标记为 returnDirectly：工具成功后 ReAct 子图会直接 END，
-							// 并依赖真实工具内的 SendToolGenAction 触发移交。HITL 拒绝时不会执行真实工具，
-							// 若仍走 returnDirectly 分支，监督者会在无 Transfer 动作的情况下结束，模型不再迭代。
+							// transfer_to_agent 在 Eino 中标记为 returnDirectly：toolsuccessful后 ReAct 子图会直接 END，
+							// 并依赖true实tool内的 SendToolGenAction 触发移交。HITL 拒绝时不会执行true实tool，
+							// 若仍走 returnDirectly 分支，监督者会在none Transfer 动作的情况下结束，model不再迭代。
 							hitlClearReturnDirectlyIfTransfer(ctx, input.Name)
 							return &compose.ToolOutput{Result: msg}, nil
 						}

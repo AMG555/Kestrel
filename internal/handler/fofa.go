@@ -30,7 +30,7 @@ type FofaHandler struct {
 }
 
 func NewFofaHandler(cfg *config.Config, logger *zap.Logger) *FofaHandler {
-	// LLM 请求通常比 FOFA 查询更慢一点，单独给一个更宽松的超时。
+	// LLM requests are usually slightly slower than FOFA queries; use a more lenient timeout for them.
 	llmHTTPClient := &http.Client{Timeout: 2 * time.Minute}
 	var llmCfg *config.OpenAIConfig
 	if cfg != nil {
@@ -149,7 +149,7 @@ func defaultFieldsForProvider(provider string) string {
 }
 
 func (h *FofaHandler) resolveAPIKey(provider string) string {
-	// 优先环境变量（便于容器部署），其次配置文件。
+	// Prefer environment variables (for container deployments) over configuration file.
 	provider = normalizeSpaceSearchProvider(provider)
 	envKey := map[string]string{
 		"fofa":    "FOFA_API_KEY",
@@ -223,50 +223,50 @@ func canonicalizeSpaceSearchBaseURL(provider, raw string) string {
 	return v
 }
 
-// ParseNaturalLanguage 将自然语言解析为 FOFA 查询语法（仅生成，不执行查询）
+// ParseNaturalLanguage parses natural language into FOFA query syntax (generation only, no query execution)
 func (h *FofaHandler) ParseNaturalLanguage(c *gin.Context) {
 	var req fofaParseRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数: " + err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request parameters: " + err.Error()})
 		return
 	}
 	req.Text = strings.TrimSpace(req.Text)
 	provider := normalizeSpaceSearchProvider(req.Provider)
 	if provider == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "provider 不支持，可选：fofa、zoomeye、quake、shodan"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "unsupported provider; options: fofa, zoomeye, quake, shodan"})
 		return
 	}
 	if req.Text == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "text 不能为空"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "text cannot be empty"})
 		return
 	}
 
 	if h.cfg == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "系统配置未初始化"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "system config is not initialized"})
 		return
 	}
 	if strings.TrimSpace(h.cfg.OpenAI.APIKey) == "" || strings.TrimSpace(h.cfg.OpenAI.Model) == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "未配置 AI 模型：请在系统设置中填写 openai.api_key 与 openai.model（支持 OpenAI 兼容 API，如 DeepSeek）",
+			"error": "AI model not configured: please fill in openai.api_key and openai.model in system settings (supports OpenAI-compatible APIs, e.g. DeepSeek)",
 			"need":  []string{"openai.api_key", "openai.model"},
 		})
 		return
 	}
 	if h.openAIClient == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "AI 客户端未初始化"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "AI client is not initialized"})
 		return
 	}
 
 	engineName := providerDisplayName(provider)
 	syntaxNotes := map[string]string{
 		"fofa": `
-FOFA 官方查询语法参考：
-- 基本格式：field="value"，字符串值使用英文双引号；多个条件用 &&（与）、||（或）、!（非）连接。
-- 组合优先级：复杂表达式必须使用 () 明确优先级，例如：(app="Apache" || app="nginx") && country="CN"。
-- 常用字段：app、title、body、header、host、domain、ip、port、protocol、country、province、city、server、icp、cert、icon_hash、fid。
-- 字段示例：
+FOFA official query syntax reference:
+- Basic format: field="value"; use double quotes for string values; multiple conditions joined with && (AND), || (OR), ! (NOT).
+- Combination precedence: complex expressions must use () to clarify precedence, e.g.: (app="Apache" || app="nginx") && country="CN".
+- Common fields: app, title, body, header, host, domain, ip, port, protocol, country, province, city, server, icp, cert, icon_hash, fid.
+- Field examples:
   - app="Apache"
-  - title="后台管理"
+  - title="admin panel"
   - body="Powered by"
   - header="JSESSIONID"
   - domain="example.com"
@@ -277,27 +277,27 @@ FOFA 官方查询语法参考：
   - city="Hangzhou"
   - cert="example.com"
   - icon_hash="-247388890"
-- 组合示例：
+- Combination examples:
   - app="Apache" && country="CN"
-  - title="login" || title="登录"
+  - title="login" || title="sign in"
   - (app="Apache" || app="nginx") && port="443"
   - domain="example.com" && !title="404"
   - cert="example.com" && port="443"
   - header="JSESSIONID" && country="CN"
-- 生成注意：
-  - 用户说“排除/不要/非”时优先使用 !field="value"。
-  - 用户说“标题包含/页面标题”映射为 title；说“正文包含/页面包含”映射为 body；说“响应头/cookie/header”映射为 header。
-  - 端口在 FOFA 中通常写成 port="443"。
+- Generation notes:
+  - When the user says "exclude/not/no", prefer !field="value".
+  - Map "title contains / page title" to title; "body contains / page contains" to body; "response header / cookie / header" to header.
+  - port in FOFA is typically written as port="443".
 `,
 		"zoomeye": `
-ZoomEye 查询语法参考：
-- 基本格式：field="value" 或 field=value；字符串/短语建议使用英文双引号。
-- 逻辑连接：可使用 && / || / !，也可使用 AND / OR / NOT；复杂表达式使用 () 明确优先级。
-- 常用字段：app、service、title、domain、hostname、ip、port、country、city、org、isp、asn、cidr、ssl、ssl.cert.fingerprint、iconhash。
-- 字段示例：
+ZoomEye query syntax reference:
+- Basic format: field="value" or field=value; use double quotes for strings/phrases.
+- Logical operators: && / || / ! or AND / OR / NOT; use () for complex expressions.
+- Common fields: app, service, title, domain, hostname, ip, port, country, city, org, isp, asn, cidr, ssl, ssl.cert.fingerprint, iconhash.
+- Field examples:
   - app="Apache"
   - service="ssh"
-  - title="登录"
+  - title="login"
   - domain="example.com"
   - hostname="example.com"
   - ip="1.1.1.1"
@@ -309,53 +309,53 @@ ZoomEye 查询语法参考：
   - ssl="example.com"
   - ssl.cert.fingerprint="F3C98F223D82CC41CF83D94671CCC6C69873FABF"
   - iconhash="-247388890"
-- 组合示例：
+- Combination examples:
   - app="nginx" && country="CN"
-  - service="http" && (title="login" || title="登录")
+  - service="http" && (title="login" || title="login page")
   - domain="example.com" && !app="cloudflare"
   - port=443 && country="US"
   - app="Elasticsearch" && port=9200
-- 生成注意：
-  - 用户说“服务/协议是 SSH、HTTP、RDP”优先映射为 service。
-  - 用户说“站点/网站标题”映射为 title；说“域名/主域”优先映射为 domain 或 hostname。
-  - 端口可以不加引号，例如 port=443；如果用户原文已给出冒号风格表达式且接近 ZoomEye 语法，可原样保留。
+- Generation notes:
+  - When the user says "service/protocol is SSH, HTTP, RDP", prefer mapping to service.
+  - Map "site/website title" to title; "domain/root domain" preferably to domain or hostname.
+  - port can be unquoted, e.g. port=443; if the user's input is already in colon-style close to ZoomEye syntax, keep it as-is.
 `,
 		"quake": `
-Quake 查询语法参考：
-- 基本格式：field:"value" 或 field:value；字符串/中文/短语使用英文双引号。
-- 逻辑连接：使用 AND、OR、NOT；复杂表达式必须使用 () 明确优先级。
-- 常用字段：domain、ip、port、service.name、service.http.title、service.http.server、service.http.response.header、service.http.favicon.hash、country_cn、province_cn、city_cn、location.country_cn、location.province_cn、location.city_cn、asn、org。
-- 字段示例：
+Quake query syntax reference:
+- Basic format: field:"value" or field:value; use double quotes for strings/phrases.
+- Logical operators: AND, OR, NOT; use () to clarify precedence for complex expressions.
+- Common fields: domain, ip, port, service.name, service.http.title, service.http.server, service.http.response.header, service.http.favicon.hash, country_cn, province_cn, city_cn, location.country_cn, location.province_cn, location.city_cn, asn, org.
+- Field examples:
   - domain:"example.com"
   - ip:"1.1.1.1"
   - port:443
   - service.name:"http"
   - service.name:"ssh"
-  - service.http.title:"登录"
+  - service.http.title:"login"
   - service.http.server:"nginx"
   - service.http.response.header:"JSESSIONID"
   - service.http.favicon.hash:"-247388890"
-  - country_cn:"中国"
-  - province_cn:"浙江"
-  - city_cn:"杭州"
-- 组合示例：
-  - service.name:"http" AND country_cn:"中国"
+  - country_cn:"China"
+  - province_cn:"Zhejiang"
+  - city_cn:"Hangzhou"
+- Combination examples:
+  - service.name:"http" AND country_cn:"China"
   - (service.name:"http" OR service.name:"https") AND port:443
   - domain:"example.com" AND NOT service.http.title:"404"
   - service.http.title:"login" AND port:443
-  - service.name:"ssh" AND country_cn:"中国"
-- 生成注意：
-  - 用户说“中国/浙江/杭州”等中文地理位置时，Quake 优先使用 country_cn/province_cn/city_cn 并保留中文值。
-  - 用户说“标题”映射为 service.http.title；说“Server/服务端软件”映射为 service.http.server；说“favicon/hash/icon”映射为 service.http.favicon.hash。
-  - Quake 不使用 && / || 作为首选输出；优先输出 AND / OR / NOT。
+  - service.name:"ssh" AND country_cn:"China"
+- Generation notes:
+  - When the user says Chinese geographic locations like "China/Zhejiang/Hangzhou", Quake prefers country_cn/province_cn/city_cn and keeps the Chinese value.
+  - Map "title" to service.http.title; "Server/server software" to service.http.server; "favicon/hash/icon" to service.http.favicon.hash.
+  - Quake does not use && / || as preferred output; prefer AND / OR / NOT.
 `,
 		"shodan": `
-Shodan 官方查询语法参考：
-- 默认裸关键词只搜索 banner 的 data 内容；精确条件使用 filter:value。
-- filter 与 value 中间不能有空格；值包含空格时用英文双引号，例如 org:"Amazon Web Services"。
-- 多个过滤器并列表示同时满足（AND）；Shodan 查询不要使用 &&、||，除非用户明确给出并要求保留。
-- 常用过滤器：product、port、country、city、org、asn、hostname、net、ssl、ssl.cert.subject.cn、http.title、has_screenshot、vuln。
-- 字段示例：
+Shodan official query syntax reference:
+- Bare keywords search the banner data content by default; use filter:value for precise conditions.
+- No space between filter and value; use double quotes for values containing spaces, e.g. org:"Amazon Web Services".
+- Multiple filters listed together mean AND; do not use && or || in Shodan queries unless the user explicitly provides them and requests they be kept.
+- Common filters: product, port, country, city, org, asn, hostname, net, ssl, ssl.cert.subject.cn, http.title, has_screenshot, vuln.
+- Field examples:
   - product:nginx
   - port:443
   - country:CN
@@ -367,50 +367,50 @@ Shodan 官方查询语法参考：
   - http.title:"Dashboard"
   - has_screenshot:true
   - vuln:CVE-2021-41773
-- 组合示例：
+- Combination examples:
   - product:nginx country:CN
   - apache country:DE
   - org:"Amazon" port:443
   - ssl.cert.subject.cn:example.com port:443
   - http.title:"login" country:CN
   - ssl:true port:443 hostname:example.com
-- 生成注意：
-  - 用户说“产品/组件/服务软件”优先映射为 product；说“组织/公司/云厂商”映射为 org；说“证书 CN/SAN/域名证书”优先映射为 ssl.cert.subject.cn。
-  - 国家用两位国家代码；如果用户给出中文国家名且无法确定代码，把推断写入 explanation 或 warnings。
-  - Shodan 没有通用 NOT 排除语法；遇到“排除/不要”时应在 warnings 说明可能需要人工调整，不要强行编造过滤器。
+- Generation notes:
+  - Map "product/component/service software" to product; "organisation/company/cloud vendor" to org; "certificate CN/SAN/domain certificate" to ssl.cert.subject.cn.
+  - Use two-letter country codes; if the user gives a Chinese country name and the code cannot be determined, write the inference in explanation or warnings.
+  - Shodan has no general NOT exclusion syntax; when the user says "exclude/no", note in warnings that manual adjustment may be needed; do not fabricate filters.
 `,
 	}[provider]
 
 	systemPrompt := strings.TrimSpace(fmt.Sprintf(`
-你是“%s 查询语法生成器”。任务：把用户输入的自然语言搜索意图，转换成 %s 查询语法。
+You are a "%s query syntax generator". Task: convert the user's natural language search intent into %s query syntax.
 
-输出要求（非常重要）：
-1) 只输出 JSON（不要 markdown、不要代码块、不要额外解释文本）
-2) JSON 结构必须是：
+Output requirements (very important):
+1) Output JSON only (no markdown, no code blocks, no extra explanatory text)
+2) The JSON structure must be:
 {
-  "query": "string，%s 查询语法（可直接粘贴到 %s 或本系统查询框）",
-  "explanation": "string，可选，解释你如何映射字段/逻辑",
-  "warnings": ["string"...] 可选，列出歧义/风险/需要人工确认的点
+  "query": "string, %s query syntax (can be pasted directly into %s or this system's search box)",
+  "explanation": "string, optional, explain how you mapped fields/logic",
+  "warnings": ["string"...] optional, list ambiguities/risks/points requiring human confirmation
 }
-3) 如果用户输入本身已经是 %s 查询语法（或非常接近该语法的表达式），应当“原样返回”为 query：
-   - 不要擅自改写字段名、操作符、括号结构
-   - 不要改写任何字符串值（尤其是地理位置类值），不要做缩写/同义词替换/翻译/音译
+3) If the user's input is already %s query syntax (or very close to it), return it "as-is" as query:
+   - Do not rewrite field names, operators, or bracket structure
+   - Do not rewrite any string values (especially geographic values); do not abbreviate, substitute synonyms, translate, or transliterate
 
-当前搜索引擎语法速查：
+Current search engine syntax quick reference:
 %s
 
-通用生成约束：
-- 严格遵守“当前搜索引擎语法速查”里的字段名、操作符和示例风格；不同数据源语法不同，不要混用。
-- 字符串值保持用户原意：不要无依据缩写、翻译、音译、替换同义词或改写大小写。
-- 地理位置、组织名、产品名、域名、证书名、CVE 编号等实体值必须尽量保留原文；确需推断（如“中国”到 CN）时在 explanation 或 warnings 中说明。
-- 不要捏造字段。不确定字段是否支持时，选择更通用且确定的字段，或把不确定点写进 warnings。
-- 当用户描述里有多个与/或条件，必须使用该数据源支持的括号和逻辑操作符明确优先级。
-- 如果用户输入已经是当前数据源查询语法或非常接近，应原样返回；只在明显有语法错误且能确定修复方式时轻微修正，并在 explanation 说明。
-- 如果需求范围过大、关键目标缺失或语义矛盾，允许 query 为空字符串，并在 warnings 中明确需要补充的信息。
-- 只生成资产测绘/信息收集查询语法，不生成扫描、利用、爆破、绕过、命令执行或攻击步骤。
+General generation constraints:
+- Strictly follow the field names, operators, and example styles in the "current search engine syntax quick reference"; different data sources have different syntax — do not mix them.
+- Keep string values faithful to the user's intent: do not abbreviate, translate, transliterate, substitute synonyms, or change case without basis.
+- Entity values such as geographic locations, organisation names, product names, domain names, certificate names, and CVE numbers must be preserved as closely as possible; when inference is needed (e.g. "China" → CN), note it in explanation or warnings.
+- Do not fabricate fields. When a field is not confirmed to be supported, choose a more general confirmed field, or write the uncertainty into warnings.
+- When the user's description contains multiple AND/OR conditions, use the data source's supported brackets and logical operators to clarify precedence.
+- If the user's input is already the current data source query syntax or very close to it, return it as-is; only lightly correct it when there is an obvious syntax error and the fix is clear, and explain in explanation.
+- If the scope is too broad, key targets are missing, or the semantics are contradictory, allow query to be an empty string and clearly state what info needs to be supplemented in warnings.
+- Only generate asset mapping/information gathering query syntax; do not generate scanning, exploitation, brute-force, bypass, command execution, or attack steps.
 `, engineName, engineName, engineName, engineName, engineName, syntaxNotes))
 
-	userPrompt := fmt.Sprintf("自然语言意图：%s", req.Text)
+	userPrompt := fmt.Sprintf("Natural language intent: %s", req.Text)
 
 	requestBody := map[string]interface{}{
 		"model": h.cfg.OpenAI.Model,
@@ -422,7 +422,7 @@ Shodan 官方查询语法参考：
 		"max_completion_tokens": 12000,
 	}
 
-	// OpenAI 返回结构：只需要 choices[0].message.content
+	// OpenAI response structure: only choices[0].message.content is needed.
 	var apiResponse struct {
 		Choices []struct {
 			Message struct {
@@ -437,15 +437,15 @@ Shodan 官方查询语法参考：
 	if err := h.openAIClient.ChatCompletion(ctx, requestBody, &apiResponse); err != nil {
 		var apiErr *openaiClient.APIError
 		if errors.As(err, &apiErr) {
-			h.logger.Warn("FOFA自然语言解析：LLM返回错误", zap.Int("status", apiErr.StatusCode))
-			c.JSON(http.StatusBadGateway, gin.H{"error": "AI 解析失败（上游返回非 200），请检查模型配置或稍后重试"})
+			h.logger.Warn("FOFA natural language parse: LLM response error", zap.Int("status", apiErr.StatusCode))
+			c.JSON(http.StatusBadGateway, gin.H{"error": "AI parsing failed (upstream returned non-200), please check model config or try again later"})
 			return
 		}
-		c.JSON(http.StatusBadGateway, gin.H{"error": "AI 解析失败: " + err.Error()})
+		c.JSON(http.StatusBadGateway, gin.H{"error": "AI parsing failed: " + err.Error()})
 		return
 	}
 	if len(apiResponse.Choices) == 0 {
-		c.JSON(http.StatusBadGateway, gin.H{"error": "AI 未返回有效结果"})
+		c.JSON(http.StatusBadGateway, gin.H{"error": "AI did not return a valid result"})
 		return
 	}
 
@@ -454,7 +454,7 @@ Shodan 官方查询语法参考：
 	if extractErr != nil {
 		snippet := trimSnippet(content, 1200)
 		c.JSON(http.StatusBadGateway, gin.H{
-			"error":   "AI 返回内容无法解析为 JSON，请稍后重试或换个描述方式",
+			"error":   "AI response content could not be parsed as JSON, please try again or rephrase your query",
 			"snippet": snippet,
 		})
 		return
@@ -462,19 +462,19 @@ Shodan 官方查询语法参考：
 
 	var parsed fofaParseResponse
 	if err := json.Unmarshal([]byte(jsonContent), &parsed); err != nil {
-		// 直接回传一部分原文，方便排查，但避免太大
+		// Pass back a portion of the original text for debugging, but avoid large payloads.
 		snippet := trimSnippet(content, 1200)
 		c.JSON(http.StatusBadGateway, gin.H{
-			"error":   "AI 返回内容无法解析为 JSON，请稍后重试或换个描述方式",
+			"error":   "AI response content could not be parsed as JSON, please try again or rephrase your query",
 			"snippet": snippet,
 		})
 		return
 	}
 	parsed.Query = strings.TrimSpace(parsed.Query)
 	if parsed.Query == "" {
-		// query 允许为空（表示需求不明确），但前端需要明确提示
+		// query may be empty (unclear requirement), but the frontend needs a clear prompt.
 		if len(parsed.Warnings) == 0 {
-			parsed.Warnings = []string{"需求信息不足，未能生成可用的 " + engineName + " 查询语法，请补充关键条件（如国家/端口/产品/域名等）。"}
+			parsed.Warnings = []string{"insufficient requirement info, could not generate a usable " + engineName + " query syntax, please add key conditions (e.g. country/port/product/domain etc.)."}
 		}
 	}
 
@@ -574,22 +574,22 @@ func trimSnippet(s string, maxRunes int) string {
 	return string(runes[:maxRunes])
 }
 
-// Search FOFA 查询（后端代理，避免前端暴露 key）
+// Search proxies FOFA queries from the backend to avoid exposing the key on the frontend.
 func (h *FofaHandler) Search(c *gin.Context) {
 	var req fofaSearchRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数: " + err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request parameters: " + err.Error()})
 		return
 	}
 	provider := normalizeSpaceSearchProvider(req.Provider)
 	if provider == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "provider 不支持，可选：fofa、zoomeye、quake、shodan"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "unsupported provider; options: fofa, zoomeye, quake, shodan"})
 		return
 	}
 
 	req.Query = strings.TrimSpace(req.Query)
 	if req.Query == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "query 不能为空"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "query cannot be empty"})
 		return
 	}
 	if req.Size <= 0 {
@@ -598,7 +598,7 @@ func (h *FofaHandler) Search(c *gin.Context) {
 	if req.Page <= 0 {
 		req.Page = 1
 	}
-	// FOFA 接口 size 上限和账户权限相关，这里只做一个合理的保护
+	// FOFA interface size limit depends on account permissions; this is just a reasonable safeguard.
 	if req.Size > 10000 {
 		req.Size = 10000
 	}
@@ -614,7 +614,7 @@ func (h *FofaHandler) Search(c *gin.Context) {
 	apiKey := h.resolveAPIKey(provider)
 	if apiKey == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error":   "FOFA 未配置：请在系统设置的资产管理中填写 FOFA API Key，或设置环境变量 FOFA_API_KEY",
+			"error":   "FOFA not configured: please enter your FOFA API Key in the asset management section of system settings, or set the FOFA_API_KEY environment variable",
 			"need":    []string{"fofa.api_key"},
 			"env_key": []string{"FOFA_API_KEY"},
 		})
@@ -626,7 +626,7 @@ func (h *FofaHandler) Search(c *gin.Context) {
 
 	u, err := url.Parse(baseURL)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "FOFA base_url 无效: " + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid FOFA base_url: " + err.Error()})
 		return
 	}
 
@@ -639,14 +639,14 @@ func (h *FofaHandler) Search(c *gin.Context) {
 	if req.Full {
 		params.Set("full", "true")
 	} else {
-		// 明确传 false，便于排查
+		// Explicitly pass false for debugging.
 		params.Set("full", "false")
 	}
 	u.RawQuery = params.Encode()
 
 	httpReq, err := http.NewRequestWithContext(c.Request.Context(), http.MethodGet, u.String(), nil)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建请求失败: " + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "createrequestfailed: " + err.Error()})
 		return
 	}
 	httpReq.Header.Set("User-Agent", "Kestrel/1.7.4")
@@ -655,7 +655,7 @@ func (h *FofaHandler) Search(c *gin.Context) {
 	resp, err := h.client.Do(httpReq)
 	if err != nil {
 		status, message, timeout := safeFofaRequestError(err)
-		h.logger.Warn("请求 FOFA 失败",
+		h.logger.Warn("request FOFA failed",
 			zap.String("host", u.Host),
 			zap.Bool("timeout", timeout),
 			zap.String("error_type", fmt.Sprintf("%T", err)),
@@ -666,19 +666,19 @@ func (h *FofaHandler) Search(c *gin.Context) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		c.JSON(http.StatusBadGateway, gin.H{"error": fmt.Sprintf("FOFA 返回非 2xx: %d", resp.StatusCode)})
+		c.JSON(http.StatusBadGateway, gin.H{"error": fmt.Sprintf("FOFA returned non-2xx: %d", resp.StatusCode)})
 		return
 	}
 
 	var apiResp fofaAPIResponse
 	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
-		c.JSON(http.StatusBadGateway, gin.H{"error": "解析 FOFA 响应失败: " + err.Error()})
+		c.JSON(http.StatusBadGateway, gin.H{"error": "failed to parse FOFA response: " + err.Error()})
 		return
 	}
 	if apiResp.Error {
 		msg := strings.TrimSpace(apiResp.ErrMsg)
 		if msg == "" {
-			msg = "FOFA 返回错误"
+			msg = "FOFA backerror"
 		}
 		c.JSON(http.StatusBadGateway, gin.H{"error": msg})
 		return
@@ -719,7 +719,7 @@ func (h *FofaHandler) searchExternalProvider(c *gin.Context, provider string, re
 			"shodan":  "SHODAN_API_KEY",
 		}[provider]
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error":   providerDisplayName(provider) + " 未配置：请在 config.yaml 中填写 api_key，或设置环境变量 " + envKey,
+			"error":   providerDisplayName(provider) + " not configured: please enter api_key in config.yaml, or set environment variable " + envKey,
 			"need":    []string{provider + ".api_key"},
 			"env_key": []string{envKey},
 		})
@@ -740,7 +740,7 @@ func (h *FofaHandler) searchZoomEye(c *gin.Context, req fofaSearchRequest, apiKe
 	baseURL := h.resolveBaseURL("zoomeye")
 	u, err := url.Parse(baseURL)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "ZoomEye base_url 无效: " + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid ZoomEye base_url: " + err.Error()})
 		return
 	}
 	body := map[string]interface{}{
@@ -757,11 +757,11 @@ func (h *FofaHandler) searchZoomEye(c *gin.Context, req fofaSearchRequest, apiKe
 	}
 	rows, err := decodeSpaceSearchRows(apiResp.Data)
 	if err != nil {
-		c.JSON(http.StatusBadGateway, gin.H{"error": "解析 ZoomEye 响应失败: " + err.Error()})
+		c.JSON(http.StatusBadGateway, gin.H{"error": "failed to parse ZoomEye response: " + err.Error()})
 		return
 	}
 	if zoomEyeRequestFailed(apiResp.Code, apiResp.Message) {
-		msg := firstNonEmptySpaceSearchValue(apiResp.Message, messageFromRawObject(apiResp.Data), "ZoomEye 返回错误")
+		msg := firstNonEmptySpaceSearchValue(apiResp.Message, messageFromRawObject(apiResp.Data), "ZoomEye backerror")
 		c.JSON(http.StatusBadGateway, gin.H{"error": msg})
 		return
 	}
@@ -782,7 +782,7 @@ func (h *FofaHandler) searchQuake(c *gin.Context, req fofaSearchRequest, apiKey 
 	baseURL := h.resolveBaseURL("quake")
 	u, err := url.Parse(baseURL)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Quake base_url 无效: " + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid Quake base_url: " + err.Error()})
 		return
 	}
 	fields := splitAndCleanCSV(req.Fields)
@@ -801,11 +801,11 @@ func (h *FofaHandler) searchQuake(c *gin.Context, req fofaSearchRequest, apiKey 
 	}
 	rows, err := decodeSpaceSearchRows(apiResp.Data)
 	if err != nil {
-		c.JSON(http.StatusBadGateway, gin.H{"error": "解析 Quake 响应失败: " + err.Error()})
+		c.JSON(http.StatusBadGateway, gin.H{"error": "failed to parse Quake response: " + err.Error()})
 		return
 	}
 	if !isZeroSpaceSearchCode(apiResp.Code) {
-		msg := firstNonEmptySpaceSearchValue(apiResp.Message, messageFromRawObject(apiResp.Data), "Quake 返回错误")
+		msg := firstNonEmptySpaceSearchValue(apiResp.Message, messageFromRawObject(apiResp.Data), "Quake backerror")
 		c.JSON(http.StatusBadGateway, gin.H{"error": msg})
 		return
 	}
@@ -956,10 +956,10 @@ func extractRemoteAPIError(body []byte, statusCode int, label string) string {
 		}
 	}
 	if len(trimmed) > 0 && trimmed[0] == '<' {
-		return fmt.Sprintf("%s 返回了网页而不是 JSON（HTTP %d），请检查 Base URL 或网络是否被拦截", label, statusCode)
+		return fmt.Sprintf("%s back了网页而不yes JSON（HTTP %d），请check Base URL 或networkyesno被拦截", label, statusCode)
 	}
 	if statusCode < 200 || statusCode >= 300 {
-		return fmt.Sprintf("%s 返回非 2xx: %d", label, statusCode)
+		return fmt.Sprintf("%s back非 2xx: %d", label, statusCode)
 	}
 	return ""
 }
@@ -968,7 +968,7 @@ func (h *FofaHandler) searchShodan(c *gin.Context, req fofaSearchRequest, apiKey
 	baseURL := strings.TrimRight(h.resolveBaseURL("shodan"), "/") + "/shodan/host/search"
 	u, err := url.Parse(baseURL)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Shodan base_url 无效: " + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid Shodan base_url: " + err.Error()})
 		return
 	}
 
@@ -1004,7 +1004,7 @@ func (h *FofaHandler) searchShodan(c *gin.Context, req fofaSearchRequest, apiKey
 		}
 		pageMatches, err := decodeSpaceSearchRows(apiResp.Matches)
 		if err != nil {
-			c.JSON(http.StatusBadGateway, gin.H{"error": "解析 Shodan 响应失败: " + err.Error()})
+			c.JSON(http.StatusBadGateway, gin.H{"error": "failed to parse Shodan response: " + err.Error()})
 			return
 		}
 		if len(pageMatches) == 0 {
@@ -1021,7 +1021,7 @@ func (h *FofaHandler) searchShodan(c *gin.Context, req fofaSearchRequest, apiKey
 	shortfall := expectedCount - len(matches)
 	warning := ""
 	if shortfall > 0 {
-		warning = fmt.Sprintf("Shodan 统计总数为 %d，但本次分页实际只返回 %d/%d 条明细", apiResp.Total, len(matches), expectedCount)
+		warning = fmt.Sprintf("Shodan reports %d total results but this page only returned %d/%d detail records", apiResp.Total, len(matches), expectedCount)
 	}
 	c.JSON(http.StatusOK, fofaSearchResponse{
 		Provider:      "shodan",
@@ -1061,7 +1061,7 @@ func (h *FofaHandler) doJSONRequest(c *gin.Context, method, endpoint, apiKey, he
 	if body != nil {
 		b, err := json.Marshal(body)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "创建请求失败: " + err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "createrequestfailed: " + err.Error()})
 			return false
 		}
 		reqBody = strings.NewReader(string(b))
@@ -1070,7 +1070,7 @@ func (h *FofaHandler) doJSONRequest(c *gin.Context, method, endpoint, apiKey, he
 	}
 	httpReq, err := http.NewRequestWithContext(c.Request.Context(), method, endpoint, reqBody)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建请求失败: " + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "createrequestfailed: " + err.Error()})
 		return false
 	}
 	httpReq.Header.Set("User-Agent", "Kestrel/1.7.4")
@@ -1084,7 +1084,7 @@ func (h *FofaHandler) doJSONRequest(c *gin.Context, method, endpoint, apiKey, he
 	resp, err := h.client.Do(httpReq)
 	if err != nil {
 		status, message, timeout := safeFofaRequestError(err)
-		h.logger.Warn("请求空间测绘搜索失败",
+		h.logger.Warn("empty interval mapping search failed",
 			zap.String("provider", label),
 			zap.Bool("timeout", timeout),
 			zap.String("error_type", fmt.Sprintf("%T", err)),
@@ -1095,7 +1095,7 @@ func (h *FofaHandler) doJSONRequest(c *gin.Context, method, endpoint, apiKey, he
 	defer resp.Body.Close()
 	respBody, err := io.ReadAll(io.LimitReader(resp.Body, 32<<20))
 	if err != nil {
-		c.JSON(http.StatusBadGateway, gin.H{"error": "读取 " + label + " 响应失败: " + err.Error()})
+		c.JSON(http.StatusBadGateway, gin.H{"error": "failed to read " + label + " response: " + err.Error()})
 		return false
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
@@ -1104,11 +1104,11 @@ func (h *FofaHandler) doJSONRequest(c *gin.Context, method, endpoint, apiKey, he
 		return false
 	}
 	if err := json.Unmarshal(respBody, out); err != nil {
-		if msg := extractRemoteAPIError(respBody, resp.StatusCode, label); strings.Contains(msg, "网页") {
+		if msg := extractRemoteAPIError(respBody, resp.StatusCode, label); strings.Contains(msg, "web page") {
 			c.JSON(http.StatusBadGateway, gin.H{"error": msg})
 			return false
 		}
-		c.JSON(http.StatusBadGateway, gin.H{"error": "解析 " + label + " 响应失败: " + err.Error()})
+		c.JSON(http.StatusBadGateway, gin.H{"error": "failed to parse " + label + " response: " + err.Error()})
 		return false
 	}
 	return true
@@ -1120,11 +1120,11 @@ func safeFofaRequestError(err error) (status int, message string, timeout bool) 
 		(errors.As(err, &netErr) && netErr.Timeout())
 	if timeout {
 		return http.StatusGatewayTimeout,
-			"FOFA 请求超时（60 秒）：请稍后重试，或减少返回数量和返回字段",
+			"FOFA request timed out (60 seconds): please try again later or reduce result count and fields",
 			true
 	}
 	return http.StatusBadGateway,
-		"无法连接 FOFA 服务，请检查服务器网络或代理配置",
+		"cannot connect to FOFA service, please check server network or proxy configuration",
 		false
 }
 

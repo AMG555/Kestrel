@@ -1,4 +1,4 @@
-﻿package attackchain
+package attackchain
 
 import (
 	"context"
@@ -20,29 +20,29 @@ import (
 	"go.uber.org/zap"
 )
 
-// Builder 攻击链构建器
+// Builder attack chain builder
 type Builder struct {
 	db           *database.DB
 	logger       *zap.Logger
 	openAIClient *openai.Client
 	openAIConfig *config.OpenAIConfig
 	tokenCounter agent.TokenCounter
-	maxTokens    int // 最大tokens限制，默认100000
+	maxTokens    int // maximum token limit, default 100000
 }
 
-// Node 攻击链节点（使用database包的类型）
+// Node attack chain node (uses database package type)
 type Node = database.AttackChainNode
 
-// Edge 攻击链边（使用database包的类型）
+// Edge attack chain edge (uses database package type)
 type Edge = database.AttackChainEdge
 
-// Chain 完整的攻击链
+// Chain complete attack chain
 type Chain struct {
 	Nodes []Node `json:"nodes"`
 	Edges []Edge `json:"edges"`
 }
 
-// NewBuilder 创建新的攻击链构建器
+// NewBuilder creates a new attack chain builder
 func NewBuilder(db *database.DB, openAIConfig *config.OpenAIConfig, logger *zap.Logger) *Builder {
 	transport := &http.Transport{
 		MaxIdleConns:        100,
@@ -51,24 +51,24 @@ func NewBuilder(db *database.DB, openAIConfig *config.OpenAIConfig, logger *zap.
 	}
 	httpClient := &http.Client{Timeout: 5 * time.Minute, Transport: transport}
 
-	// 优先使用配置文件中的统一 Token 上限（config.yaml -> openai.max_total_tokens）
+	// prefer unified token limit from config file (config.yaml -> openai.max_total_tokens)
 	maxTokens := 0
 	if openAIConfig != nil && openAIConfig.MaxTotalTokens > 0 {
 		maxTokens = openAIConfig.MaxTotalTokens
 	} else if openAIConfig != nil {
-		// 如果未显式配置 max_total_tokens，则根据模型设置一个合理的默认值
+		// if max_total_tokens is not explicitly configured, use a reasonable default based on model settings
 		model := strings.ToLower(openAIConfig.Model)
 		if strings.Contains(model, "gpt-4") {
-			maxTokens = 128000 // gpt-4通常支持128k
+			maxTokens = 128000 // gpt-4 typically supports 128k
 		} else if strings.Contains(model, "gpt-3.5") {
-			maxTokens = 16000 // gpt-3.5-turbo通常支持16k
+			maxTokens = 16000 // gpt-3.5-turbo typically supports 16k
 		} else if strings.Contains(model, "deepseek") {
-			maxTokens = 131072 // deepseek-chat通常支持131k
+			maxTokens = 131072 // deepseek-chat typically supports 131k
 		} else {
-			maxTokens = 100000 // 兜底默认值
+			maxTokens = 100000 // fallback default value
 		}
 	} else {
-		// 没有 OpenAI 配置时使用兜底值，避免为 0
+		// use fallback value when no OpenAI config to avoid 0
 		maxTokens = 100000
 	}
 
@@ -82,23 +82,23 @@ func NewBuilder(db *database.DB, openAIConfig *config.OpenAIConfig, logger *zap.
 	}
 }
 
-// BuildChainFromConversation 从对话构建攻击链（单次 LLM 调用；输入为当前任务轮次的 last_react 轨迹，与继续对话续跑范围一致）。
+// BuildChainFromConversation build attack chain from conversation (single LLM call; input is the last_react trace for the current task turn, consistent with continue-conversation resume scope).
 func (b *Builder) BuildChainFromConversation(ctx context.Context, conversationID string) (*Chain, error) {
-	b.logger.Info("开始构建攻击链（简化版本）", zap.String("conversationId", conversationID))
+	b.logger.Info("starting attack chain build (simplified)", zap.String("conversationId", conversationID))
 
-	// 0. 首先检查是否有实际的工具执行记录
+	// 0. first check if there are actual tool execution records
 	messages, err := b.db.GetMessages(conversationID)
 	if err != nil {
-		return nil, fmt.Errorf("获取对话消息失败: %w", err)
+		return nil, fmt.Errorf("failed to get conversation messages: %w", err)
 	}
 
 	if len(messages) == 0 {
-		b.logger.Info("对话中没有数据", zap.String("conversationId", conversationID))
+		b.logger.Info("no data in conversation", zap.String("conversationId", conversationID))
 		return &Chain{Nodes: []Node{}, Edges: []Edge{}}, nil
 	}
 
-	// 检查是否有实际的工具执行：assistant 的 mcp_execution_ids，或过程详情中的 tool_call/tool_result
-	//（多代理下若 MCP 未返回 execution_id，IDs 可能为空，但工具已通过 Eino 执行并写入 process_details）
+	// check for actual tool executions: assistant mcp_execution_ids, or tool_call/tool_result in process details
+	//（in multi-agent mode if MCP does not return execution_id, IDs may be empty, but tools have been executed via Eino and written to process_details）
 	hasToolExecutions := false
 	for i := len(messages) - 1; i >= 0; i-- {
 		if strings.EqualFold(messages[i].Role, "assistant") {
@@ -110,54 +110,54 @@ func (b *Builder) BuildChainFromConversation(ctx context.Context, conversationID
 	}
 	if !hasToolExecutions {
 		if pdOK, err := b.db.ConversationHasToolProcessDetails(conversationID); err != nil {
-			b.logger.Warn("查询过程详情判定工具执行失败", zap.Error(err))
+			b.logger.Warn("failed to query process details to determine tool execution", zap.Error(err))
 		} else if pdOK {
 			hasToolExecutions = true
 		}
 	}
 
-	// 检查任务是否被取消（通过检查最后一条assistant消息内容或process_details）
+	// check if task was cancelled (by checking last assistant message content or process_details)
 	taskCancelled := false
 	for i := len(messages) - 1; i >= 0; i-- {
 		if strings.EqualFold(messages[i].Role, "assistant") {
 			content := strings.ToLower(messages[i].Content)
-			if strings.Contains(content, "取消") || strings.Contains(content, "cancelled") {
+			if strings.Contains(content, "cancelled") || strings.Contains(content, "cancelled") {
 				taskCancelled = true
 			}
 			break
 		}
 	}
 
-	// 如果任务被取消且没有实际工具执行，返回空攻击链
+	// if task was cancelled and no actual tool execution, return empty attack chain
 	if taskCancelled && !hasToolExecutions {
-		b.logger.Info("任务已取消且没有实际工具执行，返回空攻击链",
+		b.logger.Info("task cancelled and no actual tool execution, returning empty attack chain",
 			zap.String("conversationId", conversationID),
 			zap.Bool("taskCancelled", taskCancelled),
 			zap.Bool("hasToolExecutions", hasToolExecutions))
 		return &Chain{Nodes: []Node{}, Edges: []Edge{}}, nil
 	}
 
-	// 如果没有实际工具执行，也返回空攻击链（避免AI编造）
+	// if no actual tool execution, also return empty attack chain (to avoid AI fabrication)
 	if !hasToolExecutions {
-		b.logger.Info("没有实际工具执行记录，返回空攻击链",
+		b.logger.Info("no actual tool execution records, returning empty attack chain",
 			zap.String("conversationId", conversationID))
 		return &Chain{Nodes: []Node{}, Edges: []Edge{}}, nil
 	}
 
-	// 1. 优先尝试从数据库获取保存的最后一轮ReAct输入和输出
+	// 1. 1. first try to get saved last-round ReAct input and output from database
 	reactInputJSON, modelOutput, err := b.db.GetAgentTrace(conversationID)
 	if err != nil {
-		b.logger.Warn("获取保存的ReAct数据失败，将使用消息历史构建", zap.Error(err))
-		// 继续使用原来的逻辑
+		b.logger.Warn("failed to get saved ReAct data, will build from message history", zap.Error(err))
+		// continue with original logic
 		reactInputJSON = ""
 		modelOutput = ""
 	}
 
 	// var userInput string
 	var reactInputFinal string
-	var dataSource string // 记录数据来源
+	var dataSource string // record data source
 
-	// 优先使用落库的代理轨迹（与继续对话 loadHistoryFromAgentTrace 同源），并裁剪为「当前任务轮次」
+	// prefer persisted agent trace (same source as continueconversation loadHistoryFromAgentTrace), trimmed to current task turn
 	if reactInputJSON != "" {
 		trimmedJSON := agent.ExtractLastUserTurnTraceJSON(reactInputJSON)
 		hash := sha256.Sum256([]byte(trimmedJSON))
@@ -169,15 +169,15 @@ func (b *Builder) BuildChainFromConversation(ctx context.Context, conversationID
 			msgs = agent.MergeAssistantTraceOutput(msgs, modelOutput)
 			reactInputFinal = b.formatAgentTraceFromChatMessages(msgs)
 		} else {
-			b.logger.Warn("解析代理轨迹失败，回退原始 JSON 格式化", zap.Error(parseErr))
+			b.logger.Warn("failed to parse agent trace, falling back to raw JSON formatting", zap.Error(parseErr))
 			reactInputFinal = b.formatAgentTraceInputFromJSON(trimmedJSON)
 			if strings.TrimSpace(modelOutput) != "" {
-				reactInputFinal += "\n\n## 助手结论（last_react_output）\n\n" + modelOutput
+				reactInputFinal += "\n\n## Assistant Conclusion (last_react_output)\n\n" + modelOutput
 			}
 		}
 
 		dataSource = "last_user_turn_agent_trace"
-		b.logger.Info("使用当前任务轮次代理轨迹构建攻击链（与续跑上下文范围一致）",
+		b.logger.Info("building attack chain from current task turn agent trace (consistent with resume context scope)",
 			zap.String("conversationId", conversationID),
 			zap.String("dataSource", dataSource),
 			zap.Int("traceInputSizeBeforeTrim", len(reactInputJSON)),
@@ -186,14 +186,14 @@ func (b *Builder) BuildChainFromConversation(ctx context.Context, conversationID
 			zap.String("reactInputHash", reactInputHash),
 			zap.Int("modelOutputSize", len(modelOutput)))
 	} else {
-		// 2. 如果没有保存的ReAct数据，从对话消息构建
+		// 2. 2. if no saved ReAct data, build from conversation messages
 		dataSource = "messages_table"
-		b.logger.Info("从消息历史构建ReAct数据",
+		b.logger.Info("building ReAct data from message history",
 			zap.String("conversationId", conversationID),
 			zap.String("dataSource", dataSource),
 			zap.Int("messageCount", len(messages)))
 
-		// 提取用户输入（最后一条user消息）
+		// extract user input (last user message)
 		for i := len(messages) - 1; i >= 0; i-- {
 			if strings.EqualFold(messages[i].Role, "user") {
 				// userInput = messages[i].Content
@@ -201,10 +201,10 @@ func (b *Builder) BuildChainFromConversation(ctx context.Context, conversationID
 			}
 		}
 
-		// 提取最后一轮ReAct的输入（历史消息+当前用户输入）
+		// extract last ReAct round input (history messages + current user input)
 		reactInputFinal = b.buildAgentTraceInput(messages)
 
-		// 提取大模型最后的输出（最后一条assistant消息）
+		// extract last model output (last assistant message)
 		for i := len(messages) - 1; i >= 0; i-- {
 			if strings.EqualFold(messages[i].Role, "assistant") {
 				modelOutput = messages[i].Content
@@ -213,7 +213,7 @@ func (b *Builder) BuildChainFromConversation(ctx context.Context, conversationID
 		}
 	}
 
-	// 多代理：保存的轨迹列可能仅为首轮用户消息，不含工具轨迹；补充最后一轮助手的过程详情（与单代理完整轨迹对齐）
+	// multi-agent: saved trace column may only contain first-round user message without tool trace; supplement last assistant's process details (aligned with single-agent complete trace)
 	hasMCPOnAssistant := false
 	var lastAssistantID string
 	for i := len(messages) - 1; i >= 0; i-- {
@@ -230,12 +230,12 @@ func (b *Builder) BuildChainFromConversation(ctx context.Context, conversationID
 		if pdHasTools && !(hasMCPOnAssistant && reactInputContainsToolTrace(reactInputJSON)) {
 			detailsMap, err := b.db.GetProcessDetailsByConversation(conversationID)
 			if err != nil {
-				b.logger.Warn("加载过程详情用于攻击链失败", zap.Error(err))
+				b.logger.Warn("failed to load process details for attack chain", zap.Error(err))
 			} else if dets := detailsMap[lastAssistantID]; len(dets) > 0 {
 				extra := b.formatProcessDetailsForAttackChain(dets)
 				if strings.TrimSpace(extra) != "" {
-					reactInputFinal = reactInputFinal + "\n\n## 执行过程与工具记录（含多代理编排与子任务）\n\n" + extra
-					b.logger.Info("攻击链输入已补充过程详情",
+					reactInputFinal = reactInputFinal + "\n\n## Execution Process and Tool Records (including multi-agent orchestration and sub-tasks)\n\n" + extra
+					b.logger.Info("attack chain input supplemented with process details",
 						zap.String("conversationId", conversationID),
 						zap.String("messageId", lastAssistantID),
 						zap.Int("detailEvents", len(dets)))
@@ -244,50 +244,50 @@ func (b *Builder) BuildChainFromConversation(ctx context.Context, conversationID
 		}
 	}
 
-	// 3. 按 token 预算压缩输入，再构建 prompt（避免超出模型上下文）
+	// 3. compress input by token budget, then build prompt (to avoid exceeding model context)
 	reactInputFinal, modelOutput, _ = b.fitAttackChainPayload(reactInputFinal, modelOutput)
 
-	// 4. 构建 prompt 并单次调用大模型（助手结论已并入轨迹时不再重复传入）
+	// 4. build prompt and make a single model call (assistant conclusion not re-passed when already merged into trace)
 	promptAssistantOut := modelOutput
 	if reactInputJSON != "" {
 		promptAssistantOut = ""
 	}
 	prompt := b.buildSimplePrompt(reactInputFinal, promptAssistantOut)
 	// fmt.Println(prompt)
-	// 6. 调用AI生成攻击链（一次性，不做任何处理）
+	// 6. call AI to generate attack chain (one-shot, no processing)
 	chainJSON, err := b.callAIForChainGeneration(ctx, prompt)
 	if err != nil {
-		return nil, fmt.Errorf("AI生成失败: %w", err)
+		return nil, fmt.Errorf("AI generation failed: %w", err)
 	}
 
-	// 7. 解析JSON并生成节点/边ID（前端需要有效的ID）
+	// 7. parse JSON and generate node/edge IDs (frontend needs valid IDs)
 	chainData, err := b.parseChainJSON(chainJSON)
 	if err != nil {
-		// 如果解析失败，返回空链，让前端处理错误
-		b.logger.Warn("解析攻击链JSON失败", zap.Error(err), zap.String("raw_json", chainJSON))
+		// if parsing failed, return empty chain and let frontend handle the error
+		b.logger.Warn("failed to parse attack chain JSON", zap.Error(err), zap.String("raw_json", chainJSON))
 		return &Chain{
 			Nodes: []Node{},
 			Edges: []Edge{},
 		}, nil
 	}
 
-	b.logger.Info("攻击链构建完成",
+	b.logger.Info("attack chain build complete",
 		zap.String("conversationId", conversationID),
 		zap.String("dataSource", dataSource),
 		zap.Int("nodes", len(chainData.Nodes)),
 		zap.Int("edges", len(chainData.Edges)))
 
-	// 保存到数据库（供后续加载使用）
+	// save to database (for subsequent loading)
 	if err := b.saveChain(conversationID, chainData.Nodes, chainData.Edges); err != nil {
-		b.logger.Warn("保存攻击链到数据库失败", zap.Error(err))
-		// 即使保存失败，也返回数据给前端
+		b.logger.Warn("failed to save attack chain to database", zap.Error(err))
+		// return data to frontend even if save failed
 	}
 
-	// 直接返回，不做任何处理和校验
+	// return directly without any processing or validation
 	return chainData, nil
 }
 
-// reactInputContainsToolTrace 判断保存的 ReAct JSON 是否包含可解析的工具调用轨迹（单代理完整保存时为 true）。
+// reactInputContainsToolTrace check if saved ReAct JSON contains parseable tool call trace (true when single-agent saves completely).
 func reactInputContainsToolTrace(reactInputJSON string) bool {
 	s := strings.TrimSpace(reactInputJSON)
 	if s == "" {
@@ -299,21 +299,21 @@ func reactInputContainsToolTrace(reactInputJSON string) bool {
 		strings.Contains(s, `"role": "tool"`)
 }
 
-// formatProcessDetailsForAttackChain 将最后一轮助手的过程详情格式化为攻击链分析的输入（覆盖多代理下 last_react_input 不完整的情况）。
+// formatProcessDetailsForAttackChain format last assistant round's process details as attack chain analysis input (covers incomplete last_react_input in multi-agent mode).
 func (b *Builder) formatProcessDetailsForAttackChain(details []database.ProcessDetail) string {
 	if len(details) == 0 {
 		return ""
 	}
 	var sb strings.Builder
 	for _, d := range details {
-		// 目标：以主 agent（编排器）视角输出整轮迭代
-		// - 保留：编排器工具调用/结果、对子代理的 task 调度、子代理最终回复（不含推理）
-		// - 丢弃：thinking/planning/progress 等噪声、子代理的工具细节与推理过程
+		// goal: output the full iteration round from the perspective of the primary agent (orchestrator)
+		// - keep: orchestrator tool calls/results, task dispatches to sub-agents, sub-agent final replies (no reasoning)
+		// - discard: thinking/planning/progress noise, sub-agent tool details and reasoning process
 		if d.EventType == "progress" || d.EventType == "thinking" || d.EventType == "reasoning_chain" || d.EventType == "planning" {
 			continue
 		}
 
-		// 解析 data（JSON string），用于识别 einoRole / toolName 等
+		// parse data (JSON string) to identify einoRole / toolName etc.
 		var dataMap map[string]interface{}
 		if strings.TrimSpace(d.Data) != "" {
 			_ = json.Unmarshal([]byte(d.Data), &dataMap)
@@ -327,7 +327,7 @@ func (b *Builder) formatProcessDetailsForAttackChain(details []database.ProcessD
 			toolName = strings.TrimSpace(fmt.Sprint(v))
 		}
 
-		// 1) 编排器的工具调用/结果：保留（这是“主 agent 调了什么工具”）
+		// 1) orchestrator tool calls/results: keep (these show "what tools the main agent called")
 		if (d.EventType == "tool_call" || d.EventType == "tool_result" || d.EventType == "tool_calls_detected" || d.EventType == "iteration") && einoRole == "orchestrator" {
 			sb.WriteString("[")
 			sb.WriteString(d.EventType)
@@ -342,7 +342,7 @@ func (b *Builder) formatProcessDetailsForAttackChain(details []database.ProcessD
 			continue
 		}
 
-		// 2) 子代理调度：tool_call(toolName=="task") 代表编排器把子任务派发出去；保留（只需任务，不要子代理推理）
+		// 2) sub-agent dispatch: tool_call(toolName=="task") means orchestrator dispatched a sub-task; keep (task only, no sub-agent reasoning)
 		if d.EventType == "tool_call" && strings.EqualFold(toolName, "task") {
 			sb.WriteString("[dispatch_subagent_task] ")
 			sb.WriteString(strings.TrimSpace(d.Message))
@@ -355,12 +355,12 @@ func (b *Builder) formatProcessDetailsForAttackChain(details []database.ProcessD
 			continue
 		}
 
-		// 3) 子代理最终回复：保留（只保留最终输出，不保留分析过程）
+		// 3) sub-agent final reply: keep (keep final output only, not the analysis process)
 		if d.EventType == "eino_agent_reply" && einoRole == "sub" {
 			sb.WriteString("[subagent_final_reply] ")
 			sb.WriteString(strings.TrimSpace(d.Message))
 			sb.WriteString("\n")
-			// data 里含 einoAgent 等元信息，保留有助于追踪“哪个子代理说的”
+			// data contains meta-info like einoAgent; keeping it helps trace "which sub-agent said this"
 			if strings.TrimSpace(d.Data) != "" {
 				sb.WriteString(d.Data)
 				sb.WriteString("\n")
@@ -369,12 +369,12 @@ func (b *Builder) formatProcessDetailsForAttackChain(details []database.ProcessD
 			continue
 		}
 
-		// 其他事件默认丢弃，避免把子代理工具细节/推理塞进 prompt，偏离“主 agent 一轮迭代”的视角。
+		// other events are discarded by default to avoid stuffing sub-agent tool details/reasoning into the prompt, which would skew the "main agent single iteration" perspective.
 	}
 	return strings.TrimSpace(sb.String())
 }
 
-// buildAgentTraceInput 构建最后一轮 ReAct 的输入（从最后一条 user 消息起，不含更早轮次）。
+// buildAgentTraceInput build the last ReAct round input (starting from the last user message, excluding earlier rounds).
 func (b *Builder) buildAgentTraceInput(messages []database.Message) string {
 	start := 0
 	for i := len(messages) - 1; i >= 0; i-- {
@@ -390,16 +390,16 @@ func (b *Builder) buildAgentTraceInput(messages []database.Message) string {
 	return builder.String()
 }
 
-// extractUserInputFromReActInput 从保存的ReAct输入（JSON格式的messages数组）中提取最后一条用户输入
+// extractUserInputFromReActInput extract last user input from saved ReAct input (JSON-format messages array)
 // func (b *Builder) extractUserInputFromReActInput(reactInputJSON string) string {
-// 	// reactInputJSON是JSON格式的ChatMessage数组，需要解析
+// 	// reactInputJSON is a JSON-format ChatMessage array, needs parsing
 // 	var messages []map[string]interface{}
 // 	if err := json.Unmarshal([]byte(reactInputJSON), &messages); err != nil {
-// 		b.logger.Warn("解析ReAct输入JSON失败", zap.Error(err))
+// 		b.logger.Warn("failed to parse ReAct input JSON", zap.Error(err))
 // 		return ""
 // 	}
 
-// 	// 从后往前查找最后一条user消息
+// 	// search backwards for the last user message
 // 	for i := len(messages) - 1; i >= 0; i-- {
 // 		if role, ok := messages[i]["role"].(string); ok && strings.EqualFold(role, "user") {
 // 			if content, ok := messages[i]["content"].(string); ok {
@@ -411,18 +411,18 @@ func (b *Builder) buildAgentTraceInput(messages []database.Message) string {
 // 	return ""
 // }
 
-// formatAgentTraceInputFromJSON 将 JSON 轨迹转为可读文本（会先按当前任务轮次裁剪）。
+// formatAgentTraceInputFromJSON convert JSON trace to readable text (trimmed to current task turn first).
 func (b *Builder) formatAgentTraceInputFromJSON(reactInputJSON string) string {
 	trimmed := agent.ExtractLastUserTurnTraceJSON(reactInputJSON)
 	msgs, err := agent.ParseTraceMessages(trimmed)
 	if err != nil {
-		b.logger.Warn("解析ReAct输入JSON失败", zap.Error(err))
+		b.logger.Warn("failed to parse ReAct input JSON", zap.Error(err))
 		return trimmed
 	}
 	return b.formatAgentTraceFromChatMessages(msgs)
 }
 
-// formatAgentTraceFromChatMessages 将代理消息带格式化为攻击链分析输入（与续跑轨迹字段一致）。
+// formatAgentTraceFromChatMessages format agent messages as attack chain analysis input (consistent with resume trace fields).
 func (b *Builder) formatAgentTraceFromChatMessages(msgs []agent.ChatMessage) string {
 	var builder strings.Builder
 	for _, msg := range msgs {
@@ -433,7 +433,7 @@ func (b *Builder) formatAgentTraceFromChatMessages(msgs []agent.ChatMessage) str
 			if content != "" {
 				builder.WriteString(fmt.Sprintf("[%s]: %s\n", role, content))
 			}
-			builder.WriteString(fmt.Sprintf("[%s] 工具调用 (%d个):\n", role, len(msg.ToolCalls)))
+			builder.WriteString(fmt.Sprintf("[%s] tool call (%d calls):\n", role, len(msg.ToolCalls)))
 			for i, tc := range msg.ToolCalls {
 				args := ""
 				if tc.Function.Arguments != nil {
@@ -441,10 +441,10 @@ func (b *Builder) formatAgentTraceFromChatMessages(msgs []agent.ChatMessage) str
 						args = string(b)
 					}
 				}
-				builder.WriteString(fmt.Sprintf("  [工具调用 %d]\n", i+1))
+				builder.WriteString(fmt.Sprintf("  [tool call %d]\n", i+1))
 				builder.WriteString(fmt.Sprintf("    ID: %s\n", tc.ID))
-				builder.WriteString(fmt.Sprintf("    工具名称: %s\n", tc.Function.Name))
-				builder.WriteString(fmt.Sprintf("    参数: %s\n", args))
+				builder.WriteString(fmt.Sprintf("    tool name: %s\n", tc.Function.Name))
+				builder.WriteString(fmt.Sprintf("    args: %s\n", args))
 			}
 			builder.WriteString("\n")
 			continue
@@ -464,191 +464,191 @@ func (b *Builder) formatAgentTraceFromChatMessages(msgs []agent.ChatMessage) str
 	return builder.String()
 }
 
-// buildSimplePrompt 构建简化的prompt
+// buildSimplePrompt build simplified prompt
 func (b *Builder) buildSimplePrompt(reactInput, modelOutput string) string {
-	return fmt.Sprintf(`你是专业的安全测试分析师和攻击链构建专家。你的任务是根据**当前任务轮次**的对话记录和工具执行结果，一次性输出攻击链 JSON（不要分多轮追问）。
+	return fmt.Sprintf(`You are a professional security test analyst and attack chain construction expert. Your task is to output the attack chain JSON in one shot based on the **current task turn** conversation records and tool execution results (do not ask follow-up questions in multiple rounds).
 
-## 输入范围（与「继续对话」续跑一致）
-- 下方「ReAct 轨迹」仅包含**最后一次用户提问之后**的消息与工具结果（last_react 当前任务轮次），不含更早的用户提问轮次。
-- 「助手结论」为同轮任务的最终输出摘要（last_react_output）；节点须与轨迹中的实际工具执行一致，严禁编造。
+## Input Scope (consistent with "continue conversation" resume)
+- The "ReAct Trace" below only includes messages and tool results **after the last user question** (last_react current task turn), excluding earlier user question rounds.
+- The "assistant conclusion" is the final output summary for the same task turn (last_react_output); nodes must be consistent with actual tool executions in the trace, fabrication is strictly prohibited.
 
-## 核心目标
+## Core Objectives
 
-构建一个能够讲述完整攻击故事的攻击链让学习者能够：
-1. 理解渗透测试的完整流程和思维逻辑（从目标识别到漏洞发现的每一步）
-2. 学习如何从失败中获取线索并调整策略
-3. 掌握工具使用的实际效果和局限性
-4. 理解漏洞发现和利用的因果关系
+Build an attack chain that tells a complete attack story so learners can:
+1. Understand the complete penetration test workflow and reasoning logic (every step from target identification to vulnerability discovery)
+2. Learn how to gather clues from failures and adjust strategies
+3. Master the actual effects and limitations of tool usage
+4. Understand the causal relationship between vulnerability discovery and exploitation
 
-**关键原则**：完整性优先。必须包含所有有意义的工具执行和关键步骤，不要为了控制节点数量而遗漏重要信息。
+**Key Principle**: Completeness first. Must include all meaningful tool executions and key steps; do not omit important information to control node count.
 
-## 构建流程（按此顺序思考）
+## Build Process (think in this order)
 
-### 第一步：理解上下文
-仔细分析ReAct输入中的工具调用序列和大模型输出，识别：
-- 测试目标（IP、域名、URL等）
-- 实际执行的工具和参数
-- 工具返回的关键信息（成功结果、错误信息、超时等）
-- AI的分析和决策过程
+### Step 1: Understand Context
+Carefully analyze the tool call sequence and model output in the ReAct input, identifying:
+- Test targets (IP, domain, URL, etc.)
+- Actually executed tools and parameters
+- Key information returned by tools (successful results, error info, timeouts, etc.)
+- AI analysis and decision-making process
 
-### 第二步：提取关键节点
-从工具执行记录中提取有意义的节点，**确保不遗漏任何关键步骤**：
-- **target节点**：每个独立的测试目标创建一个target节点
-- **action节点**：每个有意义的工具执行创建一个action节点（包括提供线索的失败、成功的信息收集、漏洞验证等）
-- **vulnerability节点**：每个真实确认的漏洞创建一个vulnerability节点
-- **完整性检查**：对照ReAct输入中的工具调用序列，确保每个有意义的工具执行都被包含在攻击链中
+### Step 2: Extract Key Nodes
+Extract meaningful nodes from tool execution records, **ensure no key steps are missed**:
+- **target nodes**: create one target node per independent test target
+- **action nodes**: create one action node per meaningful tool execution (including failures that provide clues, successful info gathering, vulnerability validation, etc.)
+- **vulnerability nodes**: create one vulnerability node per genuinely confirmed vulnerability
+- **completeness check**: cross-reference against the tool call sequence in the ReAct input to ensure every meaningful tool execution is included in the attack chain
 
-### 第三步：构建逻辑关系（树状结构）
-**重要：必须构建树状结构，而不是简单的线性链。**
-按照因果关系连接节点，形成树状图（因为是单agent执行，所以可以不按照时间顺序）：
-- **分支结构**：一个节点可以有多个后续节点（例如：端口扫描发现多个端口后，可以同时进行多个不同的测试）
-- **汇聚结构**：多个节点可以指向同一个节点（例如：多个不同的测试都发现了同一个漏洞）
-- 识别哪些action是基于前面action的结果而执行的
-- 识别哪些vulnerability是由哪些action发现的
-- 识别失败节点如何为后续成功提供线索
-- **避免线性链**：不要将所有节点连成一条线，应该根据实际的并行测试和分支探索构建树状结构
+### Step 3: Build Logical Relationships (Tree Structure)
+**Important: Must build a tree structure, not a simple linear chain.**
+Connect nodes according to causal relationships to form a tree graph (since it's single agent execution, chronological order is not required):
+- **branch structure**: one node can have multiple successor nodes (e.g. after port scan discovers multiple ports, multiple different tests can proceed simultaneously)
+- **convergence structure**: multiple nodes can point to the same node (e.g. multiple different tests all discovered the same vulnerability)
+- Identify which actions are executed based on results of previous actions
+- Identify which vulnerabilities were discovered by which actions
+- Identify how failed nodes provide clues for subsequent successes
+- **Avoid linear chains**: do not connect all nodes in a line; build a tree structure based on actual parallel testing and branch exploration
 
-### 第四步：优化和精简
-- **完整性检查**：确保所有有意义的工具执行都被包含，不要遗漏关键步骤
-- **合并规则**：只合并真正相似或重复的action节点（如多次相同工具的相似调用）
-- **删除规则**：只删除完全无价值的失败节点（完全无输出、纯系统错误、重复的相同失败）
-- **重要提醒**：宁可保留更多节点，也不要遗漏关键步骤。攻击链必须完整展现渗透测试过程
-- 确保攻击链逻辑连贯，能够讲述完整故事
+### Step 4: Optimize and Streamline
+- **completeness check**: ensure all meaningful tool executions are included; do not omit key steps
+- **merge rules**: only merge genuinely similar or duplicate action nodes (e.g. similar calls of the same tool multiple times)
+- **deletion rules**: only delete completely worthless failed nodes (no output at all, pure system errors, duplicate identical failures)
+- **important reminder**: err on the side of keeping more nodes rather than omitting key steps. The attack chain must fully represent the penetration test process.
+- ensure the attack chain logic is coherent and tells a complete story
 
-## 节点类型详解
+## Node Type Details
 
-### target（目标节点）
-- **用途**：标识测试目标
-- **创建规则**：每个独立目标（不同IP/域名）创建一个target节点
-- **多目标处理**：不同目标的节点不相互连接，各自形成独立的子图
-- **metadata.target**：精确记录目标标识（IP地址、域名、URL等）
+### target (Target Node)
+- **Purpose**: identify test targets
+- **Creation Rules**: create one target node per independent target (different IP/domain)
+- **multi-target handling**: nodes for different targets are not interconnected, each forms an independent subgraph
+- **metadata.target**: precisely record the target identifier (IP address, domain, URL, etc.)
 
-### action（行动节点）
-- **用途**：记录工具执行和AI分析结果
-- **标签规则**：
-  * 15-25个汉字，动宾结构
-  * 成功节点：描述执行结果（如"扫描端口发现80/443/8080"、"目录扫描发现/admin路径"）
-  * 失败节点：描述失败原因（如"尝试SQL注入（被WAF拦截）"、"端口扫描超时（目标不可达）"）
-- **ai_analysis要求**：
-  * 成功节点：总结工具执行的关键发现，说明这些发现的意义
-  * 失败节点：必须说明失败原因、获得的线索、这些线索如何指引后续行动
-  * 不超过150字，要具体、有信息量
-- **findings要求**：
-  * 提取工具返回结果中的关键信息点
-  * 每个finding应该是独立的、有价值的信息片段
-  * 成功节点：列出关键发现（如["80端口开放", "443端口开放", "HTTP服务为Apache 2.4"]）
-  * 失败节点：列出失败线索（如["WAF拦截", "返回403", "检测到Cloudflare"]）
-- **status标记**：
-  * 成功节点：不设置或设为"success"
-  * 提供线索的失败节点：必须设为"failed_insight"
-- **risk_score**：始终为0（action节点不评估风险）
+### action (Action Node)
+- **Purpose**: record tool executions and AI analysis results
+- **Label Rules**:
+  * 15-25 Chinese characters, verb-object structure
+  * successful nodes: describe execution result (e.g. "port scan found 80/443/8080", "directory scan found /admin path")
+  * failed nodes: describe failure reason (e.g. "attempted SQL injection (blocked by WAF)", "port scan timed out (target unreachable)")
+- **ai_analysis Requirements**:
+  * successful nodes: summarize key discoveries from tool execution and explain their significance
+  * failed nodes: must explain failure reason, clues obtained, and how these clues guide subsequent actions
+  * no more than 150 words, be specific and informative
+- **findings Requirements**:
+  * extract key information points from tool return results
+  * each finding should be an independent, valuable information fragment
+  * successful nodes: list key discoveries (e.g. ["port 80 open", "port 443 open", "HTTP service is Apache 2.4"])
+  * failed nodes: list failure clues (e.g. ["WAF blocked", "returned 403", "Cloudflare detected"])
+- **Status Marks**:
+  * successful nodes: omit or set to "success"
+  * failed nodes providing clues: must be set to "failed_insight"
+- **risk_score**: always 0 (action nodes do not assess risk)
 
-### vulnerability（漏洞节点）
-- **用途**：记录真实确认的安全漏洞
-- **创建规则**：
-  * 必须是真实确认的漏洞，不是所有发现都是漏洞
-  * 需要明确的漏洞证据（如SQL注入返回数据库错误、XSS成功执行等）
-- **risk_score规则**：
-  * critical（90-100）：可导致系统完全沦陷（RCE、SQL注入导致数据泄露等）
-  * high（80-89）：可导致敏感信息泄露或权限提升
-  * medium（60-79）：存在安全风险但影响有限
-  * low（40-59）：轻微安全问题
-- **metadata要求**：
-  * vulnerability_type：漏洞类型（SQL注入、XSS、RCE等）
-  * description：详细描述漏洞位置、原理、影响
-  * severity：critical/high/medium/low
-  * location：精确的漏洞位置（URL、参数、文件路径等）
+### vulnerability (Vulnerability Node)
+- **Purpose**: record truly confirmed security vulnerabilities
+- **Creation Rules**:
+  * must be truly confirmed vulnerabilities; not every discovery is a vulnerability
+  * requires clear vulnerability evidence (e.g. SQL injection returns database error, XSS executes successfully, etc.)
+- **risk_score Rules**:
+  * critical (90-100): can lead to complete system compromise (RCE, SQL injection causing data leakage, etc.)
+  * high (80-89): can lead to sensitive information leakage or privilege escalation
+  * medium (60-79): security risk exists but impact is limited
+  * low (40-59): minor security issues
+- **metadata Requirements**:
+  * vulnerability_type: vulnerability type (SQL Injection, XSS, RCE, etc.)
+  * description: detailed description of vulnerability location, mechanism, and impact
+  * severity: critical/high/medium/low
+  * location: precise vulnerability location (URL, parameter, file path, etc.)
 
-## 节点过滤和合并规则
+## Node Filter and Merge Rules
 
-### 必须保留的失败节点
-以下失败情况必须创建节点，因为它们提供了有价值的线索：
-- 工具返回明确的错误信息（权限错误、连接拒绝、认证失败等）
-- 超时或连接失败（可能表明防火墙、网络隔离等）
-- WAF/防火墙拦截（返回403、406等，表明存在防护机制）
-- 工具未安装或配置错误（但执行了调用）
-- 目标不可达（DNS解析失败、网络不通等）
+### Failed Nodes That Must Be Kept
+The following failure situations must have nodes created because they provide valuable clues:
+- tool returns clear error info (permission error, connection refused, authentication failed, etc.)
+- timeouts or connection failures (may indicate firewalls, network isolation, etc.)
+- WAF/firewall blocking (returns 403, 406, etc., indicating protective mechanisms are present)
+- tool not installed or config error (but the call was executed)
+- target unreachable (DNS resolution failed, network unreachable, etc.)
 
-### 应该删除的失败节点
-以下情况不应创建节点：
-- 完全无输出的工具调用
-- 纯系统错误（与目标无关，如本地环境问题）
-- 重复的相同失败（多次相同错误只保留第一次）
+### Failed Nodes That Should Be Deleted
+The following situations should not have nodes created:
+- tool calls with completely no output
+- pure system errors (unrelated to target, e.g. local environment issues)
+- repeated identical failures (keep only the first occurrence of repeated identical errors)
 
-### 节点合并规则
-以下情况应合并节点：
-- 同一工具的多次相似调用（如多次nmap扫描不同端口范围，合并为一个"端口扫描"节点）
-- 同一目标的多个相似探测（如多个目录扫描工具，合并为一个"目录扫描"节点）
+### Node Merge Rules
+The following situations should merge nodes:
+- multiple similar calls of the same tool (e.g. multiple nmap scans of different port ranges, merged into one "port scan" node)
+- multiple similar probes against the same target (e.g. multiple directory scan tools, merged into one "directory scan" node)
 
-### 节点数量控制
-- **完整性优先**：必须包含所有有意义的工具执行和关键步骤，不要为了控制数量而删除重要节点
-- **建议范围**：单目标通常8-15个节点，但如果实际执行步骤较多，可以适当增加（最多20个节点）
-- **优先保留**：关键成功步骤、提供线索的失败、发现的漏洞、重要的信息收集步骤
-- **可以合并**：同一工具的多次相似调用（如多次nmap扫描不同端口范围，合并为一个"端口扫描"节点）
-- **可以删除**：完全无输出的工具调用、纯系统错误、重复的相同失败（多次相同错误只保留第一次）
-- **重要原则**：宁可节点稍多，也不要遗漏关键步骤。攻击链必须能够完整展现渗透测试的完整过程
+### Node Count Control
+- **completeness priority**: must include all meaningful tool executions and key steps; do not delete important nodes to control count
+- **recommended range**: typically 8-15 nodes for a single target, but can be increased appropriately if there are more actual execution steps (max 20 nodes)
+- **priority preservation**: key successful steps, failures that provide clues, discovered vulnerabilities, important info gathering steps
+- **can be merged**: multiple similar calls of the same tool (e.g. multiple nmap scans of different port ranges, merged into one "port scan" node)
+- **can be deleted**: tool calls with absolutely no output, pure system errors, duplicate identical failures (keep only the first occurrence of repeated identical errors)
+- **Important Principle**: prefer slightly more nodes over missing key steps. The attack chain must fully show the complete penetration test process
 
-## 边的类型和权重
+## Edge Types and Weights
 
-### 边的类型
-- **leads_to**：表示"导致"或"引导到"，用于action→action、target→action
-  * 例如：端口扫描 → 目录扫描（因为发现了80端口，所以进行目录扫描）
-- **discovers**：表示"发现"，**专门用于action→vulnerability**
-  * 例如：SQL注入测试 → SQL注入漏洞
-  * **重要**：所有action→vulnerability的边都必须使用discovers类型，即使多个action都指向同一个vulnerability，也应该统一使用discovers
-- **enables**：表示"使能"或"促成"，**仅用于vulnerability→vulnerability、action→action（当后续行动依赖前面结果时）**
-  * 例如：信息泄露漏洞 → 权限提升漏洞（通过信息泄露获得的信息促成了权限提升）
-  * **重要**：enables不能用于action→vulnerability，action→vulnerability必须使用discovers
+### Edge Types
+- **leads_to**: means "leads to" or "guides to", used for action→action, target→action
+  * e.g.: port scan → directory scan (because port 80 was discovered, so directory scan is performed)
+- **discovers**: means "discovered", **exclusively for action→vulnerability**
+  * e.g.: SQL injection test → SQL injection vulnerability
+  * **Important**: all action→vulnerability edges must use discovers type, even when multiple actions point to the same vulnerability
+- **enables**: means "enables" or "facilitates", **only for vulnerability→vulnerability, action→action (when subsequent actions depend on earlier results)**
+  * e.g.: information leakage vulnerability → privilege escalation vulnerability (info from the leakage facilitated privilege escalation)
+  * **Important**: enables cannot be used for action→vulnerability; action→vulnerability must use discovers
 
-### 边的权重
-- **权重1-2**：弱关联（如初步探测到进一步探测）
-- **权重3-4**：中等关联（如发现端口到服务识别）
-- **权重5-7**：强关联（如发现漏洞、关键信息泄露）
-- **权重8-10**：极强关联（如漏洞利用成功、权限提升）
+### Edge Weights
+- **weight 1-2**: weak association (e.g. initial probe to further probe)
+- **weight 3-4**: medium association (e.g. discovering a port to service identification)
+- **weight 5-7**: strong association (e.g. discovering vulnerability, key info leakage)
+- **weight 8-10**: very strong association (e.g. successful vulnerability exploitation, privilege escalation)
 
-### DAG结构要求（有向无环图）
-**关键：必须确保生成的是真正的DAG（有向无环图），不能有任何循环。**
+### DAG Structure Requirements (Directed Acyclic Graph)
+**Key: Must ensure the generated graph is a true DAG (Directed Acyclic Graph) with no cycles.**
 
-- **节点编号规则**：节点id从"node_1"开始递增（node_1, node_2, node_3...）
-- **边的方向规则**：所有边的source节点id必须严格小于target节点id（source < target），这是确保无环的关键
-  * 例如：node_1 → node_2 ✓（正确）
-  * 例如：node_2 → node_1 ✗（错误，会形成环）
-  * 例如：node_3 → node_5 ✓（正确）
-- **无环验证**：在输出JSON前，必须检查所有边，确保没有任何一条边的source >= target
-- **无孤立节点**：确保每个节点至少有一条边连接（除了可能的根节点）
-- **DAG结构特点**：
-  * 一个节点可以有多个后续节点（分支），例如：node_2（端口扫描）可以同时连接到node_3、node_4、node_5等多个节点
-  * 多个节点可以汇聚到一个节点（汇聚），例如：node_3、node_4、node_5都指向node_6（漏洞节点）
-  * 避免将所有节点连成一条线，应该根据实际的并行测试和分支探索构建DAG结构
-- **拓扑排序验证**：如果按照节点id从小到大排序，所有边都应该从左指向右（从上指向下），这样就能保证无环
+- **Node Numbering Rules**: node ids increment from "node_1" (node_1, node_2, node_3...)
+- **Edge Direction Rules**: all edge source node ids must be strictly less than target node ids (source < target); this is key to ensuring no cycles
+  * e.g.: node_1 → node_2 ✓ (correct)
+  * e.g.: node_2 → node_1 ✗ (error, would form a cycle)
+  * e.g.: node_3 → node_5 ✓ (correct)
+- **no cycle validation**: before outputting JSON, must check all edges to ensure no edge has source >= target
+- **no isolated nodes**: ensure every node has at least one edge connection (except possible root nodes)
+- **DAG Structural Characteristics**:
+  * a node can have multiple successor nodes (branching), e.g.: node_2 (port scan) can connect to node_3, node_4, node_5 simultaneously
+  * multiple nodes can converge on one node (merging), e.g.: node_3, node_4, node_5 all point to node_6 (vulnerability node)
+  * avoid connecting all nodes in a line; build the DAG structure based on actual parallel testing and branch exploration
+- **Topological Sort Validation**: if nodes are sorted by id from small to large, all edges should point from left to right (top to bottom), ensuring no cycles
 
-## 攻击链逻辑连贯性要求
+## Attack Chain Logical Coherence Requirements
 
-构建的攻击链应该能够回答以下问题：
-1. **起点**：测试从哪里开始？（target节点）
-2. **探索过程**：如何逐步收集信息？（action节点序列）
-3. **失败与调整**：遇到障碍时如何调整策略？（failed_insight节点）
-4. **关键发现**：发现了哪些重要信息？（action的findings）
-5. **漏洞确认**：如何确认漏洞存在？（action→vulnerability）
-6. **攻击路径**：完整的攻击路径是什么？（从target到vulnerability的路径）
+The built attack chain should be able to answer the following questions:
+1. **Starting Point**: where does the test begin? (target node)
+2. **Exploration Process**: how is information gathered step by step? (action node sequence)
+3. **Failures and Adjustments**: how are strategies adjusted when obstacles are encountered? (failed_insight nodes)
+4. **Key Discoveries**: what important information was found? (action findings)
+5. **Vulnerability Confirmation**: how is the existence of vulnerabilities confirmed? (action→vulnerability)
+6. **Attack Path**: what is the complete attack path? (path from target to vulnerability)
 
-## 当前任务 ReAct 轨迹（含工具执行；助手结论见轨迹末尾 assistant）
+## Current Task ReAct Trace (includes tool executions; see assistant conclusion at end of trace)
 
 %s
 %s
 
-## 输出格式
+## Output Format
 
-严格按照以下JSON格式输出，不要添加任何其他文字：
+Strictly output in the following JSON format, do not add any other text:
 
-**重要：示例展示的是树状结构，注意node_2（端口扫描）同时连接到多个后续节点（node_3、node_4），形成分支结构。**
+**Important: the example shows a tree structure; note that node_2 (port scan) connects to multiple successor nodes (node_3, node_4) simultaneously, forming a branching structure.**
 
 {
    "nodes": [
      {
        "id": "node_1",
        "type": "target",
-       "label": "测试目标: example.com",
+       "label": "test target: example.com",
        "risk_score": 40,
        "metadata": {
          "target": "example.com"
@@ -657,60 +657,60 @@ func (b *Builder) buildSimplePrompt(reactInput, modelOutput string) string {
      {
        "id": "node_2",
        "type": "action",
-       "label": "扫描端口发现80/443/8080",
+       "label": "port scan found 80/443/8080",
        "risk_score": 0,
        "metadata": {
          "tool_name": "nmap",
-         "tool_intent": "端口扫描",
-         "ai_analysis": "使用nmap对目标进行端口扫描，发现80、443、8080端口开放。80端口运行HTTP服务，443端口运行HTTPS服务，8080端口可能为管理后台。这些开放端口为后续Web应用测试提供了入口。",
-         "findings": ["80端口开放", "443端口开放", "8080端口开放", "HTTP服务为Apache 2.4"]
+         "tool_intent": "port scan",
+         "ai_analysis": "Used nmap to port scan the target, discovered ports 80, 443, 8080 open. Port 80 runs HTTP service, port 443 runs HTTPS service, port 8080 may be admin backend. These open ports provide entry points for subsequent web application testing.",
+         "findings": ["port 80 open", "port 443 open", "port 8080 open", "HTTP service is Apache 2.4"]
        }
      },
      {
        "id": "node_3",
        "type": "action",
-       "label": "目录扫描发现/admin后台",
+       "label": "directory scan found /admin backend",
        "risk_score": 0,
        "metadata": {
          "tool_name": "dirsearch",
-         "tool_intent": "目录扫描",
-         "ai_analysis": "使用dirsearch对目标进行目录扫描，发现/admin目录存在且可访问。该目录可能为管理后台，是重要的测试目标。",
-         "findings": ["/admin目录存在", "返回200状态码", "疑似管理后台"]
+         "tool_intent": "directory scan",
+         "ai_analysis": "Used dirsearch to perform directory scan on target, discovered /admin directory exists and is accessible. This directory may be the admin backend, an important test target.",
+         "findings": ["/admin directory exists", "returned 200 status code", "suspected admin backend"]
        }
      },
      {
        "id": "node_4",
        "type": "action",
-       "label": "识别Web服务为Apache 2.4",
+       "label": "identified web service as Apache 2.4",
        "risk_score": 0,
        "metadata": {
          "tool_name": "whatweb",
-         "tool_intent": "Web服务识别",
-         "ai_analysis": "识别出目标运行Apache 2.4服务器，这为后续的漏洞测试提供了重要信息。",
-         "findings": ["Apache 2.4", "PHP版本信息"]
+         "tool_intent": "web service identification",
+         "ai_analysis": "Identified target is running Apache 2.4 server, providing important information for subsequent vulnerability testing.",
+         "findings": ["Apache 2.4", "PHP version info"]
        }
      },
      {
        "id": "node_5",
        "type": "action",
-       "label": "尝试SQL注入（被WAF拦截）",
+       "label": "attempted SQL injection (blocked by WAF)",
        "risk_score": 0,
        "metadata": {
          "tool_name": "sqlmap",
-         "tool_intent": "SQL注入检测",
-         "ai_analysis": "对/login.php进行SQL注入测试时被WAF拦截，返回403错误。错误信息显示检测到Cloudflare防护。这表明目标部署了WAF，需要调整测试策略。",
-         "findings": ["WAF拦截", "返回403", "检测到Cloudflare", "目标部署WAF"],
+         "tool_intent": "SQL injection detection",
+         "ai_analysis": "SQL injection test on /login.php was blocked by WAF, returned 403 error. Error message indicates Cloudflare protection detected. This indicates the target has a WAF deployed; test strategy needs adjustment.",
+         "findings": ["WAF blocked", "returned 403", "Cloudflare detected", "target has WAF deployed"],
          "status": "failed_insight"
        }
      },
      {
        "id": "node_6",
        "type": "vulnerability",
-       "label": "SQL注入漏洞",
+       "label": "SQL Injection Vulnerability",
        "risk_score": 85,
        "metadata": {
-         "vulnerability_type": "SQL注入",
-         "description": "在/admin/login.php的username参数发现SQL注入漏洞，可通过注入payload绕过登录验证，直接获取管理员权限。漏洞返回数据库错误信息，确认存在注入点。",
+         "vulnerability_type": "SQL Injection",
+         "description": "Discovered SQL injection vulnerability in the username parameter of /admin/login.php. Can bypass login validation by injecting payload to directly obtain admin privileges. Vulnerability returns database error messages, confirming the injection point.",
          "severity": "high",
          "location": "/admin/login.php?username="
        }
@@ -750,20 +750,20 @@ func (b *Builder) buildSimplePrompt(reactInput, modelOutput string) string {
    ]
 }
 
-## 重要提醒
+## Important Reminders
 
-1. **严禁杜撰**：只使用ReAct输入中实际执行的工具和实际返回的结果。如无实际数据，返回空的nodes和edges数组。
-2. **DAG结构必须**：必须构建真正的DAG（有向无环图），不能有任何循环。所有边的source节点id必须严格小于target节点id（source < target）。
-3. **拓扑顺序**：节点应该按照逻辑顺序编号，target节点通常是node_1，后续的action节点按执行顺序递增，vulnerability节点在最后。
-4. **完整性优先**：必须包含所有有意义的工具执行和关键步骤，不要为了控制节点数量而删除重要节点。攻击链必须能够完整展现从目标识别到漏洞发现的完整过程。
-5. **逻辑连贯**：确保攻击链能够讲述一个完整、连贯的渗透测试故事，包括所有关键步骤和决策点。
-6. **教育价值**：优先保留有教育意义的节点，帮助学习者理解渗透测试思维和完整流程。
-7. **准确性**：所有节点信息必须基于实际数据，不要推测或假设。
-8. **完整性检查**：确保每个节点都有必要的metadata字段，每条边都有正确的source和target，没有孤立节点，没有循环。
-9. **不要过度精简**：如果实际执行步骤较多，可以适当增加节点数量（最多20个），确保不遗漏关键步骤。
-10. **输出前验证**：在输出JSON前，必须验证所有边都满足source < target的条件，确保DAG结构正确。
+1. **No Fabrication**: only use tools actually executed in the ReAct input and results actually returned. If no actual data, return empty nodes and edges arrays.
+2. **DAG Structure Required**: must build a true DAG (Directed Acyclic Graph) with no cycles. All edge source node ids must be strictly less than target node ids (source < target).
+3. **Topological Order**: nodes should be numbered in logical order; target nodes are typically node_1, subsequent action nodes increment by execution order, vulnerability nodes come last.
+4. **Completeness First**: must include all meaningful tool executions and key steps; do not delete important nodes to control node count. The attack chain must fully show the complete process from target identification to vulnerability discovery.
+5. **Logical Coherence**: ensure the attack chain tells a complete, coherent penetration test story including all key steps and decision points.
+6. **Educational Value**: prioritize keeping educationally meaningful nodes to help learners understand penetration testing mindset and complete workflow.
+7. **Accuracy**: all node information must be based on actual data; do not speculate or assume.
+8. **Completeness Check**: ensure every node has the necessary metadata fields, every edge has correct source and target, no isolated nodes, no cycles.
+9. **No Over-simplification**: if there are many actual execution steps, node count can be increased appropriately (max 20) to ensure key steps are not missed.
+10. **Validate Before Output**: before outputting JSON, must validate all edges satisfy source < target condition to ensure correct DAG structure.
 
-现在开始分析并构建攻击链：`, reactInput, assistantOutSection(modelOutput))
+Now begin analyzing and building the attack chain:`, reactInput, assistantOutSection(modelOutput))
 }
 
 func assistantOutSection(modelOutput string) string {
@@ -771,43 +771,43 @@ func assistantOutSection(modelOutput string) string {
 	if modelOutput == "" {
 		return ""
 	}
-	return "\n## 助手结论（补充）\n\n" + modelOutput + "\n"
+	return "\n## Assistant Conclusion (supplementary)\n\n" + modelOutput + "\n"
 }
 
-// saveChain 保存攻击链到数据库
+// saveChain save attack chain to database
 func (b *Builder) saveChain(conversationID string, nodes []Node, edges []Edge) error {
-	// 先删除旧的攻击链数据
+	// first delete old attack chain data
 	if err := b.db.DeleteAttackChain(conversationID); err != nil {
-		b.logger.Warn("删除旧攻击链失败", zap.Error(err))
+		b.logger.Warn("failed to delete old attack chain", zap.Error(err))
 	}
 
 	for _, node := range nodes {
 		metadataJSON, _ := json.Marshal(node.Metadata)
 		if err := b.db.SaveAttackChainNode(conversationID, node.ID, node.Type, node.Label, "", string(metadataJSON), node.RiskScore); err != nil {
-			b.logger.Warn("保存攻击链节点失败", zap.String("nodeId", node.ID), zap.Error(err))
+			b.logger.Warn("failed to save attack chain node", zap.String("nodeId", node.ID), zap.Error(err))
 		}
 	}
 
-	// 保存边
+	// save edges
 	for _, edge := range edges {
 		if err := b.db.SaveAttackChainEdge(conversationID, edge.ID, edge.Source, edge.Target, edge.Type, edge.Weight); err != nil {
-			b.logger.Warn("保存攻击链边失败", zap.String("edgeId", edge.ID), zap.Error(err))
+			b.logger.Warn("failed to save attack chain edge", zap.String("edgeId", edge.ID), zap.Error(err))
 		}
 	}
 
 	return nil
 }
 
-// LoadChainFromDatabase 从数据库加载攻击链
+// LoadChainFromDatabase load attack chain from database
 func (b *Builder) LoadChainFromDatabase(conversationID string) (*Chain, error) {
 	nodes, err := b.db.LoadAttackChainNodes(conversationID)
 	if err != nil {
-		return nil, fmt.Errorf("加载攻击链节点失败: %w", err)
+		return nil, fmt.Errorf("failed to load attack chain nodes: %w", err)
 	}
 
 	edges, err := b.db.LoadAttackChainEdges(conversationID)
 	if err != nil {
-		return nil, fmt.Errorf("加载攻击链边失败: %w", err)
+		return nil, fmt.Errorf("failed to load attack chain edges: %w", err)
 	}
 
 	return &Chain{
@@ -816,14 +816,14 @@ func (b *Builder) LoadChainFromDatabase(conversationID string) (*Chain, error) {
 	}, nil
 }
 
-// callAIForChainGeneration 调用AI生成攻击链
+// callAIForChainGeneration call AI to generate attack chain
 func (b *Builder) callAIForChainGeneration(ctx context.Context, prompt string) (string, error) {
 	requestBody := map[string]interface{}{
 		"model": b.openAIConfig.Model,
 		"messages": []map[string]interface{}{
 			{
 				"role":    "system",
-				"content": "你是一个专业的安全测试分析师，擅长构建攻击链图。请严格按照JSON格式返回攻击链数据。",
+				"content": "You are a professional security test analyst skilled in building attack chain graphs. Please strictly return attack chain data in JSON format.",
 			},
 			{
 				"role":    "user",
@@ -843,7 +843,7 @@ func (b *Builder) callAIForChainGeneration(ctx context.Context, prompt string) (
 	}
 
 	if b.openAIClient == nil {
-		return "", fmt.Errorf("OpenAI客户端未初始化")
+		return "", fmt.Errorf("OpenAI client not initialized")
 	}
 	if err := b.openAIClient.ChatCompletion(ctx, requestBody, &apiResponse); err != nil {
 		var apiErr *openai.APIError
@@ -855,15 +855,15 @@ func (b *Builder) callAIForChainGeneration(ctx context.Context, prompt string) (
 		} else if strings.Contains(strings.ToLower(err.Error()), "context") || strings.Contains(strings.ToLower(err.Error()), "length") {
 			return "", fmt.Errorf("context length exceeded")
 		}
-		return "", fmt.Errorf("请求失败: %w", err)
+		return "", fmt.Errorf("request failed: %w", err)
 	}
 
 	if len(apiResponse.Choices) == 0 {
-		return "", fmt.Errorf("API未返回有效响应")
+		return "", fmt.Errorf("API did not return a valid response")
 	}
 
 	content := strings.TrimSpace(apiResponse.Choices[0].Message.Content)
-	// 尝试提取JSON（可能包含markdown代码块）
+	// try to extract JSON (may contain markdown code blocks)
 	content = strings.TrimPrefix(content, "```json")
 	content = strings.TrimPrefix(content, "```")
 	content = strings.TrimSuffix(content, "```")
@@ -872,7 +872,7 @@ func (b *Builder) callAIForChainGeneration(ctx context.Context, prompt string) (
 	return content, nil
 }
 
-// ChainJSON 攻击链JSON结构
+// ChainJSON attack chain JSON structure
 type ChainJSON struct {
 	Nodes []struct {
 		ID        string                 `json:"id"`
@@ -889,20 +889,20 @@ type ChainJSON struct {
 	} `json:"edges"`
 }
 
-// parseChainJSON 解析攻击链JSON
+// parseChainJSON parse attack chain JSON
 func (b *Builder) parseChainJSON(chainJSON string) (*Chain, error) {
 	var chainData ChainJSON
 	if err := json.Unmarshal([]byte(chainJSON), &chainData); err != nil {
-		return nil, fmt.Errorf("解析JSON失败: %w", err)
+		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
-	// 创建节点ID映射（AI返回的ID -> 新的UUID）
+	// create node ID map (AI-returned ID -> new UUID)
 	nodeIDMap := make(map[string]string)
 
-	// 转换为Chain结构
+	// convert to Chain structure
 	nodes := make([]Node, 0, len(chainData.Nodes))
 	for _, n := range chainData.Nodes {
-		// 生成新的UUID节点ID
+		// generate new UUID node ID
 		newNodeID := fmt.Sprintf("node_%s", uuid.New().String())
 		nodeIDMap[n.ID] = newNodeID
 
@@ -919,7 +919,7 @@ func (b *Builder) parseChainJSON(chainJSON string) (*Chain, error) {
 		nodes = append(nodes, node)
 	}
 
-	// 转换边
+	// convert edges
 	edges := make([]Edge, 0, len(chainData.Edges))
 	for _, e := range chainData.Edges {
 		sourceID, ok := nodeIDMap[e.Source]
@@ -931,7 +931,7 @@ func (b *Builder) parseChainJSON(chainJSON string) (*Chain, error) {
 			continue
 		}
 
-		// 生成边的ID（前端需要）
+		// generate edge ID (required by frontend)
 		edgeID := fmt.Sprintf("edge_%s", uuid.New().String())
 
 		edges = append(edges, Edge{
@@ -949,4 +949,4 @@ func (b *Builder) parseChainJSON(chainJSON string) (*Chain, error) {
 	}, nil
 }
 
-// 以下所有方法已不再使用，已删除以简化代码
+// all methods below are no longer used, removed to simplify code

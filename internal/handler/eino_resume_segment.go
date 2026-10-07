@@ -7,7 +7,7 @@ import (
 	"kestrel/internal/multiagent"
 )
 
-// applyEinoTraceResumeSegment 中断并继续：persist last_react_* → loadHistory，可选替换下一段 user 文案。
+// applyEinoTraceResumeSegment interrupts and continues: persists last_react_* → loads history, optionally replacing the next user segment content.
 func (h *AgentHandler) applyEinoTraceResumeSegment(
 	conversationID string,
 	result *multiagent.RunResult,

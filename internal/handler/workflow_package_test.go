@@ -1,4 +1,4 @@
-﻿package handler
+package handler
 
 import (
 	"bytes"
@@ -30,7 +30,7 @@ func TestWorkflowPackageHandlerInspectionAndCreateImport(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = db.Close() })
 	h := NewWorkflowHandler(db, zap.NewNop())
-	pkg, _, err := workflowpkg.Export(workflowpkg.Document{ID: "wf-api", Name: "API workflow", Version: 4, Enabled: true, UpdatedAt: time.Now().UTC(), GraphJSON: `{"nodes":[{"id":"start-1","type":"start","label":"开始","position":{"x":0,"y":0},"config":{}},{"id":"out-1","type":"output","label":"输出","position":{"x":0,"y":120},"config":{"output_key":"result","source_binding":{"from":"inputs","field":"message"}}}],"edges":[{"id":"e1","source":"start-1","target":"out-1"}],"config":{"schema_version":1}}`})
+	pkg, _, err := workflowpkg.Export(workflowpkg.Document{ID: "wf-api", Name: "API workflow", Version: 4, Enabled: true, UpdatedAt: time.Now().UTC(), GraphJSON: `{"nodes":[{"id":"start-1","type":"start","label":"Start","position":{"x":0,"y":0},"config":{}},{"id":"out-1","type":"output","label":"Output","position":{"x":0,"y":120},"config":{"output_key":"result","source_binding":{"from":"inputs","field":"message"}}}],"edges":[{"id":"e1","source":"start-1","target":"out-1"}],"config":{"schema_version":1}}`})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,7 +83,7 @@ func TestWorkflowPackageHandlerInspectionAndCreateImport(t *testing.T) {
 func TestWorkflowHandlerGenerateDraft(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	h := NewWorkflowHandler(nil, zap.NewNop())
-	body := bytes.NewBufferString(`{"prompt":"对目标资产做端口扫描，如果发现高危端口就执行加固脚本，最后输出报告","options":{"include_objective":true},"available_tools":[{"key":"nmap","name":"nmap","enabled":true}]}`)
+	body := bytes.NewBufferString(`{"prompt":"perform a portscan on target assets, if critical ports are discovered execute hardening scripts, then output a report","options":{"include_objective":true},"available_tools":[{"key":"nmap","name":"nmap","enabled":true}]}`)
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	c.Request = httptest.NewRequest(http.MethodPost, "/api/workflows/generate-draft", body)
@@ -98,7 +98,7 @@ func TestWorkflowHandlerGenerateDraft(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(resp.Error, "大模型生成失败") {
+	if !strings.Contains(resp.Error, "large model generation failed") {
 		t.Fatalf("unexpected error: %#v", resp.Error)
 	}
 }

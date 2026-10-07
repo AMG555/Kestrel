@@ -1,4 +1,4 @@
-﻿package multiagent
+package multiagent
 
 import (
 	"testing"
@@ -30,7 +30,7 @@ func TestEmitEinoNativeModelRetryProgress(t *testing.T) {
 	if gotType != "eino_model_retry" {
 		t.Fatalf("event type = %q, want eino_model_retry", gotType)
 	}
-	if gotMessage != "模型调用遇到临时问题，Eino 正在原生重试…" {
+	if gotMessage != "Model call encountered a transient issue, Eino is retrying natively..." {
 		t.Fatalf("message = %q", gotMessage)
 	}
 	assertNativeRetryMapValue(t, gotData, "conversationId", "conv-1")

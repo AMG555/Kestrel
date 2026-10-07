@@ -102,7 +102,7 @@ func TestEinoInitialIteratorStartHandlerStartsTurnLoopWithTakeoverProgress(t *te
 	if gotType != "progress" {
 		t.Fatalf("progress type = %q, want progress", gotType)
 	}
-	if gotMessage != "Eino TurnLoop 常驻多轮 runtime 已接管本轮会话。" {
+	if gotMessage != "Eino TurnLoop persistent multi-round runtime has taken over this session." {
 		t.Fatalf("progress message = %q", gotMessage)
 	}
 	if gotData["conversationId"] != "conv-1" || gotData["source"] != "eino" || gotData["orchestration"] != "deep" {

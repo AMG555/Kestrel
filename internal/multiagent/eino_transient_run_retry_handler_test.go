@@ -1,4 +1,4 @@
-﻿package multiagent
+package multiagent
 
 import (
 	"errors"
@@ -56,10 +56,10 @@ func TestEinoTransientRunRetryHandlerPreparesRetry(t *testing.T) {
 	if events[0].eventType != "eino_run_retry" || events[1].eventType != "eino_run_retry" {
 		t.Fatalf("event types = %q/%q", events[0].eventType, events[1].eventType)
 	}
-	if !strings.Contains(events[0].message, "第 1/2 次重试") {
+	if !strings.Contains(events[0].message, "retry 1/2") {
 		t.Fatalf("first message = %q", events[0].message)
 	}
-	if events[1].message != "已恢复上下文，正在重试…" {
+	if events[1].message != "Context resumed, retrying…" {
 		t.Fatalf("second message = %q", events[1].message)
 	}
 	assertTransientRetryMapValue(t, events[0].data, "conversationId", "conv-1")

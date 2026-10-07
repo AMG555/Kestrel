@@ -1,4 +1,4 @@
-﻿package multiagent
+package multiagent
 
 import (
 	"testing"
@@ -72,7 +72,7 @@ func TestEinoToolResultProgressEmitterBackgroundWaitDisplaysRunning(t *testing.T
 			data, _ = raw.(map[string]interface{})
 		}
 	}
-	body := `工具已提交到后台执行，但本次等待已到达上限。
+	body := `tool已提交到background execution，但本次等待已到达上限。
 
 execution_id: 3eaaa391-050b-4be1-a870-48a855923cb7
 tool: exec

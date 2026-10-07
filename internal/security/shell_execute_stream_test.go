@@ -1,4 +1,4 @@
-﻿package security
+package security
 
 import (
 	"context"
@@ -101,7 +101,7 @@ sudo whoami && printf '%s\n' 'unexpected-command-success'
 
 func TestEinoStreamingShell_StderrWhileStdoutBlocks(t *testing.T) {
 	shell := NewEinoStreamingShell()
-	// 模拟 sudo：stderr 先有输出，stdout 侧进程仍挂起；旧 eino local 在首包 stderr 前不会向流写任何内容。
+	// 模拟 sudo：stderr 先有输出，stdout 侧process仍挂起；旧 eino local 在首包 stderr 前不会向流写任何内容。
 	cmd := PrepareNonInteractiveShellCommand(`echo "password prompt" >&2; sleep 30`)
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -137,7 +137,7 @@ func TestEinoStreamingShell_StderrWhileStdoutBlocks(t *testing.T) {
 	}
 }
 
-// TestEinoStreamingShell_BackgroundJobDoesNotHoldPipe 模拟 cmd & 后继续前台逻辑：重定向后应快速结束。
+// TestEinoStreamingShell_BackgroundJobDoesNotHoldPipe 模拟 cmd & 后continue前台逻辑：重定向后应快速结束。
 func TestEinoStreamingShell_BackgroundJobDoesNotHoldPipe(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping shell integration in -short")

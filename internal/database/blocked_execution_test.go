@@ -1,4 +1,4 @@
-﻿package database
+package database
 
 import (
 	"fmt"
@@ -63,12 +63,12 @@ func TestLegacyToolGuardBlockMigrationIsStrictAndIdempotent(t *testing.T) {
 		t.Fatal(err)
 	}
 	now := time.Now()
-	refusal := "工具调用已被安全规则拦截：识别到 example.gov，禁止操作。\n规则: 政府网站保护 (government-domains)\n匹配内容: \"example.gov\""
+	refusal := "tool call已被安全规则拦截：识别到 example.gov，禁止操作。\n规则: 政府网站保护 (government-domains)\n匹配内容: \"example.gov\""
 	for i, reason := range []string{
 		refusal,
 		"upstream returned: " + refusal,
-		"工具调用已被安全规则拦截：regular error without the envelope",
-		"工具调用已被安全规则拦截：malformed match\n规则: Rule (id)\n匹配内容: unquoted",
+		"tool call已被安全规则拦截：regular error without the envelope",
+		"tool call已被安全规则拦截：malformed match\n规则: Rule (id)\n匹配内容: unquoted",
 	} {
 		if err := db.SaveToolExecution(&mcp.ToolExecution{ID: fmt.Sprint(i), ToolName: "test", Status: "failed", Error: reason, StartTime: now, EndTime: &now}); err != nil {
 			t.Fatal(err)
@@ -110,7 +110,7 @@ func TestToolResultStatusFromPayloadDistinguishesBlocked(t *testing.T) {
 	}{
 		{map[string]interface{}{"blocked": true, "success": false, "isError": true}, "blocked"},
 		{map[string]interface{}{"status": "blocked", "success": false}, "blocked"},
-		{map[string]interface{}{"success": false, "isError": true, "result": "工具调用已被安全规则拦截"}, "failed"},
+		{map[string]interface{}{"success": false, "isError": true, "result": "tool call已被安全规则拦截"}, "failed"},
 		{map[string]interface{}{"success": true}, "completed"},
 	} {
 		if got := toolResultStatusFromPayload(tc.payload, "tool_result"); got != tc.want {

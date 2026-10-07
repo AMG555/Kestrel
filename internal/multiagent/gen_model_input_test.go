@@ -1,4 +1,4 @@
-﻿package multiagent
+package multiagent
 
 import (
 	"context"
@@ -14,7 +14,7 @@ func TestLiteralInstructionGenModelInput_PreservesLiteralCurlyBraces(t *testing.
 	instruction := "- [finding/x] summary {关系边: discovered_on←target/dev}\n" +
 		"如 finding 上 {from:target/*, type:discovered_on}"
 	msgs, err := literalInstructionGenModelInput(context.Background(), instruction, &adk.AgentInput{
-		Messages: []adk.Message{schema.UserMessage("继续")},
+		Messages: []adk.Message{schema.UserMessage("continue")},
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

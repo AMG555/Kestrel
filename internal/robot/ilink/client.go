@@ -1,4 +1,4 @@
-﻿package ilink
+package ilink
 
 import (
 	"bytes"
@@ -25,7 +25,7 @@ const (
 	GetUpdatesTimeout    = 35 * time.Second
 )
 
-// Client 微信 iLink Bot HTTP 客户端（与 @tencent-weixin/openclaw-weixin 协议兼容）
+// Client 微信 iLink Bot HTTP 客户端（与 @tencent-weixin/openclaw-weixin protocol兼容）
 type Client struct {
 	BaseURL       string
 	BotToken      string
@@ -162,13 +162,13 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body []byte
 	return raw, nil
 }
 
-// QRCodeResponse 获取二维码响应
+// QRCodeResponse 获取二维码response
 type QRCodeResponse struct {
 	QRCode           string `json:"qrcode"`
 	QRCodeImgContent string `json:"qrcode_img_content"`
 }
 
-// GetBotQRCode 获取绑定二维码
+// GetBotQRCode 获取bind二维码
 func (c *Client) GetBotQRCode(ctx context.Context, botType string, localTokenList []string) (*QRCodeResponse, error) {
 	if strings.TrimSpace(botType) == "" {
 		botType = DefaultBotType
@@ -188,7 +188,7 @@ func (c *Client) GetBotQRCode(ctx context.Context, botType string, localTokenLis
 	return &out, nil
 }
 
-// QRStatusResponse 二维码状态轮询响应
+// QRStatusResponse 二维码status轮询response
 type QRStatusResponse struct {
 	Status       string `json:"status"`
 	BotToken     string `json:"bot_token"`
@@ -198,7 +198,7 @@ type QRStatusResponse struct {
 	RedirectHost string `json:"redirect_host"`
 }
 
-// GetQRCodeStatus 长轮询二维码扫码状态
+// GetQRCodeStatus 长轮询二维码扫码status
 func (c *Client) GetQRCodeStatus(ctx context.Context, qrcode, verifyCode string) (*QRStatusResponse, error) {
 	path := "ilink/bot/get_qrcode_status?qrcode=" + url.QueryEscape(qrcode)
 	if verifyCode != "" {
@@ -218,7 +218,7 @@ func (c *Client) GetQRCodeStatus(ctx context.Context, qrcode, verifyCode string)
 	return &out, nil
 }
 
-// MessageItem 消息内容项
+// MessageItem Message content项
 type MessageItem struct {
 	Type     int `json:"type"`
 	TextItem *struct {
@@ -226,7 +226,7 @@ type MessageItem struct {
 	} `json:"text_item,omitempty"`
 }
 
-// WeixinMessage 入站消息
+// WeixinMessage 入站message
 type WeixinMessage struct {
 	FromUserID    string        `json:"from_user_id"`
 	MessageType   int           `json:"message_type"`
@@ -235,7 +235,7 @@ type WeixinMessage struct {
 	ContextToken  string        `json:"context_token"`
 }
 
-// GetUpdatesResponse 长轮询消息响应
+// GetUpdatesResponse 长轮询messageresponse
 type GetUpdatesResponse struct {
 	Ret                 int             `json:"ret"`
 	ErrCode             int             `json:"errcode"`
@@ -245,7 +245,7 @@ type GetUpdatesResponse struct {
 	LongPollingTimeoutMs int            `json:"longpolling_timeout_ms"`
 }
 
-// GetUpdates 长轮询获取新消息
+// GetUpdates 长轮询获取新message
 func (c *Client) GetUpdates(ctx context.Context, getUpdatesBuf string) (*GetUpdatesResponse, error) {
 	body, _ := json.Marshal(map[string]interface{}{
 		"get_updates_buf": getUpdatesBuf,
@@ -305,7 +305,7 @@ func sanitizeBotAgent(raw string) string {
 	return raw
 }
 
-// ExtractText 从消息中提取首条文本
+// ExtractText 从message中提取首条文本
 func ExtractText(msg WeixinMessage) string {
 	for _, item := range msg.ItemList {
 		if item.Type == 1 && item.TextItem != nil {

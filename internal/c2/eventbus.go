@@ -1,4 +1,4 @@
-﻿package c2
+package c2
 
 import (
 	"sync"
@@ -6,10 +6,10 @@ import (
 	"time"
 )
 
-// Event 是 EventBus 内部传输的事件单元，是 database.C2Event 的"实时投影"。
-// 区别在于：
-//   - 数据库表保存全部历史，用于审计与列表分页；
-//   - EventBus 只缓存最近 N 条，用于 SSE/WS 实时推送给在线订阅者。
+// Event is the unit of transmission inside EventBus, and is a "real-time projection" of database.C2Event.
+// The difference is:
+//   - The database table saves all history, for audit and paginated listing;
+//   - EventBus only caches the most recent N entries, for real-time SSE/WS push to online subscribers.
 type Event struct {
 	ID        string                 `json:"id"`
 	Level     string                 `json:"level"`
@@ -21,37 +21,37 @@ type Event struct {
 	CreatedAt time.Time              `json:"createdAt"`
 }
 
-// EventBus 简单的内存广播总线。
-// 设计要点：
-//   - 多订阅者：每个订阅者有独立 buffered channel，慢消费者不会阻塞 publisher；
-//   - 容量满即丢弃：发布端绝不阻塞，避免 listener accept loop / beacon handler 卡住；
-//   - 全局过滤：订阅时可限定 SessionID/Category，前端按需订阅，省 CPU；
-//   - 关闭安全：Close() 后所有订阅者 chan 关闭，防止 goroutine 泄漏。
+// EventBus is a simple in-memory broadcast bus.
+// Design notes:
+//   - Multiple subscribers: each subscriber has an independent buffered channel; slow consumers do not block the publisher;
+//   - Drop on full: the publisher never blocks; drops silently when the channel is full to avoid blocking the listener accept loop / beacon handler;
+//   - Global filter: subscribers can be scoped by SessionID/Category on subscribe, reducing CPU;
+//   - Close-safe: after Close(), all subscriber channels are closed to prevent goroutine leaks.
 type EventBus struct {
 	mu          sync.RWMutex
 	subscribers map[string]*Subscription
 	closed      bool
 }
 
-// Subscription 订阅句柄
+// Subscription is a subscription handle.
 type Subscription struct {
 	ID         string
 	Ch         chan *Event
-	SessionID  string // 空表示不限制
-	Category   string // 空表示不限制
+	SessionID  string // empty string means no restriction
+	Category   string // empty string means no restriction
 	Levels     map[string]struct{}
 	dropCount  atomic.Int64
 }
 
-// NewEventBus 创建总线
+// NewEventBus creates a new event bus.
 func NewEventBus() *EventBus {
 	return &EventBus{subscribers: make(map[string]*Subscription)}
 }
 
-// Subscribe 注册订阅者；返回 Subscription，调用方负责后续 Unsubscribe。
-//   - bufferSize：单订阅者 channel 容量，建议 64~256；
-//   - sessionFilter / categoryFilter：空字符串=不限；
-//   - levelFilter：[]string{"warn","critical"} 这类，nil/空表示全收。
+// Subscribe registers a subscriber and returns a Subscription; the caller is responsible for calling Unsubscribe later.
+//   - bufferSize: per-subscriber channel capacity, recommended 64–256;
+//   - sessionFilter / categoryFilter: empty string means no restriction;
+//   - levelFilter: e.g. []string{"warn","critical"}; nil/empty means receive all.
 func (b *EventBus) Subscribe(id string, bufferSize int, sessionFilter, categoryFilter string, levelFilter []string) *Subscription {
 	if bufferSize <= 0 {
 		bufferSize = 128
@@ -78,7 +78,7 @@ func (b *EventBus) Subscribe(id string, bufferSize int, sessionFilter, categoryF
 	return sub
 }
 
-// Unsubscribe 注销订阅者并关闭 channel
+// Unsubscribe unregisters a subscriber and closes its channel.
 func (b *EventBus) Unsubscribe(id string) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -88,7 +88,7 @@ func (b *EventBus) Unsubscribe(id string) {
 	}
 }
 
-// Publish 广播事件给所有订阅者；非阻塞，channel 满时静默丢弃
+// Publish broadcasts an event to all matching subscribers; non-blocking, silently drops if the channel is full.
 func (b *EventBus) Publish(e *Event) {
 	if e == nil {
 		return
@@ -114,7 +114,7 @@ func (b *EventBus) Publish(e *Event) {
 	}
 }
 
-// Close 关闭总线，停止所有订阅
+// Close shuts down the bus and stops all subscriptions.
 func (b *EventBus) Close() {
 	b.mu.Lock()
 	defer b.mu.Unlock()

@@ -1,11 +1,11 @@
-﻿package knowledge
+package knowledge
 
 import (
 	"encoding/json"
 	"time"
 )
 
-// formatTime 格式化时间为 RFC3339 格式，零时间返回空字符串
+// formatTime format化时间为 RFC3339 format，零时间backnullstring
 func formatTime(t time.Time) string {
 	if t.IsZero() {
 		return ""
@@ -16,15 +16,15 @@ func formatTime(t time.Time) string {
 // KnowledgeItem 知识库项
 type KnowledgeItem struct {
 	ID        string    `json:"id"`
-	Category  string    `json:"category"` // 风险类型（文件夹名）
-	Title     string    `json:"title"`    // 标题（文件名）
-	FilePath  string    `json:"filePath"` // 文件路径
-	Content   string    `json:"content"`  // 文件内容
+	Category  string    `json:"category"` // 风险type（file夹名）
+	Title     string    `json:"title"`    // title（Filename）
+	FilePath  string    `json:"filePath"` // file path
+	Content   string    `json:"content"`  // File content
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
-// KnowledgeItemSummary 知识库项摘要（用于列表，不包含完整内容）
+// KnowledgeItemSummary 知识库项summary（用于list，不包含完整内容）
 type KnowledgeItemSummary struct {
 	ID        string    `json:"id"`
 	Category  string    `json:"category"`
@@ -35,7 +35,7 @@ type KnowledgeItemSummary struct {
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
-// MarshalJSON 自定义 JSON 序列化，确保时间格式正确
+// MarshalJSON 自定义 JSON 序列化，确保时间format正确
 func (k *KnowledgeItemSummary) MarshalJSON() ([]byte, error) {
 	type Alias KnowledgeItemSummary
 	aux := &struct {
@@ -50,7 +50,7 @@ func (k *KnowledgeItemSummary) MarshalJSON() ([]byte, error) {
 	return json.Marshal(aux)
 }
 
-// MarshalJSON 自定义 JSON 序列化，确保时间格式正确
+// MarshalJSON 自定义 JSON 序列化，确保时间format正确
 func (k *KnowledgeItem) MarshalJSON() ([]byte, error) {
 	type Alias KnowledgeItem
 	aux := &struct {
@@ -75,26 +75,26 @@ type KnowledgeChunk struct {
 	CreatedAt  time.Time `json:"createdAt"`
 }
 
-// RetrievalResult 检索结果
+// RetrievalResult retrieval results
 type RetrievalResult struct {
 	Chunk      *KnowledgeChunk `json:"chunk"`
 	Item       *KnowledgeItem  `json:"item"`
-	Similarity float64         `json:"similarity"` // 相似度分数
+	Similarity float64         `json:"similarity"` // similarity score
 	Score      float64         `json:"score"`      // 与 Similarity 相同：余弦相似度
 }
 
-// RetrievalLog 检索日志
+// RetrievalLog 检索log
 type RetrievalLog struct {
 	ID             string    `json:"id"`
 	ConversationID string    `json:"conversationId,omitempty"`
 	MessageID      string    `json:"messageId,omitempty"`
 	Query          string    `json:"query"`
 	RiskType       string    `json:"riskType,omitempty"`
-	RetrievedItems []string  `json:"retrievedItems"` // 检索到的知识项 ID 列表
+	RetrievedItems []string  `json:"retrievedItems"` // 检索到的知识项 ID list
 	CreatedAt      time.Time `json:"createdAt"`
 }
 
-// MarshalJSON 自定义 JSON 序列化，确保时间格式正确
+// MarshalJSON 自定义 JSON 序列化，确保时间format正确
 func (r *RetrievalLog) MarshalJSON() ([]byte, error) {
 	type Alias RetrievalLog
 	return json.Marshal(&struct {
@@ -106,18 +106,18 @@ func (r *RetrievalLog) MarshalJSON() ([]byte, error) {
 	})
 }
 
-// CategoryWithItems 分类及其下的知识项（用于按分类分页）
+// CategoryWithItems 分类及其下的知识项（用于按分类paginate）
 type CategoryWithItems struct {
-	Category  string                  `json:"category"`  // 分类名称
-	ItemCount int                     `json:"itemCount"` // 该分类下的知识项总数
-	Items     []*KnowledgeItemSummary `json:"items"`     // 该分类下的知识项列表
+	Category  string                  `json:"category"`  // 分类name
+	ItemCount int                     `json:"itemCount"` // 该分类下的知识项total
+	Items     []*KnowledgeItemSummary `json:"items"`     // 该分类下的Knowledge item list
 }
 
-// SearchRequest 搜索请求
+// SearchRequest searchrequest
 type SearchRequest struct {
 	Query          string  `json:"query"`
-	RiskType       string  `json:"riskType,omitempty"`       // 可选：指定风险类型
-	SubIndexFilter string  `json:"subIndexFilter,omitempty"` // 可选：仅保留 sub_indexes 含该标签的行（含未打标旧数据）
-	TopK           int     `json:"topK,omitempty"`           // 返回 Top-K 结果，默认 5
-	Threshold      float64 `json:"threshold,omitempty"`      // 相似度阈值，默认 0.7
+	RiskType       string  `json:"riskType,omitempty"`       // 可选：指定风险type
+	SubIndexFilter string  `json:"subIndexFilter,omitempty"` // 可选：仅保留 sub_indexes 含该Tags的行（含未打标旧数据）
+	TopK           int     `json:"topK,omitempty"`           // back Top-K 结果，默认 5
+	Threshold      float64 `json:"threshold,omitempty"`      // 相似度阈value，默认 0.7
 }

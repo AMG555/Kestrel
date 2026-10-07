@@ -1,4 +1,4 @@
-﻿package multiagent
+package multiagent
 
 import (
 	"context"
@@ -9,11 +9,11 @@ import (
 	"github.com/cloudwego/eino/schema"
 )
 
-// modelFacingTraceHolder 保存「即将送入 ChatModel」的消息快照（已走 summarization / reduction / orphan 修剪等），
-// 用于 last_react_input 落库，使续跑与「上下文压缩后」的模型视角一致，而非仅依赖事件流 append 的 runAccumulatedMsgs。
+// modelFacingTraceHolder saves a snapshot of the messages "about to be sent to ChatModel" (after summarization / reduction / orphan pruning etc.),
+// used for persisting last_react_input, so resume runs align with the model's post-context-compression view rather than relying solely on event-stream-appended runAccumulatedMsgs.
 type modelFacingTraceHolder struct {
 	mu sync.Mutex
-	// msgs 为深拷贝后的切片，避免框架后续原地修改污染快照
+	// msgs is a deep-copied slice to prevent framework in-place modifications from polluting the snapshot
 	msgs []adk.Message
 }
 
@@ -21,7 +21,7 @@ func newModelFacingTraceHolder() *modelFacingTraceHolder {
 	return &modelFacingTraceHolder{}
 }
 
-// Snapshot 返回当前快照的再一次深拷贝（供序列化落库，避免与 holder 互斥长期持锁）。
+// Snapshot returns another deep copy of the current snapshot (for serialization/persistence, to avoid holding the holder mutex for a long time).
 func (h *modelFacingTraceHolder) Snapshot() []adk.Message {
 	if h == nil {
 		return nil
@@ -72,8 +72,8 @@ func cloneADKMessagesForTrace(msgs []adk.Message) []adk.Message {
 	return out
 }
 
-// modelFacingTraceMiddleware 必须在 Handlers 链中处于 **BeforeModel 最后**（telemetry 之后），
-// 此时 state.Messages 即为本次 LLM 调用的最终入参。
+// modelFacingTraceMiddleware must be last in the Handlers chain for **BeforeModel** (after telemetry),
+// at which point state.Messages is the final input for this LLM call.
 type modelFacingTraceMiddleware struct {
 	adk.BaseChatModelAgentMiddleware
 	holder *modelFacingTraceHolder

@@ -12,7 +12,7 @@ type hitlCognitionState struct {
 	Planning           string
 }
 
-// GetHitlCognition 返回当前运行任务上缓存的本轮 HITL 上下文（不含会话历史）。
+// GetHitlCognition returns the cached HITL context for the current running task round (excluding conversation history).
 func (m *AgentTaskManager) GetHitlCognition(conversationID string) hitlCognitionFields {
 	conversationID = strings.TrimSpace(conversationID)
 	if m == nil || conversationID == "" {
@@ -33,7 +33,7 @@ func (m *AgentTaskManager) GetHitlCognition(conversationID string) hitlCognition
 	}
 }
 
-// ResetHitlCognition 新任务开始时重置本轮 HITL 上下文。
+// ResetHitlCognition resets the HITL context when a new task starts.
 func (m *AgentTaskManager) ResetHitlCognition(conversationID, userMessage string) {
 	conversationID = strings.TrimSpace(conversationID)
 	if m == nil || conversationID == "" {
@@ -48,7 +48,7 @@ func (m *AgentTaskManager) ResetHitlCognition(conversationID, userMessage string
 	t.hitlCognition = &hitlCognitionState{UserMessage: strings.TrimSpace(userMessage)}
 }
 
-// SetHitlAssistantMessageID 记录当前助手消息 ID，供 HITL 与 DB 回退对齐。
+// SetHitlAssistantMessageID records the current assistant message ID for HITL and DB rollback alignment.
 func (m *AgentTaskManager) SetHitlAssistantMessageID(conversationID, assistantMessageID string) {
 	conversationID = strings.TrimSpace(conversationID)
 	assistantMessageID = strings.TrimSpace(assistantMessageID)
@@ -67,7 +67,7 @@ func (m *AgentTaskManager) SetHitlAssistantMessageID(conversationID, assistantMe
 	t.hitlCognition.AssistantMessageID = assistantMessageID
 }
 
-// UpdateHitlCognitionSnapshot 从进行中的进度流快照更新 thinking / reasoning / planning。
+// UpdateHitlCognitionSnapshot updates thinking/reasoning/planning from the in-progress stream snapshot.
 func (m *AgentTaskManager) UpdateHitlCognitionSnapshot(conversationID, assistantMessageID, thinking, reasoningChain, planning string) {
 	conversationID = strings.TrimSpace(conversationID)
 	if m == nil || conversationID == "" {

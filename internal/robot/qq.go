@@ -1,4 +1,4 @@
-﻿package robot
+package robot
 
 import (
 	"context"
@@ -27,7 +27,7 @@ var (
 	qqAPI       openapi.OpenAPI
 )
 
-// StartQQ 启动 QQ 机器人 WebSocket（C2C 与群 @，出站连接，无需公网回调）。
+// StartQQ start QQ 机器人 WebSocket（C2C 与群 @，出站连接，none需公网回调）。
 func StartQQ(ctx context.Context, robotsCfg config.RobotsConfig, h MessageHandler, logger *zap.Logger) {
 	cfg := robotsCfg.QQ
 	if !cfg.Enabled || strings.TrimSpace(cfg.AppID) == "" || strings.TrimSpace(cfg.ClientSecret) == "" {
@@ -40,7 +40,7 @@ func runQQLoop(ctx context.Context, cfg config.RobotQQConfig, h MessageHandler, 
 	backoff := reconnectInitial
 	for {
 		if ctx.Err() != nil {
-			logger.Info("QQ 机器人 WebSocket 已按配置关闭")
+			logger.Info("QQ 机器人 WebSocket 已按configclose")
 			return
 		}
 		err := runQQSession(ctx, cfg, h, logger)
@@ -48,7 +48,7 @@ func runQQLoop(ctx context.Context, cfg config.RobotQQConfig, h MessageHandler, 
 			return
 		}
 		if err != nil {
-			logger.Warn("QQ 机器人 WebSocket 异常，将自动重连", zap.Error(err), zap.Duration("retry_after", backoff))
+			logger.Warn("QQ 机器人 WebSocket abnormal，将自动重连", zap.Error(err), zap.Duration("retry_after", backoff))
 		}
 		if !waitReconnect(ctx, &backoff) {
 			return
@@ -134,7 +134,7 @@ func handleQQC2CMessage(payload *dto.WSPayload, data *dto.WSC2CMessageData) erro
 	if h == nil || api == nil {
 		return nil
 	}
-	logger.Info("QQ 收到 C2C 消息", zap.String("from", userID), zap.String("content", text))
+	logger.Info("QQ 收到 C2C message", zap.String("from", userID), zap.String("content", text))
 	reply := h.HandleMessage(qqPlatform, userID, text)
 	return qqPostC2CReply(context.Background(), api, userOpenID, payload, data.ID, reply, logger)
 }
@@ -161,7 +161,7 @@ func handleQQGroupATMessage(payload *dto.WSPayload, data *dto.WSGroupATMessageDa
 	if h == nil || api == nil {
 		return nil
 	}
-	logger.Info("QQ 收到群 @ 消息", zap.String("from", userID), zap.String("content", text))
+	logger.Info("QQ 收到群 @ message", zap.String("from", userID), zap.String("content", text))
 	reply := h.HandleMessage(qqPlatform, userID, text)
 	return qqPostGroupReply(context.Background(), api, groupID, payload, data.ID, reply, logger)
 }
@@ -180,7 +180,7 @@ func qqPostC2CReply(ctx context.Context, api openapi.OpenAPI, userOpenID string,
 			msg.EventID = payload.EventID
 		}
 		if _, err := api.PostC2CMessage(ctx, userOpenID, msg); err != nil {
-			logger.Warn("QQ 发送 C2C 回复失败", zap.String("to", userOpenID), zap.Error(err))
+			logger.Warn("QQ 发送 C2C 回复failed", zap.String("to", userOpenID), zap.Error(err))
 			return err
 		}
 	}
@@ -201,7 +201,7 @@ func qqPostGroupReply(ctx context.Context, api openapi.OpenAPI, groupID string, 
 			msg.EventID = payload.EventID
 		}
 		if _, err := api.PostGroupMessage(ctx, groupID, msg); err != nil {
-			logger.Warn("QQ 发送群消息回复失败", zap.String("group", groupID), zap.Error(err))
+			logger.Warn("QQ 发送群message回复failed", zap.String("group", groupID), zap.Error(err))
 			return err
 		}
 	}

@@ -1,4 +1,4 @@
-﻿package security
+package security
 
 import (
 	"context"
@@ -14,7 +14,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// setupTestExecutor 创建测试用的执行器
+// setupTestExecutor createtest用的执行器
 func setupTestExecutor(t *testing.T) (*Executor, *mcp.Server) {
 	logger := zap.NewNop()
 	mcpServer := mcp.NewServer(logger)
@@ -35,25 +35,25 @@ func TestExecutor_ExecuteInternalTool_UnknownTool(t *testing.T) {
 		"test": "value",
 	}
 
-	// 测试未知的内部工具类型
+	// testunknown的内部tooltype
 	toolResult, err := executor.executeInternalTool(ctx, "unknown_tool", "internal:unknown_tool", args)
 	if err != nil {
-		t.Fatalf("执行内部工具失败: %v", err)
+		t.Fatalf("执行内部toolfailed: %v", err)
 	}
 
 	if !toolResult.IsError {
-		t.Fatal("未知的工具类型应该返回错误")
+		t.Fatal("unknown的tooltype应该backerror")
 	}
 
-	if !strings.Contains(toolResult.Content[0].Text, "未知的内部工具类型") {
-		t.Errorf("错误消息应该包含'未知的内部工具类型'")
+	if !strings.Contains(toolResult.Content[0].Text, "unknown的内部tooltype") {
+		t.Errorf("errormessage应该包含'unknown的内部tooltype'")
 	}
 }
 
 func TestExecuteSystemCommand_BackgroundDoesNotBlockOnChildStdout(t *testing.T) {
 	executor, _ := setupTestExecutor(t)
-	// 子进程先向 stdout 写无换行字符再长时间 sleep；若与 echo $pid 共享管道且未重定向子进程 stdout，
-	// ReadString('\n') 会阻塞到子进程退出。后台包装须将子进程标准流与 PID 行分离。
+	// child process先向 stdout 写none换行字符再长时间 sleep；若与 echo $pid 共享管道且未重定向child process stdout，
+	// ReadString('\n') 会阻塞到child processexit。后台包装须将child process标准流与 PID 行分离。
 	scope := NewProcessScope()
 	t.Cleanup(func() {
 		if err := scope.Close(); err != nil {
@@ -74,7 +74,7 @@ func TestExecuteSystemCommand_BackgroundDoesNotBlockOnChildStdout(t *testing.T) 
 		t.Fatalf("expected success, got %+v", res)
 	}
 	txt := res.Content[0].Text
-	if !strings.Contains(txt, "后台命令已启动") {
+	if !strings.Contains(txt, "后台命令已start") {
 		t.Fatalf("unexpected body: %q", txt)
 	}
 }
@@ -257,7 +257,7 @@ func indexOf(slice []string, s string) int {
 	return -1
 }
 
-// TestCombinedOutputCancellable_ContextCancelKillsTree 验证 ctx 取消时能在数秒内结束（杀进程组，非挂死）。
+// TestCombinedOutputCancellable_ContextCancelKillsTree validate ctx cancelled时能在数秒内结束（杀process group，非挂死）。
 func TestCombinedOutputCancellable_ContextCancelKillsTree(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("unix process group kill")

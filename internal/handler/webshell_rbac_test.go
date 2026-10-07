@@ -1,4 +1,4 @@
-﻿package handler
+package handler
 
 import (
 	"bytes"
@@ -44,7 +44,7 @@ func TestWebshellExecAllowsAdHocURLWithoutConnectionID(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	_, user, _, _ := setupWebshellRBACTest(t)
 	handler := NewWebShellHandler(zap.NewNop(), nil)
-	// Ad-hoc probe (connectivity test before save) must not be rejected as "无权访问".
+	// Ad-hoc probe (connectivity test before save) must not be rejected as "access denied".
 	// The target URL will fail to connect; we only assert auth allows the request through.
 	w := performWebshellJSON(user, http.MethodPost, "/api/webshell/exec", map[string]interface{}{
 		"url": "http://127.0.0.1:1/admin", "command": "id",

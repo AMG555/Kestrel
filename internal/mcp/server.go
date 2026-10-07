@@ -1,4 +1,4 @@
-﻿package mcp
+package mcp
 
 import (
 	"bufio"
@@ -22,7 +22,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// MonitorStorage 监控数据存储接口
+// MonitorStorage is the storage interface for monitoring data
 type MonitorStorage interface {
 	SaveToolExecution(exec *ToolExecution) error
 	UpdateToolExecutionResult(id string, result *ToolResult) error
@@ -33,24 +33,24 @@ type MonitorStorage interface {
 	UpdateToolStats(toolName string, totalCalls, successCalls, failedCalls int, lastCallTime *time.Time) error
 }
 
-// Server MCP服务器
+// Server is the MCP server
 type Server struct {
 	tools                 map[string]ToolHandler
-	toolDefs              map[string]Tool // 工具定义
+	toolDefs              map[string]Tool // tool definitions
 	executions            map[string]*ToolExecution
 	stats                 map[string]*ToolStats
-	prompts               map[string]*Prompt   // 提示词模板
-	resources             map[string]*Resource // 资源
-	storage               MonitorStorage       // 可选的持久化存储
+	prompts               map[string]*Prompt   // prompt templates
+	resources             map[string]*Resource // resources
+	storage               MonitorStorage       // optional persistent storage
 	mu                    sync.RWMutex
 	logger                *zap.Logger
-	maxExecutionsInMemory int // 内存中最大执行记录数
+	maxExecutionsInMemory int // maximum execution records in memory
 	sseClients            map[string]*sseClient
 	runningCancels        map[string]context.CancelFunc
 	runningCancelsMu      sync.Mutex
-	abortUserNotes        map[string]string // 监控页终止时附带的用户说明，与 executionID 对应
-	// httpToolTimeoutMinutes 同步 agent.tool_timeout_minutes，用于 POST /api/mcp 的 tools/call（不经 Agent 包装的路径）。
-	// nil 表示未配置，沿用默认 30 分钟；指向 0 表示不限制；>0 为分钟数。
+	abortUserNotes        map[string]string // user notes attached when terminating from the monitoring page, keyed by executionID
+	// httpToolTimeoutMinutes syncs agent.tool_timeout_minutes for tools/call via POST /api/mcp (path not wrapped by Agent).
+	// nil means not configured, uses default 30 minutes; pointing to 0 means unlimited; >0 is the timeout in minutes.
 	httpToolTimeoutMinutes *int
 	httpToolTimeoutMu      sync.RWMutex
 	toolAuthorizer         func(context.Context, string, map[string]interface{}) error
@@ -96,22 +96,22 @@ type sseClient struct {
 	send chan []byte
 }
 
-// ToolHandler 工具处理函数
+// ToolHandler is the tool handler function
 type ToolHandler func(ctx context.Context, args map[string]interface{}) (*ToolResult, error)
 
 func executionStatusAndMessage(err error) (status string, errMsg string) {
 	if errors.Is(err, context.Canceled) {
-		return "cancelled", "已手动终止（MCP 监控）"
+		return "cancelled", "manually terminated (MCP monitoring)"
 	}
 	return "failed", err.Error()
 }
 
-// NewServer 创建新的MCP服务器
+// NewServer creates a new MCP server
 func NewServer(logger *zap.Logger) *Server {
 	return NewServerWithStorage(logger, nil)
 }
 
-// NewServerWithStorage 创建新的MCP服务器（带持久化存储）
+// NewServerWithStorage creates a new MCP server with persistent storage
 func NewServerWithStorage(logger *zap.Logger, storage MonitorStorage) *Server {
 	s := &Server{
 		tools:                 make(map[string]ToolHandler),
@@ -122,7 +122,7 @@ func NewServerWithStorage(logger *zap.Logger, storage MonitorStorage) *Server {
 		resources:             make(map[string]*Resource),
 		storage:               storage,
 		logger:                logger,
-		maxExecutionsInMemory: 1000, // 默认最多在内存中保留1000条执行记录
+		maxExecutionsInMemory: 1000, // default: retain at most 1000 execution records in memory
 		sseClients:            make(map[string]*sseClient),
 		runningCancels:        make(map[string]context.CancelFunc),
 		abortUserNotes:        make(map[string]string),
@@ -131,7 +131,7 @@ func NewServerWithStorage(logger *zap.Logger, storage MonitorStorage) *Server {
 	}
 	s.executionService = NewExecutionService(storage, logger)
 
-	// 初始化默认提示词和资源
+	// initialize default prompts and resources
 	s.initDefaultPrompts()
 	s.initDefaultResources()
 
@@ -164,9 +164,9 @@ func (s *Server) ConfigureToolResultSpillRoot(rootDir string) {
 	}
 }
 
-// ConfigureHTTPToolCallTimeoutFromAgentMinutes 将 agent.tool_timeout_minutes 同步到经 HTTP POST /api/mcp 触发的 tools/call。
-// minutes<=0 表示不设置硬性截止时间（与配置「0 不限制」一致）；minutes>0 为该次调用的最长等待时间。
-// 未调用前对 tools/call 使用默认 30 分钟（与历史硬编码一致）。
+// ConfigureHTTPToolCallTimeoutFromAgentMinutes syncs agent.tool_timeout_minutes to tools/call invoked via HTTP POST /api/mcp.
+// minutes<=0 means no hard deadline (consistent with config "0 = unlimited"); minutes>0 is the maximum wait time for the call.
+// Before this is called, tools/call uses a default of 30 minutes (consistent with historical hard-coding).
 func (s *Server) ConfigureHTTPToolCallTimeoutFromAgentMinutes(minutes int) {
 	if s == nil {
 		return
@@ -213,36 +213,36 @@ func (s *Server) effectiveHTTPToolCallDeadline(parent context.Context) (context.
 	return context.WithTimeout(parent, time.Duration(*mPtr)*time.Minute)
 }
 
-// RegisterTool 注册工具
+// RegisterTool registers a tool
 func (s *Server) RegisterTool(tool Tool, handler ToolHandler) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.tools[tool.Name] = handler
 	s.toolDefs[tool.Name] = tool
 
-	// 自动为工具创建资源文档
+	// automatically create resource documentation for tools
 	resourceURI := fmt.Sprintf("tool://%s", tool.Name)
 	s.resources[resourceURI] = &Resource{
 		URI:         resourceURI,
-		Name:        fmt.Sprintf("%s工具文档", tool.Name),
+		Name:        fmt.Sprintf("%s tool documentation", tool.Name),
 		Description: tool.Description,
 		MimeType:    "text/plain",
 	}
 }
 
-// ClearTools 清空所有工具（用于重新加载配置）
+// ClearTools clears all tools (used when reloading config)
 func (s *Server) ClearTools() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// 清空工具和工具定义
+	// clear tools and tool definitions
 	s.tools = make(map[string]ToolHandler)
 	s.toolDefs = make(map[string]Tool)
 
-	// 清空工具相关的资源（保留其他资源）
+	// clear tool-related resources (keep other resources)
 	newResources := make(map[string]*Resource)
 	for uri, resource := range s.resources {
-		// 保留非工具资源
+		// keep non-tool resources
 		if !strings.HasPrefix(uri, "tool://") {
 			newResources[uri] = resource
 		}
@@ -250,7 +250,7 @@ func (s *Server) ClearTools() {
 	s.resources = newResources
 }
 
-// HandleHTTP 处理HTTP请求
+// HandleHTTP handles HTTP requests
 func (s *Server) HandleHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet && strings.Contains(r.Header.Get("Accept"), "text/event-stream") {
 		s.handleSSE(w, r)
@@ -262,13 +262,13 @@ func (s *Server) HandleHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 官方 MCP SSE 规范：带 sessionid 的 POST 表示消息发往该 SSE 会话，响应通过 SSE 流返回
+	// Official MCP SSE spec: a POST with sessionid sends a message to that SSE session; response is pushed back via the SSE stream
 	if sessionID := r.URL.Query().Get("sessionid"); sessionID != "" {
 		s.serveSSESessionMessage(w, r, sessionID)
 		return
 	}
 
-	// 简单 POST：请求体为 JSON-RPC，响应在 body 中返回
+	// Simple POST: request body is JSON-RPC; response is returned in the body
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		s.sendError(w, nil, -32700, "Parse error", err.Error())
@@ -286,7 +286,7 @@ func (s *Server) HandleHTTP(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-// serveSSESessionMessage 处理发往 SSE 会话的 POST：读取 JSON-RPC 请求，处理后将响应通过该会话的 SSE 流推送
+// serveSSESessionMessage handles a POST sent to an SSE session: reads the JSON-RPC request, processes it, and pushes the response via that session's SSE stream
 func (s *Server) serveSSESessionMessage(w http.ResponseWriter, r *http.Request, sessionID string) {
 	s.mu.RLock()
 	client, exists := s.sseClients[sessionID]
@@ -328,9 +328,9 @@ func (s *Server) serveSSESessionMessage(w http.ResponseWriter, r *http.Request, 
 	}
 }
 
-// handleSSE 处理 SSE 连接，兼容官方 MCP 2024-11-05 SSE 规范：
-// 1. 首个事件必须为 event: endpoint，data 为客户端 POST 消息的 URL（含 sessionid）
-// 2. 后续事件为 event: message，data 为 JSON-RPC 响应
+// handleSSE handles SSE connections, compatible with the official MCP 2024-11-05 SSE spec:
+// 1. The first event must be event: endpoint, with data being the URL the client POSTs messages to (including sessionid)
+// 2. Subsequent events are event: message, with data being JSON-RPC responses
 func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 	flusher, ok := w.(http.Flusher)
 	if !ok {
@@ -352,7 +352,7 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 	s.addSSEClient(client)
 	defer s.removeSSEClient(client.id)
 
-	// 官方规范：首个事件为 endpoint，data 为消息端点 URL（客户端将向该 URL POST 请求）
+	// Official spec: the first event is endpoint, data is the message endpoint URL (the client will POST requests to this URL)
 	scheme := "http"
 	if r.TLS != nil {
 		scheme = "https"
@@ -384,14 +384,14 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// addSSEClient 注册SSE客户端
+// addSSEClient registers an SSE client
 func (s *Server) addSSEClient(client *sseClient) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.sseClients[client.id] = client
 }
 
-// removeSSEClient 移除SSE客户端
+// removeSSEClient removes an SSE client
 func (s *Server) removeSSEClient(id string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -401,12 +401,12 @@ func (s *Server) removeSSEClient(id string) {
 	}
 }
 
-// handleMessage 处理MCP消息
+// handleMessage processes an MCP message
 func (s *Server) handleMessage(ctx context.Context, msg *Message) *Message {
-	// 检查是否是通知（notification）- 通知没有id字段，不需要响应
+	// check if it is a notification — notifications have no id field and require no response
 	isNotification := msg.ID.Value() == nil || msg.ID.String() == ""
 
-	// 如果不是通知且ID为空，生成新的UUID
+	// if not a notification and ID is empty, generate a new UUID
 	if !isNotification && msg.ID.String() == "" {
 		msg.ID = MessageID{value: uuid.New().String()}
 	}
@@ -429,23 +429,23 @@ func (s *Server) handleMessage(ctx context.Context, msg *Message) *Message {
 	case "sampling/request":
 		return s.handleSamplingRequest(msg)
 	case "notifications/initialized":
-		// 通知类型，不需要响应
-		s.logger.Debug("收到 initialized 通知")
+		// notification type, no response needed
+		s.logger.Debug("received initialized notification")
 		return nil
 	case "":
-		// 空方法名，可能是通知，不返回错误
+		// empty method name, may be a notification; do not return error
 		if isNotification {
-			s.logger.Debug("收到无方法名的通知消息")
+			s.logger.Debug("received notification message with empty method name")
 			return nil
 		}
 		fallthrough
 	default:
-		// 如果是通知，不返回错误响应
+		// if it is a notification, do not return an error response
 		if isNotification {
-			s.logger.Debug("收到未知通知", zap.String("method", msg.Method))
+			s.logger.Debug("received unknown notification", zap.String("method", msg.Method))
 			return nil
 		}
-		// 对于请求，返回方法未找到错误
+		// for requests, return method not found error
 		return &Message{
 			ID:      msg.ID,
 			Type:    MessageTypeError,
@@ -455,7 +455,7 @@ func (s *Server) handleMessage(ctx context.Context, msg *Message) *Message {
 	}
 }
 
-// handleInitialize 处理初始化请求
+// handleInitialize handles the initialize request
 func (s *Server) handleInitialize(msg *Message) *Message {
 	var req InitializeRequest
 	if err := json.Unmarshal(msg.Params, &req); err != nil {
@@ -497,7 +497,7 @@ func (s *Server) handleInitialize(msg *Message) *Message {
 	}
 }
 
-// handleListTools 处理列出工具请求
+// handleListTools handles the list tools request
 func (s *Server) handleListTools(msg *Message) *Message {
 	s.mu.RLock()
 	tools := make([]Tool, 0, len(s.toolDefs))
@@ -505,7 +505,7 @@ func (s *Server) handleListTools(msg *Message) *Message {
 		tools = append(tools, tool)
 	}
 	s.mu.RUnlock()
-	s.logger.Debug("tools/list 请求", zap.Int("返回工具数", len(tools)))
+	s.logger.Debug("tools/list request", zap.Int("tool_count", len(tools)))
 
 	response := ListToolsResponse{Tools: tools}
 	result, _ := json.Marshal(response)
@@ -517,7 +517,7 @@ func (s *Server) handleListTools(msg *Message) *Message {
 	}
 }
 
-// handleCallTool 处理工具调用请求
+// handleCallTool handles the call tool request
 func (s *Server) handleCallTool(requestCtx context.Context, msg *Message) *Message {
 	var req CallToolRequest
 	if err := json.Unmarshal(msg.Params, &req); err != nil {
@@ -555,13 +555,13 @@ func (s *Server) handleCallTool(requestCtx context.Context, msg *Message) *Messa
 
 	s.mu.Lock()
 	s.executions[executionID] = execution
-	// 如果内存中的执行记录超过限制，清理最旧的记录
+	// if in-memory execution records exceed the limit, clean up the oldest records
 	s.cleanupOldExecutions()
 	s.mu.Unlock()
 
 	if s.storage != nil {
 		if err := s.storage.SaveToolExecution(execution); err != nil {
-			s.logger.Warn("保存执行记录到数据库失败", zap.Error(err))
+			s.logger.Warn("save execution record to database failed", zap.Error(err))
 		}
 	}
 
@@ -578,7 +578,7 @@ func (s *Server) handleCallTool(requestCtx context.Context, msg *Message) *Messa
 
 		if s.storage != nil {
 			if err := s.storage.SaveToolExecution(execution); err != nil {
-				s.logger.Warn("保存执行记录到数据库失败", zap.Error(err))
+				s.logger.Warn("save execution record to database failed", zap.Error(err))
 			}
 			s.mu.Lock()
 			delete(s.executions, executionID)
@@ -604,7 +604,7 @@ func (s *Server) handleCallTool(requestCtx context.Context, msg *Message) *Messa
 		s.unregisterRunningCancel(executionID)
 	}()
 
-	s.logger.Info("开始执行工具",
+	s.logger.Info("start executing tool",
 		zap.String("toolName", req.Name),
 		zap.Any("arguments", req.Arguments),
 	)
@@ -640,7 +640,7 @@ func (s *Server) handleCallTool(requestCtx context.Context, msg *Message) *Messa
 			if len(result.Content) > 0 {
 				execution.Error = result.Content[0].Text
 			} else {
-				execution.Error = "工具执行返回错误结果"
+				execution.Error = "tool execution returned error result"
 			}
 			execution.Result = result
 		}
@@ -649,7 +649,7 @@ func (s *Server) handleCallTool(requestCtx context.Context, msg *Message) *Messa
 		if result == nil {
 			result = &ToolResult{
 				Content: []Content{
-					{Type: "text", Text: "工具执行完成，但未返回结果"},
+					{Type: "text", Text: "tool execution completed but no result returned"},
 				},
 			}
 		}
@@ -661,7 +661,7 @@ func (s *Server) handleCallTool(requestCtx context.Context, msg *Message) *Messa
 
 	if s.storage != nil {
 		if err := s.storage.SaveToolExecution(execution); err != nil {
-			s.logger.Warn("保存执行记录到数据库失败", zap.Error(err))
+			s.logger.Warn("save execution record to database failed", zap.Error(err))
 		}
 	}
 
@@ -674,14 +674,14 @@ func (s *Server) handleCallTool(requestCtx context.Context, msg *Message) *Messa
 	}
 
 	if err != nil {
-		s.logger.Error("工具执行失败",
+		s.logger.Error("tool execution failed",
 			zap.String("toolName", req.Name),
 			zap.Error(err),
 		)
 
-		errText := fmt.Sprintf("工具执行失败: %v", err)
+		errText := fmt.Sprintf("tool execution failed: %v", err)
 		if errors.Is(err, context.Canceled) {
-			errText = "工具执行已手动终止（MCP 监控）。后续编排步骤可继续。"
+			errText = "tool execution manually terminated (MCP monitor). Subsequent orchestration steps may continue."
 		}
 		errorResult, _ := json.Marshal(CallToolResponse{
 			Content: []Content{
@@ -698,7 +698,7 @@ func (s *Server) handleCallTool(requestCtx context.Context, msg *Message) *Messa
 	}
 
 	if finalResult != nil && finalResult.IsError {
-		s.logger.Warn("工具执行返回错误结果",
+		s.logger.Warn("tool execution returned error result",
 			zap.String("toolName", req.Name),
 		)
 
@@ -719,7 +719,7 @@ func (s *Server) handleCallTool(requestCtx context.Context, msg *Message) *Messa
 	if finalResult == nil {
 		finalResult = &ToolResult{
 			Content: []Content{
-				{Type: "text", Text: "工具执行完成，但未返回结果"},
+				{Type: "text", Text: "tool execution completed but no result returned"},
 			},
 		}
 	}
@@ -729,7 +729,7 @@ func (s *Server) handleCallTool(requestCtx context.Context, msg *Message) *Messa
 		IsError: false,
 	})
 
-	s.logger.Info("工具执行完成",
+	s.logger.Info("tool execution completed",
 		zap.String("toolName", req.Name),
 		zap.Bool("isError", finalResult.IsError),
 	)
@@ -742,7 +742,7 @@ func (s *Server) handleCallTool(requestCtx context.Context, msg *Message) *Messa
 	}
 }
 
-// updateStats 更新统计信息
+// updateStats updateStatistics info
 func (s *Server) updateStats(toolName string, status string) {
 	now := time.Now()
 	if s.storage != nil {
@@ -755,7 +755,7 @@ func (s *Server) updateStats(toolName string, status string) {
 			successCalls = 1
 		}
 		if err := s.storage.UpdateToolStats(toolName, totalCalls, successCalls, failedCalls, &now); err != nil {
-			s.logger.Warn("保存统计信息到数据库失败", zap.Error(err))
+			s.logger.Warn("save statistics to database failed", zap.Error(err))
 		}
 		return
 	}
@@ -782,7 +782,7 @@ func (s *Server) updateStats(toolName string, status string) {
 	}
 }
 
-// GetExecution 获取执行记录（先从内存查找，再从数据库查找）
+// GetExecution returns an execution record (checks memory first, then database)
 func (s *Server) GetExecution(id string) (*ToolExecution, bool) {
 	if s.executionService != nil {
 		if snap, err := s.executionService.Get(id); err == nil && snap != nil && snap.Execution != nil {
@@ -807,20 +807,20 @@ func (s *Server) GetExecution(id string) (*ToolExecution, bool) {
 	return nil, false
 }
 
-// loadHistoricalData 从数据库加载历史数据
+// loadHistoricalData loads historical data from the database
 func (s *Server) loadHistoricalData() {
 	if s.storage == nil {
 		return
 	}
 
-	// 加载历史执行记录（最近1000条）
+	// load historical execution records (most recent 1000)
 	executions, err := s.storage.LoadToolExecutions()
 	if err != nil {
-		s.logger.Warn("加载历史执行记录失败", zap.Error(err))
+		s.logger.Warn("load historical execution records failed", zap.Error(err))
 	} else {
 		s.mu.Lock()
 		for _, exec := range executions {
-			// 只加载最近 maxExecutionsInMemory 条，避免内存占用过大
+			// only load up to maxExecutionsInMemory records to limit memory usage
 			if len(s.executions) < s.maxExecutionsInMemory {
 				s.executions[exec.ID] = exec
 			} else {
@@ -828,24 +828,24 @@ func (s *Server) loadHistoricalData() {
 			}
 		}
 		s.mu.Unlock()
-		s.logger.Info("加载历史执行记录", zap.Int("count", len(executions)))
+		s.logger.Info("loaded historical execution records", zap.Int("count", len(executions)))
 	}
 
-	// 加载历史统计信息
+	// load historical statistics
 	stats, err := s.storage.LoadToolStats()
 	if err != nil {
-		s.logger.Warn("加载历史统计信息失败", zap.Error(err))
+		s.logger.Warn("load historical statistics failed", zap.Error(err))
 	} else {
 		s.mu.Lock()
 		for k, v := range stats {
 			s.stats[k] = v
 		}
 		s.mu.Unlock()
-		s.logger.Info("加载历史统计信息", zap.Int("count", len(stats)))
+		s.logger.Info("loaded historical statistics", zap.Int("count", len(stats)))
 	}
 }
 
-// GetAllExecutions 获取所有执行记录（合并内存和数据库）
+// GetAllExecutions returns all execution records (merges memory and database)
 func (s *Server) GetAllExecutions() []*ToolExecution {
 	if s.storage != nil {
 		dbExecutions, err := s.storage.LoadToolExecutions()
@@ -871,7 +871,7 @@ func (s *Server) GetAllExecutions() []*ToolExecution {
 			}
 			return result
 		} else {
-			s.logger.Warn("从数据库加载执行记录失败", zap.Error(err))
+			s.logger.Warn("failed to load execution records from database", zap.Error(err))
 		}
 	}
 
@@ -885,14 +885,14 @@ func (s *Server) GetAllExecutions() []*ToolExecution {
 	return memExecutions
 }
 
-// GetStats 获取统计信息（合并内存和数据库）
+// GetStats retrieves statistics (merges memory and database)
 func (s *Server) GetStats() map[string]*ToolStats {
 	if s.storage != nil {
 		dbStats, err := s.storage.LoadToolStats()
 		if err == nil {
 			return dbStats
 		}
-		s.logger.Warn("从数据库加载统计信息失败", zap.Error(err))
+		s.logger.Warn("load statistics from database failed", zap.Error(err))
 	}
 
 	s.mu.RLock()
@@ -907,7 +907,7 @@ func (s *Server) GetStats() map[string]*ToolStats {
 	return memStats
 }
 
-// GetAllTools 获取所有已注册的工具（用于Agent动态获取工具列表）
+// GetAllTools returns all registered tools (used by the agent to dynamically retrieve the tool list)
 func (s *Server) GetAllTools() []Tool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -919,7 +919,7 @@ func (s *Server) GetAllTools() []Tool {
 	return tools
 }
 
-// CallTool 直接调用工具（用于内部调用）
+// CallTool directly calls a tool (used for internal calls)
 func (s *Server) CallTool(ctx context.Context, toolName string, args map[string]interface{}) (*ToolResult, string, error) {
 	if s.executionService == nil {
 		s.executionService = NewExecutionService(s.storage, s.logger)
@@ -949,7 +949,7 @@ func (s *Server) CallTool(ctx context.Context, toolName string, args map[string]
 				return nil, errors.New("tool authorization policy is not configured")
 			}
 			if !exists {
-				return nil, fmt.Errorf("工具 %s 未找到", toolName)
+				return nil, fmt.Errorf("tool %s not found", toolName)
 			}
 			if blocked := s.checkToolGuard(toolName, args); blocked != nil {
 				return blocked, nil
@@ -980,7 +980,7 @@ func (s *Server) CallTool(ctx context.Context, toolName string, args map[string]
 		return nil, handle.ID, waitErr
 	}
 	if snapshot == nil || snapshot.Execution == nil {
-		return &ToolResult{Content: []Content{{Type: "text", Text: "工具执行完成，但未返回执行快照"}}, IsError: true}, handle.ID, nil
+		return &ToolResult{Content: []Content{{Type: "text", Text: "tool execution completed but no execution snapshot returned"}}, IsError: true}, handle.ID, nil
 	}
 	if snapshot.Execution.Result != nil {
 		return snapshot.Execution.Result, handle.ID, nil
@@ -988,7 +988,7 @@ func (s *Server) CallTool(ctx context.Context, toolName string, args map[string]
 	if snapshot.Execution.Error != "" {
 		return nil, handle.ID, errors.New(snapshot.Execution.Error)
 	}
-	return &ToolResult{Content: []Content{{Type: "text", Text: "工具执行完成，但未返回结果"}}, IsError: false}, handle.ID, nil
+	return &ToolResult{Content: []Content{{Type: "text", Text: "tool execution completed but no result returned"}}, IsError: false}, handle.ID, nil
 }
 
 func internalMCPWaitTimeoutResult(snapshot *ExecutionSnapshot, waitTimeout time.Duration) *ToolResult {
@@ -1006,7 +1006,7 @@ func internalMCPWaitTimeoutResult(snapshot *ExecutionSnapshot, waitTimeout time.
 	if waitTimeout > 0 {
 		waitText = waitTimeout.Round(time.Second).String()
 	}
-	msg := fmt.Sprintf(`工具已提交到后台执行，但本次等待已到达上限。
+	msg := fmt.Sprintf(`Tool submitted to background execution, but this wait has reached the limit.
 
 execution_id: %s
 tool: %s
@@ -1014,7 +1014,7 @@ status: %s
 wait_timeout: %s
 elapsed: %s
 
-你可以继续推理、改用其他工具，或调用 wait_tool_execution 继续等待该 execution_id；也可以调用 cancel_tool_execution 取消。`, execID, toolName, status, waitText, elapsed)
+You may continue reasoning, switch to another tool, or call wait_tool_execution to keep waiting for this execution_id; you may also call cancel_tool_execution to cancel.`, execID, toolName, status, waitText, elapsed)
 	return &ToolResult{Content: []Content{{Type: "text", Text: msg}}, IsError: true}
 }
 
@@ -1027,7 +1027,7 @@ func isExecutionControlTool(toolName string) bool {
 	}
 }
 
-// BeginToolExecution 创建 running 状态的执行记录，供 Eino 等非 CallTool 路径在工具开始时落库。
+// BeginToolExecution creates a running-status execution record, used by Eino and other non-CallTool paths to persist the record when a tool starts.
 func (s *Server) BeginToolExecution(ctx context.Context, toolName string, args map[string]interface{}) string {
 	if s == nil {
 		return ""
@@ -1055,13 +1055,13 @@ func (s *Server) BeginToolExecution(ctx context.Context, toolName string, args m
 
 	if s.storage != nil {
 		if err := s.storage.SaveToolExecution(execution); err != nil {
-			s.logger.Warn("保存执行记录到数据库失败", zap.Error(err))
+			s.logger.Warn("save execution record to database failed", zap.Error(err))
 		}
 	}
 	return executionID
 }
 
-// FinishToolExecution 完成先前 BeginToolExecution 创建的记录；executionID 为空时等同 RecordCompletedToolInvocation。
+// FinishToolExecution completes a record previously created by BeginToolExecution; when executionID is empty it behaves like RecordCompletedToolInvocation.
 func (s *Server) FinishToolExecution(ctx context.Context, executionID, toolName string, args map[string]interface{}, resultText string, invokeErr error) string {
 	if s == nil {
 		return ""
@@ -1127,7 +1127,7 @@ func (s *Server) FinishToolExecution(ctx context.Context, executionID, toolName 
 		exec.Status = "completed"
 		text := resultText
 		if strings.TrimSpace(text) == "" {
-			text = "（无输出）"
+			text = "(no output)"
 		}
 		finalResult = &ToolResult{Content: []Content{{Type: "text", Text: text}}}
 		finalResult = NormalizeToolResultForStorageWithSpill(finalResult, maxBytes, spill)
@@ -1137,7 +1137,7 @@ func (s *Server) FinishToolExecution(ctx context.Context, executionID, toolName 
 
 	if s.storage != nil {
 		if err := s.storage.SaveToolExecution(exec); err != nil {
-			s.logger.Warn("保存执行记录到数据库失败", zap.Error(err))
+			s.logger.Warn("save execution record to database failed", zap.Error(err))
 		}
 	}
 
@@ -1170,13 +1170,14 @@ func (s *Server) AppendToolExecutionPartialOutput(executionID, chunk string) {
 	s.mu.Unlock()
 }
 
-// RecordCompletedToolInvocation 将已在其它路径完成的工具调用写入监控存储（格式与 CallTool 结束后一致），
-// 用于 Eino ADK filesystem execute 等未经过 CallTool 的场景；返回 executionId 供助手消息 mcpExecutionIds 关联。
+// RecordCompletedToolInvocation writes a tool call that was completed via another path into the monitor store
+// (format consistent with CallTool completion). Used for Eino ADK filesystem execute and similar paths that
+// bypass CallTool; returns the executionId for linking to assistant message mcpExecutionIds.
 func (s *Server) RecordCompletedToolInvocation(ctx context.Context, toolName string, args map[string]interface{}, resultText string, invokeErr error) string {
 	return s.FinishToolExecution(ctx, "", toolName, args, resultText, invokeErr)
 }
 
-// UpdateToolExecutionResult 将监控库中的工具结果更新为送入模型的展示正文（如 reduction 后的 persisted-output）。
+// UpdateToolExecutionResult updates the tool result in the monitor store to the display text sent to the model (e.g. persisted-output after reduction).
 func (s *Server) UpdateToolExecutionResult(executionID string, result *ToolResult) error {
 	if s == nil {
 		return nil
@@ -1209,13 +1210,13 @@ func (s *Server) UpdateToolExecutionResult(executionID string, result *ToolResul
 	return nil
 }
 
-// cleanupOldExecutions 清理旧的执行记录，防止内存无限增长
+// cleanupOldExecutions removes old execution records to prevent unbounded memory growth
 func (s *Server) cleanupOldExecutions() {
 	if len(s.executions) <= s.maxExecutionsInMemory {
 		return
 	}
 
-	// 按开始时间排序，找出最旧的记录
+	// sort by start time to find the oldest records
 	type execWithTime struct {
 		id        string
 		startTime time.Time
@@ -1228,18 +1229,18 @@ func (s *Server) cleanupOldExecutions() {
 		})
 	}
 
-	// 使用 sort 包进行高效排序（最旧的在前）
+	// use sort package for efficient sorting (oldest first)
 	sort.Slice(execs, func(i, j int) bool {
 		return execs[i].startTime.Before(execs[j].startTime)
 	})
 
-	// 删除最旧的记录，保留 maxExecutionsInMemory 条
+	// delete the oldest records, keeping maxExecutionsInMemory entries
 	toDelete := len(s.executions) - s.maxExecutionsInMemory
 	for i := 0; i < toDelete; i++ {
 		delete(s.executions, execs[i].id)
 	}
 
-	s.logger.Debug("清理旧的执行记录",
+	s.logger.Debug("cleaned up old execution records",
 		zap.Int("before", len(execs)),
 		zap.Int("after", len(s.executions)),
 		zap.Int("deleted", toDelete),
@@ -1296,8 +1297,9 @@ func (s *Server) takeAbortUserNote(id string) string {
 	return n
 }
 
-// applyAbortUserNoteToCancelledToolResult 监控页「终止并填写说明」时合并「工具已输出 + 用户说明」交给模型。
-// exec 等工具会把失败写在 *ToolResult 里并返回 err==nil，若仅在 err!=nil 时合并会漏掉说明，甚至误 clear 掉 note。
+// applyAbortUserNoteToCancelledToolResult merges "tool output + user note" for the model when the monitor page
+// "terminate and add note" action is triggered. Tools like exec write failures into *ToolResult with err==nil,
+// so merging only on err!=nil would miss the note or incorrectly clear it.
 func (s *Server) applyAbortUserNoteToCancelledToolResult(executionID string, result **ToolResult, err *error) (cancelledWithUserNote bool) {
 	note := strings.TrimSpace(s.readAbortUserNote(executionID))
 	if note == "" {
@@ -1325,7 +1327,7 @@ func (s *Server) applyAbortUserNoteToCancelledToolResult(executionID string, res
 	return true
 }
 
-// CancelToolExecutionWithNote 取消内部工具；note 非空时与工具已返回文本合并后交给上层模型。
+// CancelToolExecutionWithNote cancels an internal tool; if note is non-empty it is merged with the tool's output text before being passed to the model.
 func (s *Server) CancelToolExecutionWithNote(id string, note string) bool {
 	if s.executionService != nil && s.executionService.Cancel(id, note) {
 		return true
@@ -1347,12 +1349,12 @@ func (s *Server) CancelToolExecutionWithNote(id string, note string) bool {
 	return true
 }
 
-// CancelToolExecution 取消正在执行的内部工具调用（无用户说明）。
+// CancelToolExecution cancels a running internal tool call (no user note).
 func (s *Server) CancelToolExecution(id string) bool {
 	return s.CancelToolExecutionWithNote(id, "")
 }
 
-// ActiveRunningExecutionIDs 返回当前进程内仍登记 cancel 的 executionId 快照。
+// ActiveRunningExecutionIDs returns a snapshot of executionIds still registered for cancellation in the current process.
 func (s *Server) ActiveRunningExecutionIDs() map[string]struct{} {
 	if s == nil {
 		return nil
@@ -1374,39 +1376,39 @@ func (s *Server) ActiveRunningExecutionIDs() map[string]struct{} {
 	return out
 }
 
-// initDefaultPrompts 初始化默认提示词模板
+// initDefaultPrompts initializes the default prompt templates
 func (s *Server) initDefaultPrompts() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// 网络安全测试提示词
+	// network security test prompt
 	s.prompts["security_scan"] = &Prompt{
 		Name:        "security_scan",
-		Description: "生成网络安全扫描任务的提示词",
+		Description: "Generate prompt for a network security scan task",
 		Arguments: []PromptArgument{
-			{Name: "target", Description: "扫描目标（IP地址或域名）", Required: true},
-			{Name: "scan_type", Description: "扫描类型（port, vuln, web等）", Required: false},
+			{Name: "target", Description: "scan target (IP address or domain name)", Required: true},
+			{Name: "scan_type", Description: "scan type (port, vuln, web, etc.)", Required: false},
 		},
 	}
 
-	// 渗透测试提示词
+	// penetration test prompt
 	s.prompts["penetration_test"] = &Prompt{
 		Name:        "penetration_test",
-		Description: "生成渗透测试任务的提示词",
+		Description: "Generate prompt for a penetration test task",
 		Arguments: []PromptArgument{
-			{Name: "target", Description: "测试目标", Required: true},
-			{Name: "scope", Description: "测试范围", Required: false},
+			{Name: "target", Description: "test target", Required: true},
+			{Name: "scope", Description: "test scope", Required: false},
 		},
 	}
 }
 
-// initDefaultResources 初始化默认资源
-// 注意：工具资源现在在 RegisterTool 时自动创建，此函数保留用于其他非工具资源
+// initDefaultResources initializes the default resources
+// Note: tool resources are now automatically created when RegisterTool is called; this function is kept for other non-tool resources
 func (s *Server) initDefaultResources() {
-	// 工具资源已改为在 RegisterTool 时自动创建，无需在此硬编码
+	// tool resources are now automatically created in RegisterTool; no hardcoding needed here
 }
 
-// handleListPrompts 处理列出提示词请求
+// handleListPrompts handles the list prompts request
 func (s *Server) handleListPrompts(msg *Message) *Message {
 	s.mu.RLock()
 	prompts := make([]Prompt, 0, len(s.prompts))
@@ -1427,7 +1429,7 @@ func (s *Server) handleListPrompts(msg *Message) *Message {
 	}
 }
 
-// handleGetPrompt 处理获取提示词请求
+// handleGetPrompt handles the get prompt request
 func (s *Server) handleGetPrompt(msg *Message) *Message {
 	var req GetPromptRequest
 	if err := json.Unmarshal(msg.Params, &req); err != nil {
@@ -1452,7 +1454,7 @@ func (s *Server) handleGetPrompt(msg *Message) *Message {
 		}
 	}
 
-	// 根据提示词名称生成消息
+	// generate messages based on prompt name
 	messages := s.generatePromptMessages(prompt, req.Arguments)
 
 	response := GetPromptResponse{
@@ -1467,7 +1469,7 @@ func (s *Server) handleGetPrompt(msg *Message) *Message {
 	}
 }
 
-// generatePromptMessages 生成提示词消息
+// generatePromptMessages generates prompt messages
 func (s *Server) generatePromptMessages(prompt *Prompt, args map[string]interface{}) []PromptMessage {
 	messages := []PromptMessage{}
 
@@ -1479,11 +1481,11 @@ func (s *Server) generatePromptMessages(prompt *Prompt, args map[string]interfac
 			scanType = "comprehensive"
 		}
 
-		content := fmt.Sprintf(`请对目标 %s 执行%s安全扫描。包括：
-1. 端口扫描和服务识别
-2. 漏洞检测
-3. Web应用安全测试
-4. 生成详细的安全报告`, target, scanType)
+		content := fmt.Sprintf(`Please perform a %s security scan on target %s. Include:
+1. Port scan and service identification
+2. Vulnerability detection
+3. Web application security test
+4. Generate a detailed security report`, scanType, target)
 
 		messages = append(messages, PromptMessage{
 			Role:    "user",
@@ -1494,11 +1496,11 @@ func (s *Server) generatePromptMessages(prompt *Prompt, args map[string]interfac
 		target, _ := args["target"].(string)
 		scope, _ := args["scope"].(string)
 
-		content := fmt.Sprintf(`请对目标 %s 执行渗透测试。`, target)
+		content := fmt.Sprintf(`Please perform a penetration test on target %s.`, target)
 		if scope != "" {
-			content += fmt.Sprintf("测试范围：%s", scope)
+			content += fmt.Sprintf("Test scope: %s", scope)
 		}
-		content += "\n请按照OWASP Top 10进行全面的安全测试。"
+		content += "\nPlease conduct a comprehensive security test following OWASP Top 10."
 
 		messages = append(messages, PromptMessage{
 			Role:    "user",
@@ -1508,14 +1510,14 @@ func (s *Server) generatePromptMessages(prompt *Prompt, args map[string]interfac
 	default:
 		messages = append(messages, PromptMessage{
 			Role:    "user",
-			Content: "请执行安全测试任务",
+			Content: "Please execute a security test task",
 		})
 	}
 
 	return messages
 }
 
-// handleListResources 处理列出资源请求
+// handleListResources handles the list resources request
 func (s *Server) handleListResources(msg *Message) *Message {
 	s.mu.RLock()
 	resources := make([]Resource, 0, len(s.resources))
@@ -1536,7 +1538,7 @@ func (s *Server) handleListResources(msg *Message) *Message {
 	}
 }
 
-// handleReadResource 处理读取资源请求
+// handleReadResource handles the read resource request
 func (s *Server) handleReadResource(msg *Message) *Message {
 	var req ReadResourceRequest
 	if err := json.Unmarshal(msg.Params, &req); err != nil {
@@ -1583,27 +1585,27 @@ func (s *Server) generateResourceContent(resource *Resource) ResourceContent {
 		MimeType: resource.MimeType,
 	}
 
-	// 如果是工具资源，生成详细文档
+	// 如果yestool资源，生成详细文档
 	if strings.HasPrefix(resource.URI, "tool://") {
 		toolName := strings.TrimPrefix(resource.URI, "tool://")
 		content.Text = s.generateToolDocumentation(toolName, resource)
 	} else {
-		// 其他资源使用描述或默认内容
+		// 其他资源使用description或默认内容
 		content.Text = resource.Description
 	}
 
 	return content
 }
 
-// generateToolDocumentation 生成工具文档
-// 注意：硬编码的工具文档已移除，现在只使用工具定义中的信息
+// generateToolDocumentation 生成tool文档
+// 注意：硬编码的tool文档已移除，现在只使用tool定义中的info
 func (s *Server) generateToolDocumentation(toolName string, resource *Resource) string {
-	// 获取工具定义以获取更详细的信息
+	// 获取tool定义以获取更详细的info
 	s.mu.RLock()
 	tool, hasTool := s.toolDefs[toolName]
 	s.mu.RUnlock()
 
-	// 使用工具定义中的描述信息
+	// 使用tool定义中的descriptioninfo
 	if hasTool {
 		doc := fmt.Sprintf("%s\n\n", resource.Description)
 		if tool.InputSchema != nil {
@@ -1623,7 +1625,7 @@ func (s *Server) generateToolDocumentation(toolName string, resource *Resource) 
 	return resource.Description
 }
 
-// handleSamplingRequest 处理采样请求
+// handleSamplingRequest 处理采样request
 func (s *Server) handleSamplingRequest(msg *Message) *Message {
 	var req SamplingRequest
 	if err := json.Unmarshal(msg.Params, &req); err != nil {
@@ -1636,7 +1638,7 @@ func (s *Server) handleSamplingRequest(msg *Message) *Message {
 	}
 
 	// 注意：采样功能通常需要连接到实际的LLM服务
-	// 这里返回一个占位符响应，实际实现需要集成LLM API
+	// 这里back一个占位符response，实际实现需要集成LLM API
 	s.logger.Warn("Sampling request received but not fully implemented",
 		zap.Any("request", req),
 	)
@@ -1645,7 +1647,7 @@ func (s *Server) handleSamplingRequest(msg *Message) *Message {
 		Content: []SamplingContent{
 			{
 				Type: "text",
-				Text: "采样功能需要配置LLM服务。请使用Agent Loop API进行AI对话。",
+				Text: "采样功能需要configLLM服务。请使用Agent Loop API进行AIconversation。",
 			},
 		},
 		StopReason: "length",
@@ -1673,13 +1675,13 @@ func (s *Server) RegisterResource(resource *Resource) {
 	s.resources[resource.URI] = resource
 }
 
-// HandleStdio 处理标准输入输出（用于 stdio 传输模式）
-// MCP 协议使用换行分隔的 JSON-RPC 消息；管道下需每次写入后 Flush，否则客户端会读不到响应
+// HandleStdio 处理标准输入输出（用于 stdio 传输pattern）
+// MCP protocol使用换行分隔的 JSON-RPC message；管道下需每次写入后 Flush，no则客户端会读不到response
 func (s *Server) HandleStdio() error {
 	decoder := json.NewDecoder(os.Stdin)
 	stdout := bufio.NewWriter(os.Stdout)
 	encoder := json.NewEncoder(stdout)
-	// 注意：不设置缩进，MCP 协议期望紧凑的 JSON 格式
+	// 注意：不settings缩进，MCP protocol期望紧凑的 JSON format
 
 	for {
 		var msg Message
@@ -1687,9 +1689,9 @@ func (s *Server) HandleStdio() error {
 			if err == io.EOF {
 				break
 			}
-			// 日志输出到 stderr，避免干扰 stdout 的 JSON-RPC 通信
-			s.logger.Error("读取消息失败", zap.Error(err))
-			// 发送错误响应
+			// log output到 stderr，避免干扰 stdout 的 JSON-RPC 通信
+			s.logger.Error("读cancelled息failed", zap.Error(err))
+			// 发送errorresponse
 			errorMsg := Message{
 				ID:      msg.ID,
 				Type:    MessageTypeError,
@@ -1697,35 +1699,35 @@ func (s *Server) HandleStdio() error {
 				Error:   &Error{Code: -32700, Message: "Parse error", Data: err.Error()},
 			}
 			if err := encoder.Encode(errorMsg); err != nil {
-				return fmt.Errorf("发送错误响应失败: %w", err)
+				return fmt.Errorf("发送errorresponsefailed: %w", err)
 			}
 			if err := stdout.Flush(); err != nil {
-				return fmt.Errorf("刷新 stdout 失败: %w", err)
+				return fmt.Errorf("refresh stdout failed: %w", err)
 			}
 			continue
 		}
 
-		// 处理消息
+		// 处理message
 		response := s.handleMessage(context.Background(), &msg)
 
-		// 如果是通知（response 为 nil），不需要发送响应
+		// 如果yesnotification（response 为 nil），不需要发送response
 		if response == nil {
 			continue
 		}
 
-		// 发送响应
+		// 发送response
 		if err := encoder.Encode(response); err != nil {
-			return fmt.Errorf("发送响应失败: %w", err)
+			return fmt.Errorf("发送responsefailed: %w", err)
 		}
 		if err := stdout.Flush(); err != nil {
-			return fmt.Errorf("刷新 stdout 失败: %w", err)
+			return fmt.Errorf("refresh stdout failed: %w", err)
 		}
 	}
 
 	return nil
 }
 
-// sendError 发送错误响应
+// sendError 发送errorresponse
 func (s *Server) sendError(w http.ResponseWriter, id interface{}, code int, message, data string) {
 	var msgID MessageID
 	if id != nil {

@@ -1,4 +1,4 @@
-﻿package vision
+package vision
 
 import (
 	"bytes"
@@ -16,7 +16,7 @@ type ImagePayload struct {
 	MIMEType string
 }
 
-// PreprocessMeta 记录缩放与编码结果，供工具输出与排障。
+// PreprocessMeta 记录缩放与编码结果，供tool output与排障。
 type PreprocessMeta struct {
 	OriginalPath      string
 	OriginalBytes     int64
@@ -39,7 +39,7 @@ type PreprocessOptions struct {
 	SkipPreprocessBelowBytes int64 // 0 = 始终压缩；>0 时小图+尺寸合规可直传
 }
 
-// PreprocessImageFile 读取图片；大图或超尺寸走 imaging 缩放+JPEG，否则可原图直传。
+// PreprocessImageFile 读取图片；大图或超尺寸走 imaging 缩放+JPEG，no则可原图直传。
 func PreprocessImageFile(path string, opt PreprocessOptions) (ImagePayload, PreprocessMeta, error) {
 	var meta PreprocessMeta
 	meta.OriginalPath = path
@@ -201,7 +201,7 @@ func mimeFromImageFormat(format string) string {
 	}
 }
 
-// DecodeImageConfig 用于测试：确认文件可被解码。
+// DecodeImageConfig 用于test：confirmfile可被解码。
 func DecodeImageConfig(path string) (image.Config, string, error) {
 	f, err := os.Open(path)
 	if err != nil {

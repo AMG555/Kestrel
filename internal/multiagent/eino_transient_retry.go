@@ -1,4 +1,4 @@
-﻿package multiagent
+package multiagent
 
 import (
 	"context"
@@ -24,9 +24,9 @@ const (
 
 var httpStatusInErrorPattern = regexp.MustCompile(`(?i)(?:http|status(?:\s+code)?|upstream\s+returned)\s*[:=]?\s*(\d{3})\b`)
 
-// isEinoTransientRunError 是 Eino 运行期「可退避重试 vs 直接失败」的唯一判据。
-// 429/5xx/网络抖动等返回 true；用户取消、超时、迭代上限、鉴权失败等返回 false。
-// 其它模块（run loop、summarization 等）只调用本函数，不在别处维护平行规则。
+// isEinoTransientRunError is the sole criterion for Eino runtime 'backoff retry vs fail immediately'.
+// Returns true for 429/5xx/network jitter etc.; returns false for user-cancelled, timed out, iteration limit, auth failure etc.
+// Other modules (run loop, summarization etc.) only call this function; no parallel rules are maintained elsewhere.
 func isEinoTransientRunError(err error) bool {
 	if err == nil {
 		return false
@@ -219,7 +219,7 @@ func einoTransientRunRetryPolicyFromMW(mw *config.MultiAgentEinoMiddlewareConfig
 	}
 }
 
-// einoTransientRunRetrier 在 run loop 内对临时错误做指数退避并重启 Runner（唯一重试执行层）。
+// einoTransientRunRetrier applies exponential backoff to transient errors within the run loop and restarts the Runner (the only retry execution layer).
 type einoTransientRunRetrier struct {
 	policy   einoTransientRunRetryPolicy
 	attempts int
@@ -229,7 +229,7 @@ func newEinoTransientRunRetrier(policy einoTransientRunRetryPolicy) *einoTransie
 	return &einoTransientRunRetrier{policy: policy}
 }
 
-// tryRetry 对临时错误退避后返回重启消息；次数用尽返回 exhausted 错误。
+// tryRetry backs off a transient error and returns a restart message; returns an exhausted error when attempts are used up.
 func (r *einoTransientRunRetrier) tryRetry(
 	ctx context.Context,
 	runErr error,
@@ -258,7 +258,7 @@ func (r *einoTransientRunRetrier) attempt() int { return r.attempts }
 
 func (r *einoTransientRunRetrier) maxAttempts() int { return r.policy.maxAttempts }
 
-// reset 在退避重试后成功推进（流/消息完整接收）时清零计数，使后续临时错误从第 1 次退避重新开始。
+// reset clears the counter after a successful advance post-backoff (stream/message fully received), so subsequent transient errors restart from the 1st backoff.
 func (r *einoTransientRunRetrier) reset() { r.attempts = 0 }
 
 func einoRunRetryMaxAttempts(args *einoADKRunLoopArgs) int {
@@ -300,7 +300,7 @@ func einoRunRetryMaxBackoffFromConfig(mw *config.MultiAgentEinoMiddlewareConfig)
 	return defaultEinoRunRetryMaxBackoff
 }
 
-// einoRunRestartContextSource 描述无 checkpoint Resume 时 Run 使用的消息来源（日志/SSE）。
+// einoRunRestartContextSource describes the message source used by Run on restart without a checkpoint Resume (log/SSE).
 type einoRunRestartContextSource string
 
 const (
@@ -309,8 +309,8 @@ const (
 	einoRestartContextModelTrace  einoRunRestartContextSource = "model_trace"
 )
 
-// einoMessagesForRunRestart 在退避后重新 Run 时选用最完整的上下文：
-// 1) ModelFacingTrace（与模型实际入参一致） 2) 事件流累积的 runAccumulatedMsgs 3) 初始 msgs。
+// einoMessagesForRunRestart selects the most complete context when re-running after backoff:
+// 1) ModelFacingTrace (consistent with model's actual input) 2) event-stream-accumulated runAccumulatedMsgs 3) initial msgs.
 func einoMessagesForRunRestart(args *einoADKRunLoopArgs, baseMsgs, accumulated []adk.Message, baseCount int) ([]adk.Message, einoRunRestartContextSource) {
 	if trace := modelFacingTraceSnapshot(args); len(trace) > 0 {
 		// modelFacingTrace includes prior Instruction system message(s); genModelInput will prepend again.
@@ -341,7 +341,7 @@ func adkMessagesHasUserContent(msgs []adk.Message, want string) bool {
 	return strings.TrimSpace(last.Content) == want
 }
 
-// appendUserMessageIfNeeded 在 history 轨迹之后追加本轮 user 消息（仅当尾部已是相同 user 句）。
+// appendUserMessageIfNeeded appends this round's user message after the history trace (only when the tail already has the same user sentence).
 func appendUserMessageIfNeeded(msgs []adk.Message, userMessage string) []adk.Message {
 	if strings.TrimSpace(userMessage) == "" || adkMessagesHasUserContent(msgs, userMessage) {
 		return msgs

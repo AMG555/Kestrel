@@ -14,7 +14,7 @@ import (
 const ptyCols = 256
 const ptyRows = 40
 
-// runCommandStreamImpl 在 Unix 下用 PTY 执行，使 ping 等命令按终端宽度排版（isatty 为真）
+// runCommandStreamImpl 在 Unix 下用 PTY 执行，使 ping 等命令按终端宽度排版（isatty 为true）
 func runCommandStreamImpl(cmd *exec.Cmd, sendEvent func(streamEvent), ctx context.Context) int {
 	ptmx, err := pty.StartWithSize(cmd, &pty.Winsize{Cols: ptyCols, Rows: ptyRows})
 	if err != nil {

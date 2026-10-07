@@ -23,7 +23,7 @@ type hitlApprovedExecTrack struct {
 	ToolCallID     string
 }
 
-// TrackApprovedHitlExecution 审批通过后登记，待 tool_result 回写执行结果。
+// TrackApprovedHitlExecution registers an approved HITL execution, waiting for tool_result to write back the execution result.
 func (m *HITLManager) TrackApprovedHitlExecution(interruptID, conversationID, toolName, toolCallID string) {
 	if m == nil {
 		return

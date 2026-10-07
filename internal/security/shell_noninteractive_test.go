@@ -1,4 +1,4 @@
-﻿package security
+package security
 
 import (
 	"context"
@@ -72,7 +72,7 @@ func TestResolveShellNoOutputTimeoutSeconds(t *testing.T) {
 	}
 }
 
-// TestNonInteractiveStdinReadExitsQuickly 验证 exec </dev/null + attachNonInteractiveStdin 时 read 立即 EOF，不挂起。
+// TestNonInteractiveStdinReadExitsQuickly validate exec </dev/null + attachNonInteractiveStdin 时 read 立即 EOF，不挂起。
 func TestNonInteractiveStdinReadExitsQuickly(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping shell integration in -short")
@@ -107,7 +107,7 @@ func TestNonInteractiveStdinReadBlocksWithoutRedirect(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer r.Close()
-	// 保持 w 打开且不写数据，模拟「等待用户输入」
+	// 保持 w open且不写数据，模拟「等待user输入」
 
 	cmd := exec.Command("sh", "-c", `read x; echo done`)
 	cmd.Stdin = r
@@ -123,6 +123,6 @@ func TestNonInteractiveStdinReadBlocksWithoutRedirect(t *testing.T) {
 			_ = cmd.Process.Kill()
 		}
 		_ = w.Close()
-		<-done // 等待 goroutine 退出
+		<-done // 等待 goroutine exit
 	}
 }

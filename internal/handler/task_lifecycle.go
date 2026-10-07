@@ -14,13 +14,13 @@ func (h *AgentHandler) ShutdownTasks() {
 		h.tasks.Shutdown()
 		if h.logger != nil {
 			for _, task := range h.tasks.GetActiveTasks() {
-				h.logger.Warn("服务关闭时任务仍有未完成的清理", zap.String("runId", task.RunID), zap.String("cleanupError", task.CleanupError))
+				h.logger.Warn("task still has incomplete cleanup when service is closing", zap.String("runId", task.RunID), zap.String("cleanupError", task.CleanupError))
 			}
 		}
 	}
 }
 
-// taskFinishingEventSender makes the visible done event follow local cleanup.
+// TaskFinishingEventSender makes the visible done event follow local cleanup.
 func (h *AgentHandler) taskFinishingEventSender(send func(string, string, interface{}), conversationID, runID string, status func() string) func(string, string, interface{}) {
 	return func(eventType, message string, data interface{}) {
 		if eventType == "done" {
@@ -52,7 +52,7 @@ func (h *AgentHandler) taskFinishingEventSender(send func(string, string, interf
 	}
 }
 
-// taskFinishingJSONResponder applies the same ordering to successful and failed
+// TaskFinishingJSONResponder applies the same ordering to successful and failed
 // non-streaming requests. No response claims completion before cleanup returns.
 func (h *AgentHandler) taskFinishingJSONResponder(c *gin.Context, conversationID, runID string, status func() string) func(int, interface{}) {
 	return func(code int, payload interface{}) {
@@ -72,7 +72,7 @@ func taskCleanupStatus(err error) string {
 }
 func taskCleanupMessage(err error) string {
 	if errors.Is(err, runlease.ErrUnconfirmed) {
-		return "本地执行已结束，远端 MCP 停止状态待确认"
+		return "local execution ended, remote MCP stop status pending confirmation"
 	}
-	return "任务资源清理失败，将自动重试"
+	return "task resource cleanup failed, will retry automatically"
 }

@@ -1,4 +1,4 @@
-﻿package security
+package security
 
 import (
 	"context"
@@ -13,7 +13,7 @@ import (
 	"github.com/cloudwego/eino/schema"
 )
 
-// ConfigureShellCmdForAgentExecute 与 exec 工具一致：非交互 stdin、pager/TERM 环境、独立进程组。
+// ConfigureShellCmdForAgentExecute 与 exec tool一致：非交互 stdin、pager/TERM 环境、独立process group。
 func ConfigureShellCmdForAgentExecute(cmd *exec.Cmd) {
 	if cmd == nil {
 		return
@@ -23,22 +23,22 @@ func ConfigureShellCmdForAgentExecute(cmd *exec.Cmd) {
 	_ = prepareShellCmdSession(cmd)
 }
 
-// TerminateShellCmdTree 尽力终止 shell 及其子进程组（与 exec/execute 超时取消一致）。
+// TerminateShellCmdTree 尽力终止 shell 及其子process group（与 exec/execute timed outcancelled一致）。
 func TerminateShellCmdTree(cmd *exec.Cmd) {
 	terminateCmdTree(cmd)
 }
 
-// TerminateShellCmdSession 使用 Start 时缓存的进程组 ID 终止（shell 已退出时仍有效）。
+// TerminateShellCmdSession 使用 Start 时cache的process group ID 终止（shell 已exit时仍有效）。
 func TerminateShellCmdSession(session *ShellSession) {
 	TerminateShellSession(session)
 }
 
-// EinoStreamingShell 为 Eino ADK execute 工具提供流式 shell，行为与 exec 对齐：
-// 并发读取 stdout/stderr（定长块，非按行），避免官方 local.ExecuteStreaming 先排空 stdout
-// 导致 stderr 错误（如 sudo 密码提示）长时间不可见、UI 一直显示「执行中」。
+// EinoStreamingShell 为 Eino ADK execute tool提供流式 shell，行为与 exec 对齐：
+// 并发读取 stdout/stderr（定长块，非按行），避免官方 local.ExecuteStreaming 先排null stdout
+// 导致 stderr error（如 sudo password提示）长时间不可见、UI 一直显示「执行中」。
 type EinoStreamingShell struct{}
 
-// NewEinoStreamingShell 创建 execute 流式 shell 实现。
+// NewEinoStreamingShell create execute 流式 shell 实现。
 func NewEinoStreamingShell() *EinoStreamingShell {
 	return &EinoStreamingShell{}
 }

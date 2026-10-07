@@ -1,4 +1,4 @@
-﻿package multiagent
+package multiagent
 
 import (
 	"fmt"
@@ -109,7 +109,7 @@ func (p *einoPendingToolCalls) FlushAsFailed(err error) {
 		if strings.TrimSpace(toolName) == "" {
 			toolName = "unknown"
 		}
-		p.progress("tool_result", fmt.Sprintf("工具结果 (%s)", toolName), map[string]interface{}{
+		p.progress("tool_result", fmt.Sprintf("tool result (%s)", toolName), map[string]interface{}{
 			"toolName":       toolName,
 			"success":        false,
 			"isError":        true,

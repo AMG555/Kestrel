@@ -1,4 +1,4 @@
-﻿package monitor
+package monitor
 
 import (
 	"time"
@@ -44,12 +44,12 @@ func (s *Service) PurgeExpired() {
 	n, err := s.db.PurgeToolExecutionsBefore(cutoff)
 	if err != nil {
 		if s.logger != nil {
-			s.logger.Warn("清理过期 MCP 执行记录失败", zap.Error(err))
+			s.logger.Warn("cleanup过期 MCP 执行记录failed", zap.Error(err))
 		}
 		return
 	}
 	if n > 0 && s.logger != nil {
-		s.logger.Info("已清理过期 MCP 执行记录", zap.Int64("deleted", n), zap.Int("retention_days", days))
+		s.logger.Info("已cleanup过期 MCP 执行记录", zap.Int64("deleted", n), zap.Int("retention_days", days))
 	}
 }
 

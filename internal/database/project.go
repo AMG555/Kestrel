@@ -1,4 +1,4 @@
-﻿package database
+package database
 
 import (
 	"database/sql"
@@ -12,22 +12,22 @@ import (
 
 var factKeyPattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._/-]*$`)
 
-// ValidateFactKey 校验事实 key（项目内唯一标识）。
+// ValidateFactKey validates a fact key (unique identifier within a project).
 func ValidateFactKey(key string) error {
 	key = strings.TrimSpace(key)
 	if key == "" {
-		return fmt.Errorf("fact_key 不能为空")
+		return fmt.Errorf("fact_key cannot be empty")
 	}
 	if len(key) > 128 {
-		return fmt.Errorf("fact_key 过长（最多 128 字符）")
+		return fmt.Errorf("fact_key too long (max 128 characters)")
 	}
 	if !factKeyPattern.MatchString(key) {
-		return fmt.Errorf("fact_key 格式无效，仅允许字母、数字及 . _ / -，且须以字母或数字开头（支持驼峰命名）")
+		return fmt.Errorf("fact_key format invalid: only letters, digits, and . _ / - are allowed, and must start with a letter or digit (camelCase supported)")
 	}
 	return nil
 }
 
-// Project 渗透测试项目（跨对话共享黑板）。
+// Project is a penetration test project (shared blackboard across conversations).
 type Project struct {
 	ID          string    `json:"id"`
 	Name        string    `json:"name"`
@@ -39,7 +39,7 @@ type Project struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
-// ProjectFact 项目事实（黑板条目）。
+// ProjectFact holds project facts (blackboard entries).
 type ProjectFact struct {
 	ID                     string    `json:"id"`
 	ProjectID              string    `json:"project_id"`
@@ -56,16 +56,16 @@ type ProjectFact struct {
 	UpdatedAt              time.Time `json:"updated_at"`
 }
 
-// ProjectFactListFilter 事实列表筛选。
+// ProjectFactListFilter is the filter for listing facts.
 type ProjectFactListFilter struct {
 	Category               string
 	Confidence             string
 	Search                 string
 	RelatedVulnerabilityID string
-	ExcludeDeprecated      bool // 为 true 时排除 confidence=deprecated
+	ExcludeDeprecated      bool // when true, excludes entries with confidence=deprecated
 }
 
-// CreateProject 创建项目。
+// CreateProject creates a project.
 func (db *DB) CreateProject(p *Project) (*Project, error) {
 	if p.ID == "" {
 		p.ID = uuid.New().String()
@@ -85,12 +85,12 @@ func (db *DB) CreateProject(p *Project) (*Project, error) {
 		p.ID, p.Name, p.Description, p.ScopeJSON, p.Status, boolToInt(p.Pinned), p.CreatedAt, p.UpdatedAt,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("创建项目失败: %w", err)
+		return nil, fmt.Errorf("create projectfailed: %w", err)
 	}
 	return p, nil
 }
 
-// GetProject 获取项目。
+// GetProject retrieves a project.
 func (db *DB) GetProject(id string) (*Project, error) {
 	var p Project
 	var pinned int
@@ -101,9 +101,9 @@ func (db *DB) GetProject(id string) (*Project, error) {
 	).Scan(&p.ID, &p.Name, &p.Description, &p.ScopeJSON, &p.Status, &pinned, &createdAt, &updatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("项目不存在")
+			return nil, fmt.Errorf("project not found")
 		}
-		return nil, fmt.Errorf("获取项目失败: %w", err)
+		return nil, fmt.Errorf("get project failed: %w", err)
 	}
 	p.Pinned = pinned != 0
 	p.CreatedAt = parseDBTime(createdAt)
@@ -117,9 +117,9 @@ func (db *DB) GetProjectName(id string) (string, error) {
 	err := db.QueryRow(`SELECT name FROM projects WHERE id = ?`, id).Scan(&name)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return "", fmt.Errorf("项目不存在")
+			return "", fmt.Errorf("project not found")
 		}
-		return "", fmt.Errorf("获取项目名称失败: %w", err)
+		return "", fmt.Errorf("get project name failed: %w", err)
 	}
 	return strings.TrimSpace(name), nil
 }
@@ -169,14 +169,14 @@ func appendProjectAccessFilter(query string, args []interface{}, userID, scope s
 	return query, args
 }
 
-// CountProjects 统计项目数量。
+// CountProjects counts projects.
 func (db *DB) CountProjects(status, search string) (int, error) {
 	query := `SELECT COUNT(*) FROM projects WHERE 1=1`
 	args := []interface{}{}
 	query, args = appendProjectListFilters(query, args, status, search)
 	var count int
 	if err := db.QueryRow(query, args...).Scan(&count); err != nil {
-		return 0, fmt.Errorf("统计项目失败: %w", err)
+		return 0, fmt.Errorf("count projects failed: %w", err)
 	}
 	return count, nil
 }
@@ -188,12 +188,12 @@ func (db *DB) CountProjectsForAccess(status, search, userID, scope string) (int,
 	query, args = appendProjectAccessFilter(query, args, userID, scope)
 	var count int
 	if err := db.QueryRow(query, args...).Scan(&count); err != nil {
-		return 0, fmt.Errorf("统计项目失败: %w", err)
+		return 0, fmt.Errorf("count projects failed: %w", err)
 	}
 	return count, nil
 }
 
-// ListProjects 列出项目。
+// ListProjects lists projects.
 func (db *DB) ListProjects(status, search string, limit, offset int) ([]*Project, error) {
 	if limit <= 0 {
 		limit = 50
@@ -207,7 +207,7 @@ func (db *DB) ListProjects(status, search string, limit, offset int) ([]*Project
 
 	rows, err := db.Query(query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("列出项目失败: %w", err)
+		return nil, fmt.Errorf("list projects failed: %w", err)
 	}
 	defer rows.Close()
 
@@ -244,7 +244,7 @@ func (db *DB) ListProjectsForAccess(status, search string, limit, offset int, us
 
 	rows, err := db.Query(query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("列出项目失败: %w", err)
+		return nil, fmt.Errorf("list projects failed: %w", err)
 	}
 	defer rows.Close()
 	var out []*Project
@@ -263,7 +263,7 @@ func (db *DB) ListProjectsForAccess(status, search string, limit, offset int, us
 	return out, rows.Err()
 }
 
-// UpdateProject 更新项目。
+// UpdateProject updates a project.
 func (db *DB) UpdateProject(p *Project) error {
 	p.UpdatedAt = time.Now()
 	_, err := db.Exec(
@@ -271,40 +271,40 @@ func (db *DB) UpdateProject(p *Project) error {
 		p.Name, p.Description, p.ScopeJSON, p.Status, boolToInt(p.Pinned), p.UpdatedAt, p.ID,
 	)
 	if err != nil {
-		return fmt.Errorf("更新项目失败: %w", err)
+		return fmt.Errorf("update projectfailed: %w", err)
 	}
 	return nil
 }
 
-// DeleteProject 删除项目（级联删除事实；对话 project_id 置空由 FK 处理；其他资源 project_id 置空）。
+// DeleteProject deletes a project (cascades to facts; conversation project_id is set to null by FK; other resources' project_id is set to null).
 func (db *DB) DeleteProject(id string) error {
 	if _, err := db.Exec(`UPDATE vulnerabilities SET project_id = NULL WHERE project_id = ?`, id); err != nil {
-		return fmt.Errorf("解除漏洞项目关联失败: %w", err)
+		return fmt.Errorf("unlink vulnerability project association failed: %w", err)
 	}
 	if _, err := db.Exec(`UPDATE assets SET project_id = NULL WHERE project_id = ?`, id); err != nil {
-		return fmt.Errorf("解除资产项目关联失败: %w", err)
+		return fmt.Errorf("unlink asset project association failed: %w", err)
 	}
 	if _, err := db.Exec(`UPDATE webshell_connections SET project_id = NULL WHERE project_id = ?`, id); err != nil {
-		return fmt.Errorf("解除 WebShell 项目关联失败: %w", err)
+		return fmt.Errorf("unlink WebShell project association failed: %w", err)
 	}
 	if _, err := db.Exec(`UPDATE c2_listeners SET project_id = NULL WHERE project_id = ?`, id); err != nil {
-		return fmt.Errorf("解除 C2 监听器项目关联失败: %w", err)
+		return fmt.Errorf("unlink C2 listener project association failed: %w", err)
 	}
 	_, err := db.Exec(`DELETE FROM projects WHERE id = ?`, id)
 	if err != nil {
-		return fmt.Errorf("删除项目失败: %w", err)
+		return fmt.Errorf("delete projectfailed: %w", err)
 	}
 	db.removeProjectScopedDirs(id)
 	return nil
 }
 
-// GetConversationProjectID 返回对话绑定的项目 ID。
+// GetConversationProjectID returns the project ID bound to a conversation.
 func (db *DB) GetConversationProjectID(conversationID string) (string, error) {
 	var pid sql.NullString
 	err := db.QueryRow(`SELECT project_id FROM conversations WHERE id = ?`, conversationID).Scan(&pid)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return "", fmt.Errorf("对话不存在")
+			return "", fmt.Errorf("conversation not found")
 		}
 		return "", err
 	}
@@ -314,7 +314,7 @@ func (db *DB) GetConversationProjectID(conversationID string) (string, error) {
 	return "", nil
 }
 
-// SetConversationProjectID 设置对话所属项目（空字符串表示解除绑定）。
+// SetConversationProjectID sets the project a conversation belongs to (empty string unbinds).
 func (db *DB) SetConversationProjectID(conversationID, projectID string) error {
 	projectID = strings.TrimSpace(projectID)
 	if projectID != "" {
@@ -330,12 +330,12 @@ func (db *DB) SetConversationProjectID(conversationID, projectID string) error {
 	}
 	_, err := db.Exec(`UPDATE conversations SET project_id = ?, updated_at = ? WHERE id = ?`, val, time.Now(), conversationID)
 	if err != nil {
-		return fmt.Errorf("设置对话项目失败: %w", err)
+		return fmt.Errorf("set conversation project failed: %w", err)
 	}
 	return nil
 }
 
-// ListProjectFactsForIndex 列出用于黑板索引注入的事实（不含 deprecated，除非 includeDeprecated）。
+// ListProjectFactsForIndex lists facts for blackboard index injection (excludes deprecated unless includeDeprecated is true).
 func (db *DB) ListProjectFactsForIndex(projectID string, includeDeprecated bool) ([]*ProjectFact, error) {
 	query := `SELECT id, project_id, fact_key, category, summary, COALESCE(body,''), confidence,
 		COALESCE(source_conversation_id,''), COALESCE(source_message_id,''), pinned,
@@ -354,7 +354,7 @@ func (db *DB) ListProjectFactsForIndex(projectID string, includeDeprecated bool)
 	return scanProjectFacts(rows)
 }
 
-// ListProjectFacts 分页列出项目事实。
+// ListProjectFacts paginates project facts.
 func (db *DB) ListProjectFacts(projectID string, filter ProjectFactListFilter, limit, offset int) ([]*ProjectFact, error) {
 	if limit <= 0 {
 		limit = 100
@@ -395,7 +395,7 @@ func (db *DB) ListProjectFacts(projectID string, filter ProjectFactListFilter, l
 	return scanProjectFacts(rows)
 }
 
-// GetProjectFactByKey 按 key 获取事实。
+// GetProjectFactByKey retrieves a fact by key.
 func (db *DB) GetProjectFactByKey(projectID, factKey string) (*ProjectFact, error) {
 	row := db.QueryRow(
 		`SELECT id, project_id, fact_key, category, summary, COALESCE(body,''), confidence,
@@ -407,7 +407,7 @@ func (db *DB) GetProjectFactByKey(projectID, factKey string) (*ProjectFact, erro
 	return scanProjectFactRow(row)
 }
 
-// GetProjectFact 按 ID 获取事实。
+// GetProjectFact retrieves a fact by ID.
 func (db *DB) GetProjectFact(id string) (*ProjectFact, error) {
 	row := db.QueryRow(
 		`SELECT id, project_id, fact_key, category, summary, COALESCE(body,''), confidence,
@@ -418,7 +418,7 @@ func (db *DB) GetProjectFact(id string) (*ProjectFact, error) {
 	return scanProjectFactRow(row)
 }
 
-// mergeFactBodyOnUpdate 更新时若 incoming body 为空则保留已有内容，避免仅改 summary 时丢失攻击链。
+// mergeFactBodyOnUpdate keeps the existing body if the incoming body is empty on update, preventing loss of attack chain when only the summary is changed.
 func mergeFactBodyOnUpdate(incoming, existing string) string {
 	if strings.TrimSpace(incoming) == "" {
 		return existing
@@ -426,7 +426,7 @@ func mergeFactBodyOnUpdate(incoming, existing string) string {
 	return incoming
 }
 
-// UpsertProjectFact 创建或更新事实（按 project_id + fact_key）。
+// UpsertProjectFact creates or updates a fact (keyed by project_id + fact_key).
 func (db *DB) UpsertProjectFact(f *ProjectFact) (*ProjectFact, error) {
 	if err := ValidateFactKey(f.FactKey); err != nil {
 		return nil, err
@@ -462,7 +462,7 @@ func (db *DB) UpsertProjectFact(f *ProjectFact) (*ProjectFact, error) {
 			nullIfEmpty(f.RelatedVulnerabilityID), f.UpdatedAt, f.ID,
 		)
 		if err != nil {
-			return nil, fmt.Errorf("更新事实失败: %w", err)
+			return nil, fmt.Errorf("update fact failed: %w", err)
 		}
 		return f, nil
 	}
@@ -484,12 +484,12 @@ func (db *DB) UpsertProjectFact(f *ProjectFact) (*ProjectFact, error) {
 		f.CreatedAt, f.UpdatedAt,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("创建事实失败: %w", err)
+		return nil, fmt.Errorf("create fact failed: %w", err)
 	}
 	return f, nil
 }
 
-// DeprecateProjectFact 将事实标记为 deprecated（关联边同步 deprecated）。
+// DeprecateProjectFact marks a fact as deprecated (syncs associated edges to deprecated).
 func (db *DB) DeprecateProjectFact(projectID, factKey string) error {
 	res, err := db.Exec(
 		`UPDATE project_facts SET confidence = 'deprecated', updated_at = ? WHERE project_id = ? AND fact_key = ?`,
@@ -500,27 +500,27 @@ func (db *DB) DeprecateProjectFact(projectID, factKey string) error {
 	}
 	n, _ := res.RowsAffected()
 	if n == 0 {
-		return fmt.Errorf("事实不存在")
+		return fmt.Errorf("fact not found")
 	}
 	return db.DeprecateProjectFactEdgesForKey(projectID, factKey)
 }
 
-// RestoreProjectFact 将已废弃事实恢复为 tentative 或 confirmed（重新参与黑板索引）。
+// RestoreProjectFact restores a deprecated fact to tentative or confirmed (re-enters blackboard index).
 func (db *DB) RestoreProjectFact(projectID, factKey, confidence string) error {
 	confidence = strings.TrimSpace(strings.ToLower(confidence))
 	if confidence == "" {
 		confidence = "tentative"
 	}
 	if confidence != "confirmed" && confidence != "tentative" {
-		return fmt.Errorf("confidence 须为 confirmed 或 tentative")
+		return fmt.Errorf("confidence must be confirmed or tentative")
 	}
 
 	existing, err := db.GetProjectFactByKey(projectID, factKey)
 	if err != nil {
-		return fmt.Errorf("事实不存在")
+		return fmt.Errorf("fact not found")
 	}
 	if strings.ToLower(strings.TrimSpace(existing.Confidence)) != "deprecated" {
-		return fmt.Errorf("事实未处于废弃状态")
+		return fmt.Errorf("fact is not in deprecated status")
 	}
 
 	_, err = db.Exec(
@@ -530,7 +530,7 @@ func (db *DB) RestoreProjectFact(projectID, factKey, confidence string) error {
 	return err
 }
 
-// DeleteProjectFact 删除事实（级联删除相关边）。
+// DeleteProjectFact deletes a fact (cascades to delete related edges).
 func (db *DB) DeleteProjectFact(id string) error {
 	f, err := db.GetProjectFact(id)
 	if err != nil {
@@ -566,7 +566,7 @@ func scanProjectFactRow(row *sql.Row) (*ProjectFact, error) {
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("事实不存在")
+			return nil, fmt.Errorf("fact does not exist")
 		}
 		return nil, err
 	}
@@ -613,7 +613,7 @@ func parseDBTime(s string) time.Time {
 	if s == "" {
 		return time.Time{}
 	}
-	// go-sqlite3 读 DATETIME 常返回 RFC3339（含 T），写入时可能是空格分隔格式，需兼容多种形态
+	// go-sqlite3 reads DATETIME and often returns RFC3339 (with T), but writing may use a space-separated format; multiple layouts must be supported
 	layouts := []string{
 		time.RFC3339Nano,
 		time.RFC3339,

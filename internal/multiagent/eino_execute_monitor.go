@@ -1,4 +1,4 @@
-﻿package multiagent
+package multiagent
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 )
 
 // newEinoExecuteMonitorCallbacks 在 Eino filesystem execute 开始/结束时写入 MCP 监控库并 recorder(executionId)，
-// 与 CallTool 路径一致，使监控页能展示「执行中」状态。
+// 与 CallTool path一致，使监控页能展示「执行中」status。
 func newEinoExecuteMonitorCallbacks(ctx context.Context, ag *agent.Agent, recorder einomcp.ExecutionRecorder) (
 	begin func(toolCallID, command string) string,
 	appendPartial func(executionID, toolCallID, chunk string),

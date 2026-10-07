@@ -1,4 +1,4 @@
-﻿package database
+package database
 
 import (
 	"database/sql"
@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// ProjectStats 项目聚合统计。
+// ProjectStats holds aggregated statistics for a project.
 type ProjectStats struct {
 	FactCount         int `json:"fact_count"`
 	VulnCount         int `json:"vuln_count"`
@@ -14,11 +14,11 @@ type ProjectStats struct {
 	SparseFactCount   int `json:"sparse_fact_count"`
 }
 
-// GetProjectStatsCounts 统计项目下事实、漏洞、对话数量（不含 sparse，由 project 包补全）。
+// GetProjectStatsCounts counts facts, vulnerabilities, and conversations for a project (excluding sparse facts, which are filled in by the project package).
 func (db *DB) GetProjectStatsCounts(projectID string) (*ProjectStats, error) {
 	projectID = strings.TrimSpace(projectID)
 	if projectID == "" {
-		return nil, fmt.Errorf("project_id 不能为空")
+		return nil, fmt.Errorf("project_id cannot be empty")
 	}
 	if _, err := db.GetProject(projectID); err != nil {
 		return nil, err
@@ -28,24 +28,24 @@ func (db *DB) GetProjectStatsCounts(projectID string) (*ProjectStats, error) {
 		`SELECT COUNT(*) FROM project_facts WHERE project_id = ? AND confidence != 'deprecated'`,
 		projectID,
 	).Scan(&stats.FactCount); err != nil {
-		return nil, fmt.Errorf("统计事实失败: %w", err)
+		return nil, fmt.Errorf("failed to count facts: %w", err)
 	}
 	if err := db.QueryRow(
 		`SELECT COUNT(*) FROM vulnerabilities WHERE project_id = ?`,
 		projectID,
 	).Scan(&stats.VulnCount); err != nil {
-		return nil, fmt.Errorf("统计漏洞失败: %w", err)
+		return nil, fmt.Errorf("failed to count vulnerabilities: %w", err)
 	}
 	if err := db.QueryRow(
 		`SELECT COUNT(*) FROM conversations WHERE project_id = ?`,
 		projectID,
 	).Scan(&stats.ConversationCount); err != nil {
-		return nil, fmt.Errorf("统计对话失败: %w", err)
+		return nil, fmt.Errorf("failed to count conversations: %w", err)
 	}
 	return stats, nil
 }
 
-// ListProjectFactsForSparseCheck 返回用于待补全检测的事实字段（非 deprecated）。
+// ListProjectFactsForSparseCheck returns fact fields for sparse-check detection (non-deprecated).
 func (db *DB) ListProjectFactsForSparseCheck(projectID string) ([]struct {
 	Category string
 	FactKey  string
@@ -78,7 +78,7 @@ func (db *DB) ListProjectFactsForSparseCheck(projectID string) ([]struct {
 	return out, rows.Err()
 }
 
-// ListConversationsByProjectID 列出绑定到项目的对话。
+// ListConversationsByProjectID lists conversations bound to a project.
 func (db *DB) ListConversationsByProjectID(projectID string, limit, offset int) ([]*Conversation, error) {
 	if limit <= 0 {
 		limit = 100
@@ -89,7 +89,7 @@ func (db *DB) ListConversationsByProjectID(projectID string, limit, offset int) 
 		projectID, limit, offset,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("查询项目对话失败: %w", err)
+		return nil, fmt.Errorf("failed to query project conversations: %w", err)
 	}
 	defer rows.Close()
 
@@ -117,7 +117,7 @@ func (db *DB) ListConversationsByProjectID(projectID string, limit, offset int) 
 	return conversations, rows.Err()
 }
 
-// CountConversationsByProjectID 统计项目绑定对话数。
+// CountConversationsByProjectID counts conversations bound to a project.
 func (db *DB) CountConversationsByProjectID(projectID string) (int, error) {
 	var n int
 	err := db.QueryRow(`SELECT COUNT(*) FROM conversations WHERE project_id = ?`, projectID).Scan(&n)

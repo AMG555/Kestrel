@@ -1,4 +1,4 @@
-﻿package mcp
+package mcp
 
 import (
 	"context"
@@ -40,7 +40,7 @@ func TestExternalMCPManager_AddOrUpdateConfig(t *testing.T) {
 	logger := zap.NewNop()
 	manager := NewExternalMCPManager(logger)
 
-	// 测试添加stdio配置
+	// test添加stdioconfig
 	stdioCfg := config.ExternalMCPServerConfig{
 		Command:           "python3",
 		Args:              []string{"/path/to/script.py"},
@@ -51,10 +51,10 @@ func TestExternalMCPManager_AddOrUpdateConfig(t *testing.T) {
 
 	err := manager.AddOrUpdateConfig("test-stdio", stdioCfg)
 	if err != nil {
-		t.Fatalf("添加stdio配置失败: %v", err)
+		t.Fatalf("添加stdioconfigfailed: %v", err)
 	}
 
-	// 测试添加HTTP配置
+	// test添加HTTPconfig
 	httpCfg := config.ExternalMCPServerConfig{
 		Type:              "http",
 		URL:               "http://127.0.0.1:8081/mcp",
@@ -65,21 +65,21 @@ func TestExternalMCPManager_AddOrUpdateConfig(t *testing.T) {
 
 	err = manager.AddOrUpdateConfig("test-http", httpCfg)
 	if err != nil {
-		t.Fatalf("添加HTTP配置失败: %v", err)
+		t.Fatalf("添加HTTPconfigfailed: %v", err)
 	}
 
-	// 验证配置已保存
+	// validateconfig已save
 	configs := manager.GetConfigs()
 	if len(configs) != 2 {
-		t.Fatalf("期望2个配置，实际%d个", len(configs))
+		t.Fatalf("期望2个config，实际%d个", len(configs))
 	}
 
 	if configs["test-stdio"].Command != stdioCfg.Command {
-		t.Errorf("stdio配置命令不匹配")
+		t.Errorf("stdioconfig命令不匹配")
 	}
 
 	if configs["test-http"].URL != httpCfg.URL {
-		t.Errorf("HTTP配置URL不匹配")
+		t.Errorf("HTTPconfigURL不匹配")
 	}
 }
 
@@ -94,15 +94,15 @@ func TestExternalMCPManager_RemoveConfig(t *testing.T) {
 
 	manager.AddOrUpdateConfig("test-remove", cfg)
 
-	// 移除配置
+	// 移除config
 	err := manager.RemoveConfig("test-remove")
 	if err != nil {
-		t.Fatalf("移除配置失败: %v", err)
+		t.Fatalf("移除configfailed: %v", err)
 	}
 
 	configs := manager.GetConfigs()
 	if _, exists := configs["test-remove"]; exists {
-		t.Error("配置应该已被移除")
+		t.Error("config应该已被移除")
 	}
 }
 
@@ -110,7 +110,7 @@ func TestExternalMCPManager_GetStats(t *testing.T) {
 	logger := zap.NewNop()
 	manager := NewExternalMCPManager(logger)
 
-	// 添加多个配置
+	// 添加多个config
 	manager.AddOrUpdateConfig("enabled1", config.ExternalMCPServerConfig{
 		Command:           "python3",
 		ExternalMCPEnable: true,
@@ -129,11 +129,11 @@ func TestExternalMCPManager_GetStats(t *testing.T) {
 	stats := manager.GetStats()
 
 	if stats["total"].(int) != 3 {
-		t.Errorf("期望总数3，实际%d", stats["total"])
+		t.Errorf("期望total3，实际%d", stats["total"])
 	}
 
 	if stats["enabled"].(int) != 2 {
-		t.Errorf("期望启用数2，实际%d", stats["enabled"])
+		t.Errorf("期望enable数2，实际%d", stats["enabled"])
 	}
 
 	if stats["disabled"].(int) != 1 {
@@ -162,22 +162,22 @@ func TestExternalMCPManager_LoadConfigs(t *testing.T) {
 
 	configs := manager.GetConfigs()
 	if len(configs) != 2 {
-		t.Fatalf("期望2个配置，实际%d个", len(configs))
+		t.Fatalf("期望2个config，实际%d个", len(configs))
 	}
 
 	if configs["loaded1"].Command != "python3" {
-		t.Error("配置1加载失败")
+		t.Error("config1load failed")
 	}
 
 	if configs["loaded2"].URL != "http://127.0.0.1:8081/mcp" {
-		t.Error("配置2加载失败")
+		t.Error("config2load failed")
 	}
 }
 
-// TestLazySDKClient_InitializeFails 验证无效配置时 SDK 客户端 Initialize 失败并设置 error 状态
+// TestLazySDKClient_InitializeFails validatenone效config时 SDK 客户端 Initialize failed并settings error status
 func TestLazySDKClient_InitializeFails(t *testing.T) {
 	logger := zap.NewNop()
-	// 使用不存在的 HTTP 地址，Initialize 应失败
+	// 使用不存在的 HTTP address，Initialize 应failed
 	cfg := config.ExternalMCPServerConfig{
 		Type:    "http",
 		URL:     "http://127.0.0.1:19999/nonexistent",
@@ -200,7 +200,7 @@ func TestExternalMCPManager_StartStopClient(t *testing.T) {
 	logger := zap.NewNop()
 	manager := NewExternalMCPManager(logger)
 
-	// 添加一个禁用的配置
+	// 添加一个disable的config
 	cfg := config.ExternalMCPServerConfig{
 		Command:           "python3",
 		ExternalMCPEnable: false,
@@ -208,22 +208,22 @@ func TestExternalMCPManager_StartStopClient(t *testing.T) {
 
 	manager.AddOrUpdateConfig("test-start-stop", cfg)
 
-	// 尝试启动（可能会失败，因为没有真实的服务器）
+	// 尝试start（可能会failed，因为没有true实的服务器）
 	err := manager.StartClient("test-start-stop")
 	if err != nil {
-		t.Logf("启动失败（可能是没有服务器）: %v", err)
+		t.Logf("startup failed（可能yes没有服务器）: %v", err)
 	}
 
-	// 停止
+	// stop
 	err = manager.StopClient("test-start-stop")
 	if err != nil {
-		t.Fatalf("停止失败: %v", err)
+		t.Fatalf("shutdown failed: %v", err)
 	}
 
-	// 验证配置已更新为禁用
+	// validateconfig已update为disable
 	configs := manager.GetConfigs()
 	if configs["test-start-stop"].ExternalMCPEnable {
-		t.Error("配置应该已被禁用")
+		t.Error("config应该已被disable")
 	}
 }
 
@@ -231,16 +231,16 @@ func TestExternalMCPManager_CallTool(t *testing.T) {
 	logger := zap.NewNop()
 	manager := NewExternalMCPManager(logger)
 
-	// 测试调用不存在的工具
+	// test调用不存在的tool
 	_, _, err := manager.CallTool(context.Background(), "nonexistent::tool", map[string]interface{}{})
 	if err == nil {
-		t.Error("应该返回错误")
+		t.Error("应该backerror")
 	}
 
-	// 测试无效的工具名称格式
+	// testnone效的tool nameformat
 	_, _, err = manager.CallTool(context.Background(), "invalid-tool-name", map[string]interface{}{})
 	if err == nil {
-		t.Error("应该返回错误（无效格式）")
+		t.Error("应该backerror（none效format）")
 	}
 }
 
@@ -251,11 +251,11 @@ func TestExternalMCPManager_GetAllTools(t *testing.T) {
 	ctx := context.Background()
 	tools, err := manager.GetAllTools(ctx)
 	if err != nil {
-		t.Fatalf("获取工具列表失败: %v", err)
+		t.Fatalf("failed to get tool list: %v", err)
 	}
 
-	// 如果没有连接的客户端，应该返回空列表
+	// 如果没有连接的客户端，应该backnulllist
 	if len(tools) != 0 {
-		t.Logf("获取到%d个工具", len(tools))
+		t.Logf("获取到%d个tool", len(tools))
 	}
 }

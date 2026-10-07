@@ -1,4 +1,4 @@
-﻿package agent
+package agent
 
 import (
 	"context"
@@ -15,7 +15,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// setupTestAgent 创建测试用的Agent
+// setupTestAgent creates an Agent for testing
 func setupTestAgent(t *testing.T) *Agent {
 	logger := zap.NewNop()
 	mcpServer := mcp.NewServer(logger)
@@ -43,11 +43,11 @@ func TestAgent_NewAgent_DefaultValues(t *testing.T) {
 		Model:   "test-model",
 	}
 
-	// 测试默认配置
+	// test default config
 	agent := NewAgent(openAICfg, nil, mcpServer, nil, logger, 0)
 
 	if agent.maxIterations != 30 {
-		t.Errorf("默认迭代次数不匹配。期望: 30, 实际: %d", agent.maxIterations)
+		t.Errorf("default iteration count mismatch. expected: 30, actual: %d", agent.maxIterations)
 	}
 }
 
@@ -68,7 +68,7 @@ func TestAgent_NewAgent_CustomConfig(t *testing.T) {
 	agent := NewAgent(openAICfg, agentCfg, mcpServer, nil, logger, 15)
 
 	if agent.maxIterations != 15 {
-		t.Errorf("迭代次数不匹配。期望: 15, 实际: %d", agent.maxIterations)
+		t.Errorf("iteration count mismatch. expected: 15, actual: %d", agent.maxIterations)
 	}
 }
 
@@ -79,19 +79,19 @@ func TestBuildToolFailureMessageAuthorizationDenied(t *testing.T) {
 		errors.New("tool authorization denied: no access to project"),
 	)
 	for _, want := range []string{
-		"工具名称: list_project_facts",
-		"错误详情: tool authorization denied: no access to project",
+		"tool name: list_project_facts",
+		"errordetails: tool authorization denied: no access to project",
 	} {
 		if !strings.Contains(msg, want) {
 			t.Fatalf("message missing %q:\n%s", want, msg)
 		}
 	}
 	for _, notWant := range []string{
-		"可能的原因",
-		"建议",
-		"错误类型",
-		"工具 \"list_project_facts\" 不存在或未启用",
-		"单次执行超时",
+		"possible causes",
+		"recommendation",
+		"errortype",
+		"tool \"list_project_facts\" does not exist or is not enabled",
+		"single execution timed out",
 	} {
 		if strings.Contains(msg, notWant) {
 			t.Fatalf("message should not include generic hint %q:\n%s", notWant, msg)
@@ -102,13 +102,13 @@ func TestBuildToolFailureMessageAuthorizationDenied(t *testing.T) {
 func TestBuildToolFailureMessageCanceled(t *testing.T) {
 	msg := buildToolFailureMessage(
 		"long_running_tool",
-		"工具调用已被手动终止（MCP 监控页）。智能体将携带此结果继续后续步骤，整条任务不会因此被停止。",
+		"tool call was manually terminated (MCP monitor page). The agent will carry this result and continue subsequent steps; the overall task will not be stopped.",
 		context.Canceled,
 	)
 
 	for _, want := range []string{
-		"工具名称: long_running_tool",
-		"错误详情: 工具调用已被手动终止",
+		"tool name: long_running_tool",
+		"error details: tool call was manually terminated",
 	} {
 		if !strings.Contains(msg, want) {
 			t.Fatalf("message missing %q:\n%s", want, msg)
@@ -119,13 +119,13 @@ func TestBuildToolFailureMessageCanceled(t *testing.T) {
 func TestBuildToolFailureMessageDeadlineExceeded(t *testing.T) {
 	msg := buildToolFailureMessage(
 		"nmap",
-		"工具执行超过 15 分钟被自动终止（可在 config.yaml 的 agent.tool_timeout_minutes 中调整）",
+		"tool execution exceeded 15 minutes and was automatically terminated (configurable via agent.tool_timeout_minutes in config.yaml)",
 		context.DeadlineExceeded,
 	)
 
 	for _, want := range []string{
-		"工具名称: nmap",
-		"错误详情: 工具执行超过 15 分钟被自动终止",
+		"tool name: nmap",
+		"error details: tool execution exceeded 15 minutes and was automatically terminated",
 	} {
 		if !strings.Contains(msg, want) {
 			t.Fatalf("message missing %q:\n%s", want, msg)
@@ -137,8 +137,8 @@ func TestBuildToolFailureMessageUnknownKeepsGenericFallback(t *testing.T) {
 	msg := buildToolFailureMessage("custom_tool", "dial tcp: connection reset by peer", errors.New("dial tcp: connection reset by peer"))
 
 	for _, want := range []string{
-		"工具名称: custom_tool",
-		"错误详情: dial tcp: connection reset by peer",
+		"tool name: custom_tool",
+		"errordetails: dial tcp: connection reset by peer",
 	} {
 		if !strings.Contains(msg, want) {
 			t.Fatalf("message missing %q:\n%s", want, msg)

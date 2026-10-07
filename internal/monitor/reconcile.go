@@ -1,4 +1,4 @@
-﻿package monitor
+package monitor
 
 import (
 	"time"
@@ -14,7 +14,7 @@ const (
 	staleRunningReconcileGap = 2 * time.Minute
 )
 
-// ExecutionReconciler 在启动或运行期将无对应协程的 running 执行记录收尾为 orphaned。
+// ExecutionReconciler 在start或运行期将none对应协程的 running 执行记录收尾为 orphaned。
 type ExecutionReconciler struct {
 	db          *database.DB
 	mcpServer   *mcp.Server
@@ -41,12 +41,12 @@ func (r *ExecutionReconciler) ReconcileOnStartup() {
 	n, err := r.db.CancelOrphanedRunningToolExecutions(now, "执行已中断（服务重启）")
 	if err != nil {
 		if r.logger != nil {
-			r.logger.Warn("启动时清理孤儿 running 工具执行记录失败", zap.Error(err))
+			r.logger.Warn("start时cleanup孤儿 running tool execution记录failed", zap.Error(err))
 		}
 		return
 	}
 	if n > 0 && r.logger != nil {
-		r.logger.Info("启动时已收尾孤儿 running 工具执行记录", zap.Int64("count", n))
+		r.logger.Info("start时已收尾孤儿 running tool execution记录", zap.Int64("count", n))
 	}
 }
 
@@ -74,12 +74,12 @@ func (r *ExecutionReconciler) ReconcileStaleRunning() {
 	n, err := r.db.FinalizeStaleRunningToolExecutions(now, staleRunningMinAge, r.activeExecutionIDs(), "执行已中断（会话已结束）")
 	if err != nil {
 		if r.logger != nil {
-			r.logger.Warn("定期收尾 stale running 工具执行记录失败", zap.Error(err))
+			r.logger.Warn("定期收尾 stale running tool execution记录failed", zap.Error(err))
 		}
 		return
 	}
 	if n > 0 && r.logger != nil {
-		r.logger.Info("已收尾 stale running 工具执行记录", zap.Int64("count", n))
+		r.logger.Info("已收尾 stale running tool execution记录", zap.Int64("count", n))
 	}
 }
 

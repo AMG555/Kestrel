@@ -1,4 +1,4 @@
-﻿package workflow
+package workflow
 
 import (
 	"context"
@@ -43,13 +43,13 @@ func conditionBranchGraph() string {
   "nodes": [
     {"id": "start-1", "type": "start", "label": "开始", "position": {"x": 0, "y": 0}, "config": {}},
     {"id": "cond-1", "type": "condition", "label": "判断", "position": {"x": 0, "y": 80}, "config": {"expression": "{{inputs.message}} == yes"}},
-    {"id": "out-yes", "type": "output", "label": "是", "position": {"x": -80, "y": 160}, "config": {"output_key": "branch", "static_value": "yes"}},
-    {"id": "out-no", "type": "output", "label": "否", "position": {"x": 80, "y": 160}, "config": {"output_key": "branch", "static_value": "no"}}
+    {"id": "out-yes", "type": "output", "label": "yes", "position": {"x": -80, "y": 160}, "config": {"output_key": "branch", "static_value": "yes"}},
+    {"id": "out-no", "type": "output", "label": "no", "position": {"x": 80, "y": 160}, "config": {"output_key": "branch", "static_value": "no"}}
   ],
   "edges": [
     {"id": "e1", "source": "start-1", "target": "cond-1"},
-    {"id": "e2", "source": "cond-1", "target": "out-yes", "label": "是"},
-    {"id": "e3", "source": "cond-1", "target": "out-no", "label": "否"}
+    {"id": "e2", "source": "cond-1", "target": "out-yes", "label": "yes"},
+    {"id": "e3", "source": "cond-1", "target": "out-no", "label": "no"}
   ],
   "config": {"schema_version": 1}
 }`
@@ -103,7 +103,7 @@ func TestValidateGraphJSON_rejectsInvalidGraphs(t *testing.T) {
 			graph: `{
   "nodes": [
     {"id": "start-1", "type": "start", "label": "开始", "position": {"x": 0, "y": 0}, "config": {}},
-    {"id": "tool-1", "type": "tool", "label": "工具", "position": {"x": 0, "y": 80}, "config": {}},
+    {"id": "tool-1", "type": "tool", "label": "tool", "position": {"x": 0, "y": 80}, "config": {}},
     {"id": "out-1", "type": "output", "label": "输出", "position": {"x": 0, "y": 160}, "config": {"output_key": "result"}}
   ],
   "edges": [
@@ -111,7 +111,7 @@ func TestValidateGraphJSON_rejectsInvalidGraphs(t *testing.T) {
     {"id": "e2", "source": "tool-1", "target": "out-1"}
   ]
 }`,
-			wantErr: "必须选择 MCP 工具",
+			wantErr: "必须选择 MCP tool",
 		},
 		{
 			name: "condition with too many branches",

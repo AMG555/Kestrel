@@ -6,7 +6,7 @@ import (
 )
 
 // Eino execute 去重分支 EOF flush 须以 mainAssistantBuf 为基准计算 tail，
-// 若误用 TrimSpace(mainAssistantBuf)，会与已推前缀在空白处失配，normalize 走拼接路径叠字。
+// 若误用 TrimSpace(mainAssistantBuf)，会与已推前缀在null白处失配，normalize 走拼接path叠字。
 func TestNormalizeStreamingDelta_eofTailUsesRawBufNotTrim(t *testing.T) {
 	wireAccum := "phrase "
 	rawFull := "phrase \n"

@@ -1,4 +1,4 @@
-﻿package multiagent
+package multiagent
 
 import (
 	"encoding/json"
@@ -121,8 +121,8 @@ func TestEinoRunResultBuilderFinalFallsBackToPlainAssistantTrace(t *testing.T) {
 }
 
 func TestEinoRunResultBuilderPrefersExitFinalOverAssistantIntro(t *testing.T) {
-	intro := "本轮渗透收束完成。交付终审报告："
-	report := "## 终审报告\n目标 alvin-whn.top 已完成 getshell 验证。"
+	intro := "本轮渗透收束完成。交付终审report："
+	report := "## 终审report\n目标 alvin-whn.top completed getshell validate。"
 	asst := schema.AssistantMessage(intro, []schema.ToolCall{{
 		ID:   "exit-1",
 		Type: "function",
@@ -132,7 +132,7 @@ func TestEinoRunResultBuilderPrefersExitFinalOverAssistantIntro(t *testing.T) {
 		},
 	}})
 	runMessages := newEinoRunMessageAccumulator(nil)
-	runMessages.Append(schema.UserMessage("继续"))
+	runMessages.Append(schema.UserMessage("continue"))
 	runMessages.Append(asst)
 	runMessages.Append(toolExitMsg(report, "exit-1"))
 
@@ -153,7 +153,7 @@ func TestEinoRunResultBuilderPrefersExitFinalOverAssistantIntro(t *testing.T) {
 }
 
 func TestEinoRunResultBuilderPrefersExitFinalFromArgsWhenToolContentMissing(t *testing.T) {
-	intro := "交付终审报告："
+	intro := "交付终审report："
 	report := "full report body"
 	asst := schema.AssistantMessage(intro, []schema.ToolCall{{
 		ID:   "exit-1",

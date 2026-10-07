@@ -1,4 +1,4 @@
-﻿package database
+package database
 
 import (
 	"encoding/json"
@@ -8,7 +8,7 @@ import (
 	"kestrel/internal/mcp"
 )
 
-const legacyToolGuardPrefix = "工具调用已被安全规则拦截"
+const legacyToolGuardPrefix = "tool call已被安全规则拦截"
 
 // Only the exact envelope emitted by the old local guard is recognized here.
 // New executions use the structured marker and never infer policy from text.

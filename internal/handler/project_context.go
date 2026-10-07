@@ -7,8 +7,8 @@ import (
 	"go.uber.org/zap"
 )
 
-// agentSessionContextBlock 注入会话工作目录与项目黑板（用于 system prompt 追加块）。
-// 用户输入由 message history 承载；压缩后由 summarization 摘要指令保留关键约束。
+// agentSessionContextBlock injects the session working directory and project blackboard (used as an appended block in the system prompt).
+// User input is carried by message history; after compression, key constraints are preserved by the summarization instruction.
 func (h *AgentHandler) agentSessionContextBlock(conversationID string) string {
 	var parts []string
 	if ws := h.buildWorkspaceBlock(conversationID); ws != "" {
@@ -33,7 +33,7 @@ func (h *AgentHandler) buildWorkspaceBlock(conversationID string) string {
 	abs, err := project.EnsureWorkspace(rel)
 	if err != nil {
 		if h.logger != nil {
-			h.logger.Warn("创建会话工作目录失败",
+			h.logger.Warn("failed to create session working directory",
 				zap.String("conversationId", conversationID),
 				zap.String("projectId", projectID),
 				zap.String("path", rel),
@@ -44,7 +44,7 @@ func (h *AgentHandler) buildWorkspaceBlock(conversationID string) string {
 	return project.BuildWorkspaceBlock(abs)
 }
 
-// projectBlackboardBlock 根据对话 ID 构建项目事实索引块（用于注入 system prompt）。
+// projectBlackboardBlock builds the project facts index block based on conversation ID (used to inject into the system prompt).
 func (h *AgentHandler) projectBlackboardBlock(conversationID string) string {
 	if h == nil || h.db == nil || h.config == nil {
 		return ""
@@ -62,13 +62,13 @@ func (h *AgentHandler) projectBlackboardBlock(conversationID string) string {
 	}
 	block, err := project.BuildProjectBlackboardBlock(h.db, projectID, h.config.Project)
 	if err != nil {
-		h.logger.Warn("构建项目黑板索引失败", zap.String("conversationId", conversationID), zap.Error(err))
+		h.logger.Warn("failed to build project blackboard index", zap.String("conversationId", conversationID), zap.Error(err))
 		return ""
 	}
 	return strings.TrimSpace(block)
 }
 
-// conversationProjectID 返回对话绑定的项目 ID；未绑定或查询失败时返回空字符串。
+// conversationProjectID returns the project ID bound to a conversation; returns empty string if not bound or query fails.
 func (h *AgentHandler) conversationProjectID(conversationID string) string {
 	if h == nil || h.db == nil {
 		return ""

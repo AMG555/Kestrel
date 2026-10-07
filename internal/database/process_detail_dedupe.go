@@ -1,11 +1,12 @@
-﻿package database
+package database
 
 import (
 	"fmt"
 	"strings"
 )
 
-// DedupeConsecutiveProcessDetails 去掉相邻且语义相同的过程详情（使用 DB 中 data 列原始 JSON 作指纹，避免 map 序列化键序不稳定）。
+// DedupeConsecutiveProcessDetails removes consecutive process detail entries that are semantically identical.
+// Uses the raw JSON from the DB data column as a fingerprint to avoid instability from map key ordering during serialization.
 func DedupeConsecutiveProcessDetails(rows []ProcessDetail) []ProcessDetail {
 	if len(rows) < 2 {
 		return rows

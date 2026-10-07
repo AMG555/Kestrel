@@ -22,7 +22,7 @@ func TestAbortActiveEinoExecute(t *testing.T) {
 		close(done)
 	}()
 
-	if !m.AbortActiveEinoExecute(conv, "跳过域名收集") {
+	if !m.AbortActiveEinoExecute(conv, "skip domain collection") {
 		t.Fatal("expected abort to succeed")
 	}
 	select {
@@ -30,8 +30,8 @@ func TestAbortActiveEinoExecute(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("execute cancel did not propagate")
 	}
-	if got := m.TakeEinoExecuteAbortNote(conv); got != "跳过域名收集" {
-		t.Fatalf("abort note = %q, want 跳过域名收集", got)
+	if got := m.TakeEinoExecuteAbortNote(conv); got != "skip domain collection" {
+		t.Fatalf("abort note = %q, want skip domain collection", got)
 	}
 	m.UnregisterActiveEinoExecute(conv)
 	if m.AbortActiveEinoExecute(conv, "") {

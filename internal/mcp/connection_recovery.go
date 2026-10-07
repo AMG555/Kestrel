@@ -1,4 +1,4 @@
-﻿package mcp
+package mcp
 
 import (
 	"context"
@@ -17,7 +17,7 @@ const (
 	externalReconnectMaxBackoff = 5 * time.Minute
 )
 
-// isConnectionDeadError 判断错误是否表示底层传输已断开（而非调用方主动取消或超时）。
+// isConnectionDeadError 判断erroryesno表示底层传输已断开（而非调用方主动cancelled或timed out）。
 func isConnectionDeadError(err error) bool {
 	if err == nil {
 		return false
@@ -36,12 +36,12 @@ func isConnectionDeadError(err error) bool {
 		strings.Contains(s, "broken pipe")
 }
 
-// handleConnectionDead 在 ListTools/CallTool 等操作失败且判定为断连时，标记客户端并调度重连。
+// handleConnectionDead 在 ListTools/CallTool 等operation failed且判定为断连时，标记客户端并调度重连。
 func (m *ExternalMCPManager) handleConnectionDead(name string, client ExternalMCPClient, err error) {
 	if !isConnectionDeadError(err) {
 		return
 	}
-	m.logger.Warn("检测到外部MCP连接已断开，将尝试自动重连",
+	m.logger.Warn("检测到外部MCP connection disconnected，将尝试自动重连",
 		zap.String("name", name),
 		zap.Error(err),
 	)
@@ -55,7 +55,7 @@ func (m *ExternalMCPManager) markClientDisconnected(name string, client External
 	}
 	m.mu.Lock()
 	if err != nil {
-		m.errors[name] = "连接已断开: " + err.Error()
+		m.errors[name] = "connection disconnected: " + err.Error()
 	}
 	m.mu.Unlock()
 	m.toolCountsMu.Lock()
@@ -138,7 +138,7 @@ func (m *ExternalMCPManager) tryReconnect(name string) {
 		return
 	}
 	if connecting {
-		m.logger.Debug("跳过自动重连（连接正在进行中）", zap.String("name", name))
+		m.logger.Debug("跳过自动重连（连接正在in progress）", zap.String("name", name))
 		return
 	}
 
@@ -154,14 +154,14 @@ func (m *ExternalMCPManager) tryReconnect(name string) {
 	)
 
 	if err := m.startClient(name, true); err != nil {
-		m.logger.Warn("自动重连外部MCP失败",
+		m.logger.Warn("自动重连外部MCPfailed",
 			zap.String("name", name),
 			zap.Error(err),
 		)
 	}
 }
 
-// scheduleReconnectAfterFailure 在自动重连失败后，按当前退避间隔预约下一次重试。
+// scheduleReconnectAfterFailure 在自动重连failed后，按当前退避间隔预约下一次retry。
 func (m *ExternalMCPManager) scheduleReconnectAfterFailure(name string) {
 	m.mu.RLock()
 	cfg, exists := m.configs[name]
@@ -173,7 +173,7 @@ func (m *ExternalMCPManager) scheduleReconnectAfterFailure(name string) {
 	m.reconnectMu.Lock()
 	wait := m.reconnectBackoff(m.reconnectAttempts[name])
 	m.reconnectMu.Unlock()
-	m.logger.Info("自动重连失败，将按退避间隔再次尝试",
+	m.logger.Info("自动重连failed，将按退避间隔再次尝试",
 		zap.String("name", name),
 		zap.Duration("after", wait),
 	)

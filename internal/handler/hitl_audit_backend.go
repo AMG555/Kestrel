@@ -40,7 +40,7 @@ func stringifyHitlJSON(v any) string {
 
 func inferHitlAuditBackendFromComment(comment string) string {
 	c := strings.ToLower(comment)
-	if strings.Contains(comment, "TypeSafe") || strings.Contains(comment, "破坏分") ||
+	if strings.Contains(comment, "TypeSafe") || strings.Contains(comment, "destructive_score") ||
 		strings.Contains(c, "choice=") || strings.Contains(comment, "Jev") {
 		return config.HitlAuditBackendTypeSafe
 	}

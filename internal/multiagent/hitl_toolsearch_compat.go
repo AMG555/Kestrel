@@ -1,4 +1,4 @@
-﻿package multiagent
+package multiagent
 
 import (
 	"encoding/json"
@@ -8,9 +8,9 @@ import (
 
 const toolSearchToolName = "tool_search"
 
-// HitlExemptMetaTools 为 HITL 内置免审批工具：包括编排/元工具，以及模型输出修复链路依赖的 write_file。
-// tool_search 必须免审批，否则其 HITL 拒绝结果与 Eino toolsearch 中间件不兼容（会硬崩 ChatModel）；
-// write_file 必须免审批，否则长脚本或请求体无法先安全落盘，模型输出修复链路会被再次阻塞。
+// HitlExemptMetaTools 为 HITL 内置免审批tool：包括编排/元tool，以及model输出修复链路依赖的 write_file。
+// tool_search 必须免审批，no则其 HITL 拒绝结果与 Eino toolsearch 中间件不兼容（会硬崩 ChatModel）；
+// write_file 必须免审批，no则长脚本或request体none法先安全落盘，model输出修复链路会被再次阻塞。
 var HitlExemptMetaTools = []string{
 	toolSearchToolName,
 	"skill",

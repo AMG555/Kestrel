@@ -1,4 +1,4 @@
-﻿package handler
+package handler
 
 import (
 	"strings"
@@ -18,7 +18,7 @@ func TestRobotModeSwitch(t *testing.T) {
 	if got := h.getAgentMode("lark", "user-1"); got != "plan_execute" {
 		t.Fatalf("mode = %q, want plan_execute", got)
 	}
-	if got := h.cmdModes("lark", "user-1"); !strings.Contains(got, "当前模式: Plan-Execute") {
+	if got := h.cmdModes("lark", "user-1"); !strings.Contains(got, "Current mode: Plan-Execute") {
 		t.Fatalf("unexpected modes response: %s", got)
 	}
 }
@@ -26,7 +26,7 @@ func TestRobotModeSwitch(t *testing.T) {
 func TestRobotModeRejectsUnavailableMultiAgent(t *testing.T) {
 	h := NewRobotHandler(&config.Config{}, nil, nil, zap.NewNop())
 
-	if got := h.cmdSwitchMode("lark", "user-1", "deep"); !strings.Contains(got, "启用 Eino 多代理") {
+	if got := h.cmdSwitchMode("lark", "user-1", "deep"); !strings.Contains(got, "enable Eino multi-agent") {
 		t.Fatalf("unexpected rejection: %s", got)
 	}
 	if got := h.getAgentMode("lark", "user-1"); got != "eino_single" {
@@ -41,13 +41,13 @@ func TestParseRobotAgentModeRejectsUnknownMode(t *testing.T) {
 }
 
 func TestRobotStatusCommandPermission(t *testing.T) {
-	for _, command := range []string{"状态", "status"} {
+	for _, command := range []string{"status", "status"} {
 		permission, recognized := robotCommandPermission(command)
 		if !recognized || permission != "chat:read" {
 			t.Fatalf("command %q returned permission=%q recognized=%v", command, permission, recognized)
 		}
 	}
-	for _, removed := range []string{"当前", "current"} {
+	for _, removed := range []string{"current_old", "current"} {
 		if _, recognized := robotCommandPermission(removed); recognized {
 			t.Fatalf("removed command %q is still recognized", removed)
 		}
@@ -56,12 +56,10 @@ func TestRobotStatusCommandPermission(t *testing.T) {
 
 func TestRobotBestPracticeCommandPermissions(t *testing.T) {
 	cases := map[string]string{
-		"任务":       "chat:read",
-		"task":     "chat:read",
-		"重命名 新标题":  "chat:write",
-		"rename x": "chat:write",
-		"诊断":       "config:read",
-		"doctor":   "config:read",
+		"task":           "chat:read",
+		"rename newtitle": "chat:write",
+		"rename x":       "chat:write",
+		"doctor":         "config:read",
 	}
 	for command, want := range cases {
 		permission, recognized := robotCommandPermission(command)
@@ -74,10 +72,10 @@ func TestRobotBestPracticeCommandPermissions(t *testing.T) {
 func TestRobotConfirmationCanBeCancelled(t *testing.T) {
 	h := NewRobotHandler(&config.Config{}, nil, nil, zap.NewNop())
 	h.setPendingConfirmation("lark", "user-1", "delete_conversation", "conv-1")
-	if got := h.cmdCancelConfirmation("lark", "user-1"); got != "已取消待确认操作。" {
+	if got := h.cmdCancelConfirmation("lark", "user-1"); got != "Pending confirmation cancelled." {
 		t.Fatalf("unexpected cancel response: %s", got)
 	}
-	if got := h.cmdConfirm("lark", "user-1"); !strings.Contains(got, "没有待确认操作") {
+	if got := h.cmdConfirm("lark", "user-1"); !strings.Contains(got, "No pending confirmation") {
 		t.Fatalf("confirmation survived cancellation: %s", got)
 	}
 }
@@ -92,10 +90,10 @@ func TestRobotDoctorSeparatesInternalToolsFromHTTPMCP(t *testing.T) {
 	}, nil, nil, zap.NewNop())
 
 	got := h.cmdDoctor()
-	if !strings.Contains(got, "内置 MCP 工具: 1/2 个已启用") {
+	if !strings.Contains(got, "Built-in MCP tools: 1/2 enabled") {
 		t.Fatalf("internal tool status missing: %s", got)
 	}
-	if !strings.Contains(got, "HTTP MCP 服务: 已关闭") {
+	if !strings.Contains(got, "HTTP MCP service: disabled") {
 		t.Fatalf("HTTP MCP status missing: %s", got)
 	}
 }

@@ -100,8 +100,8 @@ func TestJevAuditQuestionsCoverPolicyAxes(t *testing.T) {
 }
 
 func TestBuildJevStateIncludesOperatorPolicy(t *testing.T) {
-	state := BuildJevState("approval", "exec", map[string]interface{}{"command": "id"}, "拦截所有命令执行")
-	if state["operatorPolicy"] != "拦截所有命令执行" {
+	state := BuildJevState("approval", "exec", map[string]interface{}{"command": "id"}, "拦截所有Command execution")
+	if state["operatorPolicy"] != "拦截所有Command execution" {
 		t.Fatalf("operatorPolicy=%v", state["operatorPolicy"])
 	}
 	policy, _ := state["policy"].(string)
@@ -111,7 +111,7 @@ func TestBuildJevStateIncludesOperatorPolicy(t *testing.T) {
 }
 
 func TestJevAuditQuestionsAddsPolicyOverlay(t *testing.T) {
-	qs := JevAuditQuestions("拦截所有命令执行")
+	qs := JevAuditQuestions("拦截所有Command execution")
 	if _, ok := qs[jevQOperatorPolicy]; !ok {
 		t.Fatal("missing operator policy noul")
 	}

@@ -1,4 +1,4 @@
-﻿package workflow
+package workflow
 
 import (
 	"context"
@@ -28,7 +28,7 @@ func invokeEinoGraph(ctx context.Context, args RunArgs, runID string, workflowID
 
 	art, err := defaultEngine.getOrCompile(ctx, workflowID, version, g)
 	if err != nil {
-		return false, fmt.Errorf("编译 Eino Workflow 失败: %w", err)
+		return false, fmt.Errorf("编译 Eino Workflow failed: %w", err)
 	}
 	rt.idx = art.idx
 
@@ -74,7 +74,7 @@ func extractAwaitingHITL(err error, art *compiledArtifact, runID string, args Ru
 		_ = args.DB.SetWorkflowRunAwaitingHITL(runID, nodeID, string(pendingJSON))
 	}
 	if args.Progress != nil {
-		args.Progress("workflow_hitl_waiting", fmt.Sprintf("等待人工确认：%s", label), map[string]any{
+		args.Progress("workflow_hitl_waiting", fmt.Sprintf("等待人工confirm：%s", label), map[string]any{
 			"workflowRunId": runID,
 			"nodeId":        nodeID,
 			"label":         label,
@@ -144,7 +144,7 @@ func ResumeWorkflowRun(ctx context.Context, args RunArgs, runID string, approved
 		return nil, fmt.Errorf("工作流运行不存在")
 	}
 	if run.Status != "awaiting_hitl" {
-		return nil, fmt.Errorf("工作流运行不在等待审批状态: %s", run.Status)
+		return nil, fmt.Errorf("工作流运行不在等待审批status: %s", run.Status)
 	}
 	wf, err := args.DB.GetWorkflowDefinition(run.WorkflowID)
 	if err != nil || wf == nil {
@@ -168,7 +168,7 @@ func ResumeWorkflowRun(ctx context.Context, args RunArgs, runID string, approved
 	if !approved {
 		errText := strings.TrimSpace(comment)
 		if errText == "" {
-			errText = "人工审批拒绝"
+			errText = "human approval拒绝"
 		}
 		_ = args.DB.FinishWorkflowRun(runID, "rejected", "", errText)
 		if args.Progress != nil {
@@ -186,7 +186,7 @@ func ResumeWorkflowRun(ctx context.Context, args RunArgs, runID string, approved
 	}
 
 	if args.Progress != nil {
-		args.Progress("workflow_hitl_resumed", "人工审批已通过，继续执行", map[string]interface{}{
+		args.Progress("workflow_hitl_resumed", "human approval已通过，continue执行", map[string]interface{}{
 			"workflowRunId": runID,
 			"nodeId":        run.PendingHITLNodeID,
 			"comment":       strings.TrimSpace(comment),
@@ -205,7 +205,7 @@ func ResumeWorkflowRun(ctx context.Context, args RunArgs, runID string, approved
 			return &RunResult{
 				RunID:        runID,
 				Status:       "awaiting_hitl",
-				Response:     fmt.Sprintf("工作流在节点「%s」等待下一次人工确认。", err.(*AwaitingHITLError).NodeID),
+				Response:     fmt.Sprintf("工作流在节点「%s」等待下一次人工confirm。", err.(*AwaitingHITLError).NodeID),
 				AwaitingHITL: true,
 			}, nil
 		}

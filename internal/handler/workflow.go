@@ -105,7 +105,7 @@ func (h *WorkflowHandler) Get(c *gin.Context) {
 		return
 	}
 	if wf == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "工作流不存在"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "workflow not found"})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"workflow": workflowResponse(c.Request.Context(), wf)})
@@ -118,7 +118,7 @@ func (h *WorkflowHandler) Create(c *gin.Context) {
 func (h *WorkflowHandler) Validate(c *gin.Context) {
 	var req workflowSaveRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "无效的请求参数: " + err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "invalid request parameters: " + err.Error()})
 		return
 	}
 	graph := req.Graph
@@ -126,11 +126,11 @@ func (h *WorkflowHandler) Validate(c *gin.Context) {
 		graph = req.GraphJSON
 	}
 	if len(graph) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "graph 不能为空"})
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "graph cannot be empty"})
 		return
 	}
 	if !json.Valid(graph) {
-		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "graph 必须是合法 JSON"})
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "graph must be valid JSON"})
 		return
 	}
 	if err := workflowrunner.ValidateGraphJSON(c.Request.Context(), string(graph)); err != nil {
@@ -143,7 +143,7 @@ func (h *WorkflowHandler) Validate(c *gin.Context) {
 func (h *WorkflowHandler) DryRun(c *gin.Context) {
 	var req workflowDryRunRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数: " + err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request parameters: " + err.Error()})
 		return
 	}
 	graph := req.Graph
@@ -151,7 +151,7 @@ func (h *WorkflowHandler) DryRun(c *gin.Context) {
 		graph = req.GraphJSON
 	}
 	if len(graph) == 0 || !json.Valid(graph) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "graph 必须是合法 JSON"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "graph must be valid JSON"})
 		return
 	}
 	inputs := make(map[string]any, len(req.Inputs))
@@ -169,7 +169,7 @@ func (h *WorkflowHandler) DryRun(c *gin.Context) {
 func (h *WorkflowHandler) GenerateDraft(c *gin.Context) {
 	var req workflowGenerateDraftRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数: " + err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request parameters: " + err.Error()})
 		return
 	}
 	draftReq := workflowrunner.DraftRequest{
@@ -183,17 +183,17 @@ func (h *WorkflowHandler) GenerateDraft(c *gin.Context) {
 		if llmCfg, _, ok := h.cfg.ResolveAIChannel(""); ok && strings.TrimSpace(llmCfg.APIKey) != "" && strings.TrimSpace(llmCfg.Model) != "" {
 			result, llmErr = workflowrunner.GenerateDraftFromLLM(c.Request.Context(), draftReq, llmCfg, h.logger)
 		} else {
-			llmErr = errors.New("AI 通道未配置 api_key 或 model")
+			llmErr = errors.New("AI channel has no api_key or model configured")
 		}
 	} else {
-		llmErr = errors.New("工作流生成器未加载平台 AI 配置")
+		llmErr = errors.New("workflow generator has not loaded platform AI config")
 	}
 	if llmErr != nil {
-		c.JSON(http.StatusBadGateway, gin.H{"error": "大模型生成失败: " + llmErr.Error()})
+		c.JSON(http.StatusBadGateway, gin.H{"error": "large model generation failed: " + llmErr.Error()})
 		return
 	}
 	if h.audit != nil {
-		h.audit.RecordOK(c, "workflow", "generate_draft", "自然语言生成工作流草稿", "", "", map[string]interface{}{
+		h.audit.RecordOK(c, "workflow", "generate_draft", "generate workflow draft from natural language", "", "", map[string]interface{}{
 			"generator": result.Generator,
 			"nodes":     result.Stats["nodes"],
 			"edges":     result.Stats["edges"],
@@ -211,7 +211,7 @@ func (h *WorkflowHandler) Update(c *gin.Context) {
 func (h *WorkflowHandler) save(c *gin.Context, pathID string) {
 	var req workflowSaveRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数: " + err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request parameters: " + err.Error()})
 		return
 	}
 	id := strings.TrimSpace(req.ID)
@@ -220,16 +220,16 @@ func (h *WorkflowHandler) save(c *gin.Context, pathID string) {
 	}
 	name := strings.TrimSpace(req.Name)
 	if id == "" || name == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "工作流 id 和 name 不能为空"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "workflow id and name cannot be empty"})
 		return
 	}
 	if pathID == "" && !validWorkflowID(id) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "工作流 ID 必须以字母或数字开头，仅含字母、数字、下划线、连字符，且不超过 128 字节"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "workflow ID must start with a letter or digit, contain only letters, digits, underscores, or hyphens, and must not exceed 128 bytes"})
 		return
 	}
 	if pathID != "" {
 		if req.ID != "" && strings.TrimSpace(req.ID) != id {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "工作流 ID 不允许通过编辑更改"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "workflow ID cannot be changed via edit"})
 			return
 		}
 		existing, err := h.db.GetWorkflowDefinition(id)
@@ -238,7 +238,7 @@ func (h *WorkflowHandler) save(c *gin.Context, pathID string) {
 			return
 		}
 		if existing == nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "工作流不存在"})
+			c.JSON(http.StatusNotFound, gin.H{"error": "workflow not found"})
 			return
 		}
 	}
@@ -250,16 +250,16 @@ func (h *WorkflowHandler) save(c *gin.Context, pathID string) {
 		graph = []byte(`{"nodes":[],"edges":[],"config":{}}`)
 	}
 	if !json.Valid(graph) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "graph 必须是合法 JSON"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "graph must be valid JSON"})
 		return
 	}
 	if err := workflowrunner.ValidateGraphJSON(c.Request.Context(), string(graph)); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "工作流图无法编译: " + err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "failed to compile workflow graph: " + err.Error()})
 		return
 	}
 	var probe interface{}
 	if err := json.Unmarshal(graph, &probe); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "graph JSON 解析失败: " + err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "graph JSON parsing failed: " + err.Error()})
 		return
 	}
 	enabled := true
@@ -286,7 +286,7 @@ func (h *WorkflowHandler) save(c *gin.Context, pathID string) {
 			return
 		}
 		if h.logger != nil {
-			h.logger.Warn("保存工作流失败", zap.String("id", id), zap.Error(err))
+			h.logger.Warn("failed to save workflow", zap.String("id", id), zap.Error(err))
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -294,21 +294,21 @@ func (h *WorkflowHandler) save(c *gin.Context, pathID string) {
 	saved, _ := h.db.GetWorkflowDefinition(id)
 	workflowrunner.InvalidateCompiledCache(id)
 	if h.audit != nil {
-		h.audit.RecordOK(c, "workflow", "save", "保存工作流", "workflow", id, map[string]interface{}{"name": name})
+		h.audit.RecordOK(c, "workflow", "save", "save workflow", "workflow", id, map[string]interface{}{"name": name})
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "工作流已保存", "workflow": saved})
+	c.JSON(http.StatusOK, gin.H{"message": "workflow saved", "workflow": saved})
 }
 
 func (h *WorkflowHandler) Delete(c *gin.Context) {
 	id := strings.TrimSpace(c.Param("id"))
 	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "工作流 id 不能为空"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "workflow id cannot be empty"})
 		return
 	}
 	if h.cfg != nil {
 		for _, role := range h.cfg.Roles {
 			if role.WorkflowID == id {
-				c.JSON(http.StatusConflict, gin.H{"error": "工作流仍被角色引用，请先解除绑定"})
+				c.JSON(http.StatusConflict, gin.H{"error": "workflow is still referenced by a role, please unbind it first"})
 				return
 			}
 		}
@@ -319,7 +319,7 @@ func (h *WorkflowHandler) Delete(c *gin.Context) {
 	}
 	workflowrunner.InvalidateCompiledCache(id)
 	if h.audit != nil {
-		h.audit.RecordOK(c, "workflow", "delete", "删除工作流", "workflow", id, nil)
+		h.audit.RecordOK(c, "workflow", "delete", "delete workflow", "workflow", id, nil)
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "工作流已删除"})
+	c.JSON(http.StatusOK, gin.H{"message": "workflow deleted"})
 }

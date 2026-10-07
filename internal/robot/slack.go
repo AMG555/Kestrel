@@ -1,4 +1,4 @@
-﻿package robot
+package robot
 
 import (
 	"context"
@@ -17,7 +17,7 @@ const (
 	slackMaxMessageRunes = 3900
 )
 
-// StartSlack 启动 Slack Socket Mode（出站 WebSocket，无需公网回调）。
+// StartSlack start Slack Socket Mode（出站 WebSocket，none需公网回调）。
 func StartSlack(ctx context.Context, robotsCfg config.RobotsConfig, h MessageHandler, logger *zap.Logger) {
 	cfg := robotsCfg.Slack
 	if !cfg.Enabled || strings.TrimSpace(cfg.BotToken) == "" || strings.TrimSpace(cfg.AppToken) == "" {
@@ -31,11 +31,11 @@ func runSlackLoop(ctx context.Context, cfg config.RobotSlackConfig, h MessageHan
 	for {
 		err := runSlackSocket(ctx, cfg, h, logger)
 		if ctx.Err() != nil {
-			logger.Info("Slack Socket Mode 已按配置关闭")
+			logger.Info("Slack Socket Mode 已按configclose")
 			return
 		}
 		if err != nil {
-			logger.Warn("Slack Socket Mode 异常，将自动重连", zap.Error(err), zap.Duration("retry_after", backoff))
+			logger.Warn("Slack Socket Mode abnormal，将自动重连", zap.Error(err), zap.Duration("retry_after", backoff))
 		}
 		if !waitReconnect(ctx, &backoff) {
 			return
@@ -72,7 +72,7 @@ func runSlackSocket(ctx context.Context, cfg config.RobotSlackConfig, h MessageH
 			case socketmode.EventTypeConnecting:
 				logger.Info("Slack Socket Mode 正在连接…")
 			case socketmode.EventTypeConnected:
-				logger.Info("Slack Socket Mode 已连接，等待收消息")
+				logger.Info("Slack Socket Mode 已连接，等待收message")
 			}
 		}
 	}()
@@ -92,7 +92,7 @@ func handleSlackMessage(ctx context.Context, api *slack.Client, teamID string, e
 		return
 	}
 	userID := slackSessionKey(teamID, ev.User)
-	logger.Info("Slack 收到消息", zap.String("from", userID), zap.String("content", text))
+	logger.Info("Slack 收到message", zap.String("from", userID), zap.String("content", text))
 	reply := h.HandleMessage(slackPlatform, userID, text)
 	slackPostReply(ctx, api, ev.Channel, reply, logger)
 }
@@ -106,7 +106,7 @@ func handleSlackAppMention(ctx context.Context, api *slack.Client, teamID string
 		return
 	}
 	userID := slackSessionKey(teamID, ev.User)
-	logger.Info("Slack 收到 @ 消息", zap.String("from", userID), zap.String("content", text))
+	logger.Info("Slack 收到 @ message", zap.String("from", userID), zap.String("content", text))
 	reply := h.HandleMessage(slackPlatform, userID, text)
 	slackPostReply(ctx, api, ev.Channel, reply, logger)
 }
@@ -128,7 +128,7 @@ func slackPostReply(ctx context.Context, api *slack.Client, channel, reply strin
 	for _, chunk := range splitTextChunks(reply, slackMaxMessageRunes) {
 		_, _, err := api.PostMessageContext(ctx, channel, slack.MsgOptionText(chunk, false))
 		if err != nil {
-			logger.Warn("Slack 发送回复失败", zap.String("channel", channel), zap.Error(err))
+			logger.Warn("Slack 发送回复failed", zap.String("channel", channel), zap.Error(err))
 			return
 		}
 	}

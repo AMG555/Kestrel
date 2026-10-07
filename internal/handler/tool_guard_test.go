@@ -1,4 +1,4 @@
-﻿package handler
+package handler
 
 import (
 	"bytes"
@@ -51,7 +51,7 @@ func toolGuardRequest(t *testing.T, handler gin.HandlerFunc, body interface{}) *
 func TestToolGuardSavePersistsAndAppliesWithoutChangingHITL(t *testing.T) {
 	h := newToolGuardTestHandler(t)
 	cfg := toolguard.DefaultConfig()
-	cfg.Rules[0].Message = "识别到 {match}，禁止攻击政府网站，请检查目标。"
+	cfg.Rules[0].Message = "Detected {match}, attacking government websites is prohibited, please check the target."
 	w := toolGuardRequest(t, h.UpdateToolGuard, cfg)
 	if w.Code != http.StatusOK {
 		t.Fatalf("save: %d %s", w.Code, w.Body.String())
@@ -163,7 +163,7 @@ func TestToolGuardConcurrentOtherSettingsSavePreservesPolicy(t *testing.T) {
 	h := newToolGuardTestHandler(t)
 	external := &ExternalMCPHandler{configPath: h.configPath, config: h.config, logger: zap.NewNop()}
 	cfg := toolguard.DefaultConfig()
-	cfg.Rules[0].Message = "持久化策略 {match}"
+	cfg.Rules[0].Message = "persistence policy {match}"
 	var wg sync.WaitGroup
 	errors := make(chan error, 2)
 	for _, save := range []func() error{func() error { return h.saveToolGuardConfig(cfg) }, external.saveConfig} {

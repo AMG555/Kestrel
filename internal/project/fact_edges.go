@@ -1,4 +1,4 @@
-﻿package project
+package project
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 	"kestrel/internal/projectprompt"
 )
 
-// PathGraphCategories 攻击路径视图包含的事实分类。
+// PathGraphCategories attack path视图包含的事实分类。
 var PathGraphCategories = map[string]struct{}{
 	FactCategoryTarget:  {},
 	FactCategoryFinding: {},
@@ -18,8 +18,8 @@ var PathGraphCategories = map[string]struct{}{
 	"vuln":                       {},
 }
 
-// GraphNodeType 将 fact category 映射为图节点类型（供前端样式与 ELK 分层）。
-// 优先使用 category；仅 synthetic 节点（vuln:）或无 category 时才回退到 fact_key 前缀。
+// GraphNodeType 将 fact category map为graph nodetype（供前端样式与 ELK 分层）。
+// 优先使用 category；仅 synthetic 节点（vuln:）或none category 时才回退到 fact_key 前缀。
 func GraphNodeType(category, factKey string) string {
 	key := strings.ToLower(strings.TrimSpace(factKey))
 	if strings.HasPrefix(key, "vuln:") {
@@ -84,14 +84,14 @@ func truncateGraphLabel(summary string, maxRunes int) string {
 	return string(r[:maxRunes]) + "…"
 }
 
-// BuildProjectFactGraph 构建项目事实图（nodes + edges）。
+// BuildProjectFactGraph 构建project facts图（nodes + edges）。
 func BuildProjectFactGraph(db *database.DB, projectID string, view string, excludeDeprecated bool) (*database.ProjectFactGraph, error) {
 	if db == nil {
-		return nil, fmt.Errorf("database 未初始化")
+		return nil, fmt.Errorf("database not initialized")
 	}
 	projectID = strings.TrimSpace(projectID)
 	if projectID == "" {
-		return nil, fmt.Errorf("project_id 不能为空")
+		return nil, fmt.Errorf("project_id 不能为null")
 	}
 
 	view = strings.TrimSpace(strings.ToLower(view))
@@ -130,7 +130,7 @@ func BuildProjectFactGraph(db *database.DB, projectID string, view string, exclu
 				nodeKeys[f.FactKey] = struct{}{}
 			}
 		}
-		// 路径视图中保留作为依赖目标的 auth/infra 节点
+		// path视图中保留作为依赖目标的 auth/infra 节点
 		for _, e := range edges {
 			if _, ok := nodeKeys[e.SourceFactKey]; !ok {
 				continue
@@ -310,14 +310,14 @@ type ParsedFactLinks struct {
 	Incoming []database.ProjectFactEdgeFromInput
 }
 
-// ParseFactLinkInputs 从 MCP links 参数解析；空数组表示清空全部入边。
+// ParseFactLinkInputs 从 MCP links 参数解析；nullarray表示清nullall入边。
 func ParseFactLinkInputs(raw interface{}) (*ParsedFactLinks, error) {
 	if raw == nil {
 		return nil, nil
 	}
 	items, ok := raw.([]interface{})
 	if !ok {
-		return nil, fmt.Errorf("links 须为数组")
+		return nil, fmt.Errorf("links 须为array")
 	}
 	if len(items) == 0 {
 		return &ParsedFactLinks{
@@ -328,7 +328,7 @@ func ParseFactLinkInputs(raw interface{}) (*ParsedFactLinks, error) {
 	for i, item := range items {
 		m, ok := item.(map[string]interface{})
 		if !ok {
-			return nil, fmt.Errorf("links[%d] 格式无效", i)
+			return nil, fmt.Errorf("links[%d] formatnone效", i)
 		}
 		from, _ := m["from"].(string)
 		edgeType, _ := m["type"].(string)
@@ -353,7 +353,7 @@ func ParseFactLinksText(text string) ([]database.ProjectFactEdgeFromInput, error
 	return ParseFactIncomingLinksText(text)
 }
 
-// FormatFactLinksText 将入边格式化为 UI 文本。
+// FormatFactLinksText 将入边format化为 UI 文本。
 func FormatFactLinksText(edges []*database.ProjectFactEdge) string {
 	return FormatFactIncomingLinksText(edges)
 }
@@ -372,19 +372,19 @@ func ParseFactIncomingLinksText(text string) ([]database.ProjectFactEdgeFromInpu
 		}
 		edgeType, source, ok := strings.Cut(line, ":")
 		if !ok {
-			return nil, fmt.Errorf("第 %d 行格式无效，应为 type: fact_key", i+1)
+			return nil, fmt.Errorf("第 %d 行formatnone效，应为 type: fact_key", i+1)
 		}
 		edgeType = strings.TrimSpace(edgeType)
 		source = strings.TrimSpace(source)
 		if edgeType == "" || source == "" {
-			return nil, fmt.Errorf("第 %d 行 type 或 fact_key 为空", i+1)
+			return nil, fmt.Errorf("第 %d 行 type 或 fact_key 为null", i+1)
 		}
 		out = append(out, database.ProjectFactEdgeFromInput{From: source, Type: edgeType})
 	}
 	return out, nil
 }
 
-// FormatFactIncomingLinksText 将入边格式化为 UI 文本。
+// FormatFactIncomingLinksText 将入边format化为 UI 文本。
 func FormatFactIncomingLinksText(edges []*database.ProjectFactEdge) string {
 	if len(edges) == 0 {
 		return ""

@@ -1,4 +1,4 @@
-﻿package handler
+package handler
 
 import (
 	"context"
@@ -9,17 +9,17 @@ import (
 )
 
 func TestParseAuditAgentLLMContentApprove(t *testing.T) {
-	d, err := parseAuditAgentLLMContent(`{"decision":"approve","comment":"与任务一致"}`)
+	d, err := parseAuditAgentLLMContent(`{"decision":"approve","comment":"consistent with task"}`)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if d.Decision != "approve" || d.Comment != "与任务一致" {
+	if d.Decision != "approve" || d.Comment != "consistent with task" {
 		t.Fatalf("unexpected %+v", d)
 	}
 }
 
 func TestParseAuditAgentLLMContentReject(t *testing.T) {
-	d, err := parseAuditAgentLLMContent("```json\n{\"decision\":\"reject\",\"comment\":\"风险过高\"}\n```")
+	d, err := parseAuditAgentLLMContent("```json\n{\"decision\":\"reject\",\"comment\":\"risk too high\"}\n```")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -36,7 +36,7 @@ func TestParseAuditAgentLLMContentInvalid(t *testing.T) {
 }
 
 func TestParseAuditAgentLLMContentProseWrapped(t *testing.T) {
-	d, err := parseAuditAgentLLMContent("好的，裁决如下：\n```json\n{\"decision\":\"approve\",\"comment\":\"只读 ls\"}\n```\n以上。")
+	d, err := parseAuditAgentLLMContent("Okay, ruling as follows:\n```json\n{\"decision\":\"approve\",\"comment\":\"read-only ls\"}\n```\nThat is all.")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,8 +45,8 @@ func TestParseAuditAgentLLMContentProseWrapped(t *testing.T) {
 	}
 }
 
-func TestParseAuditAgentLLMContentChineseDecision(t *testing.T) {
-	d, err := parseAuditAgentLLMContent(`{"decision":"通过","comment":"风险低"}`)
+func TestParseAuditAgentLLMContentAlternateApproveDecision(t *testing.T) {
+	d, err := parseAuditAgentLLMContent(`{"decision":"approve","comment":"low risk"}`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,7 +56,7 @@ func TestParseAuditAgentLLMContentChineseDecision(t *testing.T) {
 }
 
 func TestParseAuditAgentLLMContentWithEditedArguments(t *testing.T) {
-	d, err := parseAuditAgentLLMContent(`{"decision":"approve","comment":"收窄路径","editedArguments":{"path":"/safe"}}`)
+	d, err := parseAuditAgentLLMContent(`{"decision":"approve","comment":"narrowed path","editedArguments":{"path":"/safe"}}`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -91,12 +91,12 @@ func TestBuildAuditAgentReviewInputIncludesMode(t *testing.T) {
 func TestBuildAuditAgentReviewInput(t *testing.T) {
 	s := buildAuditAgentReviewInput("approval", "nmap", map[string]interface{}{
 		"arguments":   `{"target":"10.0.0.1"}`,
-		"userMessage": "扫描内网",
+		"userMessage": "scan internal network",
 	})
 	if s == "" {
 		t.Fatal("expected non-empty input")
 	}
-	if !strings.Contains(s, "nmap") || !strings.Contains(s, "10.0.0.1") || !strings.Contains(s, "扫描内网") {
+	if !strings.Contains(s, "nmap") || !strings.Contains(s, "10.0.0.1") || !strings.Contains(s, "scan internal network") {
 		t.Fatalf("unexpected input: %s", s)
 	}
 }

@@ -48,9 +48,9 @@ func TestGetConversationPlanTasksRequiresAccessAndReportsProgress(t *testing.T) 
 		t.Fatalf("MkdirAll: %v", err)
 	}
 	for name, content := range map[string]string{
-		"1.json": `{"id":"1","subject":"完成项","status":"completed"}`,
-		"2.json": `{"id":"2","subject":"当前项","status":"in_progress"}`,
-		"3.json": `{"id":"3","subject":"等待项","status":"pending"}`,
+		"1.json": `{"id":"1","subject":"completed item","status":"completed"}`,
+		"2.json": `{"id":"2","subject":"current item","status":"in_progress"}`,
+		"3.json": `{"id":"3","subject":"pending item","status":"pending"}`,
 	} {
 		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
 			t.Fatalf("WriteFile: %v", err)
@@ -123,7 +123,7 @@ func TestGetConversationPlanTasksReportsStoppedLiveTask(t *testing.T) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatalf("MkdirAll: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "1.json"), []byte(`{"id":"1","subject":"残留项","status":"in_progress"}`), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "1.json"), []byte(`{"id":"1","subject":"remaining items","status":"in_progress"}`), 0o644); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
 

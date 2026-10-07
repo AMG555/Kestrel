@@ -1,4 +1,4 @@
-﻿package handler
+package handler
 
 import (
 	"bytes"
@@ -298,7 +298,7 @@ func TestPrepareMultiAgentSessionRejectsForeignConversation(t *testing.T) {
 	c.Set(security.ContextSessionKey, security.Session{UserID: user.ID, Scope: database.RBACScopeAssigned, Permissions: map[string]bool{"chat:write": true}})
 
 	_, err := h.prepareMultiAgentSession(&ChatRequest{ConversationID: hidden.ID, Message: "write"}, c, "test")
-	if err == nil || err.Error() != "无权访问该对话" {
+	if err == nil || err.Error() != "access denied for this conversation" {
 		t.Fatalf("err = %v, want unauthorized conversation", err)
 	}
 }

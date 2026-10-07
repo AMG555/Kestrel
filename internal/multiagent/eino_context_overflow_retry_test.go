@@ -1,4 +1,4 @@
-﻿package multiagent
+package multiagent
 
 import (
 	"context"
@@ -53,7 +53,7 @@ func TestEinoContextOverflowRetryHandlerPreparesOnce(t *testing.T) {
 	if gotType != "eino_context_overflow_retry" {
 		t.Fatalf("event type = %q, want eino_context_overflow_retry", gotType)
 	}
-	if gotMessage != "上下文超限，正在激进压缩后重试…" {
+	if gotMessage != "Context limit exceeded, retrying after aggressive compression..." {
 		t.Fatalf("message = %q", gotMessage)
 	}
 	assertContextOverflowMapValue(t, gotData, "conversationId", "conv-1")

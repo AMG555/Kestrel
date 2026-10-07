@@ -1,4 +1,4 @@
-﻿package multiagent
+package multiagent
 
 import (
 	"context"
@@ -75,7 +75,7 @@ func mustMarshalToolArguments(args map[string]interface{}) string {
 	return string(raw)
 }
 
-// beginEinoADKFilesystemToolMonitor 在 Eino ADK filesystem 工具开始调用时写入 running 状态。
+// beginEinoADKFilesystemToolMonitor 在 Eino ADK filesystem tool开始调用时写入 running status。
 func beginEinoADKFilesystemToolMonitor(
 	ctx context.Context,
 	ag *agent.Agent,
@@ -109,7 +109,7 @@ func beginEinoADKFilesystemToolMonitor(
 	}
 }
 
-// recordEinoADKFilesystemToolMonitor 将 Eino ADK filesystem 中间件工具结果写入 MCP 监控（与 execute / MCP 桥芯片一致）。
+// recordEinoADKFilesystemToolMonitor 将 Eino ADK filesystem 中间件tool result写入 MCP 监控（与 execute / MCP 桥芯片一致）。
 func recordEinoADKFilesystemToolMonitor(
 	ctx context.Context,
 	ag *agent.Agent,

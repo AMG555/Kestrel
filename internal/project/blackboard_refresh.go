@@ -1,18 +1,18 @@
-﻿package project
+package project
 
 import "strings"
 
-// FactIndexSectionHeading 黑板索引可读标题行前缀（块内保留，供 Agent 阅读）。
-const FactIndexSectionHeading = "## 项目黑板索引"
+// FactIndexSectionHeading 黑板index可读title行前缀（块内保留，供 Agent 阅读）。
+const FactIndexSectionHeading = "## project黑板index"
 
-// FactIndexSectionStartMarker / EndMarker：HTML 注释边界，供程序化替换；对模型无指令语义。
+// FactIndexSectionStartMarker / EndMarker：HTML 注释边界，供程序化替换；对modelnone指令语义。
 const (
 	FactIndexSectionStartMarker = "<!-- fact-index-start -->"
 	FactIndexSectionEndMarker   = "<!-- fact-index-end -->"
 )
 
-// ReplaceFactIndexSection 用 freshIndex 替换 content 中已有的项目黑板索引段。
-// freshIndex 须为 BuildFactIndexBlock 的完整输出。起止 HTML 注释缺失时返回 (_, false)。
+// ReplaceFactIndexSection 用 freshIndex 替换 content 中已有的project黑板index段。
+// freshIndex 须为 BuildFactIndexBlock 的完整输出。起止 HTML 注释缺失时back (_, false)。
 func ReplaceFactIndexSection(content, freshIndex string) (string, bool) {
 	freshIndex = strings.TrimSpace(freshIndex)
 	if freshIndex == "" {

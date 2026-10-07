@@ -1,4 +1,4 @@
-﻿package mcp
+package mcp
 
 import (
 	"context"
@@ -17,7 +17,7 @@ func TestExecutionServiceBackgroundWaitResultCompletesWaitTool(t *testing.T) {
   "status": "running"
 }
 
-本次等待已到达 timeout_seconds，上述 execution 仍未完成。可继续等待、取消，或采用其他步骤。`}},
+本次等待已到达 timeout_seconds，上述 execution 仍未完成。可continue等待、cancelled，或采用其他步骤。`}},
 				IsError: true,
 			}, nil
 		},

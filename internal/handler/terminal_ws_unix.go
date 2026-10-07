@@ -1,4 +1,4 @@
-﻿//go:build !windows
+//go:build !windows
 
 package handler
 
@@ -21,7 +21,7 @@ type terminalResize struct {
 	Rows uint16 `json:"rows"`
 }
 
-// wsUpgrader 仅用于系统设置中的终端 WebSocket，会复用已有的登录保护（JWT 中间件在上层路由组）
+// wsUpgrader 仅用于systemsettings中的终端 WebSocket，会复用已有的登录保护（JWT 中间件在上层路由组）
 var wsUpgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
 		// 由于已在 Gin 路由层做了认证，这里放宽 Origin，方便在同一域名下通过 HTTPS/WSS 访问
@@ -29,8 +29,8 @@ var wsUpgrader = websocket.Upgrader{
 	},
 }
 
-// RunCommandWS 提供真正交互式 Shell：基于 WebSocket + PTY 的长会话
-// 前端建立 WebSocket 连接后，所有键盘输入都会透传到 Shell，Shell 的输出也会实时写回前端。
+// RunCommandWS 提供true正交互式 Shell：基于 WebSocket + PTY 的长会话
+// 前端建立 WebSocket 连接后，所有key盘输入都会透传到 Shell，Shell 的输出也会实时写回前端。
 func (h *TerminalHandler) RunCommandWS(c *gin.Context) {
 	conn, err := wsUpgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
@@ -38,7 +38,7 @@ func (h *TerminalHandler) RunCommandWS(c *gin.Context) {
 	}
 	defer conn.Close()
 
-	// 启动交互式 Shell，这里优先使用 bash，找不到则退回 sh
+	// start交互式 Shell，这里优先使用 bash，找不到则退回 sh
 	shell := "bash"
 	if _, err := exec.LookPath(shell); err != nil {
 		shell = "sh"
@@ -73,7 +73,7 @@ func (h *TerminalHandler) RunCommandWS(c *gin.Context) {
 		close(doneChan)
 	}()
 
-	// WebSocket -> Shell：将前端输入写入 PTY（包括 sudo 密码、Ctrl+C 等）
+	// WebSocket -> Shell：将前端输入写入 PTY（包括 sudo password、Ctrl+C 等）
 	conn.SetReadLimit(64 * 1024)
 	_ = conn.SetReadDeadline(time.Now().Add(terminalTimeout))
 	conn.SetPongHandler(func(string) error {

@@ -1,4 +1,4 @@
-﻿package database
+package database
 
 import (
 	"database/sql"
@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// ValidProjectFactEdgeTypes 项目事实图允许的边类型。
+// ValidProjectFactEdgeTypes lists the allowed edge types for the project facts graph.
 var ValidProjectFactEdgeTypes = map[string]struct{}{
 	"depends_on":    {},
 	"leads_to":      {},
@@ -21,7 +21,7 @@ var ValidProjectFactEdgeTypes = map[string]struct{}{
 	"supports":      {},
 }
 
-// ProjectFactEdge 项目事实关系边（source → target）。
+// ProjectFactEdge is a relationship edge in the project facts graph (source → target).
 type ProjectFactEdge struct {
 	ID                   string    `json:"id"`
 	ProjectID            string    `json:"project_id"`
@@ -34,33 +34,33 @@ type ProjectFactEdge struct {
 	UpdatedAt            time.Time `json:"updated_at"`
 }
 
-// ProjectFactEdgeInput 写入边时的输入（出边：source → To）。
+// ProjectFactEdgeInput is the input for writing an outgoing edge (source → To).
 type ProjectFactEdgeInput struct {
 	To         string `json:"to"`
 	Type       string `json:"type"`
 	Confidence string `json:"confidence,omitempty"`
 }
 
-// ProjectFactEdgeFromInput 写入入边时的输入（From → 当前事实）。
+// ProjectFactEdgeFromInput is the input for writing an incoming edge (From → current fact).
 type ProjectFactEdgeFromInput struct {
 	From       string `json:"from"`
 	Type       string `json:"type"`
 	Confidence string `json:"confidence,omitempty"`
 }
 
-// ProjectFactGraphNode 图 API 节点。
+// ProjectFactGraphNode is a node in the graph API.
 type ProjectFactGraphNode struct {
 	ID         string `json:"id"`
 	FactKey    string `json:"fact_key"`
 	Category   string `json:"category"`
-	Label      string `json:"label"`   // 图节点短标签（截断）
-	Summary    string `json:"summary"` // 完整摘要（侧栏等详情用）
+	Label      string `json:"label"`   // Short graph node label (truncated).
+	Summary    string `json:"summary"` // Full summary (used for sidebar and other detail views).
 	Confidence string `json:"confidence"`
 	Type       string `json:"type"`
 	Pinned     bool   `json:"pinned"`
 }
 
-// ProjectFactGraphEdge 图 API 边。
+// ProjectFactGraphEdge is an edge in the graph API.
 type ProjectFactGraphEdge struct {
 	ID         string `json:"id"`
 	Source     string `json:"source"`
@@ -69,20 +69,20 @@ type ProjectFactGraphEdge struct {
 	Confidence string `json:"confidence"`
 }
 
-// ProjectFactGraph 项目事实图。
+// ProjectFactGraph is the project facts graph.
 type ProjectFactGraph struct {
 	Nodes []ProjectFactGraphNode `json:"nodes"`
 	Edges []ProjectFactGraphEdge `json:"edges"`
 }
 
-// ValidateProjectFactEdgeType 校验边类型。
+// ValidateProjectFactEdgeType validates an edge type.
 func ValidateProjectFactEdgeType(edgeType string) error {
 	edgeType = strings.TrimSpace(strings.ToLower(edgeType))
 	if edgeType == "" {
-		return fmt.Errorf("edge type 不能为空")
+		return fmt.Errorf("edge type cannot be empty")
 	}
 	if _, ok := ValidProjectFactEdgeTypes[edgeType]; !ok {
-		return fmt.Errorf("无效的 edge type: %s", edgeType)
+		return fmt.Errorf("invalid edge type: %s", edgeType)
 	}
 	return nil
 }
@@ -97,7 +97,7 @@ func normalizeEdgeConfidence(confidence string) string {
 	}
 }
 
-// ListProjectFactEdgesByProject 列出项目全部边。
+// ListProjectFactEdgesByProject lists all edges for a project.
 func (db *DB) ListProjectFactEdgesByProject(projectID string) ([]*ProjectFactEdge, error) {
 	rows, err := db.Query(
 		`SELECT id, project_id, source_fact_key, target_fact_key, edge_type, confidence,
@@ -114,7 +114,7 @@ func (db *DB) ListProjectFactEdgesByProject(projectID string) ([]*ProjectFactEdg
 	return scanProjectFactEdges(rows)
 }
 
-// ListOutgoingProjectFactEdges 列出某事实的全部出边。
+// ListOutgoingProjectFactEdges lists all outgoing edges for a fact.
 func (db *DB) ListOutgoingProjectFactEdges(projectID, sourceFactKey string) ([]*ProjectFactEdge, error) {
 	rows, err := db.Query(
 		`SELECT id, project_id, source_fact_key, target_fact_key, edge_type, confidence,
@@ -131,7 +131,7 @@ func (db *DB) ListOutgoingProjectFactEdges(projectID, sourceFactKey string) ([]*
 	return scanProjectFactEdges(rows)
 }
 
-// ListIncomingProjectFactEdges 列出某事实的全部入边。
+// ListIncomingProjectFactEdges lists all incoming edges for a fact.
 func (db *DB) ListIncomingProjectFactEdges(projectID, targetFactKey string) ([]*ProjectFactEdge, error) {
 	rows, err := db.Query(
 		`SELECT id, project_id, source_fact_key, target_fact_key, edge_type, confidence,
@@ -148,17 +148,17 @@ func (db *DB) ListIncomingProjectFactEdges(projectID, targetFactKey string) ([]*
 	return scanProjectFactEdges(rows)
 }
 
-// ReplaceOutgoingProjectFactEdges 替换某事实的全部出边（links 省略时不调用）。
+// ReplaceOutgoingProjectFactEdges replaces all outgoing edges for a fact (not called when links are omitted).
 func (db *DB) ReplaceOutgoingProjectFactEdges(projectID, sourceFactKey, sourceConversationID string, inputs []ProjectFactEdgeInput) error {
 	sourceFactKey = strings.TrimSpace(sourceFactKey)
 	if sourceFactKey == "" {
-		return fmt.Errorf("source_fact_key 不能为空")
+		return fmt.Errorf("source_fact_key cannot be empty")
 	}
 	if _, err := db.Exec(
 		`DELETE FROM project_fact_edges WHERE project_id = ? AND source_fact_key = ?`,
 		projectID, sourceFactKey,
 	); err != nil {
-		return fmt.Errorf("清除旧边失败: %w", err)
+		return fmt.Errorf("failed to clear old edges: %w", err)
 	}
 	for _, in := range inputs {
 		target := strings.TrimSpace(in.To)
@@ -166,10 +166,10 @@ func (db *DB) ReplaceOutgoingProjectFactEdges(projectID, sourceFactKey, sourceCo
 			continue
 		}
 		if err := ValidateFactKey(target); err != nil {
-			return fmt.Errorf("target fact_key 无效 (%s): %w", target, err)
+			return fmt.Errorf("invalid target fact_key (%s): %w", target, err)
 		}
 		if target == sourceFactKey {
-			return fmt.Errorf("边不能指向自身: %s", sourceFactKey)
+			return fmt.Errorf("edge cannot point to itself: %s", sourceFactKey)
 		}
 		if err := ValidateProjectFactEdgeType(in.Type); err != nil {
 			return err
@@ -192,17 +192,17 @@ func (db *DB) ReplaceOutgoingProjectFactEdges(projectID, sourceFactKey, sourceCo
 	return nil
 }
 
-// ReplaceIncomingProjectFactEdges 替换某事实的全部入边（From 为来源 fact_key）。
+// ReplaceIncomingProjectFactEdges replaces all incoming edges for a fact (From is the source fact_key).
 func (db *DB) ReplaceIncomingProjectFactEdges(projectID, targetFactKey string, inputs []ProjectFactEdgeFromInput) error {
 	targetFactKey = strings.TrimSpace(targetFactKey)
 	if targetFactKey == "" {
-		return fmt.Errorf("target_fact_key 不能为空")
+		return fmt.Errorf("target_fact_key cannot be empty")
 	}
 	if _, err := db.Exec(
 		`DELETE FROM project_fact_edges WHERE project_id = ? AND target_fact_key = ?`,
 		projectID, targetFactKey,
 	); err != nil {
-		return fmt.Errorf("清除旧入边失败: %w", err)
+		return fmt.Errorf("failed to clear old incoming edges: %w", err)
 	}
 	for _, in := range inputs {
 		source := strings.TrimSpace(in.From)
@@ -210,10 +210,10 @@ func (db *DB) ReplaceIncomingProjectFactEdges(projectID, targetFactKey string, i
 			continue
 		}
 		if err := ValidateFactKey(source); err != nil {
-			return fmt.Errorf("source fact_key 无效 (%s): %w", source, err)
+			return fmt.Errorf("invalid source fact_key (%s): %w", source, err)
 		}
 		if source == targetFactKey {
-			return fmt.Errorf("边不能指向自身: %s", targetFactKey)
+			return fmt.Errorf("edge cannot point to itself: %s", targetFactKey)
 		}
 		if err := ValidateProjectFactEdgeType(in.Type); err != nil {
 			return err
@@ -240,7 +240,7 @@ func (db *DB) ReplaceIncomingProjectFactEdges(projectID, targetFactKey string, i
 	return nil
 }
 
-// GetProjectFactEdge 按 ID 获取边。
+// GetProjectFactEdge retrieves an edge by ID.
 func (db *DB) GetProjectFactEdge(edgeID string) (*ProjectFactEdge, error) {
 	var e ProjectFactEdge
 	var createdAt, updatedAt string
@@ -251,22 +251,22 @@ func (db *DB) GetProjectFactEdge(edgeID string) (*ProjectFactEdge, error) {
 	).Scan(&e.ID, &e.ProjectID, &e.SourceFactKey, &e.TargetFactKey, &e.EdgeType, &e.Confidence,
 		&e.SourceConversationID, &createdAt, &updatedAt)
 	if err != nil {
-		return nil, fmt.Errorf("边不存在")
+		return nil, fmt.Errorf("edge not found")
 	}
 	e.CreatedAt = parseDBTime(createdAt)
 	e.UpdatedAt = parseDBTime(updatedAt)
 	return &e, nil
 }
 
-// AddProjectFactEdge 新增单条边（已存在则更新 confidence）。
+// AddProjectFactEdge adds a single edge (updates confidence if it already exists).
 func (db *DB) AddProjectFactEdge(projectID string, in ProjectFactEdgeInput, sourceFactKey, sourceConversationID string) (*ProjectFactEdge, error) {
 	sourceFactKey = strings.TrimSpace(sourceFactKey)
 	target := strings.TrimSpace(in.To)
 	if sourceFactKey == "" || target == "" {
-		return nil, fmt.Errorf("source 与 target 必填")
+		return nil, fmt.Errorf("source and target are required")
 	}
 	if sourceFactKey == target {
-		return nil, fmt.Errorf("边不能指向自身")
+		return nil, fmt.Errorf("edge cannot point to itself")
 	}
 	if err := ValidateProjectFactEdgeType(in.Type); err != nil {
 		return nil, err
@@ -297,9 +297,9 @@ func (db *DB) AddProjectFactEdge(projectID string, in ProjectFactEdgeInput, sour
 		nullIfEmpty(e.SourceConversationID), e.CreatedAt, e.UpdatedAt,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("添加边失败: %w", err)
+		return nil, fmt.Errorf("failed to add edge: %w", err)
 	}
-	// 返回最新
+	// Return the latest persisted state.
 	rows, err := db.Query(
 		`SELECT id, project_id, source_fact_key, target_fact_key, edge_type, confidence,
 		        COALESCE(source_conversation_id,''), created_at, updated_at
@@ -318,7 +318,7 @@ func (db *DB) AddProjectFactEdge(projectID string, in ProjectFactEdgeInput, sour
 	return list[0], nil
 }
 
-// DeleteProjectFactEdge 删除单条边。
+// DeleteProjectFactEdge deletes a single edge.
 func (db *DB) DeleteProjectFactEdge(edgeID string) error {
 	res, err := db.Exec(`DELETE FROM project_fact_edges WHERE id = ?`, edgeID)
 	if err != nil {
@@ -326,7 +326,7 @@ func (db *DB) DeleteProjectFactEdge(edgeID string) error {
 	}
 	n, _ := res.RowsAffected()
 	if n == 0 {
-		return fmt.Errorf("边不存在")
+		return fmt.Errorf("edge not found")
 	}
 	return nil
 }
@@ -341,12 +341,12 @@ func (db *DB) insertProjectFactEdge(e *ProjectFactEdge) error {
 		nullIfEmpty(e.SourceConversationID), e.CreatedAt, e.UpdatedAt,
 	)
 	if err != nil {
-		return fmt.Errorf("写入边失败: %w", err)
+		return fmt.Errorf("failed to write edge: %w", err)
 	}
 	return nil
 }
 
-// RenameProjectFactKeyEdges 事实 key 变更时同步边上的引用。
+// RenameProjectFactKeyEdges syncs edge references when a fact key is renamed.
 func (db *DB) RenameProjectFactKeyEdges(projectID, oldKey, newKey string) error {
 	oldKey = strings.TrimSpace(oldKey)
 	newKey = strings.TrimSpace(newKey)
@@ -369,7 +369,7 @@ func (db *DB) RenameProjectFactKeyEdges(projectID, oldKey, newKey string) error 
 	return err
 }
 
-// DeleteProjectFactEdgesForKey 删除与某 fact_key 相关的全部边。
+// DeleteProjectFactEdgesForKey deletes all edges associated with a fact_key.
 func (db *DB) DeleteProjectFactEdgesForKey(projectID, factKey string) error {
 	_, err := db.Exec(
 		`DELETE FROM project_fact_edges
@@ -379,7 +379,7 @@ func (db *DB) DeleteProjectFactEdgesForKey(projectID, factKey string) error {
 	return err
 }
 
-// DeprecateProjectFactEdgesForKey 将关联边标记为 deprecated。
+// DeprecateProjectFactEdgesForKey marks all edges associated with a fact_key as deprecated.
 func (db *DB) DeprecateProjectFactEdgesForKey(projectID, factKey string) error {
 	now := time.Now()
 	_, err := db.Exec(

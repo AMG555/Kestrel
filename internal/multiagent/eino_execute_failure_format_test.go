@@ -1,4 +1,4 @@
-﻿package multiagent
+package multiagent
 
 import (
 	"context"
@@ -87,7 +87,7 @@ func TestEinoStreamingShellWrap_CommandFailureFormat(t *testing.T) {
 	if strings.Contains(stream.String(), "command exited with non-zero") {
 		t.Fatalf("stream has legacy noise: %q", stream.String())
 	}
-	if strings.Contains(stream.String(), "执行未正常结束") {
+	if strings.Contains(stream.String(), "执行未normal结束") {
 		t.Fatalf("stream has abnormal tail: %q", stream.String())
 	}
 	if !security.IsCommandFailureResult(stream.String()) {
@@ -114,7 +114,7 @@ func TestFriendlyEinoExecuteInvokeTail(t *testing.T) {
 }
 
 func TestMCPBackgroundWaitResultIsDisplayRunning(t *testing.T) {
-	body := `工具已提交到后台执行，但本次等待已到达上限。
+	body := `tool已提交到background execution，但本次等待已到达上限。
 
 execution_id: 3eaaa391-050b-4be1-a870-48a855923cb7
 tool: exec
@@ -122,7 +122,7 @@ status: running
 wait_timeout: 10s
 elapsed: 10s
 
-你可以继续推理、改用其他工具，或调用 wait_tool_execution 继续等待该 execution_id；也可以调用 cancel_tool_execution 取消。`
+你可以continue推理、改用其他tool，或调用 wait_tool_execution continue等待该 execution_id；也可以调用 cancel_tool_execution cancelled。`
 	modelFacing := einomcp.ToolErrorPrefix + body
 	if !einoToolResultIsError("exec", modelFacing) {
 		t.Fatal("soft wait timeout must remain model-facing tool error")
@@ -142,7 +142,7 @@ elapsed: 10s
   "status": "running"
 }
 
-本次等待已到达 timeout_seconds，上述 execution 仍未完成。可继续等待、取消，或采用其他步骤。`
+本次等待已到达 timeout_seconds，上述 execution 仍未完成。可continue等待、cancelled，或采用其他步骤。`
 	if !isMCPBackgroundWaitResult(jsonBody) {
 		t.Fatal("json wait_tool_execution timeout should display as background running")
 	}

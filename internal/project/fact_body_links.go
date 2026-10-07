@@ -1,4 +1,4 @@
-﻿package project
+package project
 
 import (
 	"fmt"
@@ -12,10 +12,10 @@ var (
 	bodyDepFactLine   = regexp.MustCompile(`(?im)^[\s\-*]*依赖事实\s*[:：]\s*([a-zA-Z0-9][a-zA-Z0-9._/-]*)`)
 	bodyRelFactLine   = regexp.MustCompile(`(?im)^[\s\-*]*相关\s*fact_key\s*[:：]\s*([a-zA-Z0-9][a-zA-Z0-9._/-]*)`)
 	bodyAssocSection  = regexp.MustCompile(`(?im)^##\s*关联\s*$`)
-	bodySyncLinksHead = "结构化关系边（自动同步）"
+	bodySyncLinksHead = "结构化关系边（自动sync）"
 )
 
-// ParseLinksFromBody 从 body「关联」段落解析 from 语义的关系边（无显式 links 时的兜底）。
+// ParseLinksFromBody 从 body「关联」段落解析 from 语义的关系边（none显式 links 时的兜底）。
 func ParseLinksFromBody(body string) []database.ProjectFactEdgeFromInput {
 	body = strings.TrimSpace(body)
 	if body == "" {
@@ -48,7 +48,7 @@ func ParseLinksFromBody(body string) []database.ProjectFactEdgeFromInput {
 			add(m[1], "supports")
 		}
 	}
-	// 自动同步块：type: key
+	// 自动sync块：type: key
 	syncBlock := extractBodySyncLinksBlock(body)
 	for _, line := range strings.Split(syncBlock, "\n") {
 		line = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "-"))
@@ -124,7 +124,7 @@ func SyncBodyLinksSection(body string, edges []*database.ProjectFactEdge) string
 		if bodyAssocSection.MatchString(trim) {
 			inAssoc = true
 			out = append(out, lines[i])
-			// 跳过旧同步块
+			// 跳过旧sync块
 			j := i + 1
 			for j < len(lines) {
 				t := strings.TrimSpace(lines[j])
@@ -173,7 +173,7 @@ func SyncBodyLinksSection(body string, edges []*database.ProjectFactEdge) string
 
 func formatBodySyncLinksBlock(edges []*database.ProjectFactEdge) string {
 	if len(edges) == 0 {
-		return fmt.Sprintf("- %s:\n  （暂无）", bodySyncLinksHead)
+		return fmt.Sprintf("- %s:\n  （暂none）", bodySyncLinksHead)
 	}
 	var b strings.Builder
 	b.WriteString("- ")

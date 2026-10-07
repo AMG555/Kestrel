@@ -1,4 +1,4 @@
-﻿package vision
+package vision
 
 import (
 	"context"
@@ -28,7 +28,7 @@ func NewClient(visionCfg config.VisionConfig, mainOpenAI config.OpenAIConfig) *C
 	return &Client{cfg: visionCfg, mainOA: mainOpenAI}
 }
 
-// Analyze 将图片字节送入 VL 模型并返回文本描述。
+// Analyze 将图片字节送入 VL model并back文本description。
 func (c *Client) Analyze(ctx context.Context, img ImagePayload, question string) (string, error) {
 	if len(img.Bytes) == 0 {
 		return "", fmt.Errorf("empty image payload")
@@ -145,19 +145,19 @@ func (c *Client) Analyze(ctx context.Context, img ImagePayload, question string)
 func buildVisionPrompt(question string) string {
 	q := strings.TrimSpace(question)
 	if q == "" {
-		q = "请对图片做通用描述，侧重授权安全测试场景（可见文本、表单、按钮、验证码、错误信息、技术栈线索）。"
+		q = "请对图片做通用description，侧重授权安全test场景（可见文本、表单、按钮、validate码、errorinfo、技术栈线索）。"
 	}
 	extra := ""
 	if looksLikeCaptchaQuestion(q) {
-		extra = "\n若为验证码：仅输出你辨认出的字符序列，不要空格、标点、解释；看不清则明确说无法识别。"
+		extra = "\n若为validate码：仅输出你辨认出的字符序列，不要null格、标点、解释；看不清则明确说none法识别。"
 	}
-	return `你是授权安全测试助手。请根据图片回答用户问题，只描述你能从图中确认的内容，不要编造。
-用户问题：` + q + extra
+	return `你yes授权安全testassistant。请根据图片回答user问题，只description你能从图中confirm的内容，不要编造。
+user问题：` + q + extra
 }
 
 func looksLikeCaptchaQuestion(q string) bool {
 	s := strings.ToLower(q)
-	for _, kw := range []string{"验证码", "captcha", "verification code", "verify code", "vcode", "图形码"} {
+	for _, kw := range []string{"validate码", "captcha", "verification code", "verify code", "vcode", "图形码"} {
 		if strings.Contains(s, kw) {
 			return true
 		}

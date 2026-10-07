@@ -1,10 +1,10 @@
-﻿package multiagent
+package multiagent
 
 import (
 	"strings"
 )
 
-// expandAlwaysVisibleNameSet 将配置中的常驻工具名展开为可匹配运行时工具名的集合。
+// expandAlwaysVisibleNameSet 将config中的常驻tool nameexpand为可匹配运行时tool name的set。
 // 支持：内置短名 read_file；外部 mcp::tool；运行时 mcp__tool（OpenAI/Eino 命名）。
 func expandAlwaysVisibleNameSet(names []string) map[string]struct{} {
 	set := make(map[string]struct{}, len(names)*3)
@@ -22,7 +22,7 @@ func expandAlwaysVisibleNameSet(names []string) map[string]struct{} {
 		}
 		add(n)
 		if mcp, tool, ok := strings.Cut(n, "::"); ok && mcp != "" && tool != "" {
-			// 外部工具用 mcp::tool 配置时只展开运行时 mcp__tool，避免短名误伤其它 MCP 同名工具。
+			// 外部tool用 mcp::tool config时只expand运行时 mcp__tool，避免短名误伤其它 MCP 同名tool。
 			add(mcp + "__" + tool)
 			continue
 		}
@@ -37,7 +37,7 @@ func expandAlwaysVisibleNameSet(names []string) map[string]struct{} {
 	return set
 }
 
-// toolMatchesAlwaysVisible 判断运行时工具名是否命中常驻白名单（含别名）。
+// toolMatchesAlwaysVisible 判断运行时tool nameyesno命中常驻白名单（含别名）。
 func toolMatchesAlwaysVisible(runtimeName string, nameSet map[string]struct{}) bool {
 	if len(nameSet) == 0 {
 		return false

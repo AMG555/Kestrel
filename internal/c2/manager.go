@@ -1,4 +1,4 @@
-﻿package c2
+package c2
 
 import (
 	"context"
@@ -17,13 +17,13 @@ import (
 	"go.uber.org/zap"
 )
 
-// Manager 是 C2 模块对外的统一门面：
-//   - HTTP handler / MCP 工具 / 多代理 / 攻击链记录器 全部通过 Manager 操作 C2，
-//     不直接接触 listener 实现细节，避免循环依赖；
-//   - 持有数据库句柄 + 事件总线 + 内存中的 listener 实例 map；
-//   - 启动期可调用 RestoreRunningListeners() 把 status=running 的 listener 重新拉起。
+// Manager is the unified facade for the C2 module:
+//   - HTTP handler / MCP tool / multi-agent / attack chain recorder all operate C2 through Manager,
+//     without touching listener implementation details directly, to avoid circular dependencies;
+//   - holds the database handle + event bus + in-memory listener instance map;
+//   - RestoreRunningListeners() can be called at startup to bring back listeners with status=running.
 //
-// 实例化由 internal/app 负责，注入到全局 App 之后再分别交给 handler / mcp.
+// Instantiation is handled by internal/app, which injects it into the global App and then passes it to handler/mcp.
 type Manager struct {
 	db       *database.DB
 	logger   *zap.Logger
@@ -31,15 +31,15 @@ type Manager struct {
 	registry *ListenerRegistry
 
 	mu               sync.RWMutex
-	runningListeners map[string]Listener // listener_id → 已 Start 的 listener 实例
-	storageDir       string              // 大结果（截图/下载）落盘根目录
+	runningListeners map[string]Listener // listener_id → started listener instances
+	storageDir       string              // root directory for large results (screenshots/downloads) on disk
 
-	hitlBridge        HITLBridge                                    // 危险任务在 EnqueueTask 时调它发起审批（nil 表示不接 HITL）
-	hitlDangerousGate func(conversationID, mcpToolName string) bool // 与人机协同一致：为 nil 或返回 false 时不走桥
-	hooks             Hooks                                         // 扩展挂钩：会话上线 / 任务完成 时通知漏洞库与攻击链
+	hitlBridge        HITLBridge                                    // called in EnqueueTask to request approval for dangerous tasks (nil disables HITL)
+	hitlDangerousGate func(conversationID, mcpToolName string) bool // consistent with human-in-the-loop: bridge is skipped when nil or returns false
+	hooks             Hooks                                         // extension hooks: notify vulnerability library and attack chain on session online / task complete
 }
 
-// MCPToolC2Task 与 MCP builtin、c2_task 工具名一致，供 HITL 白名单与 Agent 侧对齐。
+// MCPToolC2Task matches the MCP builtin c2_task tool name for HITL whitelist and Agent-side alignment.
 const MCPToolC2Task = "c2_task"
 
 var (
@@ -47,15 +47,15 @@ var (
 	uploadTaskIDPattern     = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$`)
 )
 
-// HITLBridge 把"危险任务"桥到现有 internal/handler/hitl 审批流的接口。
-// internal/app 实例化时传入；空实现表示禁用 HITL 拦截（开发期方便）。
+// HITLBridge bridges "dangerous tasks" to the existing internal/handler/hitl approval flow.
+// Passed in when internal/app instantiates; nil implementation disables HITL interception (convenient during development).
 type HITLBridge interface {
-	// RequestApproval 阻塞等待人工审批；返回 nil 表示批准，error 表示拒绝/超时。
-	// ctx 携带用户/会话信息；危险任务调用时会创建超时 ctx 避免无限挂起。
+	// RequestApproval blocks waiting for human approval; nil means approved, error means rejected/timed out.
+	// ctx carries user/session info; a timeout ctx is created when calling dangerous tasks to avoid indefinite blocking.
 	RequestApproval(ctx context.Context, req HITLApprovalRequest) error
 }
 
-// HITLApprovalRequest 待审批的 C2 操作描述
+// HITLApprovalRequest describes a C2 operation pending approval
 type HITLApprovalRequest struct {
 	TaskID         string
 	SessionID      string
@@ -66,13 +66,13 @@ type HITLApprovalRequest struct {
 	Reason         string
 }
 
-// Hooks 给上层（漏洞管理 / 攻击链）注入回调
+// Hooks provides callbacks for the upper layer (vulnerability management / attack chain)
 type Hooks struct {
-	OnSessionFirstSeen func(session *database.C2Session)             // 新会话首次上线
-	OnTaskCompleted    func(task *database.C2Task, sessionID string) // 任务完成（success/failed）
+	OnSessionFirstSeen func(session *database.C2Session)             // new session first seen online
+	OnTaskCompleted    func(task *database.C2Task, sessionID string) // Task completed (success/failed)
 }
 
-// NewManager 创建 Manager；不会启动任何 listener，请显式调 RestoreRunningListeners
+// NewManager creates a Manager; it will not start any listeners — call RestoreRunningListeners explicitly
 func NewManager(db *database.DB, logger *zap.Logger, storageDir string) *Manager {
 	if logger == nil {
 		logger = zap.NewNop()
@@ -90,44 +90,44 @@ func NewManager(db *database.DB, logger *zap.Logger, storageDir string) *Manager
 	}
 }
 
-// SetHITLBridge 设置危险任务审批桥；nil 表示禁用
+// SetHITLBridge sets the dangerous-task approval bridge; nil disables it
 func (m *Manager) SetHITLBridge(b HITLBridge) {
 	m.mu.Lock()
 	m.hitlBridge = b
 	m.mu.Unlock()
 }
 
-// SetHITLDangerousGate 设置 C2 危险任务是否应走 HITL 桥；须与 Agent 人机协同判定一致（例如 handler.HITLManager.NeedsToolApproval）。
-// gate 为 nil 时，即使已设置桥也不会对危险任务发起审批（与未开启人机协同时其他工具行为一致）。
+// SetHITLDangerousGate sets whether C2 dangerous tasks should go through the HITL bridge; must be consistent with Agent human-in-the-loop logic (e.g. handler.HITLManager.NeedsToolApproval).
+// When gate is nil, no approval is initiated for dangerous tasks even if the bridge is set (consistent with tool behaviour when human-in-the-loop is not enabled).
 func (m *Manager) SetHITLDangerousGate(gate func(conversationID, mcpToolName string) bool) {
 	m.mu.Lock()
 	m.hitlDangerousGate = gate
 	m.mu.Unlock()
 }
 
-// SetHooks 注入业务钩子
+// SetHooks injects business hooks
 func (m *Manager) SetHooks(h Hooks) {
 	m.mu.Lock()
 	m.hooks = h
 	m.mu.Unlock()
 }
 
-// EventBus 暴露事件总线给 SSE handler
+// EventBus exposes the event bus for the SSE handler
 func (m *Manager) EventBus() *EventBus { return m.bus }
 
-// DB 暴露 DB 句柄给 handler/mcptools 直接读写（避免到处包装）
+// DB exposes the DB handle for handler/mcptools to read/write directly (to avoid wrapping everywhere)
 func (m *Manager) DB() *database.DB { return m.db }
 
-// Logger 暴露日志句柄
+// Logger exposes the logger handle
 func (m *Manager) Logger() *zap.Logger { return m.logger }
 
-// StorageDir 大结果落盘根目录
+// StorageDir is the root directory for large results on disk
 func (m *Manager) StorageDir() string { return m.storageDir }
 
-// Registry 暴露 listener 注册表，便于在 internal/app 启动时按 type 注册具体实现
+// Registry exposes the listener registry, making it easy to register concrete implementations by type at internal/app startup
 func (m *Manager) Registry() *ListenerRegistry { return m.registry }
 
-// Close 优雅关闭：停掉所有运行中的 listener，关闭事件总线
+// Close gracefully shuts down: stops all running listeners and closes the event bus
 func (m *Manager) Close() {
 	m.mu.Lock()
 	listeners := make([]Listener, 0, len(m.runningListeners))
@@ -143,10 +143,10 @@ func (m *Manager) Close() {
 }
 
 // ----------------------------------------------------------------------------
-// Listener 生命周期
+// Listener lifecycle
 // ----------------------------------------------------------------------------
 
-// CreateListenerInput Web/MCP 创建监听器的入参（已校验 + 已 trim）
+// CreateListenerInput is the input for creating a listener via Web/MCP (already validated and trimmed)
 type CreateListenerInput struct {
 	Name      string
 	ProjectID string
@@ -156,11 +156,11 @@ type CreateListenerInput struct {
 	ProfileID string
 	Remark    string
 	Config    *ListenerConfig
-	// CallbackHost 非空时写入 config_json.callback_host，供 Payload 默认回连（不修改 bind）
+	// CallbackHost: if non-empty, written to config_json.callback_host for default payload callback (does not modify bind)
 	CallbackHost string
 }
 
-// CreateListener 校验并落库；不自动启动（与 systemd unit 一致：先创建后启动）
+// CreateListener validates and persists to DB; does not auto-start (consistent with systemd unit: create then start)
 func (m *Manager) CreateListener(in CreateListenerInput) (*database.C2Listener, error) {
 	if strings.TrimSpace(in.Name) == "" {
 		return nil, ErrInvalidInput
@@ -173,7 +173,7 @@ func (m *Manager) CreateListener(in CreateListenerInput) (*database.C2Listener, 
 	}
 	bindHost := strings.TrimSpace(in.BindHost)
 	if bindHost == "" {
-		bindHost = "127.0.0.1" // 默认绑定环回，需要外网时操作员显式改
+		bindHost = "127.0.0.1" // default bind to loopback; operator must explicitly change for external access
 	}
 	cfg := in.Config
 	if cfg == nil {
@@ -217,14 +217,14 @@ func (m *Manager) CreateListener(in CreateListenerInput) (*database.C2Listener, 
 	if err := m.db.CreateC2Listener(listener); err != nil {
 		return nil, err
 	}
-	m.publishEvent("info", "listener", "", "", fmt.Sprintf("监听器 %s 已创建", listener.Name), map[string]interface{}{
+	m.publishEvent("info", "listener", "", "", fmt.Sprintf("Listener %s created", listener.Name), map[string]interface{}{
 		"listener_id": listener.ID,
 		"type":        listener.Type,
 	})
 	return listener, nil
 }
 
-// StartListener 启动指定 listener；幂等（已运行时返回 ErrListenerRunning）
+// StartListener starts the specified listener; idempotent (returns ErrListenerRunning if already running)
 func (m *Manager) StartListener(id string) (*database.C2Listener, error) {
 	rec, err := m.db.GetC2Listener(id)
 	if err != nil {
@@ -246,8 +246,8 @@ func (m *Manager) StartListener(id string) (*database.C2Listener, error) {
 	}
 	cfg.ApplyDefaults()
 
-	// 通过工厂创建具体实现。必须使用 rec 的副本：HTTP handler 在返回 JSON 前会清空
-	// rec.ImplantToken / EncryptionKey 做脱敏，若 listener 实现持有同一指针会导致 beacon 鉴权永久失败。
+	// Create concrete implementation via factory. Must use a copy of rec: HTTP handler clears
+	// rec.ImplantToken / EncryptionKey for desensitization; if the listener implementation holds the same pointer, beacon auth will permanently fail.
 	listenerRec := *rec
 	factory := m.registry.Get(rec.Type)
 	if factory == nil {
@@ -265,7 +265,7 @@ func (m *Manager) StartListener(id string) (*database.C2Listener, error) {
 	if err := inst.Start(); err != nil {
 		now := time.Now()
 		_ = m.db.SetC2ListenerStatus(rec.ID, "error", err.Error(), &now)
-		m.publishEvent("warn", "listener", "", "", fmt.Sprintf("监听器 %s 启动失败: %v", rec.Name, err), map[string]interface{}{
+		m.publishEvent("warn", "listener", "", "", fmt.Sprintf("Listener %s startup failed: %v", rec.Name, err), map[string]interface{}{
 			"listener_id": rec.ID,
 		})
 		return nil, err
@@ -278,14 +278,14 @@ func (m *Manager) StartListener(id string) (*database.C2Listener, error) {
 	rec.Status = "running"
 	rec.StartedAt = &now
 	rec.LastError = ""
-	m.publishEvent("info", "listener", "", "", fmt.Sprintf("监听器 %s 已启动", rec.Name), map[string]interface{}{
+	m.publishEvent("info", "listener", "", "", fmt.Sprintf("Listener %s started", rec.Name), map[string]interface{}{
 		"listener_id": rec.ID,
 		"bind":        fmt.Sprintf("%s:%d", rec.BindHost, rec.BindPort),
 	})
 	return rec, nil
 }
 
-// StopListener 停止；幂等（未运行时返回 ErrListenerStopped）
+// StopListener stops the listener; idempotent (returns ErrListenerStopped if already stopped)
 func (m *Manager) StopListener(id string) error {
 	m.mu.Lock()
 	inst, ok := m.runningListeners[id]
@@ -305,19 +305,19 @@ func (m *Manager) StopListener(id string) error {
 	if rec != nil {
 		name = rec.Name
 	}
-	m.publishEvent("info", "listener", "", "", fmt.Sprintf("监听器 %s 已停止", name), map[string]interface{}{
+	m.publishEvent("info", "listener", "", "", fmt.Sprintf("listener %s stopped", name), map[string]interface{}{
 		"listener_id": id,
 	})
 	return nil
 }
 
-// DeleteListener 停止并删除（级联 sessions/tasks/files）
+// DeleteListener stops and deletes (cascades to sessions/tasks/files)
 func (m *Manager) DeleteListener(id string) error {
 	_ = m.StopListener(id)
 	return m.db.DeleteC2Listener(id)
 }
 
-// IsListenerRunning 内存中的运行状态（DB 中的 status 可能因崩溃而过时）
+// IsListenerRunning returns the in-memory running status (DB status may be stale after a crash)
 func (m *Manager) IsListenerRunning(id string) bool {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -325,12 +325,12 @@ func (m *Manager) IsListenerRunning(id string) bool {
 	return ok
 }
 
-// RestoreRunningListeners 启动期把 DB 中 status=running 的 listener 重新拉起；
-// 失败的会被改为 status=error，不会阻塞整个 App 启动。
+// RestoreRunningListeners re-starts listeners with status=running in DB at startup;
+// failed ones are changed to status=error and do not block the entire app startup.
 func (m *Manager) RestoreRunningListeners() {
 	listeners, err := m.db.ListC2Listeners()
 	if err != nil {
-		m.logger.Warn("恢复 C2 listener 失败：列表查询出错", zap.Error(err))
+		m.logger.Warn("resume C2 listener failed: list query error", zap.Error(err))
 		return
 	}
 	for _, l := range listeners {
@@ -338,19 +338,19 @@ func (m *Manager) RestoreRunningListeners() {
 			continue
 		}
 		if _, err := m.StartListener(l.ID); err != nil && !errors.Is(err, ErrListenerRunning) {
-			m.logger.Warn("恢复 C2 listener 失败", zap.String("listener_id", l.ID), zap.Error(err))
+			m.logger.Warn("resume C2 listener failed", zap.String("listener_id", l.ID), zap.Error(err))
 		}
 	}
 }
 
 // ----------------------------------------------------------------------------
-// Session 生命周期
+// Session lifecycle
 // ----------------------------------------------------------------------------
 
-// IngestCheckIn beacon 上线/心跳的统一入口。
-// 行为：
-//  1. 若 implant_uuid 已有会话 → 更新心跳/状态
-//  2. 否则创建新会话，触发 OnSessionFirstSeen 钩子
+// IngestCheckIn is the unified entry for beacon online/heartbeat.
+// Behavior:
+//  1. if implant_uuid already has a session → update heartbeat/status
+//  2. otherwise create a new session, trigger the OnSessionFirstSeen hook
 func (m *Manager) IngestCheckIn(listenerID string, req ImplantCheckInRequest) (*database.C2Session, error) {
 	if strings.TrimSpace(req.ImplantUUID) == "" {
 		return nil, ErrInvalidInput
@@ -391,7 +391,7 @@ func (m *Manager) IngestCheckIn(listenerID string, req ImplantCheckInRequest) (*
 		Metadata:      req.Metadata,
 	}
 	if existing != nil {
-		// 保留原 ID/FirstSeenAt/Note 与操作员设置的 sleep/jitter，避免被 beacon 心跳上报覆盖
+		// Preserve original ID/FirstSeenAt/Note and operator-set sleep/jitter to avoid being overwritten by beacon heartbeat reports
 		session.FirstSeenAt = existing.FirstSeenAt
 		session.SleepSeconds = existing.SleepSeconds
 		session.JitterPercent = existing.JitterPercent
@@ -404,7 +404,7 @@ func (m *Manager) IngestCheckIn(listenerID string, req ImplantCheckInRequest) (*
 	}
 	if isFirstSeen {
 		m.publishEvent("critical", "session", session.ID, "",
-			fmt.Sprintf("新会话上线: %s@%s (%s/%s)", session.Username, session.Hostname, session.OS, session.Arch),
+			fmt.Sprintf("New session online: %s@%s (%s/%s)", session.Username, session.Hostname, session.OS, session.Arch),
 			map[string]interface{}{
 				"session_id":  session.ID,
 				"listener_id": listenerID,
@@ -420,12 +420,12 @@ func (m *Manager) IngestCheckIn(listenerID string, req ImplantCheckInRequest) (*
 			go hook(session)
 		}
 	}
-	// 普通心跳：last_check_in 已由 UpsertC2Session 写入 c2_sessions，不再落 c2_events。
-	// 否则按 sleep 周期每条心跳一条审计，库表与 SSE 会被迅速撑爆；上线/掉线等仍照常 publishEvent。
+	// Regular heartbeat: last_check_in is already written to c2_sessions by UpsertC2Session; no longer recorded in c2_events.
+	// Otherwise each heartbeat would generate one audit entry per sleep cycle, quickly bloating the DB and SSE; online/offline events still publishEvent normally.
 	return session, nil
 }
 
-// SetSessionSleep 更新会话期望的心跳间隔，并向植入体下发 sleep 任务以尽快生效。
+// SetSessionSleep updates the expected heartbeat interval for the session and dispatches a sleep task to the implant to take effect as soon as possible.
 func (m *Manager) SetSessionSleep(sessionID string, sleepSeconds, jitterPercent int) (*database.C2Task, error) {
 	if strings.TrimSpace(sessionID) == "" {
 		return nil, ErrInvalidInput
@@ -452,10 +452,10 @@ func (m *Manager) SetSessionSleep(sessionID string, sleepSeconds, jitterPercent 
 		Source: "manual",
 	})
 	if err != nil {
-		m.logger.Warn("sleep 任务入队失败", zap.Error(err), zap.String("session_id", sessionID))
+		m.logger.Warn("sleep task enqueue failed", zap.Error(err), zap.String("session_id", sessionID))
 	}
 	m.publishEvent("info", "session", sessionID, "",
-		fmt.Sprintf("Sleep 已更新: %ds (抖动 %d%%)", sleepSeconds, jitterPercent),
+		fmt.Sprintf("Sleep updated: %ds (jitter %d%%)", sleepSeconds, jitterPercent),
 		map[string]interface{}{
 			"sleep_seconds":  sleepSeconds,
 			"jitter_percent": jitterPercent,
@@ -463,32 +463,32 @@ func (m *Manager) SetSessionSleep(sessionID string, sleepSeconds, jitterPercent 
 	return task, nil
 }
 
-// MarkSessionDead 心跳超时检测器调用：标记会话为 dead
+// MarkSessionDead is called by the heartbeat timeout detector: marks session as dead
 func (m *Manager) MarkSessionDead(sessionID string) error {
 	if err := m.db.SetC2SessionStatus(sessionID, string(SessionDead)); err != nil {
 		return err
 	}
-	m.publishEvent("warn", "session", sessionID, "", "会话已离线（心跳超时）", nil)
+	m.publishEvent("warn", "session", sessionID, "", "Session offline (heartbeat timeout)", nil)
 	return nil
 }
 
 // ----------------------------------------------------------------------------
-// Task 生命周期
+// Task lifecycle
 // ----------------------------------------------------------------------------
 
-// EnqueueTaskInput 下发任务入参
+// EnqueueTaskInput is the input for dispatching a task
 type EnqueueTaskInput struct {
 	SessionID      string
 	TaskType       TaskType
 	Payload        map[string]interface{}
 	Source         string // manual|ai|batch|api
 	ConversationID string
-	UserCtx        context.Context // 给 HITL 用
-	BypassHITL     bool            // true 表示跳过 HITL 审批（仅供白名单机制 / 系统内部用）
+	UserCtx        context.Context // for HITL use
+	BypassHITL     bool            // true means skip HITL approval (for whitelist mechanism / internal system use only)
 }
 
-// EnqueueTask 入队一个新任务；若任务类型危险且未 BypassHITL，且 SetHITLDangerousGate 对当前会话与 MCPToolC2Task 返回 true，才会调 HITL 桥审批。
-// 返回任务记录；任务派发由 PopTasksForBeacon 在 beacon 拉任务时完成。
+// EnqueueTask enqueues a new task; if the task type is dangerous and BypassHITL is false, and SetHITLDangerousGate returns true for the current session and MCPToolC2Task, it will invoke HITL bridge approval.
+// Returns the task record; task dispatch is completed by PopTasksForBeacon when the beacon pulls tasks.
 func (m *Manager) EnqueueTask(in EnqueueTaskInput) (*database.C2Task, error) {
 	if strings.TrimSpace(in.SessionID) == "" {
 		return nil, ErrInvalidInput
@@ -501,7 +501,7 @@ func (m *Manager) EnqueueTask(in EnqueueTaskInput) (*database.C2Task, error) {
 		return nil, ErrSessionNotFound
 	}
 	if session.Status == string(SessionDead) || session.Status == string(SessionKilled) {
-		return nil, &CommonError{Code: "session_inactive", Message: "会话已离线，无法下发任务", HTTP: 409}
+		return nil, &CommonError{Code: "session_inactive", Message: "session is offline, cannot dispatch task", HTTP: 409}
 	}
 
 	// OPSEC: command deny regex enforcement
@@ -519,7 +519,7 @@ func (m *Manager) EnqueueTask(in EnqueueTaskInput) (*database.C2Task, error) {
 					if re.MatchString(cmd) {
 						return nil, &CommonError{
 							Code:    "command_denied",
-							Message: fmt.Sprintf("命令被 OPSEC 规则拒绝 (匹配: %s)", pattern),
+							Message: fmt.Sprintf("command rejected by OPSEC rule (matched: %s)", pattern),
 							HTTP:    403,
 						}
 					}
@@ -543,7 +543,7 @@ func (m *Manager) EnqueueTask(in EnqueueTaskInput) (*database.C2Task, error) {
 		if concurrent >= listenerCfg.MaxConcurrentTasks {
 			return nil, &CommonError{
 				Code:    "concurrent_limit",
-				Message: fmt.Sprintf("会话已有 %d 个排队/执行中的任务，超过并发上限 %d", concurrent, listenerCfg.MaxConcurrentTasks),
+				Message: fmt.Sprintf("session already has %d queued/running tasks, exceeding concurrency limit %d", concurrent, listenerCfg.MaxConcurrentTasks),
 				HTTP:    429,
 			}
 		}
@@ -561,7 +561,7 @@ func (m *Manager) EnqueueTask(in EnqueueTaskInput) (*database.C2Task, error) {
 		CreatedAt:      time.Now(),
 	}
 
-	// HITL 检查：仅当注入的 gate 认为当前会话应对统一 MCP 工具 c2_task 做人机协同时才走桥（关闭人机协同时与其它工具一致，直接入队）。
+	// HITL check: only invoke bridge when the injected gate determines this session should use human-in-the-loop for the unified MCP tool c2_task (when HITL is disabled, behaves like other tools and enqueues directly).
 	if IsDangerousTaskType(in.TaskType) && !in.BypassHITL {
 		m.mu.RLock()
 		bridge := m.hitlBridge
@@ -574,7 +574,7 @@ func (m *Manager) EnqueueTask(in EnqueueTaskInput) (*database.C2Task, error) {
 			if err := m.db.CreateC2Task(task); err != nil {
 				return nil, err
 			}
-			m.publishEvent("warn", "task", in.SessionID, taskID, fmt.Sprintf("危险任务待审批: %s", in.TaskType), map[string]interface{}{
+			m.publishEvent("warn", "task", in.SessionID, taskID, fmt.Sprintf("Dangerous task pending approval: %s", in.TaskType), map[string]interface{}{
 				"task_id":   taskID,
 				"task_type": in.TaskType,
 			})
@@ -591,12 +591,12 @@ func (m *Manager) EnqueueTask(in EnqueueTaskInput) (*database.C2Task, error) {
 					PayloadJSON:    string(payloadBytes),
 					ConversationID: in.ConversationID,
 					Source:         task.Source,
-					Reason:         fmt.Sprintf("C2 危险任务 %s", in.TaskType),
+					Reason:         fmt.Sprintf("C2 dangerous task %s", in.TaskType),
 				})
 				if err != nil {
 					rejected := "rejected"
 					failed := string(TaskFailed)
-					errMsg := "HITL 拒绝: " + err.Error()
+					errMsg := "HITL rejected: " + err.Error()
 					_ = m.db.UpdateC2Task(taskID, database.C2TaskUpdate{
 						ApprovalStatus: &rejected,
 						Status:         &failed,
@@ -607,18 +607,18 @@ func (m *Manager) EnqueueTask(in EnqueueTaskInput) (*database.C2Task, error) {
 				}
 				approved := "approved"
 				_ = m.db.UpdateC2Task(taskID, database.C2TaskUpdate{ApprovalStatus: &approved})
-				m.publishEvent("info", "task", in.SessionID, taskID, "危险任务已批准", nil)
+				m.publishEvent("info", "task", in.SessionID, taskID, "Dangerous task approved", nil)
 			}()
 			return task, nil
 		}
-		// 未接桥或会话未开启人机协同 / 工具在白名单：直接入队
+		// bridge not connected, session has HITL disabled, or tool is whitelisted: enqueue directly
 		task.ApprovalStatus = "approved"
 	}
 
 	if err := m.db.CreateC2Task(task); err != nil {
 		return nil, err
 	}
-	m.publishEvent("info", "task", in.SessionID, taskID, fmt.Sprintf("任务已入队: %s", in.TaskType), map[string]interface{}{
+	m.publishEvent("info", "task", in.SessionID, taskID, fmt.Sprintf("Task enqueued: %s", in.TaskType), map[string]interface{}{
 		"task_id":   taskID,
 		"task_type": in.TaskType,
 		"source":    task.Source,
@@ -626,7 +626,7 @@ func (m *Manager) EnqueueTask(in EnqueueTaskInput) (*database.C2Task, error) {
 	return task, nil
 }
 
-// CancelTask 取消队列中的任务（已 sent/running 的暂不支持回滚）
+// CancelTask cancels a queued task (rollback of already sent/running tasks is not yet supported).
 func (m *Manager) CancelTask(taskID string) error {
 	t, err := m.db.GetC2Task(taskID)
 	if err != nil {
@@ -636,19 +636,19 @@ func (m *Manager) CancelTask(taskID string) error {
 		return ErrTaskNotFound
 	}
 	if t.Status != string(TaskQueued) && t.Status != string(TaskSent) {
-		return &CommonError{Code: "task_running", Message: "任务已在执行，无法取消", HTTP: 409}
+		return &CommonError{Code: "task_running", Message: "task is already running, cannot cancel", HTTP: 409}
 	}
 	cancelled := string(TaskCancelled)
 	now := time.Now()
 	if err := m.db.UpdateC2Task(taskID, database.C2TaskUpdate{ExpectedStatus: &t.Status, Status: &cancelled, CompletedAt: &now}); err != nil {
 		return err
 	}
-	m.publishEvent("info", "task", t.SessionID, taskID, "任务已取消", nil)
+	m.publishEvent("info", "task", t.SessionID, taskID, "task cancelled", nil)
 	return nil
 }
 
-// PopTasksForBeacon beacon check_in 后调用：取该会话所有 queued+approved 的任务，
-// 内部已置为 sent；返回 TaskEnvelope，便于 listener 直接编码下发。
+// PopTasksForBeacon is called after a beacon check-in: retrieves all queued+approved tasks for that session,
+// internally marks them as sent, and returns TaskEnvelopes ready for the listener to encode and dispatch.
 func (m *Manager) PopTasksForBeacon(sessionID string, limit int) ([]TaskEnvelope, error) {
 	session, err := m.db.GetC2Session(sessionID)
 	if err != nil {
@@ -685,7 +685,7 @@ func (m *Manager) PopTasksForBeacon(sessionID string, limit int) ([]TaskEnvelope
 	return out, nil
 }
 
-// IngestTaskResult beacon 回传任务结果的统一入口
+// IngestTaskResult is the unified entry point for beacons to return task results.
 // IngestTaskResultFromListener verifies transport-established ownership before
 // accepting a result. HTTP transports authenticate the listener; persistent
 // connections additionally bind the result to the session established at check-in.
@@ -757,13 +757,13 @@ func (m *Manager) IngestTaskResult(report TaskResultReport) error {
 		DurationMS:     &duration,
 	}
 
-	// blob（如截图）落盘
+	// Persist blob to disk (e.g. screenshots)
 	if len(report.BlobBase64) > 0 {
 		blobPath, err := m.saveResultBlob(t.ID, report.BlobBase64, report.BlobSuffix)
 		if err == nil {
 			upd.ResultBlobPath = &blobPath
 		} else {
-			m.logger.Warn("结果 blob 落盘失败", zap.Error(err), zap.String("task_id", t.ID))
+			m.logger.Warn("failed to persist result blob to disk", zap.Error(err), zap.String("task_id", t.ID))
 		}
 	}
 
@@ -775,10 +775,10 @@ func (m *Manager) IngestTaskResult(report TaskResultReport) error {
 	t.Error = errText
 
 	level := "info"
-	msg := fmt.Sprintf("任务完成: %s", t.TaskType)
+	msg := fmt.Sprintf("task completed: %s", t.TaskType)
 	if !report.Success {
 		level = "warn"
-		msg = fmt.Sprintf("任务失败: %s (%s)", t.TaskType, report.Error)
+		msg = fmt.Sprintf("taskfailed: %s (%s)", t.TaskType, report.Error)
 	}
 	m.publishEvent(level, "task", t.SessionID, t.ID, msg, map[string]interface{}{
 		"task_id":   t.ID,
@@ -871,10 +871,10 @@ func ensurePathInDir(dir, path string) error {
 }
 
 // ----------------------------------------------------------------------------
-// 事件总线辅助
+// event bus helpers
 // ----------------------------------------------------------------------------
 
-// publishEvent 同步写 c2_events 表 + 投放到内存事件总线
+// publishEvent synchronously writes to the c2_events table and publishes to the in-memory event bus.
 func (m *Manager) publishEvent(level, category, sessionID, taskID, message string, data map[string]interface{}) {
 	id := "e_" + strings.ReplaceAll(uuid.New().String(), "-", "")[:14]
 	now := time.Now()
@@ -889,7 +889,7 @@ func (m *Manager) publishEvent(level, category, sessionID, taskID, message strin
 		CreatedAt: now,
 	}
 	if err := m.db.AppendC2Event(e); err != nil {
-		m.logger.Warn("写 C2 事件失败", zap.Error(err), zap.String("category", category))
+		m.logger.Warn("failed to write C2 event", zap.Error(err), zap.String("category", category))
 	}
 	m.bus.Publish(&Event{
 		ID:        id,
@@ -903,13 +903,13 @@ func (m *Manager) publishEvent(level, category, sessionID, taskID, message strin
 	})
 }
 
-// PublishCustomEvent 给外部组件（HITL 桥 / handler）写自定义事件用
+// PublishCustomEvent allows external components (HITL bridge / handler) to write custom events.
 func (m *Manager) PublishCustomEvent(level, category, sessionID, taskID, message string, data map[string]interface{}) {
 	m.publishEvent(level, category, sessionID, taskID, message, data)
 }
 
 // ----------------------------------------------------------------------------
-// 工具函数
+// utility functions
 // ----------------------------------------------------------------------------
 
 func strOr(s, def string) string {

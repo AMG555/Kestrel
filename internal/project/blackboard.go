@@ -1,4 +1,4 @@
-﻿package project
+package project
 
 import (
 	"fmt"
@@ -22,12 +22,12 @@ func AppendSystemPromptBlock(base, block string) string {
 }
 
 const (
-	factIndexFooterGetDetail = "需要完整内容（攻击链、POC、请求响应等）时必须调用 get_project_fact(fact_key)，禁止凭摘要臆造细节。"
-	factIndexFooterWriteHint = "写入事实 links 时用 from（来源 fact_key → 当前 fact），如 finding 上 {from:target/*, type:discovered_on}；body 写可复现全流程（发现/利用类 fact_key 建议 finding|chain|exploit|poc/ 前缀）。"
-	factIndexFooterEmpty     = "需要写入请使用 upsert_project_fact；需要详情请调用 get_project_fact(fact_key)。"
+	factIndexFooterGetDetail = "需要完整内容（attack chain、POC、requestresponse等）时必须调用 get_project_fact(fact_key)，禁止凭summary臆造细节。"
+	factIndexFooterWriteHint = "写入事实 links 时用 from（来源 fact_key → 当前 fact），如 finding 上 {from:target/*, type:discovered_on}；body 写可复现全流程（Discovery/利用类 fact_key 建议 finding|chain|exploit|poc/ 前缀）。"
+	factIndexFooterEmpty     = "需要写入请使用 upsert_project_fact；需要details请调用 get_project_fact(fact_key)。"
 )
 
-// BuildFactIndexBlock 为 Agent 系统提示生成项目黑板索引（key + summary + 关系边 + 攻击路径，不含 body）。
+// BuildFactIndexBlock 为 Agent system prompt生成project黑板index（key + summary + 关系边 + attack path，不含 body）。
 func BuildFactIndexBlock(db *database.DB, projectID string, cfg config.ProjectConfig) (string, error) {
 	if db == nil || !cfg.Enabled {
 		return "", nil
@@ -50,7 +50,7 @@ func BuildFactIndexBlock(db *database.DB, projectID string, cfg config.ProjectCo
 	_, incomingByTarget := indexEdgeGroupMaps(allEdges)
 
 	if len(facts) == 0 {
-		return wrapFactIndexBlock(fmt.Sprintf("## 项目黑板索引（project: %s, id: %s）\n（暂无事实）\n%s", proj.Name, proj.ID, factIndexFooterEmpty)), nil
+		return wrapFactIndexBlock(fmt.Sprintf("## project黑板index（project: %s, id: %s）\n（暂none事实）\n%s", proj.Name, proj.ID, factIndexFooterEmpty)), nil
 	}
 
 	sortFactsForIndex(facts)
@@ -67,7 +67,7 @@ func BuildFactIndexBlock(db *database.DB, projectID string, cfg config.ProjectCo
 
 	indexedKeys := make(map[string]struct{}, len(facts))
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("## 项目黑板索引（project: %s, id: %s）\n", proj.Name, proj.ID))
+	b.WriteString(fmt.Sprintf("## project黑板index（project: %s, id: %s）\n", proj.Name, proj.ID))
 	used := len([]rune(b.String()))
 	omitted := 0
 
@@ -86,7 +86,7 @@ func BuildFactIndexBlock(db *database.DB, projectID string, cfg config.ProjectCo
 	}
 
 	if omitted > 0 {
-		b.WriteString(fmt.Sprintf("\n（另有 %d 条未列入索引，请使用 list_project_facts 或 search_project_facts 查询。）\n", omitted))
+		b.WriteString(fmt.Sprintf("\n（另有 %d 条未列入index，请使用 list_project_facts 或 search_project_facts 查询。）\n", omitted))
 	}
 
 	if pathSection := BuildFactPathOverviewSection(allEdges, indexedKeys, pathMaxRunes); pathSection != "" {

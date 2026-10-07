@@ -1,17 +1,17 @@
-﻿package handler
+package handler
 
 import "testing"
 
 func TestEnrichSpecWithI18nKeysForAssetImport(t *testing.T) {
 	responses := map[string]interface{}{
-		"200": map[string]interface{}{"description": "导入完成"},
-		"400": map[string]interface{}{"description": "数量或资产字段校验失败"},
-		"403": map[string]interface{}{"description": "缺少 asset:write 权限或无权访问指定项目"},
-		"500": map[string]interface{}{"description": "导入事务失败"},
+		"200": map[string]interface{}{"description": "Import completed"},
+		"400": map[string]interface{}{"description": "Asset count or field validation failed"},
+		"403": map[string]interface{}{"description": "Missing asset:write permission or access denied for specified project"},
+		"500": map[string]interface{}{"description": "Import transaction failed"},
 	}
 	operation := map[string]interface{}{
-		"tags":      []string{"资产管理"},
-		"summary":   "批量导入资产",
+		"tags":      []string{"Asset Management"},
+		"summary":   "bulk import assets",
 		"responses": responses,
 	}
 	spec := map[string]interface{}{

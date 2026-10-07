@@ -1,4 +1,4 @@
-﻿package database
+package database
 
 import (
 	"database/sql"
@@ -6,8 +6,8 @@ import (
 	"time"
 )
 
-// ConversationLastActivity 返回会话最近活动时间；ok=false 表示会话已不存在。
-// 供存储清理判断目录是否为孤儿、以及会话是否仍在活跃使用。
+// ConversationLastActivity returns the most recent activity time for a conversation; ok=false means the conversation no longer exists.
+// Used by storage cleanup to determine whether a directory is orphaned and whether the conversation is still actively in use.
 func (db *DB) ConversationLastActivity(id string) (time.Time, bool, error) {
 	id = strings.TrimSpace(id)
 	if id == "" {
@@ -30,7 +30,7 @@ func (db *DB) ConversationLastActivity(id string) (time.Time, bool, error) {
 	return updated, true, nil
 }
 
-// ProjectLastActivity 返回项目最近活动时间；ok=false 表示项目已不存在。
+// ProjectLastActivity returns the most recent activity time for a project; ok=false means the project no longer exists.
 func (db *DB) ProjectLastActivity(id string) (time.Time, bool, error) {
 	id = strings.TrimSpace(id)
 	if id == "" {

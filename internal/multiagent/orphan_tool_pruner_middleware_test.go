@@ -1,4 +1,4 @@
-﻿package multiagent
+package multiagent
 
 import (
 	"context"
@@ -46,7 +46,7 @@ func TestOrphanToolPruner_NoOpWhenPaired(t *testing.T) {
 	if len(out.Messages) != len(msgs) {
 		t.Fatalf("expected %d messages kept, got %d", len(msgs), len(out.Messages))
 	}
-	// 快路径：未发现孤儿时必须原地返回 state，不分配新切片。
+	// 快path：未Discovery孤儿时必须原地back state，不分配新切片。
 	if &out.Messages[0] != &msgs[0] {
 		t.Fatalf("expected state to be returned as-is (same backing slice) when no orphan present")
 	}
@@ -57,7 +57,7 @@ func TestOrphanToolPruner_DropsOrphanToolMessages(t *testing.T) {
 
 	msgs := []adk.Message{
 		schema.SystemMessage("sys"),
-		// 摘要前的 assistant(tc: c_old) 已被裁剪，但对应的 tool 结果漏保留了。
+		// summary前的 assistant(tc: c_old) 已被裁剪，但对应的 tool 结果漏保留了。
 		schema.ToolMessage("orphan result", "c_old"),
 		schema.UserMessage("continue"),
 		assistantToolCallsMsg("", "c_new"),
@@ -94,8 +94,8 @@ func TestOrphanToolPruner_DropsOrphanToolMessages(t *testing.T) {
 }
 
 func TestOrphanToolPruner_EmptyToolCallIDIsIgnored(t *testing.T) {
-	// 空 ToolCallID 的 tool 消息在真实场景中极罕见，但不应当被误判为孤儿。
-	// 语义上把它当作"无法校验，保留"，避免误删。
+	// null ToolCallID 的 tool message在true实场景中极罕见，但不应当被误判为孤儿。
+	// 语义上把它当作"none法校验，保留"，避免误删。
 	mw := newOrphanToolPrunerMiddleware(nil, "test").(*orphanToolPrunerMiddleware)
 
 	odd := schema.ToolMessage("no_id", "")

@@ -1,4 +1,4 @@
-﻿package knowledge
+package knowledge
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"github.com/cloudwego/eino/schema"
 )
 
-// BuildKnowledgeRetrieveChain 编译「查询字符串 → 文档列表」的 Eino Chain（MultiQuery → 向量 → 重排 → 后处理）。
+// BuildKnowledgeRetrieveChain 编译「查询string → 文档list」的 Eino Chain（MultiQuery → 向量 → 重排 → 后处理）。
 func BuildKnowledgeRetrieveChain(ctx context.Context, r *Retriever) (compose.Runnable[string, []*schema.Document], error) {
 	if r == nil {
 		return nil, fmt.Errorf("retriever is nil")

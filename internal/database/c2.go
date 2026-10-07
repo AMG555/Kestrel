@@ -11,16 +11,16 @@ import (
 	"go.uber.org/zap"
 )
 
-// ErrNoValidC2EventIDs 批量删除事件时未提供任何合法 ID
+// ErrNoValidC2EventIDs is returned when no valid IDs are provided for bulk event deletion
 var ErrNoValidC2EventIDs = errors.New("no valid event ids")
 
-// ErrNoValidC2TaskIDs 批量删除任务时未提供任何合法 ID
+// ErrNoValidC2TaskIDs is returned when no valid IDs are provided for bulk task deletion
 var ErrNoValidC2TaskIDs = errors.New("no valid task ids")
 
-// ErrNoValidC2SessionIDs 批量删除会话时未提供任何合法 ID
+// ErrNoValidC2SessionIDs is returned when no valid IDs are provided for bulk session deletion
 var ErrNoValidC2SessionIDs = errors.New("no valid session ids")
 
-// validC2TextIDForDelete 校验 C2 文本主键（e_/t_/s_/… 等）用于批量删除入参
+// validC2TextIDForDelete validates C2 text primary keys (e_/t_/s_/... etc.) for bulk delete input
 func validC2TextIDForDelete(id string) bool {
 	if len(id) < 2 || len(id) > 80 {
 		return false
@@ -35,27 +35,27 @@ func validC2TextIDForDelete(id string) bool {
 }
 
 // ============================================================================
-// C2 模块数据模型 — 6 张表的领域类型
-// 设计要点：
-//   - 全部使用文本主键（l_/s_/t_/f_/e_/p_ 前缀），与项目现有 ws_/v_ 风格一致；
-//   - 时间字段统一 time.Time，由 SQLite 自动序列化为 ISO8601；
-//   - 大字段（profile 配置、心跳元数据、任务结果）走 JSON 文本，避免频繁加列；
-//   - 任意会话/任务/文件均可按 listener_id / session_id 级联删除（FOREIGN KEY ON DELETE CASCADE）。
+// C2 module data model — domain types for 6 tables
+// Design notes:
+//   - all use text primary keys (l_/s_/t_/f_/e_/p_ prefixes), consistent with the existing project ws_/v_ style;
+//   - time fields uniformly use time.Time, auto-serialized to ISO8601 by SQLite;
+//   - large fields (profile config, heartbeat metadata, task result) use JSON text to avoid frequent column additions;
+//   - any session/task/file can be cascade-deleted by listener_id / session_id (FOREIGN KEY ON DELETE CASCADE).
 // ============================================================================
 
-// C2Listener 监听器实体
+// C2Listener is the listener entity
 type C2Listener struct {
 	ID            string     `json:"id"`
 	ProjectID     string     `json:"project_id,omitempty"`
 	Name          string     `json:"name"`
 	Type          string     `json:"type"`       // tcp_reverse|http_beacon|https_beacon|websocket|dns
-	BindHost      string     `json:"bindHost"`   // 默认 127.0.0.1
+	BindHost      string     `json:"bindHost"`   // default 127.0.0.1
 	BindPort      int        `json:"bindPort"`   // 1-65535
-	ProfileID     string     `json:"profileId"`  // 可空：关联 c2_profiles.id
-	EncryptionKey string     `json:"-"`          // base64(AES-256)，前端不返回
-	ImplantToken  string     `json:"-"`          // beacon 携带的鉴权 token，前端不返回
+	ProfileID     string     `json:"profileId"`  // nullable: associated c2_profiles.id
+	EncryptionKey string     `json:"-"`          // base64(AES-256), not returned to frontend
+	ImplantToken  string     `json:"-"`          // auth token carried by beacon, not returned to frontend
 	Status        string     `json:"status"`     // stopped|running|error
-	ConfigJSON    string     `json:"configJson"` // TLS 证书路径 / URI 模式 / 上限并发 等
+	ConfigJSON    string     `json:"configJson"` // TLS cert path / URI pattern / max concurrency etc.
 	Remark        string     `json:"remark"`
 	OwnerUserID   string     `json:"ownerUserId,omitempty"`
 	CreatedAt     time.Time  `json:"createdAt"`
@@ -63,7 +63,7 @@ type C2Listener struct {
 	LastError     string     `json:"lastError,omitempty"`
 }
 
-// C2Session 已上线会话
+// C2Session is an online session
 type C2Session struct {
 	ID            string                 `json:"id"`
 	ListenerID    string                 `json:"listenerId"`
@@ -87,7 +87,7 @@ type C2Session struct {
 	Note          string                 `json:"note"`
 }
 
-// C2Task 下发任务
+// C2Task is a dispatched task
 type C2Task struct {
 	ID             string                 `json:"id"`
 	SessionID      string                 `json:"sessionId"`
@@ -107,7 +107,7 @@ type C2Task struct {
 	DurationMS     int64                  `json:"durationMs,omitempty"`
 }
 
-// C2File 上传/下载凭证
+// C2File is an upload/download credential
 type C2File struct {
 	ID         string    `json:"id"`
 	SessionID  string    `json:"sessionId"`
@@ -120,7 +120,7 @@ type C2File struct {
 	CreatedAt  time.Time `json:"createdAt"`
 }
 
-// C2Event 事件审计
+// C2Event is an event audit record
 type C2Event struct {
 	ID        string                 `json:"id"`
 	Level     string                 `json:"level"`    // info|warn|critical
@@ -148,10 +148,10 @@ type C2Profile struct {
 }
 
 // ----------------------------------------------------------------------------
-// CRUD：C2 监听器
+// CRUD: C2 listeners
 // ----------------------------------------------------------------------------
 
-// CreateC2Listener 写入新监听器；ID/Name 由调用方生成校验
+// CreateC2Listener writes a new listener; ID/Name are generated and validated by the caller
 func (db *DB) CreateC2Listener(l *C2Listener) error {
 	if l == nil || strings.TrimSpace(l.ID) == "" {
 		return errors.New("listener id is required")
@@ -175,13 +175,13 @@ func (db *DB) CreateC2Listener(l *C2Listener) error {
 		l.ImplantToken, l.Status, l.ConfigJSON, l.Remark, l.OwnerUserID, l.CreatedAt, l.StartedAt, l.LastError,
 	)
 	if err != nil {
-		db.logger.Error("创建 C2 监听器失败", zap.Error(err), zap.String("id", l.ID))
+		db.logger.Error("create C2 listener failed", zap.Error(err), zap.String("id", l.ID))
 		return err
 	}
 	return nil
 }
 
-// UpdateC2Listener 更新监听器；空字段也会被覆盖（请先 GetC2Listener 拿到完整对象再改）
+// UpdateC2Listener updates a listener; empty fields will also be overwritten (get the full object via GetC2Listener first before modifying)
 func (db *DB) UpdateC2Listener(l *C2Listener) error {
 	if l == nil || strings.TrimSpace(l.ID) == "" {
 		return errors.New("listener id is required")
@@ -200,7 +200,7 @@ func (db *DB) UpdateC2Listener(l *C2Listener) error {
 		l.ImplantToken, l.Status, l.ConfigJSON, l.Remark, l.OwnerUserID, l.StartedAt, l.LastError, l.ID,
 	)
 	if err != nil {
-		db.logger.Error("更新 C2 监听器失败", zap.Error(err), zap.String("id", l.ID))
+		db.logger.Error("update C2 listener failed", zap.Error(err), zap.String("id", l.ID))
 		return err
 	}
 	affected, _ := res.RowsAffected()
@@ -210,7 +210,7 @@ func (db *DB) UpdateC2Listener(l *C2Listener) error {
 	return nil
 }
 
-// SetC2ListenerStatus 仅更新状态/started_at/last_error 三个字段，避免与全量更新竞争
+// SetC2ListenerStatus updates only status/started_at/last_error fields to avoid contention with full updates
 func (db *DB) SetC2ListenerStatus(id, status, lastError string, startedAt *time.Time) error {
 	query := `
 		UPDATE c2_listeners SET status = ?, last_error = ?, started_at = COALESCE(?, started_at)
@@ -227,7 +227,7 @@ func (db *DB) SetC2ListenerStatus(id, status, lastError string, startedAt *time.
 	return nil
 }
 
-// GetC2Listener 单条查询
+// GetC2Listener queries a single listener
 func (db *DB) GetC2Listener(id string) (*C2Listener, error) {
 	query := `
 		SELECT id, COALESCE(project_id, ''), name, type, bind_host, bind_port, COALESCE(profile_id, ''),
@@ -257,7 +257,7 @@ func (db *DB) GetC2Listener(id string) (*C2Listener, error) {
 	return &l, nil
 }
 
-// ListC2Listeners 全量列表，按创建时间倒序
+// ListC2Listeners returns all listeners ordered by created_at descending
 func (db *DB) ListC2Listeners() ([]*C2Listener, error) {
 	query := `
 		SELECT id, COALESCE(project_id, ''), name, type, bind_host, bind_port, COALESCE(profile_id, ''),
@@ -281,7 +281,7 @@ func (db *DB) ListC2Listeners() ([]*C2Listener, error) {
 			&l.ConfigJSON, &l.Remark,
 			&l.OwnerUserID, &l.CreatedAt, &startedAt, &l.LastError,
 		); err != nil {
-			db.logger.Warn("扫描 c2_listeners 行失败", zap.Error(err))
+			db.logger.Warn("scan c2_listeners row failed", zap.Error(err))
 			continue
 		}
 		if startedAt.Valid {
@@ -328,7 +328,7 @@ func (db *DB) ListC2ListenersForAccess(access RBACListAccess, projectID string) 
 			&l.ConfigJSON, &l.Remark, &l.OwnerUserID,
 			&l.CreatedAt, &startedAt, &l.LastError,
 		); err != nil {
-			db.logger.Warn("扫描 c2_listeners 行失败", zap.Error(err))
+			db.logger.Warn("scan c2_listeners row failed", zap.Error(err))
 			continue
 		}
 		if startedAt.Valid {
@@ -360,7 +360,7 @@ func appendC2ListenerAccessFilter(conditions *[]string, args *[]interface{}, acc
 	*conditions = append(*conditions, "("+strings.Join(clauses, " OR ")+")")
 }
 
-// DeleteC2Listener 级联删除（会话/任务/文件/事件随之消失）
+// DeleteC2Listener cascade-deletes (sessions/tasks/files/events are also deleted)
 func (db *DB) DeleteC2Listener(id string) error {
 	res, err := db.Exec(`DELETE FROM c2_listeners WHERE id = ?`, id)
 	if err != nil {
@@ -374,10 +374,10 @@ func (db *DB) DeleteC2Listener(id string) error {
 }
 
 // ----------------------------------------------------------------------------
-// CRUD：C2 会话
+// CRUD: C2 sessions
 // ----------------------------------------------------------------------------
 
-// UpsertC2Session 按 implant_uuid 唯一约束：首次插入 / 已存在则更新心跳和状态
+// UpsertC2Session upserts by implant_uuid unique constraint: insert on first occurrence / update heartbeat and status if already exists
 func (db *DB) UpsertC2Session(s *C2Session) error {
 	if s == nil || strings.TrimSpace(s.ID) == "" || strings.TrimSpace(s.ImplantUUID) == "" {
 		return errors.New("session id and implant_uuid are required")
@@ -431,13 +431,13 @@ func (db *DB) UpsertC2Session(s *C2Session) error {
 		metadataJSON, s.Note,
 	)
 	if err != nil {
-		db.logger.Error("upsert C2 会话失败", zap.Error(err), zap.String("implant_uuid", s.ImplantUUID))
+		db.logger.Error("upsert C2 session failed", zap.Error(err), zap.String("implant_uuid", s.ImplantUUID))
 		return err
 	}
 	return nil
 }
 
-// TouchC2Session 仅更新 last_check_in / status，性能比 UpsertC2Session 高，给 beacon 高频心跳用
+// TouchC2Session updates only last_check_in / status; higher performance than UpsertC2Session, for high-frequency beacon heartbeats
 func (db *DB) TouchC2Session(id, status string, t time.Time) error {
 	if t.IsZero() {
 		t = time.Now()
@@ -453,7 +453,7 @@ func (db *DB) TouchC2Session(id, status string, t time.Time) error {
 	return nil
 }
 
-// SetC2SessionStatus 单独改状态
+// SetC2SessionStatus changes status independently
 func (db *DB) SetC2SessionStatus(id, status string) error {
 	res, err := db.Exec(`UPDATE c2_sessions SET status = ? WHERE id = ?`, status, id)
 	if err != nil {
@@ -466,7 +466,7 @@ func (db *DB) SetC2SessionStatus(id, status string) error {
 	return nil
 }
 
-// SetC2SessionSleep 改 sleep / jitter（操作员或 AI 主动调整心跳节律）
+// SetC2SessionSleep changes sleep / jitter (operator or AI actively adjusts heartbeat interval)
 func (db *DB) SetC2SessionSleep(id string, sleepSeconds, jitterPercent int) error {
 	if sleepSeconds < 0 {
 		sleepSeconds = 0
@@ -489,18 +489,18 @@ func (db *DB) SetC2SessionSleep(id string, sleepSeconds, jitterPercent int) erro
 	return nil
 }
 
-// SetC2SessionNote 改备注
+// SetC2SessionNote changes the Remark
 func (db *DB) SetC2SessionNote(id, note string) error {
 	_, err := db.Exec(`UPDATE c2_sessions SET note = ? WHERE id = ?`, note, id)
 	return err
 }
 
-// GetC2Session 按内部 ID 查
+// GetC2Session queries by internal ID
 func (db *DB) GetC2Session(id string) (*C2Session, error) {
 	return db.queryC2SessionWhere(`id = ?`, id)
 }
 
-// GetC2SessionByImplantUUID 按 implant 自报的 UUID 查（重连必需）
+// GetC2SessionByImplantUUID queries by the implant's self-reported UUID (required for reconnection)
 func (db *DB) GetC2SessionByImplantUUID(uuid string) (*C2Session, error) {
 	return db.queryC2SessionWhere(`implant_uuid = ?`, uuid)
 }
@@ -539,18 +539,18 @@ func (db *DB) queryC2SessionWhere(whereClause string, args ...interface{}) (*C2S
 	return &s, nil
 }
 
-// ListC2SessionsFilter 列表过滤参数
+// ListC2SessionsFilter is the list filter parameter
 type ListC2SessionsFilter struct {
 	ListenerID string
 	ProjectID  string
-	Status     string // active|sleeping|dead|killed；空表示全部
+	Status     string // active|sleeping|dead|killed; empty means all
 	OS         string
-	Search     string // 模糊匹配 hostname/username/internal_ip
-	Suspicious bool   // 疑似误报：离线且 hostname 为 tcp_* / 用户名为 unknown / PID 为 0
-	Limit      int    // 0 表示无限制
+	Search     string // fuzzy match on hostname/username/internal_ip
+	Suspicious bool   // suspected false positive: offline and hostname is tcp_* / username is unknown / PID is 0
+	Limit      int    // 0 means no limit
 }
 
-// ListC2Sessions 列表，按 last_check_in 倒序
+// ListC2Sessions lists sessions ordered by last_check_in descending
 func (db *DB) ListC2Sessions(filter ListC2SessionsFilter) ([]*C2Session, error) {
 	conditions := []string{"1=1"}
 	args := []interface{}{}
@@ -620,7 +620,7 @@ func (db *DB) ListC2Sessions(filter ListC2SessionsFilter) ([]*C2Session, error) 
 			&s.Status, &s.FirstSeenAt, &s.LastCheckIn, &metadataJSON,
 			&s.Note,
 		); err != nil {
-			db.logger.Warn("扫描 c2_sessions 行失败", zap.Error(err))
+			db.logger.Warn("scan c2_sessions row failed", zap.Error(err))
 			continue
 		}
 		s.IsAdmin = isAdminInt != 0
@@ -712,7 +712,7 @@ func (db *DB) scanC2SessionRows(rows *sql.Rows) ([]*C2Session, error) {
 			&s.Status, &s.FirstSeenAt, &s.LastCheckIn, &metadataJSON,
 			&s.Note,
 		); err != nil {
-			db.logger.Warn("扫描 c2_sessions 行失败", zap.Error(err))
+			db.logger.Warn("scan c2_sessions row failed", zap.Error(err))
 			continue
 		}
 		s.IsAdmin = isAdminInt != 0
@@ -747,7 +747,7 @@ func appendC2SessionAccessFilter(conditions *[]string, args *[]interface{}, acce
 	*conditions = append(*conditions, "("+strings.Join(clauses, " OR ")+")")
 }
 
-// DeleteC2Session 级联删除其 tasks/files
+// DeleteC2Session cascade-deletes its tasks/files
 func (db *DB) DeleteC2Session(id string) error {
 	res, err := db.Exec(`DELETE FROM c2_sessions WHERE id = ?`, id)
 	if err != nil {
@@ -760,7 +760,7 @@ func (db *DB) DeleteC2Session(id string) error {
 	return nil
 }
 
-// DeleteC2SessionsByIDs 按主键批量删除会话
+// DeleteC2SessionsByIDs batch deletes sessions by primary key.
 func (db *DB) DeleteC2SessionsByIDs(ids []string) (int64, error) {
 	if len(ids) == 0 {
 		return 0, nil
@@ -822,10 +822,10 @@ func (db *DB) DeleteC2SessionsByIDsForAccess(ids []string, access RBACListAccess
 }
 
 // ----------------------------------------------------------------------------
-// CRUD：C2 任务
+// CRUD：C2 task
 // ----------------------------------------------------------------------------
 
-// CreateC2Task 入队一个新任务
+// CreateC2Task enqueues a new task.
 func (db *DB) CreateC2Task(t *C2Task) error {
 	if t == nil || strings.TrimSpace(t.ID) == "" {
 		return errors.New("task id is required")
@@ -857,13 +857,13 @@ func (db *DB) CreateC2Task(t *C2Task) error {
 		t.CreatedAt, t.SentAt, t.StartedAt, t.CompletedAt, t.DurationMS,
 	)
 	if err != nil {
-		db.logger.Error("创建 C2 任务失败", zap.Error(err), zap.String("id", t.ID))
+		db.logger.Error("create C2 taskfailed", zap.Error(err), zap.String("id", t.ID))
 		return err
 	}
 	return nil
 }
 
-// SetC2TaskStatus 更新任务的状态/结果/错误/时间戳
+// SetC2TaskStatus updates a task's status/result/error/timestamps.
 type C2TaskUpdate struct {
 	ExpectedStatus *string // Optional compare-and-swap guard for terminal transitions.
 	Status         *string
@@ -877,7 +877,7 @@ type C2TaskUpdate struct {
 	DurationMS     *int64
 }
 
-// UpdateC2Task 增量更新任务字段；nil 字段保持原值
+// UpdateC2Task incrementally updates task fields; nil fields retain their current value.
 func (db *DB) UpdateC2Task(id string, u C2TaskUpdate) error {
 	sets := []string{}
 	args := []interface{}{}
@@ -937,7 +937,7 @@ func (db *DB) UpdateC2Task(id string, u C2TaskUpdate) error {
 	return nil
 }
 
-// GetC2Task 单条
+// GetC2Task retrieves a single task by ID.
 func (db *DB) GetC2Task(id string) (*C2Task, error) {
 	query := `
 		SELECT id, session_id, task_type, COALESCE(payload_json, '{}'),
@@ -981,7 +981,7 @@ func (db *DB) GetC2Task(id string) (*C2Task, error) {
 	return &t, nil
 }
 
-// ListC2TasksFilter 任务过滤
+// ListC2TasksFilter taskfilter
 type ListC2TasksFilter struct {
 	SessionID string
 	ProjectID string
@@ -1061,7 +1061,7 @@ func buildC2TasksWhereForAccess(filter ListC2TasksFilter, access RBACListAccess)
 	return strings.Join(conditions, " AND "), args
 }
 
-// CountC2Tasks 与 ListC2Tasks 相同过滤条件下的记录总数
+// CountC2Tasks counts records using the same filters as ListC2Tasks.
 func (db *DB) CountC2Tasks(filter ListC2TasksFilter) (int64, error) {
 	where, args := buildC2TasksWhere(filter)
 	query := `SELECT COUNT(*) FROM c2_tasks WHERE ` + where
@@ -1078,7 +1078,7 @@ func (db *DB) CountC2TasksForAccess(filter ListC2TasksFilter, access RBACListAcc
 	return n, err
 }
 
-// CountC2TasksByStatusForAccess 与 ListC2Tasks 相同过滤条件下按状态统计
+// CountC2TasksByStatusForAccess counts tasks by status using the same filters as ListC2Tasks.
 func (db *DB) CountC2TasksByStatusForAccess(filter ListC2TasksFilter, access RBACListAccess) (map[string]int64, error) {
 	where, args := buildC2TasksWhereForAccess(filter, access)
 	query := `SELECT status, COUNT(*) FROM c2_tasks WHERE ` + where + ` GROUP BY status`
@@ -1115,7 +1115,7 @@ func (db *DB) CountC2TasksByStatusForAccess(filter ListC2TasksFilter, access RBA
 	return counts, rows.Err()
 }
 
-// CountC2TasksQueuedOrPending 统计 queued/pending 状态任务数（仪表盘「待审任务」）
+// CountC2TasksQueuedOrPending counts tasks with queued/pending status (dashboard 'pending tasks').
 func (db *DB) CountC2TasksQueuedOrPending(sessionID string) (int64, error) {
 	conditions := []string{"status IN ('queued', 'pending')"}
 	args := []interface{}{}
@@ -1138,7 +1138,7 @@ func (db *DB) CountC2TasksQueuedOrPendingForAccess(sessionID, projectID string, 
 	return n, err
 }
 
-// ListC2Tasks 任务列表，按创建时间倒序
+// ListC2Tasks lists tasks in descending order by created_at.
 func (db *DB) ListC2Tasks(filter ListC2TasksFilter) ([]*C2Task, error) {
 	where, args := buildC2TasksWhere(filter)
 	query := `
@@ -1180,7 +1180,7 @@ func (db *DB) ListC2Tasks(filter ListC2TasksFilter) ([]*C2Task, error) {
 			&t.ConversationID, &t.ApprovalStatus,
 			&t.CreatedAt, &sentAt, &startedAt, &completedAt, &t.DurationMS,
 		); err != nil {
-			db.logger.Warn("扫描 c2_tasks 行失败", zap.Error(err))
+			db.logger.Warn("failed to scan c2_tasks row", zap.Error(err))
 			continue
 		}
 		if payloadJSON != "" && payloadJSON != "{}" {
@@ -1248,7 +1248,7 @@ func (db *DB) scanC2TaskRows(rows *sql.Rows) ([]*C2Task, error) {
 			&t.ConversationID, &t.ApprovalStatus,
 			&t.CreatedAt, &sentAt, &startedAt, &completedAt, &t.DurationMS,
 		); err != nil {
-			db.logger.Warn("扫描 c2_tasks 行失败", zap.Error(err))
+			db.logger.Warn("failed to scan c2_tasks row", zap.Error(err))
 			continue
 		}
 		if payloadJSON != "" && payloadJSON != "{}" {
@@ -1271,7 +1271,7 @@ func (db *DB) scanC2TaskRows(rows *sql.Rows) ([]*C2Task, error) {
 	return list, rows.Err()
 }
 
-// PopQueuedC2Tasks 取出某会话所有 queued/approved 任务（用于 beacon 拉取），原子置为 sent
+// PopQueuedC2Tasks atomically pops all queued/approved tasks for a session (used by beacon to fetch), marking them as sent.
 func (db *DB) PopQueuedC2Tasks(sessionID string, limit int) ([]*C2Task, error) {
 	if limit <= 0 {
 		limit = 50
@@ -1332,7 +1332,7 @@ func (db *DB) PopQueuedC2Tasks(sessionID string, limit int) ([]*C2Task, error) {
 	return list, nil
 }
 
-// DeleteC2Task 删除任务（一般用于 cancel queued）
+// DeleteC2Task deletes a task (typically used to cancel a queued task).
 func (db *DB) DeleteC2Task(id string) error {
 	res, err := db.Exec(`DELETE FROM c2_tasks WHERE id = ?`, id)
 	if err != nil {
@@ -1345,7 +1345,7 @@ func (db *DB) DeleteC2Task(id string) error {
 	return nil
 }
 
-// DeleteC2TasksByIDs 按主键批量删除任务
+// DeleteC2TasksByIDs batch deletes tasks by primary key.
 func (db *DB) DeleteC2TasksByIDs(ids []string) (int64, error) {
 	if len(ids) == 0 {
 		return 0, nil
@@ -1407,10 +1407,10 @@ func (db *DB) DeleteC2TasksByIDsForAccess(ids []string, access RBACListAccess) (
 }
 
 // ----------------------------------------------------------------------------
-// CRUD：C2 文件
+// CRUD：C2 file
 // ----------------------------------------------------------------------------
 
-// CreateC2File 记录上传/下载凭证（实际文件落盘由调用方处理）
+// CreateC2File records an upload/download credential (actual file persistence is handled by the caller).
 func (db *DB) CreateC2File(f *C2File) error {
 	if f == nil || strings.TrimSpace(f.ID) == "" {
 		return errors.New("file id is required")
@@ -1428,7 +1428,7 @@ func (db *DB) CreateC2File(f *C2File) error {
 	return err
 }
 
-// ListC2FilesBySession 列出某会话下所有上传/下载凭证
+// ListC2FilesBySession lists all upload/download credentials for a session.
 func (db *DB) ListC2FilesBySession(sessionID string) ([]*C2File, error) {
 	query := `
 		SELECT id, session_id, COALESCE(task_id, ''), direction, remote_path, local_path,
@@ -1474,10 +1474,10 @@ func cleanC2IDs(ids []string) []string {
 }
 
 // ----------------------------------------------------------------------------
-// CRUD：C2 事件审计
+// CRUD: C2 event audit.
 // ----------------------------------------------------------------------------
 
-// AppendC2Event 写一条审计事件
+// AppendC2Event writes a single audit event.
 func (db *DB) AppendC2Event(e *C2Event) error {
 	if e == nil {
 		return errors.New("event is nil")
@@ -1507,7 +1507,7 @@ func (db *DB) AppendC2Event(e *C2Event) error {
 	return err
 }
 
-// ListC2EventsFilter 事件查询参数
+// ListC2EventsFilter holds event query parameters.
 type ListC2EventsFilter struct {
 	Level     string
 	Category  string
@@ -1638,7 +1638,7 @@ func buildC2EventsWhereForAccess(filter ListC2EventsFilter, access RBACListAcces
 	return strings.Join(conditions, " AND "), args
 }
 
-// CountC2Events 与 ListC2Events 相同过滤条件下的记录总数
+// CountC2Events counts records using the same filters as ListC2Events.
 func (db *DB) CountC2Events(filter ListC2EventsFilter) (int64, error) {
 	where, args := buildC2EventsWhere(filter)
 	query := `SELECT COUNT(*) FROM c2_events WHERE ` + where
@@ -1655,7 +1655,7 @@ func (db *DB) CountC2EventsForAccess(filter ListC2EventsFilter, access RBACListA
 	return n, err
 }
 
-// CountC2EventsByLevelForAccess 与 ListC2Events 相同过滤条件下按级别统计
+// CountC2EventsByLevelForAccess counts events by level using the same filters as ListC2Events.
 func (db *DB) CountC2EventsByLevelForAccess(filter ListC2EventsFilter, access RBACListAccess) (map[string]int64, error) {
 	where, args := buildC2EventsWhereForAccess(filter, access)
 	query := `SELECT level, COUNT(*) FROM c2_events WHERE ` + where + ` GROUP BY level`
@@ -1682,7 +1682,7 @@ func (db *DB) CountC2EventsByLevelForAccess(filter ListC2EventsFilter, access RB
 	return counts, rows.Err()
 }
 
-// ListC2Events 事件查询，按创建时间倒序
+// ListC2Events queries events in descending order by created_at.
 func (db *DB) ListC2Events(filter ListC2EventsFilter) ([]*C2Event, error) {
 	where, args := buildC2EventsWhere(filter)
 	limit := filter.Limit
@@ -1767,7 +1767,7 @@ func scanC2EventRows(rows *sql.Rows) ([]*C2Event, error) {
 	return list, rows.Err()
 }
 
-// DeleteC2EventsByIDs 按主键批量删除事件，返回实际删除行数
+// DeleteC2EventsByIDs batch deletes events by primary key, returning the actual number of deleted rows.
 func (db *DB) DeleteC2EventsByIDs(ids []string) (int64, error) {
 	if len(ids) == 0 {
 		return 0, nil
@@ -1832,7 +1832,7 @@ func (db *DB) DeleteC2EventsByIDsForAccess(ids []string, access RBACListAccess) 
 // CRUD：C2 Malleable Profile
 // ----------------------------------------------------------------------------
 
-// CreateC2Profile 创建/覆盖 Profile（按 name 唯一）
+// CreateC2Profile creates or overwrites a Profile (unique by name).
 func (db *DB) CreateC2Profile(p *C2Profile) error {
 	if p == nil || strings.TrimSpace(p.ID) == "" {
 		return errors.New("profile id is required")
@@ -1854,7 +1854,7 @@ func (db *DB) CreateC2Profile(p *C2Profile) error {
 	return err
 }
 
-// UpdateC2Profile 全量更新 Profile
+// UpdateC2Profile fully updates a Profile.
 func (db *DB) UpdateC2Profile(p *C2Profile) error {
 	if p == nil || strings.TrimSpace(p.ID) == "" {
 		return errors.New("profile id is required")
@@ -1881,7 +1881,7 @@ func (db *DB) UpdateC2Profile(p *C2Profile) error {
 	return nil
 }
 
-// GetC2Profile 单条
+// GetC2Profile retrieves a single Profile by ID.
 func (db *DB) GetC2Profile(id string) (*C2Profile, error) {
 	query := `
 		SELECT id, name, COALESCE(user_agent, ''), COALESCE(uris_json, '[]'),
@@ -1906,7 +1906,7 @@ func (db *DB) GetC2Profile(id string) (*C2Profile, error) {
 	return &p, nil
 }
 
-// ListC2Profiles 全量列表
+// ListC2Profiles lists all Profiles.
 func (db *DB) ListC2Profiles() ([]*C2Profile, error) {
 	query := `
 		SELECT id, name, COALESCE(user_agent, ''), COALESCE(uris_json, '[]'),
@@ -1936,7 +1936,7 @@ func (db *DB) ListC2Profiles() ([]*C2Profile, error) {
 	return list, rows.Err()
 }
 
-// DeleteC2Profile 删除 Profile（不影响已用此 Profile 的 listener，仅断开关联）
+// DeleteC2Profile deletes a Profile (does not affect listeners that have used this Profile; only removes the association).
 func (db *DB) DeleteC2Profile(id string) error {
 	if _, err := db.Exec(`UPDATE c2_listeners SET profile_id = '' WHERE profile_id = ?`, id); err != nil {
 		return err

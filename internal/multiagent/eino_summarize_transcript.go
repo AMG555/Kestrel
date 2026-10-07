@@ -1,4 +1,4 @@
-﻿package multiagent
+package multiagent
 
 import (
 	"strings"
@@ -18,10 +18,10 @@ const (
 
 `
 	transcriptStaticSystemOmitNote = "[static system prompt omitted — unchanged in live context after compaction]"
-	transcriptToolIndexStartMarker = "以下是当前会话绑定的工具名称索引"
-	transcriptPersonaStartMarker   = "你是Kestrel"
+	transcriptToolIndexStartMarker = "以下yes当前会话bind的tool nameindex"
+	transcriptPersonaStartMarker   = "你yesKestrel"
 	// ADK LanguageChinese injects skill middleware prompt with this header (see eino adk/middlewares/skill/prompt.go).
-	transcriptSkillsSystemMarker        = "# Skill 系统"
+	transcriptSkillsSystemMarker        = "# Skill system"
 	transcriptSkillsSystemMarkerEnglish = "# Skills System"
 )
 

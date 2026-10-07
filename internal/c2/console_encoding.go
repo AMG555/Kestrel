@@ -1,4 +1,4 @@
-﻿package c2
+package c2
 
 import (
 	"encoding/base64"
@@ -9,8 +9,8 @@ import (
 	"golang.org/x/text/transform"
 )
 
-// NormalizeConsoleOutput 将 implant/Shell 原始控制台字节转为 UTF-8 文本。
-// osTag 来自会话的 os 字段（如 windows / Windows 10）；空值时按 auto 处理。
+// NormalizeConsoleOutput converts raw implant/Shell console bytes to UTF-8 text.
+// osTag comes from the session's os field (e.g. windows / Windows 10); empty values are treated as auto.
 func NormalizeConsoleOutput(raw []byte, osTag string) string {
 	if len(raw) == 0 {
 		return ""
@@ -26,14 +26,14 @@ func NormalizeConsoleOutput(raw []byte, osTag string) string {
 			return string(out)
 		}
 	}
-	// 非 Windows 或解码失败：GB18030 兜底（覆盖 GBK）
+	// Non-Windows or decode failed: fall back to GB18030 (covers GBK)
 	if out, _, err := transform.Bytes(simplifiedchinese.GB18030.NewDecoder(), raw); err == nil {
 		return string(out)
 	}
 	return string(raw)
 }
 
-// ResolveTaskResultText 合并 beacon 回传的 Output/OutputB64（及 Error/ErrorB64），按会话 OS 解码。
+// ResolveTaskResultText merges the Output/OutputB64 (and Error/ErrorB64) returned by the beacon, decoding according to the session OS.
 func ResolveTaskResultText(plain, b64, sessionOS string) string {
 	if strings.TrimSpace(b64) != "" {
 		raw, err := base64.StdEncoding.DecodeString(strings.TrimSpace(b64))

@@ -1,4 +1,4 @@
-﻿package multiagent
+package multiagent
 
 import (
 	"io"
@@ -32,10 +32,10 @@ func adaptAgenticEventToEinoEvents(ev *adk.TypedAgentEvent[*schema.AgenticMessag
 	}
 	if mv.IsStreaming {
 		// Tool 流保持 1 event ↔ 1 MessageStream，对齐 ADK EventSenderToolWrapper：
-		// 每个 CallID 在工具包装层就已经是独立事件。这里不能再按 CallID 现场拆成
+		// 每个 CallID 在tool包装层就已经yes独立event。这里不能再按 CallID 现场拆成
 		// 多条 live pipe——drain 会阻塞读完当前流，交错的并行 chunk 会把另一列写满后死锁。
 		// 若上游仍把 ToolsNode 的 MergeStreamReaders 摊成一条流，由
-		// concatToolResultChunks 按列 ConcatMessages 恢复。
+		// concatToolResultChunks 按列 ConcatMessages resume。
 		return []*adk.AgentEvent{base(&adk.AgentOutput{
 			MessageOutput: &adk.MessageVariant{
 				IsStreaming:   true,

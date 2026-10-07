@@ -1,4 +1,4 @@
-﻿package multiagent
+package multiagent
 
 import (
 	"context"
@@ -41,7 +41,7 @@ func (h *einoCheckpointResumeHandler) TryResume() *adk.AsyncIterator[*adk.AgentE
 	} else if !existed {
 		return nil
 	}
-	h.emitProgress("检测到断点，正在从中断节点恢复执行...")
+	h.emitProgress("Checkpoint detected, resuming execution from interrupted node...")
 	if h.cfg.Logger != nil {
 		h.cfg.Logger.Info("eino runner: resume from checkpoint", zap.String("checkPointID", h.cfg.CheckPointID))
 	}
@@ -54,7 +54,7 @@ func (h *einoCheckpointResumeHandler) TryResume() *adk.AsyncIterator[*adk.AgentE
 			zap.String("checkPointID", h.cfg.CheckPointID),
 			zap.Error(err))
 	}
-	h.emitProgress("断点恢复失败，已回退为全新执行。")
+	h.emitProgress("Checkpoint resume failed, falling back to fresh execution.")
 	return nil
 }
 

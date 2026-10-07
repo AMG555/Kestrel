@@ -1,4 +1,4 @@
-﻿//go:build !windows
+//go:build !windows
 
 package security
 
@@ -7,7 +7,7 @@ import (
 	"syscall"
 )
 
-// prepareShellCmdSession 让 shell 子进程在独立会话中运行，便于超时/取消时整组 SIGKILL（含子进程）。
+// prepareShellCmdSession 让 shell child process在独立会话中运行，便于timed out/cancelled时整组 SIGKILL（含child process）。
 func prepareShellCmdSession(cmd *exec.Cmd) error {
 	if cmd == nil {
 		return nil
@@ -19,7 +19,7 @@ func prepareShellCmdSession(cmd *exec.Cmd) error {
 	return nil
 }
 
-// terminateProcessGroup 对 rootPID 对应进程组发 SIGKILL；rootPID 为 0 时回退到 cmd.Process.Pid。
+// terminateProcessGroup 对 rootPID 对应process group发 SIGKILL；rootPID 为 0 时回退到 cmd.Process.Pid。
 func terminateProcessGroup(rootPID int, cmd *exec.Cmd) {
 	pid := rootPID
 	if pid <= 0 && cmd != nil && cmd.Process != nil {
@@ -35,7 +35,7 @@ func terminateProcessGroup(rootPID int, cmd *exec.Cmd) {
 	}
 }
 
-// terminateCmdTree 尽力终止 cmd 及其进程组（Unix 下 Setsid 后 PGID == 首进程 PID）。
+// terminateCmdTree 尽力终止 cmd 及其process group（Unix 下 Setsid 后 PGID == 首process PID）。
 func terminateCmdTree(cmd *exec.Cmd) {
 	terminateProcessGroup(0, cmd)
 }

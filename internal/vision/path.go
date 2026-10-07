@@ -12,7 +12,7 @@ var allowedImageExt = map[string]struct{}{
 	".bmp": {}, ".tif": {}, ".tiff": {},
 }
 
-// ResolveImagePath 解析并校验可读图片路径（支持任意目录；仍校验扩展名与常规文件）。
+// ResolveImagePath 解析并校验可读图片path（支持任意directory；仍校验扩展名与常规file）。
 func ResolveImagePath(path string, cwd string) (string, error) {
 	p := strings.TrimSpace(path)
 	if p == "" {

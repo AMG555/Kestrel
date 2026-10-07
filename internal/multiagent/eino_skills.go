@@ -1,4 +1,4 @@
-﻿package multiagent
+package multiagent
 
 import (
 	"context"
@@ -205,7 +205,7 @@ func parseToolArgumentsObject(raw string) map[string]interface{} {
 	return args
 }
 
-// agentToolTimeoutMinutes 返回 agent.tool_timeout_minutes（与 executeToolViaMCP 一致）；cfg 为 nil 时 0。
+// agentToolTimeoutMinutes returns agent.tool_timeout_minutes (consistent with executeToolViaMCP); returns 0 when cfg is nil.
 func agentToolTimeoutMinutes(cfg *config.Config) int {
 	if cfg == nil {
 		return 0
@@ -220,7 +220,7 @@ func agentToolWaitTimeoutSeconds(cfg *config.Config) int {
 	return cfg.Agent.ToolWaitTimeoutSeconds
 }
 
-// agentShellNoOutputTimeoutSeconds：0=默认 300s（5 分钟）；-1=关闭；>0=自定义秒数。
+// agentShellNoOutputTimeoutSeconds: 0=default 300s (5 minutes); -1=disabled; >0=custom seconds.
 func agentShellNoOutputTimeoutSeconds(cfg *config.Config) int {
 	if cfg == nil {
 		return 300

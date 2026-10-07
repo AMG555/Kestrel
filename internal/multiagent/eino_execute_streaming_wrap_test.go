@@ -1,4 +1,4 @@
-﻿package multiagent
+package multiagent
 
 import (
 	"context"
@@ -297,7 +297,7 @@ func TestEinoStreamingShellWrap_ToolTimeoutRecvErrIsSoft(t *testing.T) {
 		invokeNotify:       notify,
 		toolTimeoutMinutes: 60,
 	}
-	// 生产路径由 Eino compose 注入 toolCallID；单测通过已过期 execCtx 识别 tool_timeout 软错误。
+	// 生产path由 Eino compose 注入 toolCallID；单测通过已过期 execCtx 识别 tool_timeout 软error。
 	tctx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
 	defer cancel()
 	time.Sleep(2 * time.Millisecond)

@@ -1,11 +1,11 @@
-﻿package multiagent
+package multiagent
 
 import (
 	"encoding/json"
 	"strings"
 )
 
-// UnwrapPlanExecuteUserText 若模型输出单层 JSON 且含常见「对用户回复」字段，则取出纯文本；否则原样返回。
+// UnwrapPlanExecuteUserText 若model输出单层 JSON 且含常见「对user回复」字段，则取出纯文本；no则原样back。
 // 用于 Plan-Execute 下 executor 套 `{"response":"..."}` 或误把 replanner/planner JSON 当作最终气泡时的缓解。
 func UnwrapPlanExecuteUserText(s string) string {
 	s = strings.TrimSpace(s)

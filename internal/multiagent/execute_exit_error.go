@@ -1,8 +1,8 @@
-﻿package multiagent
+package multiagent
 
 import "fmt"
 
-// ExecuteExitError 表示 execute 命令非零退出（预期失败，非超时/中断/流异常）。
+// ExecuteExitError 表示 execute 命令非零exit（预期failed，非timed out/中断/流abnormal）。
 type ExecuteExitError struct {
 	Code int
 }

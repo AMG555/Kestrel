@@ -1,4 +1,4 @@
-﻿package robot
+package robot
 
 import (
 	"bytes"
@@ -21,8 +21,8 @@ const (
 	dingReconnectMax     = 60 * time.Second // 最大重连间隔
 )
 
-// StartDing 启动钉钉 Stream 长连接（无需公网），收到消息后调用 handler 并通过 SessionWebhook 回复。
-// 断线（如笔记本睡眠、网络中断）后会自动重连；ctx 被取消时退出，便于配置变更时重启。
+// StartDing startDingTalk Stream 长连接（none需公网），收到message后调用 handler 并通过 SessionWebhook 回复。
+// 断线（如笔记本睡眠、network中断）后会自动重连；ctx 被cancelled时exit，便于config变更时重启。
 func StartDing(ctx context.Context, robotsCfg config.RobotsConfig, h MessageHandler, logger *zap.Logger) {
 	cfg := robotsCfg.Dingtalk
 	if !cfg.Enabled || cfg.ClientID == "" || cfg.ClientSecret == "" {
@@ -31,7 +31,7 @@ func StartDing(ctx context.Context, robotsCfg config.RobotsConfig, h MessageHand
 	go runDingLoop(ctx, cfg, robotsCfg.Session.StrictUserIdentityEnabled(), h, logger)
 }
 
-// runDingLoop 循环维持钉钉长连接：断开且 ctx 未取消时按退避间隔重连。
+// runDingLoop 循环维持DingTalk长连接：断开且 ctx 未cancelled时按退避间隔重连。
 func runDingLoop(ctx context.Context, cfg config.RobotDingtalkConfig, strictUserIdentity bool, h MessageHandler, logger *zap.Logger) {
 	backoff := dingReconnectInitial
 	for {
@@ -43,20 +43,20 @@ func runDingLoop(ctx context.Context, cfg config.RobotDingtalkConfig, strictUser
 					return nil, nil
 				}).OnEventReceived),
 		)
-		logger.Info("钉钉 Stream 正在连接…", zap.String("client_id", cfg.ClientID))
+		logger.Info("DingTalk Stream 正在连接…", zap.String("client_id", cfg.ClientID))
 		err := streamClient.Start(ctx)
 		if ctx.Err() != nil {
-			logger.Info("钉钉 Stream 已按配置重启关闭")
+			logger.Info("DingTalk Stream 已按config重启close")
 			return
 		}
 		if err != nil {
-			logger.Warn("钉钉 Stream 长连接断开（如睡眠/断网），将自动重连", zap.Error(err), zap.Duration("retry_after", backoff))
+			logger.Warn("DingTalk Stream 长连接断开（如睡眠/断网），将自动重连", zap.Error(err), zap.Duration("retry_after", backoff))
 		}
 		select {
 		case <-ctx.Done():
 			return
 		case <-time.After(backoff):
-			// 下次重连间隔递增，上限 60 秒，避免频繁重试
+			// 下次重连间隔递增，上限 60 秒，避免频繁retry
 			if backoff < dingReconnectMax {
 				backoff *= 2
 				if backoff > dingReconnectMax {
@@ -90,10 +90,10 @@ func handleDingMessage(ctx context.Context, msg *chatbot.BotCallbackDataModel, c
 		}
 	}
 	if content == "" {
-		logger.Debug("钉钉消息内容为空，已忽略", zap.String("msgtype", msg.Msgtype))
+		logger.Debug("DingTalkMessage content为null，已忽略", zap.String("msgtype", msg.Msgtype))
 		return
 	}
-	logger.Info("钉钉收到消息", zap.String("sender", msg.SenderId), zap.String("content", content))
+	logger.Info("DingTalk收到message", zap.String("sender", msg.SenderId), zap.String("content", content))
 	tenantKey := strings.TrimSpace(cfg.ClientID)
 	if tenantKey == "" {
 		tenantKey = "default"
@@ -108,11 +108,11 @@ func handleDingMessage(ctx context.Context, msg *chatbot.BotCallbackDataModel, c
 		}
 	}
 	if userID == "" {
-		logger.Warn("钉钉消息缺少可用用户标识，已忽略")
+		logger.Warn("DingTalkmessage缺少可用user标识，已忽略")
 		return
 	}
 	reply := h.HandleMessage("dingtalk", userID, content)
-	// 使用 markdown 类型以便正确展示标题、列表、代码块等格式
+	// 使用 markdown type以便正确展示title、list、代码块等format
 	title := reply
 	if idx := strings.IndexAny(reply, "\n"); idx > 0 {
 		title = strings.TrimSpace(reply[:idx])
@@ -133,19 +133,19 @@ func handleDingMessage(ctx context.Context, msg *chatbot.BotCallbackDataModel, c
 	bodyBytes, _ := json.Marshal(body)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, msg.SessionWebhook, bytes.NewReader(bodyBytes))
 	if err != nil {
-		logger.Warn("钉钉构造回复请求失败", zap.Error(err))
+		logger.Warn("DingTalk构造回复requestfailed", zap.Error(err))
 		return
 	}
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		logger.Warn("钉钉回复请求失败", zap.Error(err))
+		logger.Warn("DingTalk回复requestfailed", zap.Error(err))
 		return
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		logger.Warn("钉钉回复非 200", zap.Int("status", resp.StatusCode))
+		logger.Warn("DingTalk回复非 200", zap.Int("status", resp.StatusCode))
 		return
 	}
-	logger.Debug("钉钉回复成功", zap.String("content_preview", reply))
+	logger.Debug("DingTalk回复successful", zap.String("content_preview", reply))
 }

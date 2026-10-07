@@ -1,16 +1,16 @@
-﻿package multiagent
+package multiagent
 
 import "testing"
 
 func TestIsEinoEmptyResponseResult(t *testing.T) {
 	empty := &RunResult{
 		Response: "(Eino ADK single-agent session completed but no assistant text was captured. Check process details or logs.) " +
-			"（Eino ADK 单代理会话已完成，但未捕获到助手文本输出。请查看过程详情或日志。）",
+			"(Eino ADK single-agent session completed, but no assistant text output was captured. Please check process details or logs.)",
 	}
 	if !IsEinoEmptyResponseResult(empty) {
 		t.Fatal("expected empty placeholder response")
 	}
-	ok := &RunResult{Response: "扫描完成，发现 2 个开放端口。"}
+	ok := &RunResult{Response: "scan complete, found 2 open ports."}
 	if IsEinoEmptyResponseResult(ok) {
 		t.Fatalf("expected real response, got placeholder match")
 	}

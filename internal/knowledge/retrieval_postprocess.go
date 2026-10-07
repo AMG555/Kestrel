@@ -1,4 +1,4 @@
-﻿package knowledge
+package knowledge
 
 import (
 	"context"
@@ -16,7 +16,7 @@ import (
 	"github.com/pkoukk/tiktoken-go"
 )
 
-// postRetrieveMaxPrefetchCap 限制单次向量候选上限，避免误配置导致全表扫压力过大。
+// postRetrieveMaxPrefetchCap 限制单次向量候选上限，避免误config导致全表扫压力过大。
 const postRetrieveMaxPrefetchCap = 200
 
 // DocumentReranker 精排（HTTP dashscope / Cohere 兼容 API），由 [WireRetrieverPipeline] 注入。
@@ -24,7 +24,7 @@ type DocumentReranker interface {
 	Rerank(ctx context.Context, query string, docs []*schema.Document) ([]*schema.Document, error)
 }
 
-// NopDocumentReranker 占位实现，便于测试或未启用重排时显式注入。
+// NopDocumentReranker 占位实现，便于test或未enable重排时显式注入。
 type NopDocumentReranker struct{}
 
 // Rerank implements [DocumentReranker] as no-op.
@@ -65,7 +65,7 @@ func countDocTokens(text, model string) (int, error) {
 	return len(toks), nil
 }
 
-// normalizeContentFingerprintKey 去重键：trim + 空白折叠（不改动大小写，避免合并仅大小写不同的代码片段）。
+// normalizeContentFingerprintKey 去重key：trim + null白折叠（不改动大小写，避免合并仅大小写不同的代码片段）。
 func normalizeContentFingerprintKey(s string) string {
 	s = strings.TrimSpace(s)
 	var b strings.Builder
@@ -122,7 +122,7 @@ func dedupeByNormalizedContent(docs []*schema.Document) []*schema.Document {
 	return out
 }
 
-// truncateDocumentsByBudget 按检索顺序整段保留文档，直至字符数或 token 数（任一启用）超限则停止。
+// truncateDocumentsByBudget 按检索顺序整段保留文档，直至字符数或 token 数（任一enable）超限则stop。
 func truncateDocumentsByBudget(docs []*schema.Document, maxRunes, maxTokens int, tokenModel string) ([]*schema.Document, error) {
 	if len(docs) == 0 {
 		return docs, nil

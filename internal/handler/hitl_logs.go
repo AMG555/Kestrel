@@ -94,8 +94,8 @@ func (h *AgentHandler) buildHitlLogsWhere(logs bool) (string, []interface{}) {
 	if logs {
 		q += " AND status != 'pending'"
 	} else {
-		// 该接口只返回真正等待用户操作的人工审批。Agent 审查即使正在运行，
-		// 也不应触发弹窗、倒计时或项目待审批计数。
+		// This endpoint only returns true for approvals genuinely awaiting user action. Even if an Agent review is running,
+		// it should not trigger a popup, countdown, or project pending-approval count.
 		q += " AND status = 'pending' AND COALESCE(reviewer,'human') = 'human'"
 	}
 	return q, args
@@ -202,14 +202,14 @@ func (h *AgentHandler) hitlRetentionDays() int {
 	return config.HitlConfig{}.RetentionDaysEffective()
 }
 
-// DeleteHITLLogs 批量删除或按筛选清空已决策的人机协同审计日志（不删除 pending）。
+// DeleteHITLLogs bulk-deletes or clears decided HITL audit logs by filter (does not delete pending ones).
 func (h *AgentHandler) DeleteHITLLogs(c *gin.Context) {
 	var request struct {
 		IDs []string `json:"ids"`
 		All bool     `json:"all"`
 	}
 	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "请求参数无效: " + err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request parameters: " + err.Error()})
 		return
 	}
 
@@ -225,13 +225,13 @@ func (h *AgentHandler) DeleteHITLLogs(c *gin.Context) {
 			return
 		}
 		if h.audit != nil {
-			h.audit.RecordOK(c, "hitl", "logs_clear", "清空人机协同审计日志", "hitl_interrupt", "", map[string]interface{}{
+			h.audit.RecordOK(c, "hitl", "logs_clear", "clear HITL audit logs", "hitl_interrupt", "", map[string]interface{}{
 				"deleted": deleted,
 			})
 		}
 	} else {
 		if len(request.IDs) == 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "审计日志 ID 列表不能为空"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "audit log ID list cannot be empty"})
 			return
 		}
 		ids, filterErr := h.filterAllowedHitlInterruptIDs(c, request.IDs)
@@ -245,14 +245,14 @@ func (h *AgentHandler) DeleteHITLLogs(c *gin.Context) {
 			return
 		}
 		if h.audit != nil {
-			h.audit.RecordOK(c, "hitl", "logs_delete_batch", "批量删除人机协同审计日志", "hitl_interrupt", "", map[string]interface{}{
+			h.audit.RecordOK(c, "hitl", "logs_delete_batch", "bulk delete HITL audit logs", "hitl_interrupt", "", map[string]interface{}{
 				"count":   len(request.IDs),
 				"deleted": deleted,
 			})
 		}
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "删除成功", "deleted": deleted})
+	c.JSON(http.StatusOK, gin.H{"message": "deletion successful", "deleted": deleted})
 }
 
 func (h *AgentHandler) GetHITLLog(c *gin.Context) {
@@ -277,7 +277,7 @@ func (h *AgentHandler) GetHITLLog(c *gin.Context) {
 		return
 	}
 	if !h.hitlConversationAllowed(c, cid) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+		c.JSON(http.StatusForbidden, gin.H{"error": "access denied for this resource"})
 		return
 	}
 	c.JSON(http.StatusOK, hitlInterruptRowToMap(rowID, cid, mode, toolName, toolCallID, payload, rowStatus, reviewer, decidedBy, messageID, decision, comment, createdAt, decidedAt))

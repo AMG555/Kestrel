@@ -22,13 +22,15 @@ type StartupWebUIOptions struct {
 func PrintConfigCreated() {
 	s := New(os.Stdout)
 	s.Println("")
-	s.Println(s.Green("✔ ") + s.Bold("已创建 config.yaml") + s.Dim("（来自 config.example.yaml）"))
+	s.Println(s.Green("✔ ") + s.Bold("config.yaml created") + s.Dim(" (from config.example.yaml)"))
 	s.BlankLine()
 }
 
-// startupHosts 返回横幅应展示的访问地址。通配地址（含空 host）展开为回环地址
-// 加本机非回环 IPv4；显式 host 原样展示。横幅此前硬编码 127.0.0.1，导致
-// 绑定 0.0.0.0 的用户误以为 server.host 配置未生效（issue #301）。
+// startupHosts returns the access addresses to display in the banner. Wildcard
+// addresses (including empty host) are expanded to the loopback address plus
+// all non-loopback IPv4 addresses on the machine; an explicit host is returned
+// as-is. The banner previously hard-coded 127.0.0.1, causing users bound to
+// 0.0.0.0 to think the server.host config had no effect (issue #301).
 func startupHosts(host string) []string {
 	host = strings.TrimSpace(host)
 	if host != "" && host != "0.0.0.0" && host != "::" && host != "[::]" {

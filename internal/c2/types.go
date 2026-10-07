@@ -1,15 +1,15 @@
-﻿// Package c2 实现 Kestrel 内置 C2（Command & Control）框架。
+// Package c2 implements the Kestrel built-in C2 (Command & Control) framework.
 //
-// 设计概述：
-//   - Manager 作为统一入口，被 internal/app 实例化并注入到所有需要操控 C2 的组件
-//     （HTTP handler、MCP 工具、HITL 桥、攻击链记录器等）。
-//   - Listener 是抽象接口，下挂 tcp_reverse / http_beacon / https_beacon / websocket
-//     等不同传输方式的具体实现，全部通过 listener.Registry 工厂创建。
-//   - 任务调度走数据库（c2_tasks 表）+ 内存事件总线（EventBus）混合：
-//     * 状态变化与历史记录靠 SQLite 实现持久化与重启恢复；
-//     * 高频实时通知（如新任务结果）通过 EventBus 推送给 SSE/WS 订阅者，避免轮询。
-//   - Crypto 层固定 AES-256-GCM，每个 Listener 独立 32 字节密钥；密钥仅服务端持有
-//     和编译期注入到 implant，事件流不允许导出明文密钥。
+// Design overview:
+//   - Manager is the unified entry point, instantiated by internal/app and injected into all components that need to control C2
+//     (HTTP handler, MCP tool, HITL bridge, attack chain recorder, etc.).
+//   - Listener is an abstract interface, with concrete implementations for tcp_reverse / http_beacon / https_beacon / websocket
+//     and other transports, all created through the listener.Registry factory.
+//   - Task scheduling uses a hybrid of database (c2_tasks table) + in-memory event bus (EventBus):
+//     * status changes and history use SQLite for persistence and restart recovery;
+//     * high-frequency real-time notifications (e.g. new task results) are pushed via EventBus to SSE/WS subscribers, avoiding polling.
+//   - Crypto layer uses fixed AES-256-GCM; each Listener has its own 32-byte key; keys are only held server-side
+//     and injected into the implant at compile time; the event stream must never export plaintext keys.
 package c2
 
 import (
@@ -18,7 +18,7 @@ import (
 	"time"
 )
 
-// ListenerType 监听器类型，与 c2_listeners.type 字段一致
+// ListenerType is the listener type, consistent with the c2_listeners.type field
 type ListenerType string
 
 const (
@@ -28,7 +28,7 @@ const (
 	ListenerTypeWebSocket    ListenerType = "websocket"
 )
 
-// AllListenerTypes 列出所有受支持的监听器类型，便于校验与前端枚举
+// AllListenerTypes lists all supported listener types, for validation and frontend enumeration
 func AllListenerTypes() []ListenerType {
 	return []ListenerType{
 		ListenerTypeTCPReverse,
@@ -38,7 +38,7 @@ func AllListenerTypes() []ListenerType {
 	}
 }
 
-// IsValidListenerType 校验前端/MCP 入参是否为合法 type
+// IsValidListenerType validates whether a frontend/MCP input is a valid type
 func IsValidListenerType(t string) bool {
 	t = strings.ToLower(strings.TrimSpace(t))
 	for _, lt := range AllListenerTypes() {
@@ -49,7 +49,7 @@ func IsValidListenerType(t string) bool {
 	return false
 }
 
-// SessionStatus 与 c2_sessions.status 一致
+// SessionStatus is consistent with the c2_sessions.status field
 type SessionStatus string
 
 const (
@@ -59,7 +59,7 @@ const (
 	SessionKilled   SessionStatus = "killed"
 )
 
-// TaskStatus 与 c2_tasks.status 一致
+// TaskStatus is consistent with the c2_tasks.status field
 type TaskStatus string
 
 const (
@@ -71,25 +71,25 @@ const (
 	TaskCancelled TaskStatus = "cancelled"
 )
 
-// TaskType 任务类型（与 beacon 端协商，避免硬编码字符串）
+// TaskType is the task type (negotiated with the beacon side to avoid hardcoded strings)
 type TaskType string
 
 const (
-	// 通用任务
-	TaskTypeExec       TaskType = "exec"        // 执行任意命令（shell -c）
-	TaskTypeShell      TaskType = "shell"       // 交互式命令（保持 cwd）
-	TaskTypePwd        TaskType = "pwd"         // 当前目录
-	TaskTypeCd         TaskType = "cd"          // 切目录
-	TaskTypeLs         TaskType = "ls"          // 列目录
-	TaskTypePs         TaskType = "ps"          // 列进程
-	TaskTypeKillProc   TaskType = "kill_proc"   // 杀进程
-	TaskTypeUpload     TaskType = "upload"      // 推文件到目标
-	TaskTypeDownload   TaskType = "download"    // 拉文件回本机
-	TaskTypeScreenshot TaskType = "screenshot"  // 截图
-	TaskTypeSleep      TaskType = "sleep"       // 调整心跳节律
-	TaskTypeExit       TaskType = "exit"        // 让 implant 退出（不会自删二进制）
-	TaskTypeSelfDelete TaskType = "self_delete" // 退出 + 自删二进制（持久化清理）
-	// 高级任务
+	// generic tasks
+	TaskTypeExec       TaskType = "exec"        // execute arbitrary command (shell -c)
+	TaskTypeShell      TaskType = "shell"       // interactive command (preserves cwd)
+	TaskTypePwd        TaskType = "pwd"         // current directory
+	TaskTypeCd         TaskType = "cd"          // change directory
+	TaskTypeLs         TaskType = "ls"          // list directory
+	TaskTypePs         TaskType = "ps"          // list processes
+	TaskTypeKillProc   TaskType = "kill_proc"   // kill process
+	TaskTypeUpload     TaskType = "upload"      // push file to target
+	TaskTypeDownload   TaskType = "download"    // pull file back to local
+	TaskTypeScreenshot TaskType = "screenshot"  // take screenshot
+	TaskTypeSleep      TaskType = "sleep"       // adjust heartbeat interval
+	TaskTypeExit       TaskType = "exit"        // tell implant to exit (does not self-delete binary)
+	TaskTypeSelfDelete TaskType = "self_delete" // exit + self-delete binary (persistence cleanup)
+	// advanced tasks
 	TaskTypePortFwd      TaskType = "port_fwd"
 	TaskTypeSocksStart   TaskType = "socks_start"
 	TaskTypeSocksStop    TaskType = "socks_stop"
@@ -97,7 +97,7 @@ const (
 	TaskTypePersist      TaskType = "persist"
 )
 
-// AllTaskTypes 全部 task_type，便于工具 schema 列出 enum
+// AllTaskTypes lists all task_type values, for tool schema enum listing
 func AllTaskTypes() []TaskType {
 	return []TaskType{
 		TaskTypeExec, TaskTypeShell,
@@ -109,8 +109,8 @@ func AllTaskTypes() []TaskType {
 	}
 }
 
-// IsDangerousTaskType 标记需要 HITL 二次确认的任务类型；
-// 与 internal/handler/hitl.go 现有的 tool_whitelist 概念呼应：白名单外 → 走审批。
+// IsDangerousTaskType marks task types that require HITL secondary confirmation;
+// corresponds to the existing tool_whitelist concept in internal/handler/hitl.go: non-whitelisted → requires approval.
 func IsDangerousTaskType(t TaskType) bool {
 	switch t {
 	case TaskTypeKillProc, TaskTypeUpload, TaskTypeSelfDelete,
@@ -120,32 +120,32 @@ func IsDangerousTaskType(t TaskType) bool {
 	return false
 }
 
-// ListenerConfig 解码后的监听器运行配置（来自 c2_listeners.config_json）
+// ListenerConfig is the decoded listener runtime config (from c2_listeners.config_json)
 type ListenerConfig struct {
-	// HTTP/HTTPS Beacon 公共字段
-	BeaconCheckInPath string `json:"beacon_check_in_path,omitempty"` // 默认 "/check_in"
-	BeaconTasksPath   string `json:"beacon_tasks_path,omitempty"`    // 默认 "/tasks"
-	BeaconResultPath  string `json:"beacon_result_path,omitempty"`   // 默认 "/result"
-	BeaconUploadPath  string `json:"beacon_upload_path,omitempty"`   // 默认 "/upload"
-	BeaconFilePath    string `json:"beacon_file_path,omitempty"`     // 默认 "/file/"
-	// HTTPS 专属
+	// HTTP/HTTPS Beacon common fields
+	BeaconCheckInPath string `json:"beacon_check_in_path,omitempty"` // default "/check_in"
+	BeaconTasksPath   string `json:"beacon_tasks_path,omitempty"`    // default "/tasks"
+	BeaconResultPath  string `json:"beacon_result_path,omitempty"`   // default "/result"
+	BeaconUploadPath  string `json:"beacon_upload_path,omitempty"`   // default "/upload"
+	BeaconFilePath    string `json:"beacon_file_path,omitempty"`     // default "/file/"
+	// HTTPS-only
 	TLSCertPath string `json:"tls_cert_path,omitempty"`
 	TLSKeyPath  string `json:"tls_key_path,omitempty"`
-	TLSAutoSelfSign bool `json:"tls_auto_self_sign,omitempty"` // true：找不到证书时自动生成自签
-	// 客户端默认参数（写到 c2_sessions 初值，beacon 也可在 check-in 时覆写）
-	DefaultSleep  int `json:"default_sleep,omitempty"`  // 秒，默认 5
-	DefaultJitter int `json:"default_jitter,omitempty"` // 0-100，默认 0
-	// OPSEC：可选命令黑名单（正则）
+	TLSAutoSelfSign bool `json:"tls_auto_self_sign,omitempty"` // true: auto-generate self-signed cert when no cert is found
+	// Client default parameters (written to c2_sessions initial value; beacon can override at check-in)
+	DefaultSleep  int `json:"default_sleep,omitempty"`  // seconds, default 5
+	DefaultJitter int `json:"default_jitter,omitempty"` // 0-100, default 0
+	// OPSEC: optional command blacklist (regex)
 	CommandDenyRegex []string `json:"command_deny_regex,omitempty"`
-	// 任务并发上限（每个会话同时下发的最大任务数，0 表示不限制）
+	// Task concurrency limit (max tasks dispatched simultaneously per session, 0 means unlimited)
 	MaxConcurrentTasks int `json:"max_concurrent_tasks,omitempty"`
-	// CallbackHost 植入端/Payload 使用的回连主机名（可选）；与 bind_host 分离，便于 NAT/ECS 等场景
+	// CallbackHost is the callback hostname used by the implant/payload (optional); separated from bind_host for NAT/ECS scenarios
 	CallbackHost string `json:"callback_host,omitempty"`
-	// AllowLegacyShell 为 true 时 tcp_reverse 允许未加密的经典 bash/nc 反弹 shell 登记会话（默认 false，公网部署强烈不建议开启）
+	// AllowLegacyShell: when true, tcp_reverse allows unencrypted classic bash/nc reverse shells to register sessions (default false; strongly not recommended for public deployment)
 	AllowLegacyShell bool `json:"allow_legacy_shell,omitempty"`
 }
 
-// ApplyDefaults 对未填字段填默认值；调用方负责持久化时序列化新值
+// ApplyDefaults fills unset fields with default values; the caller is responsible for serializing the new values on persistence.
 func (c *ListenerConfig) ApplyDefaults() {
 	if strings.TrimSpace(c.BeaconCheckInPath) == "" {
 		c.BeaconCheckInPath = "/check_in"
@@ -173,7 +173,7 @@ func (c *ListenerConfig) ApplyDefaults() {
 	}
 }
 
-// ImplantCheckInRequest beacon → 服务端的注册/心跳请求体（已解密后的明文）
+// ImplantCheckInRequest is the registration/heartbeat request body sent from a beacon to the server (decrypted plaintext).
 type ImplantCheckInRequest struct {
 	ImplantUUID  string                 `json:"uuid"`
 	Hostname     string                 `json:"hostname"`
@@ -190,7 +190,7 @@ type ImplantCheckInRequest struct {
 	Metadata     map[string]interface{} `json:"metadata,omitempty"`
 }
 
-// ImplantCheckInResponse 服务端回执
+// ImplantCheckInResponse is the server acknowledgement.
 type ImplantCheckInResponse struct {
 	SessionID    string `json:"session_id"`
 	NextSleep    int    `json:"next_sleep"`
@@ -199,28 +199,28 @@ type ImplantCheckInResponse struct {
 	ServerTime   int64  `json:"server_time"`
 }
 
-// TaskEnvelope 服务端 → beacon 的任务派发载体
+// TaskEnvelope is the task dispatch carrier from the server to a beacon.
 type TaskEnvelope struct {
 	TaskID   string                 `json:"task_id"`
 	TaskType string                 `json:"task_type"`
 	Payload  map[string]interface{} `json:"payload"`
 }
 
-// TaskResultReport beacon → 服务端的任务结果回传
+// TaskResultReport is the task result reported back from a beacon to the server.
 type TaskResultReport struct {
 	TaskID     string `json:"task_id"`
 	Success    bool   `json:"success"`
 	Output     string `json:"output,omitempty"`
-	OutputB64  string `json:"output_b64,omitempty"` // 原始控制台字节（base64），避免 JSON 破坏非 UTF-8 输出
+	OutputB64  string `json:"output_b64,omitempty"` // raw console bytes (base64) to avoid JSON breaking non-UTF-8 output
 	Error      string `json:"error,omitempty"`
 	ErrorB64   string `json:"error_b64,omitempty"`
-	BlobBase64 string `json:"blob_b64,omitempty"` // 如截图二进制
-	BlobSuffix string `json:"blob_suffix,omitempty"` // 如 ".png"
+	BlobBase64 string `json:"blob_b64,omitempty"` // e.g. screenshot binary
+	BlobSuffix string `json:"blob_suffix,omitempty"` // e.g. ".png"
 	StartedAt  int64  `json:"started_at"`
 	EndedAt    int64  `json:"ended_at"`
 }
 
-// CommonError C2 模块统一错误类型，便于 handler 层映射 HTTP 状态码
+// CommonError is the unified error type for the C2 module, enabling the handler layer to map HTTP status codes.
 type CommonError struct {
 	Code    string
 	Message string
@@ -234,21 +234,21 @@ func (e *CommonError) Error() string {
 	return e.Message
 }
 
-// Sentinel errors，便于 errors.Is 比较
+// Sentinel errors for use with errors.Is comparisons.
 var (
-	ErrListenerNotFound = &CommonError{Code: "listener_not_found", Message: "监听器不存在", HTTP: 404}
-	ErrSessionNotFound  = &CommonError{Code: "session_not_found", Message: "会话不存在", HTTP: 404}
-	ErrTaskNotFound     = &CommonError{Code: "task_not_found", Message: "任务不存在", HTTP: 404}
-	ErrProfileNotFound  = &CommonError{Code: "profile_not_found", Message: "Profile 不存在", HTTP: 404}
-	ErrInvalidInput     = &CommonError{Code: "invalid_input", Message: "参数非法", HTTP: 400}
-	ErrAuthFailed       = &CommonError{Code: "auth_failed", Message: "鉴权失败", HTTP: 401}
-	ErrPortInUse        = &CommonError{Code: "port_in_use", Message: "端口已被占用", HTTP: 409}
-	ErrListenerRunning  = &CommonError{Code: "listener_running", Message: "监听器已在运行", HTTP: 409}
-	ErrListenerStopped  = &CommonError{Code: "listener_stopped", Message: "监听器未运行", HTTP: 409}
-	ErrUnsupportedType  = &CommonError{Code: "unsupported_type", Message: "不支持的监听器类型", HTTP: 400}
+	ErrListenerNotFound = &CommonError{Code: "listener_not_found", Message: "listener not found", HTTP: 404}
+	ErrSessionNotFound  = &CommonError{Code: "session_not_found", Message: "session not found", HTTP: 404}
+	ErrTaskNotFound     = &CommonError{Code: "task_not_found", Message: "task not found", HTTP: 404}
+	ErrProfileNotFound  = &CommonError{Code: "profile_not_found", Message: "profile not found", HTTP: 404}
+	ErrInvalidInput     = &CommonError{Code: "invalid_input", Message: "invalid parameters", HTTP: 400}
+	ErrAuthFailed       = &CommonError{Code: "auth_failed", Message: "authentication failed", HTTP: 401}
+	ErrPortInUse        = &CommonError{Code: "port_in_use", Message: "port is already in use", HTTP: 409}
+	ErrListenerRunning  = &CommonError{Code: "listener_running", Message: "listener is already running", HTTP: 409}
+	ErrListenerStopped  = &CommonError{Code: "listener_stopped", Message: "listener is not running", HTTP: 409}
+	ErrUnsupportedType  = &CommonError{Code: "unsupported_type", Message: "unsupported listener type", HTTP: 400}
 )
 
-// SafeBindPort 校验端口范围
+// SafeBindPort validates the port range.
 func SafeBindPort(port int) error {
 	if port < 1 || port > 65535 {
 		return errors.New("port must be in 1..65535")
@@ -256,7 +256,7 @@ func SafeBindPort(port int) error {
 	return nil
 }
 
-// NowUnixMillis 统一时间戳工具
+// NowUnixMillis returns the current time as a unified Unix millisecond timestamp.
 func NowUnixMillis() int64 {
 	return time.Now().UnixNano() / int64(time.Millisecond)
 }

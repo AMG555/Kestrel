@@ -1,4 +1,4 @@
-﻿package robot
+package robot
 
 import (
 	"context"
@@ -15,7 +15,7 @@ const (
 	discordMaxMessageRunes = 2000
 )
 
-// StartDiscord 启动 Discord Gateway（WebSocket，无需公网回调）。
+// StartDiscord start Discord Gateway（WebSocket，none需公网回调）。
 func StartDiscord(ctx context.Context, robotsCfg config.RobotsConfig, h MessageHandler, logger *zap.Logger) {
 	cfg := robotsCfg.Discord
 	if !cfg.Enabled || strings.TrimSpace(cfg.BotToken) == "" {
@@ -29,11 +29,11 @@ func runDiscordLoop(ctx context.Context, cfg config.RobotDiscordConfig, h Messag
 	for {
 		err := runDiscordSession(ctx, cfg, h, logger)
 		if ctx.Err() != nil {
-			logger.Info("Discord Gateway 已按配置关闭")
+			logger.Info("Discord Gateway 已按configclose")
 			return
 		}
 		if err != nil {
-			logger.Warn("Discord Gateway 异常，将自动重连", zap.Error(err), zap.Duration("retry_after", backoff))
+			logger.Warn("Discord Gateway abnormal，将自动重连", zap.Error(err), zap.Duration("retry_after", backoff))
 		}
 		if !waitReconnect(ctx, &backoff) {
 			return
@@ -71,7 +71,7 @@ func runDiscordSession(ctx context.Context, cfg config.RobotDiscordConfig, h Mes
 			}
 		}
 		userID := discordSessionKey(m.GuildID, m.Author.ID)
-		logger.Info("Discord 收到消息", zap.String("from", userID), zap.String("content", text))
+		logger.Info("Discord 收到message", zap.String("from", userID), zap.String("content", text))
 		reply := h.HandleMessage(discordPlatform, userID, text)
 		discordPostReply(s, m.ChannelID, reply, logger)
 	})
@@ -79,7 +79,7 @@ func runDiscordSession(ctx context.Context, cfg config.RobotDiscordConfig, h Mes
 	if err := session.Open(); err != nil {
 		return err
 	}
-	logger.Info("Discord Gateway 已连接，等待收消息")
+	logger.Info("Discord Gateway 已连接，等待收message")
 	defer session.Close()
 
 	<-ctx.Done()
@@ -114,7 +114,7 @@ func discordPostReply(s *discordgo.Session, channelID, reply string, logger *zap
 	}
 	for _, chunk := range splitTextChunks(reply, discordMaxMessageRunes) {
 		if _, err := s.ChannelMessageSend(channelID, chunk); err != nil {
-			logger.Warn("Discord 发送回复失败", zap.String("channel", channelID), zap.Error(err))
+			logger.Warn("Discord 发送回复failed", zap.String("channel", channelID), zap.Error(err))
 			return
 		}
 	}

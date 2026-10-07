@@ -1,4 +1,4 @@
-﻿// Package mcp 外部 MCP 客户端 - 基于官方 go-sdk 实现，保证协议兼容性
+// Package mcp external MCP client - implemented using the official go-sdk to ensure protocol compatibility
 package mcp
 
 import (
@@ -23,7 +23,7 @@ const (
 	clientVersion = "1.0.0"
 )
 
-// sdkClient 基于官方 MCP Go SDK 的外部 MCP 客户端，实现 ExternalMCPClient 接口
+// sdkClient is an external MCP client based on the official MCP Go SDK, implementing the ExternalMCPClient interface
 type sdkClient struct {
 	session *mcp.ClientSession
 	client  *mcp.Client
@@ -32,7 +32,7 @@ type sdkClient struct {
 	status  string // "disconnected", "connecting", "connected", "error"
 }
 
-// newSDKClientFromSession 用已连接成功的 session 构造（供 createSDKClient 内部使用）
+// newSDKClientFromSession constructs from an already-connected session (for internal use by createSDKClient)
 func newSDKClientFromSession(session *mcp.ClientSession, client *mcp.Client, logger *zap.Logger) *sdkClient {
 	return &sdkClient{
 		session: session,
@@ -42,7 +42,7 @@ func newSDKClientFromSession(session *mcp.ClientSession, client *mcp.Client, log
 	}
 }
 
-// lazySDKClient 延迟连接：Initialize() 时才调用官方 SDK 建立连接，对外实现 ExternalMCPClient
+// lazySDKClient lazy connection: calls the official SDK to establish a connection only when Initialize() is called, externally implements ExternalMCPClient
 type lazySDKClient struct {
 	serverCfg     config.ExternalMCPServerConfig
 	logger        *zap.Logger
@@ -158,7 +158,7 @@ func (c *lazySDKClient) ListTools(ctx context.Context) ([]Tool, error) {
 	inner := c.inner
 	c.mu.RUnlock()
 	if inner == nil {
-		return nil, fmt.Errorf("未连接")
+		return nil, fmt.Errorf("not connected")
 	}
 	return inner.ListTools(ctx)
 }
@@ -168,7 +168,7 @@ func (c *lazySDKClient) CallTool(ctx context.Context, name string, args map[stri
 	inner := c.inner
 	c.mu.RUnlock()
 	if inner == nil {
-		return nil, fmt.Errorf("未连接")
+		return nil, fmt.Errorf("not connected")
 	}
 	return inner.CallTool(ctx, name, args)
 }
@@ -190,7 +190,7 @@ func (c *lazySDKClient) Close() error {
 	return nil
 }
 
-// markDisconnected 在检测到传输层断连时关闭底层 session，避免 IsConnected 仍返回 true。
+// markDisconnected closes the underlying session when a transport-layer disconnect is detected, preventing IsConnected from still returning true.
 func (c *lazySDKClient) markDisconnected() {
 	c.mu.Lock()
 	inner := c.inner
@@ -224,14 +224,14 @@ func (c *sdkClient) IsConnected() bool {
 }
 
 func (c *sdkClient) Initialize(ctx context.Context) error {
-	// sdkClient 由 createSDKClient 在 Connect 成功后才创建，因此 Initialize 时已经连接
-	// 此方法仅用于满足 ExternalMCPClient 接口，实际连接在 createSDKClient 中完成
+	// sdkClient is created by createSDKClient only after Connect succeeds, so it is already connected at Initialize time.
+	// This method exists only to satisfy the ExternalMCPClient interface; actual connection is established in createSDKClient.
 	return nil
 }
 
 func (c *sdkClient) ListTools(ctx context.Context) ([]Tool, error) {
 	if c.session == nil {
-		return nil, fmt.Errorf("未连接")
+		return nil, fmt.Errorf("not connected")
 	}
 	res, err := c.session.ListTools(ctx, nil)
 	if err != nil {
@@ -245,7 +245,7 @@ func (c *sdkClient) ListTools(ctx context.Context) ([]Tool, error) {
 
 func (c *sdkClient) CallTool(ctx context.Context, name string, args map[string]interface{}) (*ToolResult, error) {
 	if c.session == nil {
-		return nil, fmt.Errorf("未连接")
+		return nil, fmt.Errorf("not connected")
 	}
 	params := &mcp.CallToolParams{
 		Name:      name,
@@ -268,7 +268,7 @@ func (c *sdkClient) Close() error {
 	return nil
 }
 
-// sdkToolsToOur 将 SDK 的 []*mcp.Tool 转为我们的 []Tool
+// sdkToolsToOur converts the SDK's []*mcp.Tool to our []Tool
 func sdkToolsToOur(tools []*mcp.Tool) []Tool {
 	if len(tools) == 0 {
 		return nil
@@ -280,7 +280,7 @@ func sdkToolsToOur(tools []*mcp.Tool) []Tool {
 		}
 		schema := make(map[string]interface{})
 		if t.InputSchema != nil {
-			// SDK InputSchema 可能为 *jsonschema.Schema 或 map，统一转为 map
+			// SDK InputSchema may be *jsonschema.Schema or map; normalise to map
 			if m, ok := t.InputSchema.(map[string]interface{}); ok {
 				schema = m
 			} else {
@@ -302,7 +302,7 @@ func sdkToolsToOur(tools []*mcp.Tool) []Tool {
 	return out
 }
 
-// sdkCallToolResultToOurs 将 SDK 的 *mcp.CallToolResult 转为我们的 *ToolResult
+// sdkCallToolResultToOurs converts the SDK's *mcp.CallToolResult to our *ToolResult
 func sdkCallToolResultToOurs(res *mcp.CallToolResult) *ToolResult {
 	if res == nil {
 		return &ToolResult{Content: []Content{}}
@@ -337,8 +337,8 @@ func mustJSON(v interface{}) []byte {
 	return b
 }
 
-// createSDKClient 根据配置创建并连接外部 MCP 客户端（使用官方 SDK），返回实现 ExternalMCPClient 的 *sdkClient
-// 若连接失败返回 (nil, error)。ctx 用于连接超时与取消。
+// createSDKClient creates and connects an external MCP client based on config (using the official SDK), returning a *sdkClient that implements ExternalMCPClient.
+// Returns (nil, error) if connection fails. ctx is used for connection timeout and cancellation.
 func createSDKClient(ctx context.Context, serverCfg config.ExternalMCPServerConfig, logger *zap.Logger) (ExternalMCPClient, error) {
 	timeout := time.Duration(serverCfg.Timeout) * time.Second
 	if timeout <= 0 {
@@ -347,10 +347,10 @@ func createSDKClient(ctx context.Context, serverCfg config.ExternalMCPServerConf
 
 	transport := serverCfg.GetTransportType()
 	if transport == "" {
-		return nil, fmt.Errorf("配置缺少 command 或 url，且未指定 type/transport")
+		return nil, fmt.Errorf("config missing command or url, and no type/transport specified")
 	}
 
-	// 构造 ClientOptions：KeepAlive 心跳
+	// construct ClientOptions: KeepAlive heartbeat
 	var clientOpts *mcp.ClientOptions
 	if serverCfg.KeepAlive > 0 {
 		clientOpts = &mcp.ClientOptions{
@@ -367,10 +367,10 @@ func createSDKClient(ctx context.Context, serverCfg config.ExternalMCPServerConf
 	switch transport {
 	case "stdio":
 		if serverCfg.Command == "" {
-			return nil, fmt.Errorf("stdio 模式需要配置 command")
+			return nil, fmt.Errorf("stdio mode requires config command")
 		}
-		// 必须用 exec.Command 而非 CommandContext：doConnect 返回后 ctx 会被 cancel，
-		// 若用 CommandContext(ctx) 会立刻杀掉子进程，导致 ListTools 等后续请求失败、显示 0 工具
+		// must use exec.Command instead of CommandContext: after doConnect returns, ctx will be cancelled;
+		// using CommandContext(ctx) would immediately kill the child process, causing ListTools and subsequent requests to fail with 0 tools
 		cmd := exec.Command(serverCfg.Command, serverCfg.Args...)
 		if len(serverCfg.Env) > 0 {
 			cmd.Env = append(cmd.Env, envMapToSlice(serverCfg.Env)...)
@@ -382,10 +382,10 @@ func createSDKClient(ctx context.Context, serverCfg config.ExternalMCPServerConf
 		t = ct
 	case "sse":
 		if serverCfg.URL == "" {
-			return nil, fmt.Errorf("sse 模式需要配置 url")
+			return nil, fmt.Errorf("sse mode requires config url")
 		}
-		// SSE 是长连接（GET 流持续打开），不能设置 http.Client.Timeout（会在超时后杀掉整个连接导致 EOF）。
-		// 超时由每次 ListTools/CallTool 的 context 单独控制。
+		// SSE is a long-lived connection (GET stream stays open); cannot set http.Client.Timeout (it would kill the connection after timeout, causing EOF).
+		// Timeout is controlled per-request by the context passed to each ListTools/CallTool call.
 		httpClient := httpClientForLongLived(serverCfg.Headers)
 		t = &mcp.SSEClientTransport{
 			Endpoint:   serverCfg.URL,
@@ -393,7 +393,7 @@ func createSDKClient(ctx context.Context, serverCfg config.ExternalMCPServerConf
 		}
 	case "http":
 		if serverCfg.URL == "" {
-			return nil, fmt.Errorf("http 模式需要配置 url")
+			return nil, fmt.Errorf("http mode requires config url")
 		}
 		httpClient := httpClientWithTimeoutAndHeaders(timeout, serverCfg.Headers)
 		st := &mcp.StreamableClientTransport{
@@ -405,12 +405,12 @@ func createSDKClient(ctx context.Context, serverCfg config.ExternalMCPServerConf
 		}
 		t = st
 	default:
-		return nil, fmt.Errorf("不支持的传输模式: %s（支持: stdio, sse, http）", transport)
+		return nil, fmt.Errorf("unsupported transport mode: %s (supported: stdio, sse, http)", transport)
 	}
 
 	session, err := client.Connect(ctx, t, nil)
 	if err != nil {
-		return nil, fmt.Errorf("连接失败: %w", err)
+		return nil, fmt.Errorf("connection failed: %w", err)
 	}
 
 	return newSDKClientFromSession(session, client, logger), nil
@@ -447,9 +447,9 @@ func httpClientWithTimeoutAndHeaders(timeout time.Duration, headers map[string]s
 	}
 }
 
-// httpClientForLongLived 创建不设超时的 HTTP 客户端，用于 SSE 等长连接传输。
-// SSE 的 GET 流会持续打开，http.Client.Timeout 会在超时后强制关闭连接导致 EOF。
-// 超时由调用方通过 context 控制。
+// httpClientForLongLived creates an HTTP client with no timeout, for use with long-lived transports like SSE.
+// SSE's GET stream stays open indefinitely; http.Client.Timeout would force-close the connection after the timeout causing EOF.
+// Timeout is controlled by the caller via context.
 func httpClientForLongLived(headers map[string]string) *http.Client {
 	transport := http.DefaultTransport
 	if len(headers) > 0 {
@@ -460,7 +460,7 @@ func httpClientForLongLived(headers map[string]string) *http.Client {
 	}
 	return &http.Client{
 		Transport: transport,
-		// 不设 Timeout，SSE 长连接的超时由 per-request context 控制
+		// no Timeout set; SSE long-lived connection timeout is controlled by per-request context
 	}
 }
 

@@ -1,4 +1,4 @@
-﻿package agent
+package agent
 
 import (
 	"encoding/json"
@@ -30,7 +30,7 @@ func IsModelFacingTraceJSON(traceInputJSON string) bool {
 	return false
 }
 
-// ParseTraceMessages 解析落库的 last_react_input（OpenAI 风格 messages JSON 数组）。
+// ParseTraceMessages parses the persisted last_react_input (OpenAI-style messages JSON array).
 func ParseTraceMessages(traceInputJSON string) ([]ChatMessage, error) {
 	traceInputJSON = strings.TrimSpace(traceInputJSON)
 	if traceInputJSON == "" {
@@ -105,8 +105,8 @@ func ParseTraceMessages(traceInputJSON string) ([]ChatMessage, error) {
 	return out, nil
 }
 
-// ExtractLastUserTurnMessages 仅保留最后一次 user 提问起的消息（不含更早的用户轮次；跳过 system）。
-// 与「继续对话」续跑所用轨迹范围一致：当前任务轮次，而非整段多轮对话历史。
+// ExtractLastUserTurnMessages keeps only messages from the last user question onwards (excludes earlier user turns; skips system).
+// consistent with the trace scope used by 'continue conversation' resume: current task turn, not the entire multi-turn conversation history.
 func ExtractLastUserTurnMessages(msgs []ChatMessage) []ChatMessage {
 	if len(msgs) == 0 {
 		return msgs
@@ -131,7 +131,7 @@ func ExtractLastUserTurnMessages(msgs []ChatMessage) []ChatMessage {
 	return out
 }
 
-// ExtractLastUserTurnTraceJSON 在 JSON 轨迹上裁剪为最后一次 user 起的片段（供落库格式直接处理）。
+// ExtractLastUserTurnTraceJSON trims the JSON trace to the segment starting from the last user message (for direct processing of persisted format).
 func ExtractLastUserTurnTraceJSON(traceInputJSON string) string {
 	traceInputJSON = strings.TrimSpace(traceInputJSON)
 	if traceInputJSON == "" {
@@ -158,7 +158,7 @@ func ExtractLastUserTurnTraceJSON(traceInputJSON string) string {
 	return string(b)
 }
 
-// MergeAssistantTraceOutput 将 last_react_output 合并进轨迹最后一条 assistant（与 loadHistoryFromAgentTrace 一致）。
+// MergeAssistantTraceOutput merges last_react_output into the last assistant message in the trace (consistent with loadHistoryFromAgentTrace).
 func MergeAssistantTraceOutput(msgs []ChatMessage, assistantOut string) []ChatMessage {
 	assistantOut = strings.TrimSpace(assistantOut)
 	if assistantOut == "" || len(msgs) == 0 {
@@ -177,7 +177,7 @@ func MergeAssistantTraceOutput(msgs []ChatMessage, assistantOut string) []ChatMe
 	return out
 }
 
-// MessagesToTraceJSON 将消息带序列化为 JSON（跳过 system）。
+// MessagesToTraceJSON serializes messages to JSON (skips system).
 func MessagesToTraceJSON(msgs []ChatMessage) (string, error) {
 	filtered := make([]ChatMessage, 0, len(msgs))
 	for _, m := range msgs {

@@ -1,4 +1,4 @@
-﻿package handler
+package handler
 
 import (
 	"context"
@@ -164,7 +164,7 @@ func TestQuakeSearchHandlesStringErrorCode(t *testing.T) {
 			t.Fatalf("Quake token = %q, want test-quake-key", got)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"code":"q5000","message":"查询语法错误","data":{}}`))
+		_, _ = w.Write([]byte(`{"code":"q5000","message":"查询语法error","data":{}}`))
 	}))
 	defer quakeServer.Close()
 
@@ -187,7 +187,7 @@ func TestQuakeSearchHandlesStringErrorCode(t *testing.T) {
 		t.Fatalf("Search() status = %d, want %d, body = %s", recorder.Code, http.StatusBadGateway, recorder.Body.String())
 	}
 	bodyText := recorder.Body.String()
-	if !strings.Contains(bodyText, "查询语法错误") {
+	if !strings.Contains(bodyText, "查询语法error") {
 		t.Fatalf("response should include Quake error message, got %s", bodyText)
 	}
 	if strings.Contains(bodyText, "cannot unmarshal") {
@@ -352,7 +352,7 @@ func TestExtractInfoCollectJSONObject(t *testing.T) {
 		},
 		{
 			name: "prefixed explanation",
-			in:   "解析结果如下：\n{\"query\":\"ssl.cert.subject.cn:example.com\",\"explanation\":\"ok\"}\n请确认。",
+			in:   "解析结果如下：\n{\"query\":\"ssl.cert.subject.cn:example.com\",\"explanation\":\"ok\"}\n请confirm。",
 			want: `{"query":"ssl.cert.subject.cn:example.com","explanation":"ok"}`,
 		},
 		{

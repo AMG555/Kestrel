@@ -1,4 +1,4 @@
-﻿package robot
+package robot
 
 import (
 	"context"
@@ -25,8 +25,8 @@ type larkTextContent struct {
 	Text string `json:"text"`
 }
 
-// StartLark 启动飞书长连接（无需公网），收到消息后调用 handler 并回复。
-// 断线（如笔记本睡眠、网络中断）后会自动重连；ctx 被取消时退出，便于配置变更时重启。
+// StartLark startFeishu长连接（none需公网），收到message后调用 handler 并回复。
+// 断线（如笔记本睡眠、network中断）后会自动重连；ctx 被cancelled时exit，便于config变更时重启。
 func StartLark(ctx context.Context, robotsCfg config.RobotsConfig, h MessageHandler, logger *zap.Logger) {
 	cfg := robotsCfg.Lark
 	if !cfg.Enabled || cfg.AppID == "" || cfg.AppSecret == "" {
@@ -35,7 +35,7 @@ func StartLark(ctx context.Context, robotsCfg config.RobotsConfig, h MessageHand
 	go runLarkLoop(ctx, cfg, robotsCfg.Session.StrictUserIdentityEnabled(), h, logger)
 }
 
-// runLarkLoop 循环维持飞书长连接：断开且 ctx 未取消时按退避间隔重连。
+// runLarkLoop 循环维持Feishu长连接：断开且 ctx 未cancelled时按退避间隔重连。
 func runLarkLoop(ctx context.Context, cfg config.RobotLarkConfig, strictUserIdentity bool, h MessageHandler, logger *zap.Logger) {
 	backoff := larkReconnectInitial
 	for {
@@ -48,14 +48,14 @@ func runLarkLoop(ctx context.Context, cfg config.RobotLarkConfig, strictUserIden
 			larkws.WithEventHandler(eventHandler),
 			larkws.WithLogLevel(larkcore.LogLevelInfo),
 		)
-		logger.Info("飞书长连接正在连接…", zap.String("app_id", cfg.AppID))
+		logger.Info("Feishu长连接正在连接…", zap.String("app_id", cfg.AppID))
 		err := wsClient.Start(ctx)
 		if ctx.Err() != nil {
-			logger.Info("飞书长连接已按配置重启关闭")
+			logger.Info("Feishu长连接已按config重启close")
 			return
 		}
 		if err != nil {
-			logger.Warn("飞书长连接断开（如睡眠/断网），将自动重连", zap.Error(err), zap.Duration("retry_after", backoff))
+			logger.Warn("Feishu长连接断开（如睡眠/断网），将自动重连", zap.Error(err), zap.Duration("retry_after", backoff))
 		}
 		select {
 		case <-ctx.Done():
@@ -78,12 +78,12 @@ func handleLarkMessage(ctx context.Context, event *larkim.P2MessageReceiveV1, cf
 	msg := event.Event.Message
 	msgType := larkcore.StringValue(msg.MessageType)
 	if msgType != larkim.MsgTypeText {
-		logger.Debug("飞书暂仅处理文本消息", zap.String("msg_type", msgType))
+		logger.Debug("Feishu暂仅处理文本message", zap.String("msg_type", msgType))
 		return
 	}
 	var textBody larkTextContent
 	if err := json.Unmarshal([]byte(larkcore.StringValue(msg.Content)), &textBody); err != nil {
-		logger.Warn("飞书消息 Content 解析失败", zap.Error(err))
+		logger.Warn("Feishumessage Content parsing failed", zap.Error(err))
 		return
 	}
 	text := strings.TrimSpace(textBody.Text)
@@ -92,7 +92,7 @@ func handleLarkMessage(ctx context.Context, event *larkim.P2MessageReceiveV1, cf
 	}
 	userID := resolveLarkUserID(event, cfg.AllowChatIDFallback && !strictUserIdentity)
 	if userID == "" {
-		logger.Warn("飞书消息缺少可用用户标识，已忽略")
+		logger.Warn("Feishumessage缺少可用user标识，已忽略")
 		return
 	}
 	messageID := larkcore.StringValue(msg.MessageId)
@@ -106,14 +106,14 @@ func handleLarkMessage(ctx context.Context, event *larkim.P2MessageReceiveV1, cf
 			Build()).
 		Build())
 	if err != nil {
-		logger.Warn("飞书回复失败", zap.String("message_id", messageID), zap.Error(err))
+		logger.Warn("Feishu回复failed", zap.String("message_id", messageID), zap.Error(err))
 		return
 	}
-	logger.Debug("飞书已回复", zap.String("message_id", messageID))
+	logger.Debug("Feishu已回复", zap.String("message_id", messageID))
 }
 
-// resolveLarkUserID 提取飞书会话隔离键：
-// tenant_key + 稳定用户标识（user_id/open_id/union_id）；按配置可选 chat_id 兜底。
+// resolveLarkUserID 提取Feishu会话隔离key：
+// tenant_key + 稳定user标识（user_id/open_id/union_id）；按config可选 chat_id 兜底。
 func resolveLarkUserID(event *larkim.P2MessageReceiveV1, allowChatIDFallback bool) string {
 	if event == nil || event.Event == nil || event.Event.Sender == nil || event.Event.Sender.SenderId == nil {
 		return ""

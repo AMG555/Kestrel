@@ -1,4 +1,4 @@
-﻿// Package reasoning maps user/config intent to CloudWeGo Eino OpenAI ChatModel fields
+// Package reasoning maps user/config intent to CloudWeGo Eino OpenAI ChatModel fields
 // (ReasoningEffort, ExtraFields such as thinking / reasoning_effort / output_config).
 package reasoning
 
@@ -323,7 +323,7 @@ func normalizeEffort(s string) string {
 	}
 }
 
-// usesExtraFieldsReasoningEffort 为 Eino 无枚举的最高档 effort，经 ExtraFields 原样下发（max / xhigh 由网关自行识别，不做互转）。
+// usesExtraFieldsReasoningEffort 为 Eino none枚举的最高档 effort，经 ExtraFields 原样下发（max / xhigh 由网关自行识别，不做互转）。
 func usesExtraFieldsReasoningEffort(e string) bool {
 	return e == "max" || e == "xhigh"
 }
@@ -423,6 +423,6 @@ func applyOutputConfigEffort(cfg *einoopenai.ChatModelConfig, mode, effort strin
 }
 
 func effortStringForAPI(e string) string {
-	// 原样透传：OpenAI 官方多为 xhigh，部分兼容网关为 max，由配置/对话 effort 选择。
+	// 原样透传：OpenAI 官方多为 xhigh，部分兼容网关为 max，由config/conversation effort 选择。
 	return strings.ToLower(strings.TrimSpace(e))
 }

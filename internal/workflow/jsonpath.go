@@ -100,13 +100,13 @@ func parseJSONPathTokens(path string) []string {
 func validateJSONPathSyntax(path string) error {
 	path = strings.TrimSpace(path)
 	if path == "" {
-		return fmt.Errorf("JSONPath 不能为空")
+		return fmt.Errorf("JSONPath 不能为null")
 	}
 	if !strings.HasPrefix(path, "$") && !strings.HasPrefix(path, ".") {
-		return fmt.Errorf("JSONPath/JQ 路径必须以 $ 或 . 开头")
+		return fmt.Errorf("JSONPath/JQ path必须以 $ 或 . 开头")
 	}
 	if strings.Contains(path, "..") || strings.ContainsAny(path, "*?()|") {
-		return fmt.Errorf("仅支持安全路径子集，不支持通配符、递归或表达式")
+		return fmt.Errorf("仅支持安全path子集，不支持通配符、递归或表达式")
 	}
 	if strings.Count(path, "[") != strings.Count(path, "]") {
 		return fmt.Errorf("JSONPath 方括号不匹配")

@@ -1,4 +1,4 @@
-﻿package multiagent
+package multiagent
 
 import (
 	"context"
@@ -18,11 +18,11 @@ import (
 	"go.uber.org/zap"
 )
 
-// einoSingleAgentName 与 ChatModelAgent.Name 一致，供流式事件映射主对话区。
+// einoSingleAgentName matches ChatModelAgent.Name, used for streaming event mapping in the main conversation area.
 const einoSingleAgentName = "kestrel-eino-single"
 
-// RunEinoSingleChatModelAgent 使用 Eino TypedChatModelAgent[*schema.AgenticMessage] + adk.NewRunner.Run（官方 Quick Start 的 Query 同属 Runner API；此处用历史 + 用户消息切片等价于多轮 Query）。
-// 与 RunDeepAgent 共享 runEinoADKAgentLoop 的 SSE 映射与 MCP 桥。
+// RunEinoSingleChatModelAgent uses Eino TypedChatModelAgent[*schema.AgenticMessage] + adk.NewRunner.Run (the official Quick Start's Query belongs to the same Runner API; history + user message slices are equivalent to multi-turn Queries).
+// Shares runEinoADKAgentLoop's SSE mapping and MCP bridge with RunDeepAgent.
 func RunEinoSingleChatModelAgent(
 	ctx context.Context,
 	appCfg *config.Config,
@@ -40,10 +40,10 @@ func RunEinoSingleChatModelAgent(
 	systemPromptExtra string,
 ) (*RunResult, error) {
 	if appCfg == nil || ag == nil {
-		return nil, fmt.Errorf("eino single: 配置或 Agent 为空")
+		return nil, fmt.Errorf("eino single: config or Agent is nil")
 	}
 	if ma == nil {
-		return nil, fmt.Errorf("eino single: multi_agent 配置为空")
+		return nil, fmt.Errorf("eino single: multi_agent config is nil")
 	}
 	runtimeUserMessage := prepareLatestUserMessageForModel(userMessage, appCfg, &ma.EinoMiddleware, conversationID, logger)
 
@@ -86,14 +86,14 @@ func RunEinoSingleChatModelAgent(
 
 	mainToolsForCfg, mainOrchestratorPre, singleToolSearchActive, err := prependEinoAgenticMiddlewares(ctx, &ma.EinoMiddleware, einoMWMain, mainTools, einoLoc, skillsRoot, conversationID, projectID, logger)
 	if err != nil {
-		return nil, fmt.Errorf("eino single eino 中间件: %w", err)
+		return nil, fmt.Errorf("eino single eino middleware: %w", err)
 	}
 
 	baseHTTPClient := newEinoBaseHTTPClient()
 	agenticModelFactory := newEinoAgenticChatModelFactory(baseHTTPClient, reasoningClient, logger)
 	mainModel, err := agenticModelFactory(ctx, appCfg.OpenAI, einoModelModeNormal)
 	if err != nil {
-		return nil, fmt.Errorf("eino single agentic 模型: %w", err)
+		return nil, fmt.Errorf("eino single agentic model: %w", err)
 	}
 	modelRetryCfg := newEinoAgenticModelRetryConfig(&ma.EinoMiddleware, logger, "eino_single")
 	modelFailoverCfg, err := newEinoAgenticModelFailoverConfig(ctx, appCfg, &ma.EinoMiddleware, einoModelModeNormal, agenticModelFactory, logger, "eino_single", progress, "eino_single", conversationID)
@@ -122,7 +122,7 @@ func RunEinoSingleChatModelAgent(
 		if einoFSTools && einoLoc != nil {
 			fsMw, fsErr := subAgentAgenticFilesystemMiddleware(ctx, einoLoc, toolInvokeNotify, einoSingleAgentName, conversationID, projectID, ma.EinoMiddleware.ReductionRootDir, toolMaxBytesFromMW(&ma.EinoMiddleware), mcpExecBinder, einoExecBegin, einoExecAppendPartial, einoExecRegisterCancel, einoExecUnregisterCancel, einoExecFinish, agentToolTimeoutMinutes(appCfg), agentToolWaitTimeoutSeconds(appCfg), agentShellNoOutputTimeoutSeconds(appCfg), nil)
 			if fsErr != nil {
-				return nil, fmt.Errorf("eino single filesystem 中间件: %w", fsErr)
+				return nil, fmt.Errorf("eino single filesystem middleware: %w", fsErr)
 			}
 			handlers = append(handlers, fsMw)
 		}
@@ -231,6 +231,6 @@ func RunEinoSingleChatModelAgent(
 		ModelName:               appCfg.OpenAI.Model,
 		MiddlewareConfig:        &ma.EinoMiddleware,
 		EmptyResponseMessage: "(Eino ADK single-agent session completed but no assistant text was captured. Check process details or logs.) " +
-			"（Eino ADK 单代理会话已完成，但未捕获到助手文本输出。请查看过程详情或日志。）",
+			"(Eino ADK single-agent session completed, but no assistant text output was captured. Please check process details or logs.)",
 	}, baseMsgs)
 }

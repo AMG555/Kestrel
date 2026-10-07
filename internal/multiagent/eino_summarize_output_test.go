@@ -1,4 +1,4 @@
-﻿package multiagent
+package multiagent
 
 import (
 	"strings"
@@ -25,11 +25,11 @@ func TestStripAnalysisFromSummarizationMessage_UserInputMultiContent(t *testing.
 		UserInputMultiContent: []schema.MessageInputPart{
 			{
 				Type: schema.ChatMessagePartTypeText,
-				Text: "此会话延续自此前一段因上下文耗尽而终止的对话。\n\n<analysis>draft</analysis>\n<summary>body</summary>\n\n完整记录位于：/tmp/transcript.txt",
+				Text: "此会话延续自此前一段因上下文耗尽而终止的conversation。\n\n<analysis>draft</analysis>\n<summary>body</summary>\n\n完整记录位于：/tmp/transcript.txt",
 			},
 			{
 				Type: schema.ChatMessagePartTypeText,
-				Text: "请从我们中断的地方继续对话，无需向用户提出任何进一步的问题。",
+				Text: "请从我们中断的地方continueconversation，none需向user提出任何进一步的问题。",
 			},
 		},
 	}
@@ -43,7 +43,7 @@ func TestStripAnalysisFromSummarizationMessage_UserInputMultiContent(t *testing.
 	if !strings.Contains(out.UserInputMultiContent[0].Text, "<summary>body</summary>") {
 		t.Fatalf("part 0 should keep summary: %q", out.UserInputMultiContent[0].Text)
 	}
-	if out.UserInputMultiContent[1].Text != "请从我们中断的地方继续对话，无需向用户提出任何进一步的问题。" {
+	if out.UserInputMultiContent[1].Text != "请从我们中断的地方continueconversation，none需向user提出任何进一步的问题。" {
 		t.Fatalf("continue instruction part should be unchanged: %q", out.UserInputMultiContent[1].Text)
 	}
 }
@@ -71,7 +71,7 @@ func TestBuildOriginalUserIntentLedgerMessage_AppendsRawUserMessages(t *testing.
 	original := []adk.Message{
 		schema.UserMessage("第一轮：只测 staging，不要碰 prod。"),
 		schema.AssistantMessage("ok", nil),
-		schema.UserMessage("第二轮：优先验证 /api/login 的 SQL 注入。"),
+		schema.UserMessage("第二轮：优先validate /api/login 的 SQL 注入。"),
 		schema.UserMessage(FormatEmptyResponseContinueUserMessage()),
 	}
 
@@ -89,28 +89,28 @@ func TestBuildOriginalUserIntentLedgerMessage_AppendsRawUserMessages(t *testing.
 	if !strings.Contains(body, "只测 staging，不要碰 prod") {
 		t.Fatalf("first user constraint missing: %q", body)
 	}
-	if !strings.Contains(body, "优先验证 /api/login") {
+	if !strings.Contains(body, "优先validate /api/login") {
 		t.Fatalf("second user request missing: %q", body)
 	}
-	if strings.Contains(body, "系统自动续跑") {
+	if strings.Contains(body, "systemAuto-continue") {
 		t.Fatalf("synthetic auto-resume user message should be skipped: %q", body)
 	}
 }
 
 func TestBuildOriginalUserIntentLedgerMessage_CarriesPreviousLedgerAndDedups(t *testing.T) {
-	prevSummary := schema.AssistantMessage(wrapUserIntentLedger("- [U001] 原始目标：example.com\n- [U002] 禁止高危破坏性操作"), nil)
+	prevSummary := schema.AssistantMessage(wrapUserIntentLedger("- [U001] 原始目标：example.com\n- [U002] 禁止critical破坏性操作"), nil)
 	original := []adk.Message{
 		prevSummary,
-		schema.UserMessage("禁止高危破坏性操作"),
-		schema.UserMessage("新增约束：只输出中文报告"),
+		schema.UserMessage("禁止critical破坏性操作"),
+		schema.UserMessage("新增约束：只输出Chinesereport"),
 	}
 
 	out := buildOriginalUserIntentLedgerMessage(original, 96000, 16000)
 	body := out.Content
-	if !strings.Contains(body, "原始目标：example.com") || !strings.Contains(body, "新增约束：只输出中文报告") {
+	if !strings.Contains(body, "原始目标：example.com") || !strings.Contains(body, "新增约束：只输出Chinesereport") {
 		t.Fatalf("ledger did not carry old and new entries: %q", body)
 	}
-	if strings.Count(body, "禁止高危破坏性操作") != 1 {
+	if strings.Count(body, "禁止critical破坏性操作") != 1 {
 		t.Fatalf("duplicate ledger entry was not deduped: %q", body)
 	}
 	if strings.Count(body, userIntentLedgerStartMarker) != 1 {

@@ -1,4 +1,4 @@
-﻿package main
+package main
 
 import (
 	"context"
@@ -29,7 +29,7 @@ func main() {
 	checkIsolation := flag.Bool("check-process-isolation", false, "Probe task containment and cleanup, then exit without starting services")
 	flag.Parse()
 
-	// 环境变量兼容（便于 systemd/docker 等不传参场景）
+	// environment variable compatibility (for systemd/docker scenarios where args are not passed)
 	if *httpsBootstrap && *httpBootstrap {
 		fmt.Fprintln(os.Stderr, "--http and --https cannot be used together")
 		os.Exit(2)
@@ -41,7 +41,7 @@ func main() {
 		}
 	}
 
-	// 加载配置
+	// load config
 	cp := strings.TrimSpace(*configPath)
 	if cp == "" {
 		cp = "config.yaml"
@@ -111,7 +111,7 @@ func main() {
 		HTTPRedirect: scheme == "https" && config.ServerHTTPRedirectEnabled(&cfg.Server),
 	})
 
-	// MCP 启用且 auth_header_value 为空时，自动生成随机密钥并写回配置
+	// when MCP is enabled and auth_header_value is empty, auto-generate a random key and write back to config
 	if err := config.EnsureMCPAuth(cp, cfg); err != nil {
 		fmt.Printf("Failed to configure MCP authentication: %v\n", err)
 		return
@@ -120,7 +120,7 @@ func main() {
 		config.PrintMCPConfigJSON(cfg.MCP)
 	}
 
-	// 初始化日志
+	// initialize log
 	log := logger.New(cfg.Log.Level, cfg.Log.Output, logger.DiagnosticOptions{
 		Dir:           cfg.Log.DiagnosticDir,
 		Disabled:      cfg.Log.DiagnosticDisabled,
@@ -129,46 +129,46 @@ func main() {
 	defer log.Sync()
 
 	if err := configureProcessIsolation(cfg); err != nil {
-		log.Fatal("进程隔离初始化失败", "error", err)
+		log.Fatal("process isolationinitialization failed", "error", err)
 	}
 
 	probeCtx, probeCancel := context.WithTimeout(context.Background(), 15*time.Second)
 	backend, probeErr := processguard.Check(probeCtx)
 	probeCancel()
 	if probeErr != nil {
-		log.Fatal("进程隔离启动检查失败", "error", probeErr)
+		log.Fatal("process isolationstartcheckfailed", "error", probeErr)
 	}
-	log.Info("任务进程隔离已就绪", zap.String("backend", backend))
+	log.Info("task process isolation ready", zap.String("backend", backend))
 
-	// 创建可取消的根 context，用于优雅关闭
+	// create cancellable root context for graceful shutdown
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// 监听系统信号
+	// listen for system signals
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 
-	// 创建应用
+	// create application
 	application, err := app.New(cfg, log, cp)
 	if err != nil {
-		log.Fatal("应用初始化失败", "error", err)
+		log.Fatal("application initialization failed", "error", err)
 	}
 
-	// 在后台监听信号
+	// listen for signals in background
 	go func() {
 		sig := <-sigCh
-		log.Info("收到系统信号，开始优雅关闭: " + sig.String())
+		log.Info("received system signal, starting graceful shutdown: " + sig.String())
 		application.Shutdown()
 		cancel()
 	}()
 
-	// 启动服务器（传入 context 以支持优雅关闭）
+	// start server (passing context for graceful shutdown support)
 	if err := application.RunWithContext(ctx); err != nil {
-		// context 取消导致的关闭不视为错误
+		// shutdown caused by context cancellation is not treated as an error
 		if ctx.Err() != nil {
-			log.Info("服务器已优雅关闭")
+			log.Info("server gracefully shut down")
 		} else {
-			log.Fatal("服务器启动失败", "error", err)
+			log.Fatal("server startup failed", "error", err)
 		}
 	}
 }

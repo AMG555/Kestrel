@@ -1,4 +1,4 @@
-﻿package database
+package database
 
 import (
 	"database/sql"
@@ -130,8 +130,9 @@ func normalizeAsset(a *Asset) {
 		}
 	}
 	a.Tags = tags
-	// URL 型 Host 是常见输入。缺失的结构化字段在服务端同样补齐，确保
-	// API、MCP 与 Web 端产生一致的去重键，而不依赖某个客户端正确解析。
+	// URL-form Host is a common input. Missing structured fields are also
+	// filled in server-side to ensure a consistent dedup key across API, MCP,
+	// and web clients, without relying on any single client to parse correctly.
 	if strings.Contains(a.Host, "://") {
 		if parsed, err := url.Parse(a.Host); err == nil && parsed.Hostname() != "" && parsed.User == nil {
 			hostname := strings.Trim(strings.ToLower(parsed.Hostname()), "[]")
@@ -193,55 +194,55 @@ func assetValidationErrorf(format string, args ...interface{}) error {
 
 func validateAsset(a *Asset) error {
 	if a == nil {
-		return assetValidationErrorf("资产不能为空")
+		return assetValidationErrorf("asset cannot be nil")
 	}
 	if a.Host == "" && a.IP == "" && a.Domain == "" {
-		return assetValidationErrorf("资产目标不能为空")
+		return assetValidationErrorf("asset target cannot be empty")
 	}
 	if a.Port < 0 || a.Port > 65535 {
-		return assetValidationErrorf("端口必须在 0-65535 之间")
+		return assetValidationErrorf("port must be between 0 and 65535")
 	}
 	if a.IP != "" && net.ParseIP(strings.Trim(a.IP, "[]")) == nil {
-		return assetValidationErrorf("IP 地址格式无效")
+		return assetValidationErrorf("IP address format invalid")
 	}
 	if a.Domain != "" {
 		ascii, err := idna.Lookup.ToASCII(strings.TrimSuffix(a.Domain, "."))
 		if err != nil || !validAssetDomain(ascii) {
-			return assetValidationErrorf("域名格式无效")
+			return assetValidationErrorf("domain format invalid")
 		}
 		a.Domain = strings.ToLower(ascii)
 	}
 	if a.Protocol != "" && !assetProtocolPattern.MatchString(a.Protocol) {
-		return assetValidationErrorf("协议格式无效")
+		return assetValidationErrorf("protocol format invalid")
 	}
 	if a.Status != "active" && a.Status != "inactive" {
-		return assetValidationErrorf("资产状态必须为 active 或 inactive")
+		return assetValidationErrorf("asset status must be active or inactive")
 	}
 	for name, value := range map[string]string{
-		"Host": a.Host, "域名": a.Domain, "协议": a.Protocol, "页面标题": a.Title,
-		"服务指纹": a.Server, "国家/地区": a.Country, "省份/州": a.Province, "城市": a.City,
-		"负责人": a.ResponsiblePerson, "部门": a.Department, "业务系统": a.BusinessSystem,
+		"Host": a.Host, "Domain": a.Domain, "Protocol": a.Protocol, "Page Title": a.Title,
+		"Service Fingerprint": a.Server, "Country/Region": a.Country, "Province/State": a.Province, "City": a.City,
+		"Responsible Person": a.ResponsiblePerson, "Department": a.Department, "Business System": a.BusinessSystem,
 	} {
 		limit := 255
-		if name == "Host" || name == "页面标题" {
+		if name == "Host" || name == "Page Title" {
 			limit = 500
 		}
 		if utf8.RuneCountInString(value) > limit {
-			return assetValidationErrorf("%s不能超过 %d 个字符", name, limit)
+			return assetValidationErrorf("%s cannot exceed %d characters", name, limit)
 		}
 	}
 	if !oneOfAssetValue(a.Environment, "", "production", "staging", "testing", "development", "other") {
-		return assetValidationErrorf("环境必须为 production、staging、testing、development 或 other")
+		return assetValidationErrorf("environment must be production, staging, testing, development, or other")
 	}
 	if !oneOfAssetValue(a.Criticality, "", "critical", "high", "medium", "low") {
-		return assetValidationErrorf("重要性必须为 critical、high、medium 或 low")
+		return assetValidationErrorf("criticality must be critical, high, medium, or low")
 	}
 	if len(a.Tags) > 30 {
-		return assetValidationErrorf("标签不能超过 30 个")
+		return assetValidationErrorf("tags cannot exceed 30")
 	}
 	for _, tag := range a.Tags {
 		if utf8.RuneCountInString(tag) > 64 {
-			return assetValidationErrorf("单个标签不能超过 64 个字符")
+			return assetValidationErrorf("individual tag cannot exceed 64 characters")
 		}
 	}
 	return nil
@@ -318,7 +319,7 @@ func (db *DB) UpsertAssets(assets []*Asset, ownerUserID string, allowGlobal ...b
 		}
 		normalizeAsset(asset)
 		if err := validateAsset(asset); err != nil {
-			return result, fmt.Errorf("第 %d 个资产无效: %w", result.Created+result.Updated+result.Skipped+1, err)
+			return result, fmt.Errorf("asset #%d invalid: %w", result.Created+result.Updated+result.Skipped+1, err)
 		}
 		key := assetDedupKey(asset)
 		if key == "|0|" {
@@ -342,18 +343,18 @@ func (db *DB) UpsertAssets(assets []*Asset, ownerUserID string, allowGlobal ...b
 				asset.ResponsiblePerson, asset.Department, asset.BusinessSystem, asset.Environment, asset.Criticality,
 				now, now, now, now, nullIfEmpty(ownerUserID))
 			if err != nil {
-				return result, fmt.Errorf("创建资产失败: %w", err)
+				return result, fmt.Errorf("create assetfailed: %w", err)
 			}
 			if ownerUserID != "" {
 				if _, err := tx.Exec(`INSERT OR IGNORE INTO rbac_resource_assignments (id,user_id,resource_type,resource_id,created_at) SELECT ?,id,?,?,? FROM rbac_users WHERE id=?`, uuid.NewString(), "asset", asset.ID, now, ownerUserID); err != nil {
-					return result, fmt.Errorf("授权新资产失败: %w", err)
+					return result, fmt.Errorf("authorize new asset failed: %w", err)
 				}
 			}
 			result.Created++
 			continue
 		}
 		if err != nil {
-			return result, fmt.Errorf("检查资产去重键失败: %w", err)
+			return result, fmt.Errorf("check asset dedup key failed: %w", err)
 		}
 		asset.ID = existingID
 		global := len(allowGlobal) > 0 && allowGlobal[0]
@@ -382,11 +383,11 @@ func (db *DB) UpsertAssets(assets []*Asset, ownerUserID string, allowGlobal ...b
 			asset.Environment, asset.Environment, asset.Criticality, asset.Criticality, string(tagsJSON), string(tagsJSON),
 			now, now, existingID)
 		if err != nil {
-			return result, fmt.Errorf("更新资产失败: %w", err)
+			return result, fmt.Errorf("update assetfailed: %w", err)
 		}
 		if ownerUserID != "" && (!existingOwner.Valid || strings.TrimSpace(existingOwner.String) == ownerUserID) {
 			if _, err := tx.Exec(`INSERT OR IGNORE INTO rbac_resource_assignments (id,user_id,resource_type,resource_id,created_at) SELECT ?,id,?,?,? FROM rbac_users WHERE id=?`, uuid.NewString(), "asset", existingID, now, ownerUserID); err != nil {
-				return result, fmt.Errorf("授权资产失败: %w", err)
+				return result, fmt.Errorf("authorize asset failed: %w", err)
 			}
 		}
 		result.Updated++
@@ -623,7 +624,7 @@ func (db *DB) CompleteAssetScan(id, conversationID string, access RBACListAccess
 	id = strings.TrimSpace(id)
 	conversationID = strings.TrimSpace(conversationID)
 	if conversationID == "" {
-		return fmt.Errorf("扫描对话不能为空")
+		return fmt.Errorf("scan conversation ID cannot be empty")
 	}
 	where, args := appendAssetAccess(" WHERE id = ?", []interface{}{id}, access, "assets")
 	now := time.Now()
@@ -685,19 +686,19 @@ func (db *DB) RefreshAssetRiskCache(assetID string) error {
 		if err == sql.ErrNoRows {
 			return nil
 		}
-		return fmt.Errorf("刷新资产漏洞数量失败: %w", err)
+		return fmt.Errorf("refresh asset vulnerability count failed: %w", err)
 	}
 	var score int
 	if err := db.QueryRow("SELECT "+assetRiskScoreQueryExpr+" FROM assets WHERE assets.id=?", assetID).Scan(&score); err != nil {
-		return fmt.Errorf("刷新资产风险分数失败: %w", err)
+		return fmt.Errorf("refresh asset risk score failed: %w", err)
 	}
 	var lastScan interface{}
 	if err := db.QueryRow("SELECT "+assetEffectiveLastScanExpr+" FROM assets WHERE assets.id=?", assetID).Scan(&lastScan); err != nil {
-		return fmt.Errorf("刷新资产扫描状态失败: %w", err)
+		return fmt.Errorf("refresh asset scan status failed: %w", err)
 	}
 	level := assetRiskLevelFromScore(score, lastScan != nil)
 	if _, err := db.Exec(`UPDATE assets SET vulnerability_count=?, risk_score=?, risk_level=? WHERE id=?`, count, score, level, assetID); err != nil {
-		return fmt.Errorf("更新资产风险缓存失败: %w", err)
+		return fmt.Errorf("update asset risk cache failed: %w", err)
 	}
 	return nil
 }
@@ -705,7 +706,7 @@ func (db *DB) RefreshAssetRiskCache(assetID string) error {
 func (db *DB) RefreshAllAssetRiskCache() error {
 	rows, err := db.Query(`SELECT id FROM assets`)
 	if err != nil {
-		return fmt.Errorf("查询资产列表失败: %w", err)
+		return fmt.Errorf("query asset list failed: %w", err)
 	}
 	defer rows.Close()
 	for rows.Next() {
@@ -749,7 +750,7 @@ func (db *DB) AssetIDsForVulnerabilityConversations(conversationIDs []string) ([
 		WHERE assets.last_scan_conversation_id IN (`+placeholders+`)
 		OR assets.last_scan_task_id IN (SELECT bt.id FROM batch_tasks bt WHERE bt.conversation_id IN (`+placeholders+`))`, args...)
 	if err != nil {
-		return nil, fmt.Errorf("查询受影响资产失败: %w", err)
+		return nil, fmt.Errorf("query affected assets failed: %w", err)
 	}
 	defer rows.Close()
 	assetIDs := []string{}
@@ -778,7 +779,7 @@ func (db *DB) RefreshAssetRiskCacheForConversations(conversationIDs ...string) e
 
 func (db *DB) refreshAssetRiskCacheForConversationsBestEffort(conversationIDs ...string) {
 	if err := db.RefreshAssetRiskCacheForConversations(conversationIDs...); err != nil && db.logger != nil {
-		db.logger.Warn("刷新资产风险缓存失败", zap.Error(err))
+		db.logger.Warn("refresh asset risk cache failed", zap.Error(err))
 	}
 }
 
@@ -826,7 +827,7 @@ func (db *DB) ListAssetsForOperation(limit int, filter AssetListFilter, access R
 		return nil, 0, err
 	}
 	if total > limit {
-		return nil, total, fmt.Errorf("匹配资产超过 %d 条，请缩小筛选范围", limit)
+		return nil, total, fmt.Errorf("matched assets exceed %d, please narrow the filter", limit)
 	}
 	rows, err := db.Query("SELECT "+assetSelectColumns+" FROM assets LEFT JOIN projects p ON p.id=assets.project_id"+where+" ORDER BY "+assetOrderBy(filter.SortBy, filter.SortOrder), args...)
 	if err != nil {
@@ -891,7 +892,7 @@ func (db *DB) UpdateAsset(id string, a *Asset, access RBACListAccess) error {
 	}
 	key := assetDedupKey(a)
 	if key == "|0|" {
-		return fmt.Errorf("资产目标不能为空")
+		return fmt.Errorf("asset target cannot be empty")
 	}
 	tags, _ := json.Marshal(a.Tags)
 	where, args := appendAssetAccess(" WHERE id = ?", []interface{}{id}, access, "assets")
@@ -946,7 +947,7 @@ func normalizeBulkTags(tags []string) ([]string, error) {
 			continue
 		}
 		if utf8.RuneCountInString(tag) > 64 {
-			return nil, assetValidationErrorf("单个标签不能超过 64 个字符")
+			return nil, assetValidationErrorf("individual tag cannot exceed 64 characters")
 		}
 		if _, exists := seen[tag]; exists {
 			continue
@@ -961,26 +962,26 @@ func normalizeBulkTags(tags []string) ([]string, error) {
 func (db *DB) UpdateAssetsBulk(ids []string, patch AssetBulkPatch, access RBACListAccess) (int, error) {
 	unique := normalizeAssetIDs(ids)
 	if len(unique) == 0 {
-		return 0, fmt.Errorf("资产列表不能为空")
+		return 0, fmt.Errorf("asset list cannot be empty")
 	}
 	if patch.Status != nil {
 		value := strings.ToLower(strings.TrimSpace(*patch.Status))
 		if value != "active" && value != "inactive" {
-			return 0, assetValidationErrorf("资产状态必须为 active 或 inactive")
+			return 0, assetValidationErrorf("asset status must be active or inactive")
 		}
 		patch.Status = &value
 	}
 	if patch.Environment != nil {
 		value := strings.ToLower(strings.TrimSpace(*patch.Environment))
 		if !oneOfAssetValue(value, "", "production", "staging", "testing", "development", "other") {
-			return 0, assetValidationErrorf("环境值无效")
+			return 0, assetValidationErrorf("environment value invalid")
 		}
 		patch.Environment = &value
 	}
 	if patch.Criticality != nil {
 		value := strings.ToLower(strings.TrimSpace(*patch.Criticality))
 		if !oneOfAssetValue(value, "", "critical", "high", "medium", "low") {
-			return 0, assetValidationErrorf("重要性值无效")
+			return 0, assetValidationErrorf("criticality value invalid")
 		}
 		patch.Criticality = &value
 	}
@@ -1008,7 +1009,7 @@ func (db *DB) UpdateAssetsBulk(ids []string, patch AssetBulkPatch, access RBACLi
 		return 0, err
 	}
 	if accessible != len(unique) {
-		return 0, fmt.Errorf("部分资产不存在或无权更新")
+		return 0, fmt.Errorf("some assets not found or no permission to update")
 	}
 
 	for _, id := range unique {
@@ -1035,7 +1036,7 @@ func (db *DB) UpdateAssetsBulk(ids []string, patch AssetBulkPatch, access RBACLi
 			merged = append(merged, tag)
 		}
 		if len(merged) > 30 {
-			return 0, assetValidationErrorf("批量修改后标签不能超过 30 个")
+			return 0, assetValidationErrorf("tags cannot exceed 30 after bulk modification")
 		}
 		tagsJSON, _ := json.Marshal(merged)
 		_, err := tx.Exec(`UPDATE assets SET
@@ -1073,7 +1074,7 @@ func valueOrEmpty(value *string) string {
 func (db *DB) DeleteAssets(ids []string, access RBACListAccess) (int, error) {
 	unique := normalizeAssetIDs(ids)
 	if len(unique) == 0 {
-		return 0, fmt.Errorf("资产列表不能为空")
+		return 0, fmt.Errorf("asset list cannot be null")
 	}
 	tx, err := db.Begin()
 	if err != nil {
@@ -1091,7 +1092,7 @@ func (db *DB) DeleteAssets(ids []string, access RBACListAccess) (int, error) {
 		return 0, err
 	}
 	if accessible != len(unique) {
-		return 0, fmt.Errorf("部分资产不存在或无权删除")
+		return 0, fmt.Errorf("some assets not found or no permission to delete")
 	}
 	deleteQuery, deleteArgs := appendAssetAccess("DELETE FROM assets WHERE id IN ("+placeholders+")", args, access, "assets")
 	result, err := tx.Exec(deleteQuery, deleteArgs...)
@@ -1100,7 +1101,7 @@ func (db *DB) DeleteAssets(ids []string, access RBACListAccess) (int, error) {
 	}
 	deleted, err := result.RowsAffected()
 	if err != nil || int(deleted) != len(unique) {
-		return 0, fmt.Errorf("批量删除资产失败")
+		return 0, fmt.Errorf("batch delete assets failed")
 	}
 	if err := tx.Commit(); err != nil {
 		return 0, err
@@ -1112,7 +1113,7 @@ func (db *DB) DeleteAssets(ids []string, access RBACListAccess) (int, error) {
 // Separate access scopes preserve permission-specific RBAC boundaries.
 func (db *DB) MergeAssets(primary *Asset, duplicateIDs []string, writeAccess, deleteAccess RBACListAccess) (int, error) {
 	if primary == nil || strings.TrimSpace(primary.ID) == "" {
-		return 0, fmt.Errorf("主资产不能为空")
+		return 0, fmt.Errorf("primary asset cannot be null")
 	}
 	normalizeAsset(primary)
 	if err := validateAsset(primary); err != nil {
@@ -1127,7 +1128,7 @@ func (db *DB) MergeAssets(primary *Asset, duplicateIDs []string, writeAccess, de
 	}
 	duplicates = filtered
 	if len(duplicates) == 0 {
-		return 0, fmt.Errorf("重复资产列表不能为空")
+		return 0, fmt.Errorf("duplicate asset list cannot be null")
 	}
 	key := assetDedupKey(primary)
 	tagsJSON, _ := json.Marshal(primary.Tags)
@@ -1140,7 +1141,7 @@ func (db *DB) MergeAssets(primary *Asset, duplicateIDs []string, writeAccess, de
 	primaryQuery, primaryArgs := appendAssetAccess("SELECT COUNT(*) FROM assets WHERE id=?", []interface{}{primary.ID}, writeAccess, "assets")
 	var primaryCount int
 	if err := tx.QueryRow(primaryQuery, primaryArgs...).Scan(&primaryCount); err != nil || primaryCount != 1 {
-		return 0, fmt.Errorf("主资产不存在或无权更新")
+		return 0, fmt.Errorf("primary asset not found or no permission to update")
 	}
 	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(duplicates)), ",")
 	deleteArgs := make([]interface{}, len(duplicates))
@@ -1150,13 +1151,13 @@ func (db *DB) MergeAssets(primary *Asset, duplicateIDs []string, writeAccess, de
 	countQuery, countArgs := appendAssetAccess("SELECT COUNT(*) FROM assets WHERE id IN ("+placeholders+")", deleteArgs, deleteAccess, "assets")
 	var accessible int
 	if err := tx.QueryRow(countQuery, countArgs...).Scan(&accessible); err != nil || accessible != len(duplicates) {
-		return 0, fmt.Errorf("部分重复资产不存在或无权删除")
+		return 0, fmt.Errorf("some duplicate assets not found or no permission to delete")
 	}
 	deleteQuery, scopedDeleteArgs := appendAssetAccess("DELETE FROM assets WHERE id IN ("+placeholders+")", deleteArgs, deleteAccess, "assets")
 	if result, err := tx.Exec(deleteQuery, scopedDeleteArgs...); err != nil {
 		return 0, err
 	} else if deleted, _ := result.RowsAffected(); int(deleted) != len(duplicates) {
-		return 0, fmt.Errorf("删除重复资产失败")
+		return 0, fmt.Errorf("delete duplicate assets failed")
 	}
 	updateQuery, updateScopeArgs := appendAssetAccess(`UPDATE assets SET dedup_key=?,project_id=?,host=?,ip=?,port=?,domain=?,protocol=?,title=?,server=?,country=?,province=?,city=?,
 		responsible_person=?,department=?,business_system=?,environment=?,criticality=?,source=?,source_query=?,status=?,tags_json=?,updated_at=? WHERE id=?`,
@@ -1168,7 +1169,7 @@ func (db *DB) MergeAssets(primary *Asset, duplicateIDs []string, writeAccess, de
 		return 0, err
 	}
 	if updated, _ := result.RowsAffected(); updated != 1 {
-		return 0, fmt.Errorf("更新主资产失败")
+		return 0, fmt.Errorf("update primary asset failed")
 	}
 	if err := tx.Commit(); err != nil {
 		return 0, err
@@ -1182,7 +1183,7 @@ func (db *DB) MergeAssets(primary *Asset, duplicateIDs []string, writeAccess, de
 func (db *DB) UpdateAssetsProject(ids []string, projectID string, access RBACListAccess) (int, error) {
 	unique := normalizeAssetIDs(ids)
 	if len(unique) == 0 {
-		return 0, fmt.Errorf("资产列表不能为空")
+		return 0, fmt.Errorf("asset list cannot be null")
 	}
 
 	tx, err := db.Begin()
@@ -1202,7 +1203,7 @@ func (db *DB) UpdateAssetsProject(ids []string, projectID string, access RBACLis
 		return 0, err
 	}
 	if accessible != len(unique) {
-		return 0, fmt.Errorf("部分资产不存在或无权更新")
+		return 0, fmt.Errorf("some assets not found or no permission to update")
 	}
 
 	updateArgs := []interface{}{nullIfEmpty(strings.TrimSpace(projectID)), time.Now()}
@@ -1217,7 +1218,7 @@ func (db *DB) UpdateAssetsProject(ids []string, projectID string, access RBACLis
 		return 0, err
 	}
 	if int(updated) != len(unique) {
-		return 0, fmt.Errorf("批量更新资产失败")
+		return 0, fmt.Errorf("batch update assets failed")
 	}
 	if err := tx.Commit(); err != nil {
 		return 0, err

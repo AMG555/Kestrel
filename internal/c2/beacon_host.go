@@ -1,4 +1,4 @@
-﻿package c2
+package c2
 
 import (
 	"fmt"
@@ -10,8 +10,8 @@ import (
 	"go.uber.org/zap"
 )
 
-// ResolveBeaconDialHost 决定植入端应连接的主机名（不含端口）。
-// 优先级：explicitOverride > 监听器 config_json 中的 callback_host > bind_host（0.0.0.0/::/空 时 detectExternalIP，失败则 127.0.0.1）。
+// ResolveBeaconDialHost determines the hostname (without port) that the implant should connect to.
+// Priority: explicitOverride > callback_host in the listener's config_json > bind_host (when 0.0.0.0/::/empty, detects the external IP; falls back to 127.0.0.1 on failure).
 func ResolveBeaconDialHost(listener *database.C2Listener, explicitOverride string, logger *zap.Logger, listenerID string) string {
 	if h := strings.TrimSpace(explicitOverride); h != "" {
 		return h

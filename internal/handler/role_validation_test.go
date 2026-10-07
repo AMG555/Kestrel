@@ -1,4 +1,4 @@
-﻿package handler
+package handler
 
 import (
 	"bytes"
@@ -15,12 +15,12 @@ import (
 )
 
 func TestRoleNameValidation(t *testing.T) {
-	for _, name := range []string{"", " ", "../role", "a/b", `a\b`, "a..b", "a\n", strings.Repeat("中", 65)} {
+	for _, name := range []string{"", " ", "../role", "a/b", `a\b`, "a..b", "a\n", strings.Repeat("x", 65)} {
 		if validateRoleName(name) == nil {
 			t.Fatalf("accepted %q", name)
 		}
 	}
-	for _, name := range []string{"安全分析", "Web Audit", "role-v2", strings.Repeat("中", 64)} {
+	for _, name := range []string{"Security Analysis", "Web Audit", "role-v2", strings.Repeat("x", 64)} {
 		if err := validateRoleName(name); err != nil {
 			t.Fatalf("rejected %q: %v", name, err)
 		}

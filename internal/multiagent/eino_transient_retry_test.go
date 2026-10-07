@@ -1,4 +1,4 @@
-﻿package multiagent
+package multiagent
 
 import (
 	"context"
@@ -95,7 +95,7 @@ func TestEinoTransientRunErrorUserDetail(t *testing.T) {
 
 func TestEinoTrimRetryErrorSummary(t *testing.T) {
 	t.Parallel()
-	raw := strings.Repeat("报错 ", 260)
+	raw := strings.Repeat("error ", 260)
 	got := einoTrimRetryErrorSummary(raw)
 	if len([]rune(got)) > 503 {
 		t.Fatalf("summary too long: %d runes", len([]rune(got)))
@@ -147,7 +147,7 @@ func TestEinoTransientRunRetrierReset(t *testing.T) {
 	if r.attempt() != 0 {
 		t.Fatalf("after reset: attempt=%d, want 0", r.attempt())
 	}
-	// 重置后下一次退避应从 1s~2s equal-jitter 窗口起算（attempt index 0）。
+	// after reset, the next backoff should start from the 1s~2s equal-jitter window (attempt index 0).
 	if got := einoTransientRetryBackoff(r.attempt(), r.policy.maxBackoff); got < time.Second || got > 2*time.Second {
 		t.Fatalf("backoff after reset outside [1s,2s]: %v", got)
 	}
@@ -182,11 +182,11 @@ func TestEinoTransientRunRetrierConsecutiveFailures(t *testing.T) {
 func TestAppendUserMessageIfNeeded(t *testing.T) {
 	t.Parallel()
 	msgs := []adk.Message{schema.UserMessage("old task")}
-	out := appendUserMessageIfNeeded(msgs, "你好，你是谁")
-	if len(out) != 2 || out[1].Content != "你好，你是谁" {
+	out := appendUserMessageIfNeeded(msgs, "hello, who are you")
+	if len(out) != 2 || out[1].Content != "hello, who are you" {
 		t.Fatalf("should append user: len=%d", len(out))
 	}
-	dup := appendUserMessageIfNeeded(out, "你好，你是谁")
+	dup := appendUserMessageIfNeeded(out, "hello, who are you")
 	if len(dup) != 2 {
 		t.Fatalf("should not duplicate user message: len=%d", len(dup))
 	}
@@ -195,14 +195,14 @@ func TestAppendUserMessageIfNeeded(t *testing.T) {
 func TestAppendUserMessageIfNeeded_repeatPromptAfterAssistant(t *testing.T) {
 	t.Parallel()
 	msgs := []adk.Message{
-		schema.UserMessage("扫描 example.com"),
-		schema.AssistantMessage("开始扫描...", nil),
+		schema.UserMessage("scan example.com"),
+		schema.AssistantMessage("starting scan...", nil),
 	}
-	out := appendUserMessageIfNeeded(msgs, "扫描 example.com")
+	out := appendUserMessageIfNeeded(msgs, "scan example.com")
 	if len(out) != 3 {
 		t.Fatalf("should append new user turn after assistant reply: len=%d", len(out))
 	}
-	if out[2].Role != schema.User || out[2].Content != "扫描 example.com" {
+	if out[2].Role != schema.User || out[2].Content != "scan example.com" {
 		t.Fatalf("tail should be repeated user prompt, got role=%s content=%q", out[2].Role, out[2].Content)
 	}
 }

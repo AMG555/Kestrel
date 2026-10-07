@@ -1,4 +1,4 @@
-﻿package project
+package project
 
 import (
 	"fmt"
@@ -90,7 +90,7 @@ func TestBuildFactPathOverviewSection(t *testing.T) {
 		"target/dev": {}, "finding/sqli": {}, "exploit/rce": {}, "note/log": {},
 	}
 	section := BuildFactPathOverviewSection(edges, keys, 800)
-	if !strings.Contains(section, "### 攻击路径（事实关系）") {
+	if !strings.Contains(section, "### attack path（fact relationship）") {
 		t.Fatalf("missing header: %q", section)
 	}
 	if !strings.Contains(section, "target/dev → finding/sqli") {
@@ -152,7 +152,7 @@ func TestBuildFactIndexBlock_withLinksAndPathOverview(t *testing.T) {
 	if !strings.Contains(block, "关系边: discovered_on←target/dev") {
 		t.Fatalf("finding line should include relation hint: %q", block)
 	}
-	if !strings.Contains(block, "### 攻击路径（事实关系）") {
+	if !strings.Contains(block, "### attack path（fact relationship）") {
 		t.Fatalf("missing relation overview: %q", block)
 	}
 	if !strings.Contains(block, "target/dev → finding/sqli") {

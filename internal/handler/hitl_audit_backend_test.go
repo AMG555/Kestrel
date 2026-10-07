@@ -35,7 +35,7 @@ func TestHitlAuditEngineInfoOpenAIInheritsMainModel(t *testing.T) {
 }
 
 func TestHitlAuditBackendFromRecordPrefersPayload(t *testing.T) {
-	backend, model := hitlAuditBackendFromRecord("audit_agent", "audit agent: 实际操作：探测", `{
+	backend, model := hitlAuditBackendFromRecord("audit_agent", "audit agent: actual operation: probing", `{
 		"hitlApproval": {"auditBackend": "typesafe", "auditModel": "jev-latest"}
 	}`)
 	if backend != config.HitlAuditBackendTypeSafe || model != "jev-latest" {
@@ -45,7 +45,7 @@ func TestHitlAuditBackendFromRecordPrefersPayload(t *testing.T) {
 
 func TestHitlAuditBackendFromRecordInfersJevComment(t *testing.T) {
 	backend, _ := hitlAuditBackendFromRecord("audit_agent",
-		"audit agent: 未命中破坏性规则，默认放行；最高破坏分=破坏业务可用性 0.12；choice=approve(0.90)",
+		"audit agent: no destructive rule matched, default allow; max damage score=business availability disruption 0.12; choice=approve(0.90)",
 		`{}`)
 	if backend != config.HitlAuditBackendTypeSafe {
 		t.Fatalf("backend=%q", backend)
@@ -54,7 +54,7 @@ func TestHitlAuditBackendFromRecordInfersJevComment(t *testing.T) {
 
 func TestHitlAuditBackendFromRecordInfersOpenAIComment(t *testing.T) {
 	backend, _ := hitlAuditBackendFromRecord("audit_agent",
-		"audit agent: 实际操作：读取 /etc/passwd；命中规则：A3",
+		"audit agent: actual operation: read /etc/passwd; matched rule: A3",
 		`{}`)
 	if backend != config.HitlAuditBackendOpenAI {
 		t.Fatalf("backend=%q", backend)
@@ -62,7 +62,7 @@ func TestHitlAuditBackendFromRecordInfersOpenAIComment(t *testing.T) {
 }
 
 func TestHitlAuditBackendFromRecordIgnoresHuman(t *testing.T) {
-	backend, model := hitlAuditBackendFromRecord("human", "人工通过", `{"hitlApproval":{"auditBackend":"typesafe"}}`)
+	backend, model := hitlAuditBackendFromRecord("human", "manually approved", `{"hitlApproval":{"auditBackend":"typesafe"}}`)
 	if backend != "" || model != "" {
 		t.Fatalf("backend=%q model=%q", backend, model)
 	}

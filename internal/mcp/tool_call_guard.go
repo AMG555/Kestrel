@@ -1,4 +1,4 @@
-﻿package mcp
+package mcp
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"kestrel/internal/toolguard"
 )
 
-const toolGuardBlockedPrefix = "工具调用已被安全规则拦截"
+const toolGuardBlockedPrefix = "tool call已被安全规则拦截"
 const toolGuardBlockedMetaKey = "kestrel.ai/blocked"
 
 // toolGuardBlockError carries structured policy results through pre-run hooks.

@@ -25,7 +25,7 @@ func (h *ConfigHandler) GetToolGuard(c *gin.Context) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	if h.toolGuard == nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "调用拦截服务未初始化"})
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "call intercept service not initialized"})
 		return
 	}
 	c.JSON(http.StatusOK, h.toolGuard.Config())
@@ -42,7 +42,7 @@ func decodeToolGuardRequest(c *gin.Context, dst interface{}) error {
 		return err
 	}
 	if err := decoder.Decode(new(interface{})); err != io.EOF {
-		return fmt.Errorf("请求必须只包含一个 JSON 对象")
+		return fmt.Errorf("request must contain exactly one JSON object")
 	}
 	return nil
 }
@@ -53,11 +53,11 @@ func (h *ConfigHandler) UpdateToolGuard(c *gin.Context) {
 		Rules   *[]toolguard.Rule `json:"rules"`
 	}
 	if err := decodeToolGuardRequest(c, &req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的调用拦截配置: " + err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid call intercept config: " + err.Error()})
 		return
 	}
 	if req.Enabled == nil || req.Rules == nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "必须明确提供 enabled 和 rules；清空规则请提供空数组"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "enabled and rules must be explicitly provided; to clear rules, provide an empty array"})
 		return
 	}
 	cfg := toolguard.Config{Enabled: *req.Enabled, Rules: *req.Rules}
@@ -69,24 +69,24 @@ func (h *ConfigHandler) UpdateToolGuard(c *gin.Context) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if h.toolGuard == nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "调用拦截服务未初始化"})
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "call intercept service not initialized"})
 		return
 	}
 	// Commit the file first; a validation/write failure must leave the current
 	// effective policy and in-memory config intact.
 	if err := h.saveToolGuardConfig(cfg); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存调用拦截配置失败: " + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save call intercept config: " + err.Error()})
 		return
 	}
 	if err := h.toolGuard.Update(cfg); err != nil {
 		// The same immutable input was compiled above, so this cannot fail
 		// unless validation gains an additional runtime dependency.
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "应用调用拦截配置失败: " + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to apply call intercept config: " + err.Error()})
 		return
 	}
 	h.config.ToolGuard = &cfg
 	if h.audit != nil {
-		h.audit.RecordOK(c, "config", "tool_guard_update", "更新调用拦截规则", "config", "tool_guard", map[string]interface{}{
+		h.audit.RecordOK(c, "config", "tool_guard_update", "update call intercept rules", "config", "tool_guard", map[string]interface{}{
 			"enabled": cfg.Enabled, "rule_count": len(cfg.Rules),
 		})
 	}
@@ -100,11 +100,11 @@ func (h *ConfigHandler) TestToolGuard(c *gin.Context) {
 		Arguments map[string]interface{} `json:"arguments"`
 	}
 	if err := decodeToolGuardRequest(c, &req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的试匹配参数: " + err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid test match parameters: " + err.Error()})
 		return
 	}
 	if req.Config == nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "请提供待测试的 config"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "please provide the config to test"})
 		return
 	}
 	policy, err := toolguard.Compile(*req.Config)

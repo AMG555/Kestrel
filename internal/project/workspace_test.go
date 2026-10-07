@@ -1,4 +1,4 @@
-﻿package project
+package project
 
 import (
 	"os"
@@ -49,10 +49,10 @@ func TestBuildWorkspaceBlockMentionsPath(t *testing.T) {
 	if !strings.Contains(block, "/tmp") {
 		t.Fatalf("block should warn about /tmp: %s", block)
 	}
-	if !strings.Contains(block, "当前目录") || !strings.Contains(block, "服务进程当前工作目录") {
+	if !strings.Contains(block, "current directory") || !strings.Contains(block, "服务process当前working directory") {
 		t.Fatalf("block should distinguish current/project dir from workspace: %s", block)
 	}
-	if !strings.Contains(block, "不要把空的会话工作目录误当成项目根目录") {
+	if !strings.Contains(block, "不要把null的会话working directory误当成project根directory") {
 		t.Fatalf("block should warn about empty workspace confusion: %s", block)
 	}
 }

@@ -1,4 +1,4 @@
-﻿package handler
+package handler
 
 import (
 	"context"
@@ -94,7 +94,7 @@ func TestCleanupPendingToolExecutionsAfterIterationAllowsFinalization(t *testing
 	}
 
 	decision := agentfinalizer.Decide(db, agentfinalizer.Input{
-		Response:        "基于已完成信息的阶段性总结。",
+		Response:        "Interim summary based on completed information.",
 		MCPExecutionIDs: []string{execID},
 	})
 	if decision.CompletionReason != agentfinalizer.ReasonPendingTools {
@@ -117,7 +117,7 @@ func TestCleanupPendingToolExecutionsAfterIterationAllowsFinalization(t *testing
 		exec, err := db.GetToolExecution(execID)
 		if err == nil && exec != nil && exec.Status == mcp.ToolExecutionStatusCancelled {
 			after := agentfinalizer.Decide(db, agentfinalizer.Input{
-				Response:        "基于已完成信息的阶段性总结。",
+				Response:        "Interim summary based on completed information.",
 				MCPExecutionIDs: []string{execID},
 			})
 			if !after.Finalizable || !after.Finalized {

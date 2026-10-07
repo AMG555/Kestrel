@@ -1,4 +1,4 @@
-﻿package database
+package database
 
 import (
 	"path/filepath"
@@ -17,7 +17,7 @@ func TestAssetURLNormalizationAndValidation(t *testing.T) {
 	}
 	defer db.Close()
 
-	asset := &Asset{Host: "https://例子.测试/path", Tags: []string{" prod ", "prod"}}
+	asset := &Asset{Host: "https://例子.test/path", Tags: []string{" prod ", "prod"}}
 	result, err := db.UpsertAssets([]*Asset{asset}, "")
 	if err != nil || result.Created != 1 {
 		t.Fatalf("URL asset was not created: result=%#v err=%v", result, err)
@@ -57,7 +57,7 @@ func TestAssetValidationRejectsOversizedTags(t *testing.T) {
 	}
 	defer db.Close()
 	_, err = db.UpsertAssets([]*Asset{{Domain: "example.com", Tags: []string{strings.Repeat("x", 65)}}}, "")
-	if err == nil || !strings.Contains(err.Error(), "标签") {
+	if err == nil || !strings.Contains(err.Error(), "Tags") {
 		t.Fatalf("expected tag validation error, got %v", err)
 	}
 }

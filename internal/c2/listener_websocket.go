@@ -1,4 +1,4 @@
-﻿package c2
+package c2
 
 import (
 	"context"
@@ -17,17 +17,17 @@ import (
 	"go.uber.org/zap"
 )
 
-// WebSocketListener 提供低延迟的双向 WebSocket Beacon。
-// 与 HTTP Beacon 相比：
-//   - beacon 与服务端保持长连接，无需轮询，新任务可"秒到"；
-//   - 适合需要交互式快速响应的场景（如实时键盘 / 流式输出）；
-//   - 协议依然走 AES-256-GCM，握手时校验 X-Implant-Token；
-//   - 一个 listener 仅处理一个 WS 路径（默认 /ws），但可承载多个并发 implant。
+// WebSocketListener provides a low-latency bidirectional WebSocket Beacon.
+// Compared with the HTTP Beacon:
+//   - Beacon maintains a persistent connection with the server; no polling required; new tasks arrive near-instantly;
+//   - Suited for scenarios requiring interactive fast responses (e.g. real-time keyboard / streaming output);
+//   - Protocol still uses AES-256-GCM; X-Implant-Token is verified during handshake;
+//   - One listener handles a single WS path (default /ws) but can serve multiple concurrent implants.
 //
-// 帧协议（皆为加密后 base64 字符串走 TextMessage）：
+// Frame protocol (all encrypted base64 strings sent as TextMessage):
 //
-//	client → server：{"type":"checkin"|"result", "data": <ImplantCheckInRequest|TaskResultReport>}
-//	server → client：{"type":"task", "data": <TaskEnvelope>} 或 {"type":"sleep","data":{"sleep":N,"jitter":J}}
+//	client → server: {"type":"checkin"|"result", "data": <ImplantCheckInRequest|TaskResultReport>}
+//	server → client: {"type":"task", "data": <TaskEnvelope>} or {"type":"sleep","data":{"sleep":N,"jitter":J}}
 type WebSocketListener struct {
 	rec     *database.C2Listener
 	cfg     *ListenerConfig
@@ -38,19 +38,19 @@ type WebSocketListener struct {
 	upgrader websocket.Upgrader
 
 	mu      sync.Mutex
-	conns   map[string]*wsConn // session_id → 连接
+	conns   map[string]*wsConn // session_id → connection
 	stopped bool
 	stopCh  chan struct{}
 }
 
-// wsConn 单个 WS implant 的内存状态
+// wsConn holds the in-memory state for a single WS implant.
 type wsConn struct {
 	sessionID string
 	ws        *websocket.Conn
-	writeMu   sync.Mutex // websocket 同一连接同一时间只能一个 writer
+	writeMu   sync.Mutex // only one writer allowed per WebSocket connection at a time
 }
 
-// NewWebSocketListener 工厂（注册到 ListenerRegistry["websocket"]）
+// NewWebSocketListener is the factory function (registered in ListenerRegistry["websocket"]).
 func NewWebSocketListener(ctx ListenerCreationCtx) (Listener, error) {
 	return &WebSocketListener{
 		rec:     ctx.Listener,
@@ -62,21 +62,21 @@ func NewWebSocketListener(ctx ListenerCreationCtx) (Listener, error) {
 		upgrader: websocket.Upgrader{
 			ReadBufferSize:  4096,
 			WriteBufferSize: 4096,
-			// 允许任意 Origin（implant 不带 Origin 或随便填）
+			// Allow any Origin (implants do not send Origin or send an arbitrary value)
 			CheckOrigin: func(r *http.Request) bool { return true },
 		},
 	}, nil
 }
 
-// Type 类型
+// Type type
 func (l *WebSocketListener) Type() string { return string(ListenerTypeWebSocket) }
 
-// Start 启动 HTTP server 接收 WS 升级
+// Start starts the HTTP server to accept WebSocket upgrades.
 func (l *WebSocketListener) Start() error {
 	mux := http.NewServeMux()
 	wsPath := l.cfg.BeaconCheckInPath
 	if wsPath == "" || wsPath == "/check_in" {
-		// websocket 默认路径单独定义，避免与 HTTP Beacon 默认路径混淆
+		// WebSocket default path is defined separately to avoid confusion with the HTTP Beacon default path
 		wsPath = "/ws"
 	}
 	mux.HandleFunc(wsPath, l.handleWS)
@@ -103,7 +103,7 @@ func (l *WebSocketListener) Start() error {
 	return nil
 }
 
-// Stop 优雅关闭：通知所有 WS 客户端，关闭 server
+// Stop gracefully closes: notifies all WS clients and shuts down the server.
 func (l *WebSocketListener) Stop() error {
 	l.mu.Lock()
 	if l.stopped {
@@ -141,13 +141,13 @@ func (l *WebSocketListener) handleWS(w http.ResponseWriter, r *http.Request) {
 	}
 	ws, err := l.upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		l.logger.Warn("websocket 升级失败", zap.Error(err))
+		l.logger.Warn("websocket upgrade failed", zap.Error(err))
 		return
 	}
 	go l.handleConn(ws)
 }
 
-// handleConn 处理一个 WS 连接的完整生命周期：等待 checkin → 登记 session → 读循环
+// handleConn handles the full lifecycle of a WS connection: wait for checkin → register session → read loop.
 func (l *WebSocketListener) handleConn(ws *websocket.Conn) {
 	ws.SetReadLimit(64 << 20)
 	ws.SetReadDeadline(time.Now().Add(60 * time.Second))
@@ -156,7 +156,7 @@ func (l *WebSocketListener) handleConn(ws *websocket.Conn) {
 		return nil
 	})
 
-	// 第一帧必须是 checkin
+	// The first frame must be a checkin
 	frameType, body, err := readEncryptedFrame(ws, l.rec.EncryptionKey)
 	if err != nil || frameType != "checkin" {
 		_ = ws.Close()
@@ -184,7 +184,7 @@ func (l *WebSocketListener) handleConn(ws *websocket.Conn) {
 		_ = ws.Close()
 	}()
 
-	// 心跳 goroutine
+	// Heartbeat goroutine
 	pingTicker := time.NewTicker(20 * time.Second)
 	defer pingTicker.Stop()
 	connDone := make(chan struct{})
@@ -204,7 +204,7 @@ func (l *WebSocketListener) handleConn(ws *websocket.Conn) {
 		}
 	}()
 
-	// 主读循环：处理 result 等帧
+	// Main read loop: handle result and other frames
 	for {
 		frameType, body, err := readEncryptedFrame(ws, l.rec.EncryptionKey)
 		if err != nil {
@@ -217,7 +217,7 @@ func (l *WebSocketListener) handleConn(ws *websocket.Conn) {
 				_ = l.manager.IngestTaskResultFromListener(l.rec.ID, conn.sessionID, report)
 			}
 		case "checkin":
-			// 心跳更新：beacon 周期性送上心跳
+			// Heartbeat update: beacon periodically sends a heartbeat
 			var hb ImplantCheckInRequest
 			if err := json.Unmarshal(body, &hb); err == nil {
 				_ = l.manager.DB().TouchC2Session(session.ID, string(SessionActive), time.Now())
@@ -236,7 +236,7 @@ func (l *WebSocketListener) detachConnection(conn *wsConn) {
 	}
 }
 
-// taskDispatcherLoop 周期扫描所有活动 WS 会话，下发任务
+// taskDispatcherLoop periodically scans all active WS sessions and dispatches tasks.
 func (l *WebSocketListener) taskDispatcherLoop() {
 	t := time.NewTicker(500 * time.Millisecond)
 	defer t.Stop()
@@ -280,7 +280,7 @@ func (l *WebSocketListener) sendTaskFrame(c *wsConn, env TaskEnvelope) {
 	_ = c.ws.WriteMessage(websocket.TextMessage, []byte(enc))
 }
 
-// readEncryptedFrame 读一帧加密 WS 文本，返回类型和明文 data
+// readEncryptedFrame reads one encrypted WS text frame and returns the type and plaintext data.
 func readEncryptedFrame(ws *websocket.Conn, key string) (string, []byte, error) {
 	mt, raw, err := ws.ReadMessage()
 	if err != nil {
@@ -303,7 +303,7 @@ func readEncryptedFrame(ws *websocket.Conn, key string) (string, []byte, error) 
 	return env.Type, env.Data, nil
 }
 
-// contextWithTimeout 简单封装，避免 listener 文件之间反复 import context
+// contextWithTimeout is a simple wrapper to avoid repeatedly importing context across listener files.
 func contextWithTimeout(d time.Duration) (context.Context, context.CancelFunc) {
 	return context.WithTimeout(context.Background(), d)
 }

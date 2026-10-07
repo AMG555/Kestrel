@@ -1,4 +1,4 @@
-﻿package workflow
+package workflow
 
 import (
 	"context"
@@ -96,9 +96,9 @@ func executeNode(ctx context.Context, args RunArgs, runID string, node graphNode
 			}
 			expr := cfgString(node.Config, "expression")
 			if matched {
-				progressMsg = fmt.Sprintf("条件判断：%s → 是", label)
+				progressMsg = fmt.Sprintf("条件判断：%s → yes", label)
 			} else {
-				progressMsg = fmt.Sprintf("条件判断：%s → 否", label)
+				progressMsg = fmt.Sprintf("条件判断：%s → no", label)
 			}
 			progressData["expression"] = expr
 			progressData["matched"] = matched
@@ -124,9 +124,9 @@ func emitConditionBranchProgress(args RunArgs, runID string, node graphNode, edg
 		if branchLabel == "" {
 			switch edgeIdx {
 			case 0:
-				branchLabel = "是"
+				branchLabel = "yes"
 			case 1:
-				branchLabel = "否"
+				branchLabel = "no"
 			default:
 				branchLabel = fmt.Sprintf("分支 %d", edgeIdx+1)
 			}

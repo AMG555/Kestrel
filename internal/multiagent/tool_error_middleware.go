@@ -1,4 +1,4 @@
-﻿package multiagent
+package multiagent
 
 import (
 	"context"
@@ -93,14 +93,14 @@ func isSoftRecoverableToolError(err error) bool {
 		return false
 	}
 
-	// 用户主动取消 — 唯一应当终止编排的情况，不应重试。
+	// user主动cancelled — 唯一应当终止编排的情况，不应retry。
 	if errors.Is(err, context.Canceled) {
 		return false
 	}
 
-	// 其他所有工具执行错误（超时、命令不存在、JSON 解析失败、工具未找到、
-	// 权限不足、网络不可达……）一律转为 soft error，让 LLM 看到错误信息
-	// 后自行决策：换工具、调整参数、或向用户说明。
+	// 其他所有tool executionerror（timed out、command not found、JSON parsing failed、toolnot found、
+	// insufficient permissions、network不可达……）一律转为 soft error，让 LLM 看到errorinfo
+	// 后自行决策：换tool、调整参数、或向user说明。
 	return true
 }
 
@@ -126,10 +126,10 @@ func buildSoftRecoveryMessage(toolName, arguments string, err error) string {
 				"Arguments received: %s\n\n"+
 				"Please fix the JSON (ensure double-quoted keys, matched braces/brackets, no trailing commas, "+
 				"no truncation) and call the tool again.\n\n"+
-				"[工具错误] 工具 '%s' 的参数不是合法 JSON，无法解析。\n"+
-				"错误：%s\n"+
+				"[toolerror] tool '%s' 的参数不yes合法 JSON，none法解析。\n"+
+				"error：%s\n"+
 				"收到的参数：%s\n\n"+
-				"请修正 JSON（确保双引号键名、括号配对、无尾部逗号、无截断），然后重新调用工具。",
+				"请修正 JSON（确保双引号key名、括号配对、none尾部逗号、none截断），然后重新调用tool。",
 			toolName, errStr, argPreview,
 			toolName, errStr, argPreview,
 		)
@@ -139,9 +139,9 @@ func buildSoftRecoveryMessage(toolName, arguments string, err error) string {
 		"[Tool Error] Tool '%s' execution failed: %s\n"+
 			"Arguments: %s\n\n"+
 			"Please review the available tools and their expected arguments, then retry.\n\n"+
-			"[工具错误] 工具 '%s' 执行失败：%s\n"+
+			"[toolerror] tool '%s' 执行failed：%s\n"+
 			"参数：%s\n\n"+
-			"请检查可用工具及其参数要求，然后重试。",
+			"请check可用tool及其参数要求，然后retry。",
 		toolName, errStr, argPreview,
 		toolName, errStr, argPreview,
 	)

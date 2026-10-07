@@ -1,4 +1,4 @@
-﻿package multiagent
+package multiagent
 
 import (
 	"context"
@@ -144,7 +144,7 @@ func einoUserFacingRunError(err error) einoRunUserError {
 	lastErr := retryErr.LastErr
 	if lastErr == nil {
 		out.kind = "model_retry_exhausted"
-		out.summary = "模型调用多次重试后仍未成功。"
+		out.summary = "model call failed after multiple retries."
 		out.message = out.summary
 		return out
 	}
@@ -155,7 +155,7 @@ func einoUserFacingRunError(err error) einoRunUserError {
 	}
 	if isEinoShouldRetryOutputRejected(lastErr) {
 		out.kind = "model_output_rejected"
-		out.summary = "模型未返回原始错误；输出被重试策略拒绝。"
+		out.summary = "model did not return original error; output was rejected by retry policy."
 		out.technicalError = out.rawLastError
 		out.message = formatEinoRetryExhaustedMessage(out.summary, retryErr.TotalRetries)
 		return out
@@ -187,12 +187,12 @@ func isEinoShouldRetryOutputRejected(err error) bool {
 func formatEinoRetryExhaustedMessage(summary string, totalRetries int) string {
 	summary = strings.TrimSpace(summary)
 	if summary == "" {
-		summary = "模型调用多次重试后仍未成功。"
+		summary = "model call failed after multiple retries."
 	}
 	if totalRetries > 0 {
-		return fmt.Sprintf("模型调用重试已耗尽（已重试 %d 次）：%s", totalRetries, summary)
+		return fmt.Sprintf("model call retries exhausted (retried %d times): %s", totalRetries, summary)
 	}
-	return "模型调用重试已耗尽：" + summary
+	return "model call retries exhausted: " + summary
 }
 
 // EinoClientRunErrorMessage returns the error text that should be shown directly
@@ -223,34 +223,34 @@ func EinoClientRunErrorMessage(err error) string {
 
 func formatEinoRetryExhaustedRawModelMessage(raw string, totalRetries int) string {
 	raw = strings.TrimSpace(raw)
-	prefix := "模型调用重试已耗尽"
+	prefix := "model call retries exhausted"
 	if totalRetries > 0 {
-		prefix = fmt.Sprintf("模型调用重试已耗尽（已重试 %d 次）", totalRetries)
+		prefix = fmt.Sprintf("model call retries exhausted (retried %d times)", totalRetries)
 	}
 	if raw == "" {
 		return prefix
 	}
-	return prefix + "，最后一次模型原始错误：\n" + raw
+	return prefix + ", last model raw error:\n" + raw
 }
 
 func formatEinoSummarizationRetryExhaustedRawModelMessage(raw string, totalRetries int) string {
 	raw = strings.TrimSpace(raw)
-	prefix := "摘要阶段大模型调用失败，模型调用重试已耗尽"
+	prefix := "summarization stage large model call failed, model call retries exhausted"
 	if totalRetries > 0 {
-		prefix = fmt.Sprintf("摘要阶段大模型调用失败，模型调用重试已耗尽（已重试 %d 次）", totalRetries)
+		prefix = fmt.Sprintf("summarization stage large model call failed, model call retries exhausted (retried %d times)", totalRetries)
 	}
 	if raw == "" {
 		return prefix
 	}
-	return prefix + "，最后一次大模型报错原文：\n" + raw
+	return prefix + ", last large model raw error:\n" + raw
 }
 
 func formatEinoSummarizationRawModelMessage(raw string) string {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
-		return "摘要阶段大模型调用失败。"
+		return "summarization stage large model call failed."
 	}
-	return "摘要阶段大模型调用失败，大模型报错原文：\n" + raw
+	return "summarization stage large model call failed, large model raw error:\n" + raw
 }
 
 // EinoClientRunErrorFields returns structured diagnostic fields that handlers can

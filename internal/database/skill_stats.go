@@ -1,4 +1,4 @@
-﻿package database
+package database
 
 import (
 	"database/sql"
@@ -7,7 +7,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// SkillStats Skills统计信息
+// SkillStats SkillsStatistics info
 type SkillStats struct {
 	SkillName    string
 	TotalCalls   int
@@ -16,7 +16,7 @@ type SkillStats struct {
 	LastCallTime *time.Time
 }
 
-// SaveSkillStats 保存Skills统计信息
+// SaveSkillStats saveSkillsStatistics info
 func (db *DB) SaveSkillStats(skillName string, stats *SkillStats) error {
 	var lastCallTime sql.NullTime
 	if stats.LastCallTime != nil {
@@ -39,14 +39,14 @@ func (db *DB) SaveSkillStats(skillName string, stats *SkillStats) error {
 	)
 
 	if err != nil {
-		db.logger.Error("保存Skills统计信息失败", zap.Error(err), zap.String("skillName", skillName))
+		db.logger.Error("saveSkillsStatistics infofailed", zap.Error(err), zap.String("skillName", skillName))
 		return err
 	}
 
 	return nil
 }
 
-// LoadSkillStats 加载所有Skills统计信息
+// LoadSkillStats loads all skill statistics.
 func (db *DB) LoadSkillStats() (map[string]*SkillStats, error) {
 	query := `
 		SELECT skill_name, total_calls, success_calls, failed_calls, last_call_time
@@ -72,7 +72,7 @@ func (db *DB) LoadSkillStats() (map[string]*SkillStats, error) {
 			&lastCallTime,
 		)
 		if err != nil {
-			db.logger.Warn("加载Skills统计信息失败", zap.Error(err))
+			db.logger.Warn("failed to load skill statistics", zap.Error(err))
 			continue
 		}
 
@@ -86,7 +86,7 @@ func (db *DB) LoadSkillStats() (map[string]*SkillStats, error) {
 	return stats, nil
 }
 
-// UpdateSkillStats 更新Skills统计信息（累加模式）
+// UpdateSkillStats updates skill statistics (cumulative pattern).
 func (db *DB) UpdateSkillStats(skillName string, totalCalls, successCalls, failedCalls int, lastCallTime *time.Time) error {
 	var lastCallTimeSQL sql.NullTime
 	if lastCallTime != nil {
@@ -110,33 +110,33 @@ func (db *DB) UpdateSkillStats(skillName string, totalCalls, successCalls, faile
 	)
 
 	if err != nil {
-		db.logger.Error("更新Skills统计信息失败", zap.Error(err), zap.String("skillName", skillName))
+		db.logger.Error("updateSkillsStatistics infofailed", zap.Error(err), zap.String("skillName", skillName))
 		return err
 	}
 
 	return nil
 }
 
-// ClearSkillStats 清空所有Skills统计信息
+// ClearSkillStats clears all skill statistics.
 func (db *DB) ClearSkillStats() error {
 	query := `DELETE FROM skill_stats`
 	_, err := db.Exec(query)
 	if err != nil {
-		db.logger.Error("清空Skills统计信息失败", zap.Error(err))
+		db.logger.Error("failed to clear all skill statistics", zap.Error(err))
 		return err
 	}
-	db.logger.Info("已清空所有Skills统计信息")
+	db.logger.Info("all skill statistics cleared")
 	return nil
 }
 
-// ClearSkillStatsByName 清空指定skill的统计信息
+// ClearSkillStatsByName clears statistics for the specified skill.
 func (db *DB) ClearSkillStatsByName(skillName string) error {
 	query := `DELETE FROM skill_stats WHERE skill_name = ?`
 	_, err := db.Exec(query, skillName)
 	if err != nil {
-		db.logger.Error("清空指定skill统计信息失败", zap.Error(err), zap.String("skillName", skillName))
+		db.logger.Error("failed to clear specified skill statistics", zap.Error(err), zap.String("skillName", skillName))
 		return err
 	}
-	db.logger.Info("已清空指定skill统计信息", zap.String("skillName", skillName))
+	db.logger.Info("specified skill statistics cleared", zap.String("skillName", skillName))
 	return nil
 }

@@ -1,4 +1,4 @@
-﻿package openai
+package openai
 
 import (
 	"bufio"
@@ -14,13 +14,13 @@ import (
 
 // 复现 meguminnnnnnnnn/go-openai 的 SSE 行计数算法 (默认 limit=300):
 // - 逐行读
-// - 非 "data:" 行 (空行 / ":" 注释 / event: / retry:) 累计 emptyMessagesCount
+// - 非 "data:" 行 (null行 / ":" 注释 / event: / retry:) 累计 emptyMessagesCount
 // - > 300 抛 ErrTooManyEmptyStreamMessages
-// - 遇到 data: 行 reset, 返回 payload
+// - 遇到 data: 行 reset, back payload
 //
-// 这一算法与上游 SDK 的 stream_reader.go processLines() 严格一致 (验证依据见
+// 这一算法与上游 SDK 的 stream_reader.go processLines() 严格一致 (validate依据见
 // /Users/temp/go/pkg/mod/github.com/meguminnnnnnnnn/go-openai@v0.1.2/stream_reader.go)。
-// 测试中只复刻 "限制触发" 这一行为, 用来回归验证 sanitizer 的根因修复。
+// test中只复刻 "限制触发" 这一行为, 用来回归validate sanitizer 的根因修复。
 var errTooManyEmptyStreamMessages = errors.New("stream has sent too many empty messages")
 
 func sdkLikeRecvAll(body io.Reader, limit uint) ([]string, error) {
@@ -106,7 +106,7 @@ func TestSSESanitizer_PassesDataLinesUnchanged(t *testing.T) {
 	}
 }
 
-// 2) 心跳/注释/事件类型行被吞掉, 仅保留 data: 行。
+// 2) 心跳/注释/eventtype行被吞掉, 仅保留 data: 行。
 func TestSSESanitizer_DropsHeartbeatsAndControlLines(t *testing.T) {
 	body := strings.Join([]string{
 		": keepalive",
@@ -136,7 +136,7 @@ func TestSSESanitizer_DropsHeartbeatsAndControlLines(t *testing.T) {
 }
 
 // 3) 根因回归: 上游堆 500 行心跳后才发 data:, 原始 SDK 算法会抛
-// ErrTooManyEmptyStreamMessages, sanitize 之后必须能正常拿到所有 data:。
+// ErrTooManyEmptyStreamMessages, sanitize 之后必须能normal拿到所有 data:。
 func TestSSESanitizer_ProtectsAgainstTooManyEmptyMessages(t *testing.T) {
 	const heartbeats = 500
 	var buf bytes.Buffer
@@ -180,7 +180,7 @@ func TestSSESanitizer_ProtectsAgainstTooManyEmptyMessages(t *testing.T) {
 	})
 }
 
-// 4) 心跳穿插在 data: 之间也能正确清洗 (思考型模型 prefill 期间常见)。
+// 4) 心跳穿插在 data: 之间也能正确清洗 (思考型model prefill 期间常见)。
 func TestSSESanitizer_HeartbeatsInterleavedWithData(t *testing.T) {
 	var buf bytes.Buffer
 	buf.WriteString("data: {\"chunk\":1}\n")
@@ -208,7 +208,7 @@ func TestSSESanitizer_HeartbeatsInterleavedWithData(t *testing.T) {
 	}
 }
 
-// 5) 非 SSE 响应 (例如非流式 JSON) 不应被 sanitizer 介入。
+// 5) 非 SSE response (例如非流式 JSON) 不应被 sanitizer 介入。
 func TestSSESanitizer_PassesNonSSEResponseUntouched(t *testing.T) {
 	body := `{"id":"x","object":"chat.completion","choices":[]}`
 	srv := newSSEServer(t, body, "application/json", 200)
@@ -224,8 +224,8 @@ func TestSSESanitizer_PassesNonSSEResponseUntouched(t *testing.T) {
 	}
 }
 
-// 6) 错误响应 (4xx/5xx) 不应被 sanitize, 即使 Content-Type 是 SSE 也不动,
-//    避免吞掉类似 "data: " 之外的错误正文。
+// 6) errorresponse (4xx/5xx) 不应被 sanitize, 即使 Content-Type yes SSE 也不动,
+//    避免吞掉类似 "data: " 之外的error正文。
 func TestSSESanitizer_PassesNon200Untouched(t *testing.T) {
 	body := `{"error":{"message":"rate limit"}}`
 	srv := newSSEServer(t, body, "text/event-stream", 429)
@@ -241,7 +241,7 @@ func TestSSESanitizer_PassesNon200Untouched(t *testing.T) {
 	}
 }
 
-// 7) data: 行末尾若缺 \n (异常上游) sanitizer 也补齐, 保证下游按行解析。
+// 7) data: 行末尾若缺 \n (abnormal上游) sanitizer 也补齐, 保证下游按行解析。
 func TestSSESanitizer_AppendsTrailingNewlineIfMissing(t *testing.T) {
 	body := "data: {\"a\":1}"
 	srv := newSSEServer(t, body, "text/event-stream", 200)

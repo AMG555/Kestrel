@@ -1,4 +1,4 @@
-﻿package multiagent
+package multiagent
 
 import (
 	"strings"
@@ -16,7 +16,7 @@ func shellToolsPresent(toolNames []string) bool {
 	return false
 }
 
-// injectShellToolGuidance 在系统提示末尾追加 exec/execute 分工（仅当工具列表含 exec 或 execute）。
+// injectShellToolGuidance 在system prompt末尾追加 exec/execute 分工（仅当tool list含 exec 或 execute）。
 func injectShellToolGuidance(instruction string, toolNames []string) string {
 	if !shellToolsPresent(toolNames) {
 		return instruction

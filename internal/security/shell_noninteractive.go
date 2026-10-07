@@ -1,4 +1,4 @@
-﻿package security
+package security
 
 import (
 	"fmt"
@@ -9,17 +9,17 @@ import (
 	"time"
 )
 
-// ShellNoOutputTimeoutMessage 长时间无新 stdout/stderr 时的提示（软失败，模型可见）。
+// ShellNoOutputTimeoutMessage 长时间none新 stdout/stderr 时的提示（软failed，model可见）。
 func ShellNoOutputTimeoutMessage(idleSec int) string {
 	return fmt.Sprintf(`命令已终止：超过 %d 秒没有新的输出，疑似在等待交互输入或已挂起。
 
-长时静默任务请使用末尾 & 后台运行，或增大 agent.shell_no_output_timeout_seconds（-1=关闭此检测）。
+长时静默task请使用末尾 & 后台运行，或增大 agent.shell_no_output_timeout_seconds（-1=close此检测）。
 
 Command terminated: no new output for %d seconds (possible interactive wait or hung process).`, idleSec, idleSec)
 }
 
-// ShellInactivityWatch 在 noOutputSec 内无任何新输出时向 expired 发送信号；每次 Bump 重置计时。
-// 与「仅有首包输出就永久取消计时」不同，可兜住 sudo 打印 Password 提示后继续挂起等情况。
+// ShellInactivityWatch 在 noOutputSec 内none任何新输出时向 expired 发送信号；每次 Bump reset计时。
+// 与「仅有首包输出就永久cancelled计时」不同，可兜住 sudo 打印 Password 提示后continue挂起等情况。
 type ShellInactivityWatch struct {
 	Sec     int
 	mu      sync.Mutex
@@ -69,7 +69,7 @@ func (w *ShellInactivityWatch) Stop() {
 	}
 }
 
-// ResolveShellNoOutputTimeoutSeconds：0=默认 300（5 分钟）；-1=关闭；>0=自定义。
+// ResolveShellNoOutputTimeoutSeconds：0=默认 300（5 分钟）；-1=close；>0=自定义。
 func ResolveShellNoOutputTimeoutSeconds(sec int) int {
 	if sec < 0 {
 		return 0
@@ -103,8 +103,8 @@ func PrependNonInteractiveShellExports(shellCommand string) string {
 	return "export " + strings.Join(pairs, " ") + "\n" + shellCommand
 }
 
-// PrependNonInteractiveStdinRedirect 为 sh -c 关闭 stdin（与 attachNonInteractiveStdin 等价），
-// 使 read/input()/sudo -S 等从 stdin 读取的程序快速失败而非挂起。已含 </dev/null 时不重复注入。
+// PrependNonInteractiveStdinRedirect 为 sh -c close stdin（与 attachNonInteractiveStdin 等价），
+// 使 read/input()/sudo -S 等从 stdin 读取的程序快速failed而非挂起。已含 </dev/null 时不重复注入。
 func PrependNonInteractiveStdinRedirect(shellCommand string) string {
 	if strings.TrimSpace(shellCommand) == "" {
 		return shellCommand
@@ -116,12 +116,12 @@ func PrependNonInteractiveStdinRedirect(shellCommand string) string {
 	return "exec </dev/null\n" + shellCommand
 }
 
-// PrepareNonInteractiveShellCommand 组合非交互包装：stdin 关闭 + pager 等环境变量（零名单）。
+// PrepareNonInteractiveShellCommand 组合非交互包装：stdin close + pager 等environment variables（零名单）。
 func PrepareNonInteractiveShellCommand(shellCommand string) string {
 	return PrependNonInteractiveStdinRedirect(PrependNonInteractiveShellExports(shellCommand))
 }
 
-// ApplyNonInteractivePagerEnv 为 exec.Cmd 补齐与 PrependNonInteractiveShellExports 一致的环境变量。
+// ApplyNonInteractivePagerEnv 为 exec.Cmd 补齐与 PrependNonInteractiveShellExports 一致的environment variables。
 func ApplyNonInteractivePagerEnv(cmdEnv []string) []string {
 	if cmdEnv == nil {
 		cmdEnv = []string{}
@@ -150,7 +150,7 @@ func ApplyNonInteractivePagerEnv(cmdEnv []string) []string {
 	return cmdEnv
 }
 
-// attachNonInteractiveStdin 关闭交互式 stdin，使部分命令快速失败而非等待输入。
+// attachNonInteractiveStdin close交互式 stdin，使部分命令快速failed而非等待输入。
 func attachNonInteractiveStdin(cmd *exec.Cmd) {
 	if cmd == nil || cmd.Stdin != nil {
 		return

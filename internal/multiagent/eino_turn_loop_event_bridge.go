@@ -1,4 +1,4 @@
-﻿package multiagent
+package multiagent
 
 import (
 	"context"
@@ -76,7 +76,7 @@ func (b *einoTurnLoopEventBridge) emitPreempted() {
 	if b == nil || b.progress == nil {
 		return
 	}
-	b.progress("progress", "Eino TurnLoop 已在安全点切换到用户补充后的下一轮。", map[string]interface{}{
+	b.progress("progress", "Eino TurnLoop switched to the next round with user supplement at a safe checkpoint.", map[string]interface{}{
 		"conversationId": b.conversationID,
 		"source":         "eino",
 		"orchestration":  b.orchestration,
@@ -99,7 +99,7 @@ func isEinoTurnLoopPreemptCancel(tc *adk.TurnContext[EinoTurnLoopItem, *schema.M
 func einoTurnLoopInterruptTimelineSummary(note string) string {
 	note = strings.TrimSpace(note)
 	if note == "" {
-		return "用户选择「中断并继续」，未填写说明；已推入 Eino TurnLoop 并等待安全点续跑。"
+		return "User chose 'interrupt and continue' without providing a note; pushed to Eino TurnLoop and waiting for a safe checkpoint to resume."
 	}
-	return "用户中断说明（Eino TurnLoop 原生续跑）：\n\n" + note
+	return "user中断说明（Eino TurnLoop 原生续跑）：\n\n" + note
 }

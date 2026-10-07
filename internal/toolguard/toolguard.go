@@ -22,7 +22,7 @@ const (
 
 	// The named group keeps surrounding boundary punctuation out of the reminder.
 	governmentDomainPattern = `(?i)(?:^|[^\p{L}\p{M}\p{N}_.-])(?P<match>(?:(?:[\p{L}\p{M}\p{N}_*-]+\.)+gov(?:\.[\p{L}\p{M}\p{N}_*-]+)*|gov(?:\.[\p{L}\p{M}\p{N}_*-]+)+|\.gov(?:\.[\p{L}\p{M}\p{N}_*-]+)*)\.?)(?:$|[^\p{L}\p{M}\p{N}_.-])`
-	defaultMessage          = "识别到 {match}，工具调用已被安全规则「{rule}」拦截，请检查目标与授权范围后再试。"
+	defaultMessage          = "{match} detected; the tool call was blocked by security rule \"{rule}\". Please verify the target and authorisation scope before retrying."
 )
 
 type Config struct {
@@ -64,10 +64,10 @@ func DefaultConfig() Config {
 		Enabled: true,
 		Rules: []Rule{{
 			ID:      "government-domains",
-			Name:    "政府网站保护",
+			Name:    "Government website protection",
 			Enabled: true,
 			Pattern: governmentDomainPattern,
-			Message: "识别到 {match}，禁止攻击政府网站。请检查目标与授权范围，并更换为已获授权的非政府目标。",
+			Message: "{match} detected; attacking government websites is not permitted. Please verify the target and authorisation scope, and switch to an authorised non-government target.",
 		}},
 	}
 }

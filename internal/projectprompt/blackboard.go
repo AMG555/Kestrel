@@ -1,5 +1,5 @@
-﻿// Package projectprompt 提供项目黑板相关的系统提示文本（纯字符串，无 database 依赖）。
-// 供 agent / multiagent 等包引用，避免 agent → project 导入环导致 gopls 元数据失败。
+// Package projectprompt provides project blackboard-related system prompt text (pure strings, no database dependency).
+// Referenced by agent/multiagent packages to avoid import cycles between agent and project packages that break gopls metadata.
 package projectprompt
 
 import (
@@ -9,15 +9,15 @@ import (
 )
 
 const (
-	factRhythmCore = "勿等会话结束或收尾再批量写入。每**确认**一条新认知（开放端口/服务版本、入口路径、认证态或凭据特征、可利用点或攻击面变化）后，**立即**调用 `upsert_project_fact`（同 fact_key 覆盖更新）。每**验证**出一条可复现漏洞（含 POC/影响）后，**立即**调用 `record_vulnerability`；与事实可各记一次。继续下一步工作前优先落库，避免上下文压缩后细节丢失。未绑项目时说明无法写黑板，仍在本轮保留证据摘要。"
-	factRhythmCoordinatorSuffix = "委派/子任务返回新认知或漏洞时，由协调者及时写入，勿假定子代理已记。"
-	factRhythmSubAgentSuffix    = "若工具集中无上述工具，须在交付物末尾给出「待落库」结构化条目（fact_key 建议、summary、body/POC 要点），供协调者**立即**写入。"
+	factRhythmCore = "Do not wait until the end of a session to batch-write. After **confirming** each new finding (open port/service version, entry path, auth state or credential details, exploitable point or attack surface change), **immediately** call `upsert_project_fact`（同 fact_key 覆盖update）。每**validate**出一条可复现漏洞（含 POC/impact）后，**立即**调用 `record_vulnerability`；与事实可各记一次。continue下一步工作前优先落库，避免context compression后细节丢失。未绑project时说明none法写黑板，仍在本轮保留证据summary。"
+	factRhythmCoordinatorSuffix = "When delegated/sub-tasks return new findings or vulnerabilities, the coordinator must write them promptly — do not assume the sub-agent has already recorded them."
+	factRhythmSubAgentSuffix    = "If the tool set does not include the above tools, provide structured 'pending-write' entries at the end of the deliverable (suggested fact_key, summary, body/POC key points) for the coordinator to **immediately** write."
 )
 
-// FactRecordingIncrementalRhythmMarkdown 返回边渗透边记录节奏（Markdown，供 agents/*.md 与文档对齐）。
+// FactRecordingIncrementalRhythmMarkdown returns the incremental record-as-you-pentest rhythm (Markdown, for agents/*.md and documentation alignment).
 func FactRecordingIncrementalRhythmMarkdown(coordinator, subAgent bool) string {
 	var b strings.Builder
-	b.WriteString("- **边渗透边记录（强制节奏）**：")
+	b.WriteString("- **Record as you pentest (mandatory rhythm)**: ")
 	b.WriteString(factRhythmCore)
 	if coordinator {
 		b.WriteString(factRhythmCoordinatorSuffix)
@@ -30,11 +30,11 @@ func FactRecordingIncrementalRhythmMarkdown(coordinator, subAgent bool) string {
 
 func factRecordingIncrementalRhythmBuiltin(coordinator, subAgent bool) string {
 	var b strings.Builder
-	b.WriteString("- **边渗透边记录（强制节奏）**：勿等会话结束或收尾再批量写入。每**确认**一条新认知（开放端口/服务版本、入口路径、认证态或凭据特征、可利用点或攻击面变化）后，**立即**调用 ")
+	b.WriteString("- **Record as you pentest (mandatory rhythm)**: Do not wait until session end or wrap-up to batch-write. After each confirmed new finding (open port/service version, entry path, auth state or credential characteristics, exploitable point or attack surface change),**立即**调用 ")
 	b.WriteString(builtin.ToolUpsertProjectFact)
-	b.WriteString("（同 fact_key 覆盖更新）。每**验证**出一条可复现漏洞（含 POC/影响）后，**立即**调用 ")
+	b.WriteString("(overwrite with same fact_key). After **validating** each reproducible vulnerability (with POC/impact), **immediately** call ")
 	b.WriteString(builtin.ToolRecordVulnerability)
-	b.WriteString("；与事实可各记一次。继续下一步工作前优先落库，避免上下文压缩后细节丢失。未绑项目时说明无法写黑板，仍在本轮保留证据摘要。")
+	b.WriteString("; facts and vulnerabilities can each be recorded once. Prioritise writing to the database before proceeding to the next step to avoid losing details after context compression. If not bound to a project, state that the blackboard is unavailable but retain evidence summaries in the current session.")
 	if coordinator {
 		b.WriteString(factRhythmCoordinatorSuffix)
 	}
@@ -45,88 +45,88 @@ func factRecordingIncrementalRhythmBuiltin(coordinator, subAgent bool) string {
 }
 
 func factEdgeRecordingGuidance() string {
-	return `### 事实关系边（links）
+	return `### Fact relationship edges (links)
 
-- 写入 **finding / chain / exploit / poc** 时，**必须**在 ` + "`upsert_project_fact`" + ` 中提供 ` + "`links`" + `（**推荐 ` + "`from`" + `**：来源 fact 指向当前 fact，即 ` + "`from`" + ` → 当前 ` + "`fact_key`" + `）。
-- **最少要求**：finding 类至少 1 条 from=target/* + type=discovered_on（即 target → finding）；在 finding 上记录 exploit 用 from=exploit/* + type=exploits（即 exploit → finding）。
-- **常用 type**：` + "`discovered_on`" + `（发现在哪）、` + "`depends_on`" + `（复现前置）、` + "`leads_to`" + `（认知推进）、` + "`enables`" + `（扩大攻击面）、` + "`exploits`" + `（利用关系）、` + "`contains`" + `（资产包含）、` + "`part_of`" + `（属于链/组）、` + "`supports`" + `（证据支撑）。
-- 更新时：**省略 links 保留已有边**；传入 links 则**替换**全部关系边（from → 当前 fact）。
-- body 中「依赖事实」段落可与 links 并存（人读）；结构化关系以 links 为准。`
+- When writing **finding / chain / exploit / poc**, you **must** provide ` + "`links`" + ` in ` + "`upsert_project_fact`" + ` (**recommended ` + "`from`" + `**：来源 fact 指向当前 fact，即 ` + "`from`" + ` → 当前 ` + "`fact_key`" + `）。
+- **Minimum requirement**: finding type needs at least 1 edge from=target/* + type=discovered_on (i.e. target → finding); recording exploit on a finding uses from=exploit/* + type=exploits（即 exploit → finding）。
+- **Common types**: ` + "`discovered_on`" + ` (where discovered), ` + "`depends_on`" + ` (prereq for reproduction), ` + "`leads_to`" + ` (knowledge progression), ` + "`enables`" + `（扩大attack surface）、` + "`exploits`" + `（利用关系）、` + "`contains`" + `（资产包含）、` + "`part_of`" + `（属于链/组）、` + "`supports`" + `（证据支撑）。
+- On update: **omitting links preserves existing edges**; passing links **replaces all** relationship edges (from → current fact).
+- The "dependent facts" section in body can coexist with links (human-readable); structured relationships are governed by links.`
 }
 
 func factRecordingGuidanceBlock() string {
-	return `### 事实写入规范（审计复现 / 知识沉淀）
+	return `### Fact writing specification (audit reproduction / knowledge capture)
 
-- **summary**：索引用一行，须含「什么 + 在哪 + 如何触发/验证」要点，禁止只写结论（如仅写「存在 SQLi」）。
-- **body**：完整可复现上下文，写入 ` + "`upsert_project_fact`" + ` 的 body 字段；索引不含 body，后续会话须靠 ` + "`get_project_fact`" + ` 取回。
-- **category / fact_key 建议**：
-  - 环境认知：` + "`target/`" + `、` + "`auth/`" + `、` + "`infra/`" + `、` + "`business/`" + `（body 用环境模板即可）
-  - 发现与利用：` + "`finding/`" + `、` + "`chain/`" + `、` + "`exploit/`" + `、` + "`poc/`" + `（**必须**用攻击链模板填满 body：入口、逐步攻击链、原始请求/响应或命令、证据、关联漏洞 ID）
-- **与漏洞记录分工**：` + "`record_vulnerability`" + ` 记可交付 findings；事实记**复现所需的全部上下文**（含失败尝试、绕过、依赖会话），二者可各记一次。
-- 更新同一发现时保持相同 ` + "`fact_key`" + ` 覆盖写入，勿散落多个 key 导致上下文丢失。`
+- **summary**: one line for indexing; must include "what + where + how to trigger/validate" — do not write only the conclusion (e.g. just "SQLi exists").
+- **body**: full reproducible context; written to the body field of ` + "`upsert_project_fact`" + `; index does not contain body — subsequent sessions must call ` + "`get_project_fact`" + ` to retrieve it.
+- **category / fact_key suggestions**:
+  - Environment/recon: ` + "`target/`" + `, ` + "`auth/`" + `, ` + "`infra/`" + `, ` + "`business/`" + ` (body can use environment template)
+  - Discovery and exploitation: ` + "`finding/`" + `, ` + "`chain/`" + `, ` + "`exploit/`" + `, ` + "`poc/`" + ` (**must** fill b with attack chain templateody：入口、逐步attack chain、原始request/response或命令、证据、关联漏洞 ID）
+- **Division with vulnerability records**: ` + "`record_vulnerability`" + ` records deliverable findings; facts record **all context needed for reproduction** (including failed attempts, bypasses, dependent sessions) — each can be recorded once.
+- When updating the same finding, keep the same ` + "`fact_key`" + ` and overwrite; do not scatter across multiple keys causing context loss.`
 }
 
-// FactRecordingBlackboardSection 项目黑板与漏洞记录的完整系统提示块（单/多 Agent 主代理共用）。
+// FactRecordingBlackboardSection is the complete system prompt block for the project blackboard and vulnerability recording (shared by single/multi-Agent primary agent).
 func FactRecordingBlackboardSection(coordinatorDelegate bool) string {
 	var b strings.Builder
-	b.WriteString("## 项目黑板（事实）与漏洞记录（分离）\n\n")
-	b.WriteString("当前对话若已绑定项目，系统会自动注入「项目黑板索引」（仅 fact_key + 摘要）。**摘要不足时必须调用 ")
+	b.WriteString("## Project blackboard (facts) and vulnerability records (separated)\n\n")
+	b.WriteString("If the current conversation is bound to a project, the system will automatically inject the 'project blackboard index' (fact_key + summary only). **When summary is insufficient, you must call ")
 	b.WriteString(builtin.ToolGetProjectFact)
-	b.WriteString("(fact_key) 获取 body，禁止凭摘要臆造细节。**\n\n")
+	b.WriteString("(fact_key) to retrieve the body — never fabricate details from summary alone.**\n\n")
 	b.WriteString(factRecordingIncrementalRhythmBuiltin(coordinatorDelegate, false))
 	b.WriteString("\n\n")
-	b.WriteString("- **环境/目标/认证等认知**（非正式漏洞条目）：使用 ")
+	b.WriteString("- **Environment/target/authentication knowledge** (not a formal vulnerability entry): use ")
 	b.WriteString(builtin.ToolUpsertProjectFact)
-	b.WriteString("，fact_key 建议 `category/slug`（如 target/primary_domain），同 key 覆盖更新；body 记端口/版本/凭据特征与证据来源。\n")
-	b.WriteString("- **发现与利用上下文**（审计复现）：fact_key 建议 finding/、chain/、exploit/、poc/ 前缀；**body 必填**完整攻击链（入口 → 步骤 → 原始请求/响应或命令 → 现象 → 关联 related_vulnerability_id），**禁止仅写结论**；summary 写「什么 + 在哪 + 如何验证」一行要点。\n")
-	b.WriteString("- **可交付漏洞**：使用 ")
+	b.WriteString(", fact_key suggested as `category/slug` (e.g. target/primary_domain), overwrite with same key; body records port/version/credential details and evidence source.\n")
+	b.WriteString("- **Discovery and exploitation context** (audit reproduction): fact_key recommended prefixes: finding/, chain/, exploit/, poc/; **body is required** with full attack chain (entry → 步骤 → 原始request/response或命令 → 现象 → 关联 related_vulnerability_id），**禁止仅写结论**；summary 写「什么 + 在哪 + 如何validate」一行要点。\n")
+	b.WriteString("- **Deliverable vulnerabilities**: use ")
 	b.WriteString(builtin.ToolRecordVulnerability)
-	b.WriteString("，含标题、严重程度、类型、目标、证明（POC）、影响、修复建议。记前可先 ")
+	b.WriteString(", including title, severity, type, target, proof (POC), impact, and remediation advice. Before recording, you may ")
 	b.WriteString(builtin.ToolListVulnerabilities)
-	b.WriteString(" 查重，详情用 ")
+	b.WriteString(" to deduplicate; for details use ")
 	b.WriteString(builtin.ToolGetVulnerability)
-	b.WriteString("(id)（默认仅当前项目/会话）。\n")
-	b.WriteString("- 同一发现可能需**各记一次**（事实记**完整攻击链与 exploit 细节**供复现，漏洞记正式 findings）。误报用 ")
+	b.WriteString("(id) (defaults to current project/session only).\n")
+	b.WriteString("- The same finding may need to be **recorded once each** (facts record the **full attack chain and exploit details** for reproduction; vulnerabilities record formal findings). Use ")
 	b.WriteString(builtin.ToolDeprecateProjectFact)
-	b.WriteString(" 或漏洞状态 false_positive。\n")
-	b.WriteString("- 事实多时用 ")
+	b.WriteString(" or vulnerability status false_positive.\n")
+	b.WriteString("- When there are many facts, use ")
 	b.WriteString(builtin.ToolListProjectFacts)
 	b.WriteString(" / ")
 	b.WriteString(builtin.ToolSearchProjectFacts)
-	b.WriteString(" 检索。\n\n")
+	b.WriteString(" to search.\n\n")
 	b.WriteString(factEdgeRecordingGuidance())
 	b.WriteString("\n\n")
 	b.WriteString(factRecordingGuidanceBlock())
-	b.WriteString("\n\n严重程度：critical / high / medium / low / info。证明须含足够证据（请求响应、截图、命令输出等）。")
+	b.WriteString("\n\nSeverity levels: critical / high / medium / low / info. Proof must contain sufficient evidence (request/response, screenshots, command output, etc.).")
 	return b.String()
 }
 
-// FactRecordingSubAgentSection 子代理边渗透边记录（无工具时输出待落库条目）。
+// FactRecordingSubAgentSection is the sub-agent record-as-you-pentest section (outputs pending entries when no tool is available).
 func FactRecordingSubAgentSection() string {
-	return "## 边渗透边记录\n\n" + factRecordingIncrementalRhythmBuiltin(false, true) + "\n"
+	return "## Record As You Pentest\n\n" + factRecordingIncrementalRhythmBuiltin(false, true) + "\n"
 }
 
-// FactRecordingBlackboardSectionMarkdown 与 FactRecordingBlackboardSection 等价的 Markdown（工具名为字面量，供 agents/*.md）。
+// FactRecordingBlackboardSectionMarkdown is the Markdown equivalent of FactRecordingBlackboardSection (tool names as literals, for agents/*.md).
 func FactRecordingBlackboardSectionMarkdown(coordinatorDelegate bool) string {
 	var b strings.Builder
-	b.WriteString("## 项目黑板（事实）与漏洞记录（分离）\n\n")
-	b.WriteString("当前对话若已绑定项目，系统会自动注入「项目黑板索引」（仅 `fact_key` + 摘要）。**摘要不足时必须调用 `get_project_fact(fact_key)` 获取 body，禁止凭摘要臆造细节。**\n\n")
+	b.WriteString("## Project blackboard (facts) and vulnerability records (separated)\n\n")
+	b.WriteString("If the current conversation has a bound project, the system automatically injects the project blackboard index (fact_key + summary only). **When the summary is insufficient, you must call `get_project_fact(fact_key)` 获取 body，禁止凭summary臆造细节。**\n\n")
 	b.WriteString(FactRecordingIncrementalRhythmMarkdown(coordinatorDelegate, false))
 	b.WriteString("\n\n")
-	b.WriteString("- **环境/目标/认证等认知**（非正式漏洞）：使用 **`upsert_project_fact`**，`fact_key` 建议 `category/slug`（如 `target/primary_domain`），同 key 覆盖更新；body 记端口/版本/凭据特征与证据来源。\n")
-	b.WriteString("- **发现与利用上下文**（审计复现）：`fact_key` 建议 `finding/`、`chain/`、`exploit/`、`poc/` 前缀；**body 必填**完整攻击链（入口 → 步骤 → 原始请求/响应或命令 → 现象 → 关联 `related_vulnerability_id`），**禁止仅写结论**；summary 写「什么 + 在哪 + 如何验证」一行要点。\n")
-	b.WriteString("- **可交付漏洞**：使用 **`record_vulnerability`**（标题、描述、严重程度、类型、目标、证明 POC、影响、修复建议）。严重程度 critical / high / medium / low / info。\n")
-	b.WriteString("- 同一发现可能需**各记一次**（事实记可复现攻击链，漏洞记正式 findings）。误报用 **`deprecate_project_fact`** 或漏洞状态 false_positive。\n")
-	b.WriteString("- 事实多时用 **`list_project_facts`** / **`search_project_facts`** 检索。\n\n")
+	b.WriteString("- **Environment/target/auth findings** (non-formal vulnerabilities): use **`upsert_project_fact`**, `fact_key` recommended as `category/slug` (e.g. `target/primary_domain`），同 key 覆盖update；body 记port/版本/凭据特征与证据来源。\n")
+	b.WriteString("- **Discovery and exploitation context** (audit reproduction): `fact_key` recommended prefixes `finding/`, `chain/`, `exploit/`, `poc/`; **body is required** with full attack chain（入口 → 步骤 → 原始request/response或命令 → 现象 → 关联 `related_vulnerability_id`），**禁止仅写结论**；summary 写「什么 + 在哪 + 如何validate」一行要点。\n")
+	b.WriteString("- **Deliverable vulnerabilities**: use **`record_vulnerability`** (title, description, severity, type, target, proof POC, impact, Remediation advice）。critical程度 critical / high / medium / low / info。\n")
+	b.WriteString("- The same discovery may need to be **recorded in both** (fact records the reproducible attack chain; vulnerability records the formal finding). For false positives use **`deprecate_project_fact`** 或vulnerability status false_positive。\n")
+	b.WriteString("- When there are many facts, use **`list_project_facts`** / **`search_project_facts`** to search.\n\n")
 	b.WriteString(factEdgeRecordingGuidance())
 	b.WriteString("\n\n")
 	b.WriteString(factRecordingGuidanceBlock())
-	b.WriteString("\n\n严重程度：critical / high / medium / low / info。证明须含足够证据（请求响应、截图、命令输出等）。")
+	b.WriteString("\n\nSeverity levels: critical / high / medium / low / info. Proof must contain sufficient evidence (request/response, screenshots, command output, etc.).")
 	return b.String()
 }
 
-// FactEdgeRecordingGuidance 写入边时的 Agent 规范（供 project 包复用）。
+// FactEdgeRecordingGuidance is the Agent guidelines for writing edges (reusable by the project package).
 func FactEdgeRecordingGuidance() string { return factEdgeRecordingGuidance() }
 
-// FactRecordingGuidanceBlock 事实写入规范块（供 project 包复用）。
+// FactRecordingGuidanceBlock is the fact writing spec block (reusable by the project package).
 func FactRecordingGuidanceBlock() string { return factRecordingGuidanceBlock() }

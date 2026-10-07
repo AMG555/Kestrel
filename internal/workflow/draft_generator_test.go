@@ -1,4 +1,4 @@
-﻿package workflow
+package workflow
 
 import (
 	"context"
@@ -13,7 +13,7 @@ import (
 
 func TestGenerateDraftFromNaturalLanguageHighRiskAddsHITLAndValidGraph(t *testing.T) {
 	result, err := GenerateDraftFromNaturalLanguage(context.Background(), DraftRequest{
-		Prompt: "对目标资产做端口扫描，如果发现高危端口就执行加固脚本，最后输出报告",
+		Prompt: "对目标资产做portscan，如果Discoverycriticalport就执行加固脚本，最后输出report",
 		Options: DraftOptions{
 			IncludeObjective: true,
 			AllowSchedule:    false,
@@ -50,7 +50,7 @@ func TestGenerateDraftFromNaturalLanguageHighRiskAddsHITLAndValidGraph(t *testin
 
 func TestGenerateDraftAllowHighRiskStillLabelsConditionBranch(t *testing.T) {
 	result, err := GenerateDraftFromNaturalLanguage(context.Background(), DraftRequest{
-		Prompt: "如果漏洞扫描发现高危漏洞，允许生成执行修复脚本的草稿并输出报告",
+		Prompt: "如果漏洞scanDiscoverycritical漏洞，允许生成执行修复脚本的草稿并输出report",
 		Options: DraftOptions{
 			AllowHighRisk: true,
 		},
@@ -104,12 +104,12 @@ func TestGenerateDraftFromLLMUsesOpenAICompatibleEndpoint(t *testing.T) {
 			t.Fatalf("system prompt still contains pipe enum: %q", payload.Messages[0].Content)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"{\"meta\":{\"id\":\"llm-port-scan\",\"name\":\"端口扫描\",\"description\":\"端口扫描\",\"enabled\":true},\"graph\":{\"nodes\":[{\"id\":\"start-1\",\"type\":\"start\",\"label\":\"开始\",\"position\":{\"x\":120,\"y\":150},\"config\":{\"input_keys\":\"message, target\"}},{\"id\":\"tool-2\",\"type\":\"tool\",\"label\":\"端口扫描\",\"position\":{\"x\":330,\"y\":150},\"config\":{\"tool_name\":\"nmap\",\"arguments\":\"{\\\"target\\\":\\\"{{inputs.target}}\\\"}\",\"timeout_seconds\":\"120\",\"join_strategy\":\"all_merge\"}},{\"id\":\"output-3\",\"type\":\"output\",\"label\":\"输出报告\",\"position\":{\"x\":540,\"y\":150},\"config\":{\"source_binding\":{\"from\":\"previous\",\"field\":\"output\"},\"join_strategy\":\"all_merge\"}}],\"edges\":[{\"id\":\"edge-1\",\"source\":\"start-1\",\"target\":\"tool-2\"},{\"id\":\"edge-2\",\"source\":\"tool-2\",\"target\":\"output-3\"}],\"config\":{\"schema_version\":1}},\"capabilities\":[{\"label\":\"端口扫描\",\"tool_name\":\"nmap\",\"tool_candidates\":[\"nmap\"]}],\"audit\":{\"assumptions\":[]}}"}}]}`))
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"{\"meta\":{\"id\":\"llm-port-scan\",\"name\":\"portscan\",\"description\":\"portscan\",\"enabled\":true},\"graph\":{\"nodes\":[{\"id\":\"start-1\",\"type\":\"start\",\"label\":\"开始\",\"position\":{\"x\":120,\"y\":150},\"config\":{\"input_keys\":\"message, target\"}},{\"id\":\"tool-2\",\"type\":\"tool\",\"label\":\"portscan\",\"position\":{\"x\":330,\"y\":150},\"config\":{\"tool_name\":\"nmap\",\"arguments\":\"{\\\"target\\\":\\\"{{inputs.target}}\\\"}\",\"timeout_seconds\":\"120\",\"join_strategy\":\"all_merge\"}},{\"id\":\"output-3\",\"type\":\"output\",\"label\":\"输出report\",\"position\":{\"x\":540,\"y\":150},\"config\":{\"source_binding\":{\"from\":\"previous\",\"field\":\"output\"},\"join_strategy\":\"all_merge\"}}],\"edges\":[{\"id\":\"edge-1\",\"source\":\"start-1\",\"target\":\"tool-2\"},{\"id\":\"edge-2\",\"source\":\"tool-2\",\"target\":\"output-3\"}],\"config\":{\"schema_version\":1}},\"capabilities\":[{\"label\":\"portscan\",\"tool_name\":\"nmap\",\"tool_candidates\":[\"nmap\"]}],\"audit\":{\"assumptions\":[]}}"}}]}`))
 	}))
 	defer srv.Close()
 
 	result, err := GenerateDraftFromLLM(context.Background(), DraftRequest{
-		Prompt:         "对目标做端口扫描并输出报告",
+		Prompt:         "对目标做portscan并输出report",
 		AvailableTools: []DraftTool{{Key: "nmap", Name: "nmap", Enabled: true}},
 	}, config.OpenAIConfig{APIKey: "test-key", BaseURL: srv.URL, Model: "test-model"}, nil)
 	if err != nil {
@@ -144,7 +144,7 @@ func TestGenerateDraftFromLLMReturnsErrorOnMalformedJSON(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected malformed JSON error")
 	}
-	if !strings.Contains(err.Error(), "解析大模型工作流 JSON 失败") {
+	if !strings.Contains(err.Error(), "解析大model工作流 JSON failed") {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -154,7 +154,7 @@ func TestNormalizeLLMDraftRepairsMissingRequiredConfig(t *testing.T) {
 		Graph: graphDef{
 			Nodes: []graphNode{
 				{ID: "start-1", Type: "start", Label: "开始", Config: map[string]any{}},
-				{ID: "agent-1", Type: "agent", Label: "分析", Config: map[string]any{}},
+				{ID: "agent-1", Type: "agent", Label: "analyze", Config: map[string]any{}},
 				{ID: "out-1", Type: "output", Label: "输出结果", Config: map[string]any{}},
 			},
 			Edges: []graphEdge{
@@ -182,13 +182,13 @@ func TestNormalizeLLMDraftRepairsMissingRequiredConfig(t *testing.T) {
 }
 
 func TestNormalizeLLMDraftRepairsConditionBranches(t *testing.T) {
-	result := normalizeLLMDraft("如果发现异常则输出详情，否则输出正常", DraftRequest{}, llmDraftEnvelope{
+	result := normalizeLLMDraft("如果Discoveryabnormal则输出details，no则输出normal", DraftRequest{}, llmDraftEnvelope{
 		Graph: graphDef{
 			Nodes: []graphNode{
 				{ID: "start-1", Type: "start", Label: "开始", Config: map[string]any{}},
 				{ID: "cond-1", Type: "condition", Label: "判断", Config: map[string]any{"expression": `{{inputs.message}} != ""`}},
-				{ID: "out-yes", Type: "output", Label: "异常", Config: map[string]any{}},
-				{ID: "out-no", Type: "output", Label: "正常", Config: map[string]any{}},
+				{ID: "out-yes", Type: "output", Label: "abnormal", Config: map[string]any{}},
+				{ID: "out-no", Type: "output", Label: "normal", Config: map[string]any{}},
 			},
 			Edges: []graphEdge{
 				{ID: "e1", Source: "start-1", Target: "cond-1"},

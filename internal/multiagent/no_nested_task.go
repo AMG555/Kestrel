@@ -1,4 +1,4 @@
-﻿package multiagent
+package multiagent
 
 import (
 	"context"
@@ -10,10 +10,10 @@ import (
 )
 
 // noNestedTaskMiddleware 禁止在已经处于 task(sub-agent) 执行链中再次调用 task，
-// 避免子代理再次委派子代理造成的无限委派/递归。
+// 避免sub-agent再次委派sub-agent造成的none限委派/递归。
 //
-// 通过在 ctx 中设置临时标记来实现嵌套检测：外层 task 调用会先标记 ctx，
-// 子代理内再调用 task 时会命中该标记并拒绝。
+// 通过在 ctx 中settings临时标记来实现嵌套检测：外层 task 调用会先标记 ctx，
+// sub-agent内再调用 task 时会命中该标记并拒绝。
 type noNestedTaskMiddleware struct {
 	adk.BaseChatModelAgentMiddleware
 }
@@ -58,12 +58,12 @@ func wrapNoNestedTaskCall(
 	if tCtx == nil || strings.TrimSpace(tCtx.Name) == "" {
 		return endpoint, nil
 	}
-	// Deep 内置 task 工具名固定为 "task"；为兼容可能的大小写/空白，仅做不区分大小写匹配。
+	// Deep 内置 task tool name固定为 "task"；为兼容可能的大小写/null白，仅做不区分大小写匹配。
 	if !strings.EqualFold(strings.TrimSpace(tCtx.Name), "task") {
 		return endpoint, nil
 	}
 
-	// 已在 task 执行链中：拒绝继续委派，直接报错让上层快速终止。
+	// 已在 task 执行链中：拒绝continue委派，直接报错让上层快速终止。
 	if ctx != nil {
 		if v, ok := ctx.Value(nestedTaskCtxKey{}).(bool); ok && v {
 			return func(ctx context.Context, argumentsInJSON string, opts ...tool.Option) (string, error) {
@@ -76,7 +76,7 @@ func wrapNoNestedTaskCall(
 		}
 	}
 
-	// 标记当前 task 调用链，确保子代理内的再次 task 调用能检测到嵌套。
+	// 标记当前 task 调用链，确保sub-agent内的再次 task 调用能检测到嵌套。
 	return func(ctx context.Context, argumentsInJSON string, opts ...tool.Option) (string, error) {
 		ctx2 := ctx
 		if ctx2 == nil {

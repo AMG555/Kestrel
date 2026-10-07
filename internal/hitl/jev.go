@@ -1,4 +1,4 @@
-﻿package hitl
+package hitl
 
 import (
 	"encoding/json"
@@ -136,7 +136,7 @@ func truncateRunes(s string, max int) string {
 // Uncertain cases follow the product default: approve, unless a custom policy Choice rejects with high confidence.
 func DecideJev(result *typesafe.Result) (decision, comment string) {
 	if result == nil {
-		return "reject", "audit agent: TypeSafe 无有效响应，保守拒绝"
+		return "reject", "audit agent: TypeSafe none有效response，保守拒绝"
 	}
 	availability := result.Noul(jevQAvailability)
 	dataLoss := result.Noul(jevQDataLoss)
@@ -156,7 +156,7 @@ func DecideJev(result *typesafe.Result) (decision, comment string) {
 		{jevQAvailability, "破坏业务可用性", availability},
 		{jevQDataLoss, "不可逆数据破坏", dataLoss},
 		{jevQCredentials, "账号权限篡改", credentials},
-		{jevQConfig, "改系统配置", configTamper},
+		{jevQConfig, "改systemconfig", configTamper},
 		{jevQOperatorPolicy, "组织审批策略", policyNoul},
 	}
 	var fired []string

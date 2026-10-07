@@ -1,4 +1,4 @@
-﻿package multiagent
+package multiagent
 
 import (
 	"context"
@@ -43,7 +43,7 @@ func (p *lenientPlan) UnmarshalJSON(b []byte) error {
 
 	steps := extractPlanStepsLenient(string(b))
 	if len(steps) == 0 {
-		steps = []string{"继续按当前目标执行下一步，并输出可验证证据。"}
+		steps = []string{"continue按当前目标执行下一步，并输出可validate证据。"}
 	}
 	p.Steps = steps
 	return nil

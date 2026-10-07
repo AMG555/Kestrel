@@ -1,4 +1,4 @@
-﻿package multiagent
+package multiagent
 
 import (
 	"errors"
@@ -66,7 +66,7 @@ func TestEinoPendingToolCallsFlushAsFailedEmitsAndClears(t *testing.T) {
 		t.Fatalf("events = %#v, want one", events)
 	}
 	ev := events[0]
-	if ev.eventType != "tool_result" || ev.message != "工具结果 (unknown)" {
+	if ev.eventType != "tool_result" || ev.message != "tool result (unknown)" {
 		t.Fatalf("event = %#v", ev)
 	}
 	if ev.data["toolCallId"] != "call-err" ||

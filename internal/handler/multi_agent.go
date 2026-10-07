@@ -19,13 +19,13 @@ import (
 	"go.uber.org/zap"
 )
 
-// MultiAgentLoopStream Eino DeepAgent 流式对话（需 config.multi_agent.enabled）。
+// MultiAgentLoopStream is the Eino DeepAgent streaming conversation (requires config.multi_agent.enabled).
 func (h *AgentHandler) MultiAgentLoopStream(c *gin.Context) {
 	c.Header("Content-Type", "text/event-stream; charset=utf-8")
 	c.Header("Cache-Control", "no-cache")
 	c.Header("Connection", "keep-alive")
 	if h.config == nil || !h.config.MultiAgent.Enabled {
-		ev := StreamEvent{Type: "error", Message: "多代理未启用，请在设置或 config.yaml 中开启 multi_agent.enabled"}
+		ev := StreamEvent{Type: "error", Message: "Multi-agent is not enabled; please enable multi_agent.enabled in settings or config.yaml"}
 		b, _ := json.Marshal(ev)
 		fmt.Fprintf(c.Writer, "data: %s\n\n", b)
 		done := StreamEvent{Type: "done", Message: ""}
@@ -39,7 +39,7 @@ func (h *AgentHandler) MultiAgentLoopStream(c *gin.Context) {
 
 	var req ChatRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		event := StreamEvent{Type: "error", Message: "请求参数错误: " + err.Error()}
+		event := StreamEvent{Type: "error", Message: "request parameter error: " + err.Error()}
 		b, _ := json.Marshal(event)
 		fmt.Fprintf(c.Writer, "data: %s\n\n", b)
 		done := StreamEvent{Type: "done", Message: ""}
@@ -51,17 +51,17 @@ func (h *AgentHandler) MultiAgentLoopStream(c *gin.Context) {
 
 	c.Header("X-Accel-Buffering", "no")
 
-	// 用于在 sendEvent 中判断是否为用户主动停止导致的取消。
-	// 注意：baseCtx 会在后面创建；该变量用于闭包提前捕获引用。
+	// used in sendEvent to determine if cancellation was caused by the user actively stopping.
+	// Note: baseCtx is created later; this variable is captured by the closure ahead of time.
 	var baseCtx context.Context
 
 	clientDisconnected := false
-	// 与 sseKeepalive 共用：禁止并发写 ResponseWriter，否则会破坏 chunked 编码（ERR_INVALID_CHUNKED_ENCODING）。
+	// Shared with sseKeepalive: concurrent writes to ResponseWriter are forbidden, otherwise chunked encoding will be corrupted (ERR_INVALID_CHUNKED_ENCODING).
 	var sseWriteMu sync.Mutex
 	var ssePublishConversationID string
 	sendEvent := func(eventType, message string, data interface{}) {
-		// 用户主动停止时，Eino 可能仍会并发上报 eventType=="error"。
-		// 为避免 UI 看到“取消错误 + cancelled 文案”两条回复，这里直接丢弃取消对应的 error。
+		// When user actively stops, Eino may still concurrently report eventType=="error".
+		// 为避免 UI 看到“cancellederror + cancelled 文案”两条回复，这里直接丢弃cancelled对应的 error。
 		if eventType == "error" && baseCtx != nil {
 			cause := context.Cause(baseCtx)
 			if errors.Is(cause, ErrTaskCancelled) || errors.Is(cause, multiagent.ErrInterruptContinue) {
@@ -104,7 +104,7 @@ func (h *AgentHandler) MultiAgentLoopStream(c *gin.Context) {
 		sseWriteMu.Unlock()
 	}
 
-	h.logger.Info("收到 Eino DeepAgent 流式请求",
+	h.logger.Info("received Eino DeepAgent streaming request",
 		zap.String("conversationId", req.ConversationID),
 	)
 
@@ -116,7 +116,7 @@ func (h *AgentHandler) MultiAgentLoopStream(c *gin.Context) {
 	}
 	ssePublishConversationID = prep.ConversationID
 	if prep.CreatedNew {
-		sendEvent("conversation", "会话已创建", map[string]interface{}{
+		sendEvent("conversation", "conversation created", map[string]interface{}{
 			"conversationId": prep.ConversationID,
 		})
 	}
@@ -145,7 +145,7 @@ func (h *AgentHandler) MultiAgentLoopStream(c *gin.Context) {
 	orch := strings.TrimSpace(req.Orchestration)
 
 	taskStatus := "completed"
-	// 仅在成功 StartTask 后再 FinishTask；避免「任务已存在」分支 return 时误删正在运行的同会话任务。
+	// Only call FinishTask after StartTask succeeds; avoids incorrectly deleting a running task of the same conversation when the 'task already exists' branch returns.
 	taskOwned := false
 	var taskRunID string
 	defer func() {
@@ -154,7 +154,7 @@ func (h *AgentHandler) MultiAgentLoopStream(c *gin.Context) {
 		}
 	}()
 
-	sendEvent("progress", "正在启动 Eino 多代理...", map[string]interface{}{
+	sendEvent("progress", "Starting Eino multi-agent...", map[string]interface{}{
 		"conversationId": conversationID,
 	})
 
@@ -176,13 +176,13 @@ func (h *AgentHandler) MultiAgentLoopStream(c *gin.Context) {
 	if startedTask, err := h.tasks.StartTask(conversationID, req.Message, cancelWithCause); err != nil {
 		var errorMsg string
 		if errors.Is(err, ErrTaskAlreadyRunning) {
-			errorMsg = "⚠️ 当前会话已有任务正在执行中，请等待当前任务完成或点击「停止任务」后再尝试。"
+			errorMsg = "⚠️ A task is already running in the current conversation. Please wait for it to complete or click \"Stop task\" before retrying."
 			sendEvent("error", errorMsg, map[string]interface{}{
 				"conversationId": conversationID,
 				"errorType":      "task_already_running",
 			})
 		} else {
-			errorMsg = "❌ 无法启动任务: " + err.Error()
+			errorMsg = "❌ Failed to start task: " + err.Error()
 			sendEvent("error", errorMsg, nil)
 		}
 		if assistantMessageID != "" {
@@ -199,9 +199,9 @@ func (h *AgentHandler) MultiAgentLoopStream(c *gin.Context) {
 	taskOwned = true
 	sendEvent = h.taskFinishingEventSender(sendEvent, conversationID, taskRunID, func() string { return taskStatus })
 
-	// 同一 HTTP 流内多段 Run（如中断并继续）合并 MCP execution id，供最终 response / 库表与工具芯片展示完整列表
+	// Merge MCP execution IDs from multiple Run segments within the same HTTP stream (e.g. interrupt + resume), for the final response / DB table and tool chip to display the complete list
 	var cumulativeMCPExecutionIDs []string
-	// 同一请求内分段续跑时，主代理 iteration 事件按偏移累计，避免 UI 出现「第3轮 → 第1轮」回跳。
+	// When running in segments within the same request, primary agent iteration events accumulate with offset to avoid the UI showing "Round 3 → Round 1" regression.
 	var mainIterationOffset int
 	var emptyResponseContinueAttempt int
 	var finalizationAutoContinueAttempt int
@@ -325,12 +325,12 @@ func (h *AgentHandler) MultiAgentLoopStream(c *gin.Context) {
 				"kind":           "no_active_mcp_tool",
 			})
 			inject := formatInterruptContinueUserMessage(note)
-			// 不写入 messages 表为 user 气泡：避免主对话流出现大段模板；说明已由 user_interrupt_continue 记入助手 process_details（迭代详情）。
+			// Not written to the messages table as a user bubble: avoids large template text in the main conversation stream; description is already recorded by user_interrupt_continue in assistant process_details (iteration details)。
 			if hist, err := h.loadHistoryFromAgentTrace(conversationID); err == nil && len(hist) > 0 {
 				curHistory = hist
 			}
 			curFinalMessage = inject
-			sendEvent("progress", "已合并用户补充与最新轨迹，正在继续推理…", map[string]interface{}{
+			sendEvent("progress", "User supplement merged with latest trace, resuming reasoning...", map[string]interface{}{
 				"conversationId": conversationID,
 				"source":         "interrupt_continue",
 			})
@@ -349,15 +349,15 @@ func (h *AgentHandler) MultiAgentLoopStream(c *gin.Context) {
 		if errors.Is(cause, ErrTaskCancelled) {
 			taskStatus = "cancelled"
 			h.tasks.UpdateTaskStatus(conversationID, taskStatus)
-			cancelMsg := "任务已被用户取消，后续操作已停止。"
+			cancelMsg := "Task was cancelled by user; subsequent operations stopped."
 			if assistantMessageID != "" {
 				if result != nil {
 					if err := h.mergeAssistantMessagePartialOnCancel(assistantMessageID, result.Response); err != nil {
-						h.logger.Warn("合并取消前的部分回复失败", zap.Error(err))
+						h.logger.Warn("merge partial reply before cancellation failed", zap.Error(err))
 					}
 				}
 				if err := h.appendAssistantMessageNotice(assistantMessageID, cancelMsg); err != nil {
-					h.logger.Warn("更新取消后的助手消息失败", zap.Error(err))
+					h.logger.Warn("update assistant message after cancellation failed", zap.Error(err))
 				}
 				_ = h.db.AddProcessDetail(assistantMessageID, conversationID, "cancelled", cancelMsg, nil)
 			}
@@ -373,7 +373,7 @@ func (h *AgentHandler) MultiAgentLoopStream(c *gin.Context) {
 		if errors.Is(runErr, context.DeadlineExceeded) || errors.Is(context.Cause(taskCtx), context.DeadlineExceeded) {
 			taskStatus = "timeout"
 			h.tasks.UpdateTaskStatus(conversationID, taskStatus)
-			timeoutMsg := "任务执行超时，已自动终止。"
+			timeoutMsg := "Task execution timed out and was automatically terminated."
 			if assistantMessageID != "" {
 				_, _ = h.db.Exec("UPDATE messages SET content = ?, updated_at = ? WHERE id = ?", timeoutMsg, time.Now(), assistantMessageID)
 				_ = h.db.AddProcessDetail(assistantMessageID, conversationID, "timeout", timeoutMsg, nil)
@@ -388,11 +388,11 @@ func (h *AgentHandler) MultiAgentLoopStream(c *gin.Context) {
 			return
 		}
 
-		h.logger.Error("Eino DeepAgent 执行失败", zap.Error(runErr))
+		h.logger.Error("Eino DeepAgent execution failed", zap.Error(runErr))
 		taskStatus = "failed"
 		h.tasks.UpdateTaskStatus(conversationID, taskStatus)
 		clientErr := multiagent.EinoClientRunErrorMessage(runErr)
-		errMsg := "执行失败: " + clientErr
+		errMsg := "execution failed: " + clientErr
 		if assistantMessageID != "" {
 			_, _ = h.db.Exec("UPDATE messages SET content = ?, updated_at = ? WHERE id = ?", errMsg, time.Now(), assistantMessageID)
 			_ = h.db.AddProcessDetail(assistantMessageID, conversationID, "error", errMsg, nil)
@@ -420,7 +420,7 @@ func (h *AgentHandler) MultiAgentLoopStream(c *gin.Context) {
 
 	if result.LastAgentTraceInput != "" || result.LastAgentTraceOutput != "" {
 		if err := h.db.SaveAgentTrace(conversationID, result.LastAgentTraceInput, result.LastAgentTraceOutput); err != nil {
-			h.logger.Warn("保存代理轨迹失败", zap.Error(err))
+			h.logger.Warn("save agent trace failed", zap.Error(err))
 		}
 	}
 
@@ -441,10 +441,10 @@ func (h *AgentHandler) MultiAgentLoopStream(c *gin.Context) {
 	sendEvent("done", "", map[string]interface{}{"conversationId": conversationID})
 }
 
-// MultiAgentLoop Eino DeepAgent 非流式对话（需 multi_agent.enabled）。
+// MultiAgentLoop is the Eino DeepAgent non-streaming conversation (requires multi_agent.enabled).
 func (h *AgentHandler) MultiAgentLoop(c *gin.Context) {
 	if h.config == nil || !h.config.MultiAgent.Enabled {
-		c.JSON(http.StatusNotFound, gin.H{"error": "多代理未启用，请在 config.yaml 中设置 multi_agent.enabled: true"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "Multi-agent is not enabled; please set multi_agent.enabled: true in config.yaml"})
 		return
 	}
 
@@ -454,7 +454,7 @@ func (h *AgentHandler) MultiAgentLoop(c *gin.Context) {
 		return
 	}
 
-	h.logger.Info("收到 Eino DeepAgent 非流式请求", zap.String("conversationId", req.ConversationID))
+	h.logger.Info("received Eino DeepAgent non-streaming request", zap.String("conversationId", req.ConversationID))
 
 	prep, err := h.prepareMultiAgentSession(&req, c, "multi_agent")
 	if err != nil {
@@ -533,9 +533,9 @@ func (h *AgentHandler) MultiAgentLoop(c *gin.Context) {
 			if shouldPersistEinoAgentTraceAfterRunError(baseCtx) {
 				h.persistEinoAgentTraceForResume(prep.ConversationID, result)
 			}
-			h.logger.Error("Eino DeepAgent 执行失败", zap.Error(runErr))
+			h.logger.Error("Eino DeepAgent execution failed", zap.Error(runErr))
 			clientErr := multiagent.EinoClientRunErrorMessage(runErr)
-			errMsg := "执行失败: " + clientErr
+			errMsg := "execution failed: " + clientErr
 			if prep.AssistantMessageID != "" {
 				_, _ = h.db.Exec("UPDATE messages SET content = ?, updated_at = ? WHERE id = ?", errMsg, time.Now(), prep.AssistantMessageID)
 			}
@@ -563,7 +563,7 @@ func (h *AgentHandler) MultiAgentLoop(c *gin.Context) {
 
 	if result.LastAgentTraceInput != "" || result.LastAgentTraceOutput != "" {
 		if err := h.db.SaveAgentTrace(prep.ConversationID, result.LastAgentTraceInput, result.LastAgentTraceOutput); err != nil {
-			h.logger.Warn("保存代理轨迹失败", zap.Error(err))
+			h.logger.Warn("save agent trace failed", zap.Error(err))
 		}
 	}
 
@@ -593,7 +593,7 @@ func (h *AgentHandler) MultiAgentLoop(c *gin.Context) {
 	})
 }
 
-// persistEinoAgentTraceForResume 在 Eino 运行异常结束时写入代理轨迹（库列 last_react_*），供下一请求 loadHistoryFromAgentTrace 软续跑。
+// persistEinoAgentTraceForResume writes the agent trace (DB columns last_react_*) when Eino exits abnormally, for the next request's loadHistoryFromAgentTrace soft-resume.
 func (h *AgentHandler) persistEinoAgentTraceForResume(conversationID string, result *multiagent.RunResult) {
 	if h == nil || result == nil {
 		return
@@ -602,11 +602,11 @@ func (h *AgentHandler) persistEinoAgentTraceForResume(conversationID string, res
 		return
 	}
 	if err := h.db.SaveAgentTrace(conversationID, result.LastAgentTraceInput, result.LastAgentTraceOutput); err != nil {
-		h.logger.Warn("保存 Eino 续跑上下文失败", zap.String("conversationId", conversationID), zap.Error(err))
+		h.logger.Warn("save Eino resume context failed", zap.String("conversationId", conversationID), zap.Error(err))
 	}
 }
 
-// mergeMCPExecutionIDLists 去重合并多段 Run 的 MCP execution id（顺序：先 dst 后 more）。
+// mergeMCPExecutionIDLists deduplicates and merges MCP execution IDs from multiple Run segments (order: dst first, then more).
 func mergeMCPExecutionIDLists(dst []string, more []string) []string {
 	seen := make(map[string]struct{}, len(dst)+len(more))
 	out := make([]string, 0, len(dst)+len(more))
@@ -628,44 +628,44 @@ func mergeMCPExecutionIDLists(dst []string, more []string) []string {
 	return out
 }
 
-// interruptContinueTimelineSummary 时间线 / process_details 中展示的简短正文（完整模板已写入另一条用户消息）。
+// interruptContinueTimelineSummary is the short body displayed in timeline / process_details (full template is written in another user message).
 func interruptContinueTimelineSummary(note string) string {
 	note = strings.TrimSpace(note)
 	if note == "" {
-		return "用户选择「中断并继续」，未填写说明；已按默认渗透补充模板合并上下文并续跑。"
+		return "User chose to interrupt and continue without providing notes; context merged using default pentest supplement template and resumed."
 	}
-	return "用户中断说明（原文）：\n\n" + note
+	return "User interrupt note (original text):\n\n" + note
 }
 
-// formatInterruptContinueUserMessage 将「中断并继续」弹窗中的说明格式化为新一轮 user 消息（渗透场景下强调路径补充与端口复扫）。
+// formatInterruptContinueUserMessage formats the note from the 'interrupt and continue' dialog into a new user message (emphasizes path supplement and port rescan in pentest scenarios).
 func formatInterruptContinueUserMessage(note string) string {
 	var b strings.Builder
-	b.WriteString("【用户补充 / 中断后继续】\n")
+	b.WriteString("[User Supplement / Post-interrupt Continue]\n")
 	if s := strings.TrimSpace(note); s != "" {
 		b.WriteString(s)
 		b.WriteString("\n\n")
 	}
-	b.WriteString("【请在本轮落实】\n")
-	b.WriteString("- 将用户提供的接口路径、参数、业务变化纳入后续测试与推理。\n")
-	b.WriteString("- 若资产或目标信息有更新，请对目标重新执行端口/服务探测，再基于新结果规划下一步。\n")
-	b.WriteString("- 在已有轨迹基础上推进，避免无意义重复已完成的步骤。\n")
+	b.WriteString("[Action items for this round]\n")
+	b.WriteString("- Incorporate the interface paths, parameters, and business changes provided by the user into subsequent testing and reasoning.\n")
+	b.WriteString("- If asset or target information has been updated, re-run port/service scanning on the target, then plan the next step based on the new results.\n")
+	b.WriteString("- Build on the existing trace; avoid meaninglessly repeating already-completed steps.\n")
 	return strings.TrimSpace(b.String())
 }
 
 func multiAgentHTTPErrorStatus(err error) (int, string) {
 	msg := err.Error()
 	switch {
-	case strings.Contains(msg, "无权访问"):
+	case strings.Contains(msg, "access denied"):
 		return http.StatusForbidden, msg
-	case strings.Contains(msg, "对话不存在"):
+	case strings.Contains(msg, "conversation not found"):
 		return http.StatusNotFound, msg
-	case strings.Contains(msg, "未找到该 WebShell"):
+	case strings.Contains(msg, "WebShell not found"):
 		return http.StatusBadRequest, msg
-	case strings.Contains(msg, "附件最多"):
+	case strings.Contains(msg, "附件最多"), strings.Contains(msg, "attachments"):
 		return http.StatusBadRequest, msg
-	case strings.Contains(msg, "保存用户消息失败"), strings.Contains(msg, "创建对话失败"):
+	case strings.Contains(msg, "saveuser messagefailed"), strings.Contains(msg, "create conversationfailed"):
 		return http.StatusInternalServerError, msg
-	case strings.Contains(msg, "保存上传文件失败"):
+	case strings.Contains(msg, "saveupload filefailed"):
 		return http.StatusInternalServerError, msg
 	default:
 		return http.StatusBadRequest, msg

@@ -12,7 +12,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// rebindEinoRunningTask 中断并继续 / 空正文续跑：重建 cancel 链与超时 ctx，保持任务 running。
+// rebindEinoRunningTask interrupts and continues / empty-body re-runs: rebuilds the cancel chain and timeout ctx, keeping the task running.
 func (h *AgentHandler) rebindEinoRunningTask(parent context.Context, conversationID string, timeoutCancel context.CancelFunc) (context.Context, context.CancelCauseFunc, context.Context, context.CancelFunc) {
 	if timeoutCancel != nil {
 		timeoutCancel()
@@ -24,7 +24,7 @@ func (h *AgentHandler) rebindEinoRunningTask(parent context.Context, conversatio
 	return baseCtx, cancelWithCause, taskCtx, newTimeoutCancel
 }
 
-// tryContinueOnEinoEmptyResponse Run 成功但 Response 为 emptyHint 时退避续跑；true 表示已准备下一段 Run。
+// tryContinueOnEinoEmptyResponse backs off and re-runs when a Run succeeds but the Response is empty; returns true if the next Run segment is ready.
 func (h *AgentHandler) tryContinueOnEinoEmptyResponse(
 	taskCtx context.Context,
 	mw *config.MultiAgentEinoMiddlewareConfig,
@@ -51,7 +51,7 @@ func (h *AgentHandler) tryContinueOnEinoEmptyResponse(
 	h.persistEinoAgentTraceForResume(conversationID, result)
 
 	backoff := multiagent.EmptyResponseContinueBackoff(*attempt-1, mw)
-	waitMsg := fmt.Sprintf("会话已结束但未捕获到助手正文，%d 秒后第 %d/%d 次自动续跑…",
+	waitMsg := fmt.Sprintf("conversation ended but no assistant body was captured, auto-continuing attempt %d/%d in %d seconds…",
 		int(backoff.Seconds()), *attempt, maxAttempts)
 	if progressCallback != nil {
 		progressCallback("eino_empty_response_continue", waitMsg, map[string]interface{}{
@@ -70,7 +70,7 @@ func (h *AgentHandler) tryContinueOnEinoEmptyResponse(
 
 	h.applyEinoTraceResumeSegment(conversationID, result, curHistory, curFinalMessage, "")
 	if progressCallback != nil {
-		progressCallback("eino_empty_response_continue", "已恢复上下文，正在续跑…", map[string]interface{}{
+		progressCallback("eino_empty_response_continue", "context resumed, continuing run…", map[string]interface{}{
 			"conversationId":   conversationID,
 			"source":           "eino",
 			"attempt":          *attempt,

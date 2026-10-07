@@ -1,4 +1,4 @@
-﻿package database
+package database
 
 import (
 	"database/sql"
@@ -9,12 +9,12 @@ import (
 	"time"
 )
 
-var ErrWorkflowAlreadyExists = errors.New("工作流 ID 已存在")
+var ErrWorkflowAlreadyExists = errors.New("workflow ID already exists")
 
 // CreateWorkflowDefinition never replaces a definition with the same ID.
 func (db *DB) CreateWorkflowDefinition(wf *WorkflowDefinition) error {
 	if wf == nil || strings.TrimSpace(wf.ID) == "" || strings.TrimSpace(wf.Name) == "" {
-		return fmt.Errorf("工作流 id 和 name 不能为空")
+		return fmt.Errorf("workflow id and name cannot be empty")
 	}
 	if wf.Version <= 0 {
 		wf.Version = 1
@@ -121,7 +121,7 @@ func (db *DB) ListWorkflowDefinitions(includeDisabled bool) ([]*WorkflowDefiniti
 	query += " ORDER BY updated_at DESC"
 	rows, err := db.Query(query)
 	if err != nil {
-		return nil, fmt.Errorf("查询工作流列表失败: %w", err)
+		return nil, fmt.Errorf("failed to query workflow list: %w", err)
 	}
 	defer rows.Close()
 
@@ -129,7 +129,7 @@ func (db *DB) ListWorkflowDefinitions(includeDisabled bool) ([]*WorkflowDefiniti
 	for rows.Next() {
 		wf, err := scanWorkflowDefinition(rows)
 		if err != nil {
-			return nil, fmt.Errorf("扫描工作流失败: %w", err)
+			return nil, fmt.Errorf("failed to scan workflow: %w", err)
 		}
 		out = append(out, wf)
 	}
@@ -146,19 +146,19 @@ func (db *DB) GetWorkflowDefinition(id string) (*WorkflowDefinition, error) {
 		return nil, nil
 	}
 	if err != nil {
-		return nil, fmt.Errorf("查询工作流失败: %w", err)
+		return nil, fmt.Errorf("failed to query workflow: %w", err)
 	}
 	return wf, nil
 }
 
 func (db *DB) UpsertWorkflowDefinition(wf *WorkflowDefinition) error {
 	if wf == nil {
-		return fmt.Errorf("工作流为空")
+		return fmt.Errorf("workflow is nil")
 	}
 	wf.ID = strings.TrimSpace(wf.ID)
 	wf.Name = strings.TrimSpace(wf.Name)
 	if wf.ID == "" || wf.Name == "" {
-		return fmt.Errorf("工作流 id 和 name 不能为空")
+		return fmt.Errorf("workflow id and name cannot be empty")
 	}
 	if strings.TrimSpace(wf.GraphJSON) == "" {
 		wf.GraphJSON = `{"nodes":[],"edges":[],"config":{}}`
@@ -190,7 +190,7 @@ func (db *DB) UpsertWorkflowDefinition(wf *WorkflowDefinition) error {
 		)
 	}
 	if err != nil {
-		return fmt.Errorf("保存工作流失败: %w", err)
+		return fmt.Errorf("failed to save workflow: %w", err)
 	}
 	return nil
 }
@@ -198,20 +198,20 @@ func (db *DB) UpsertWorkflowDefinition(wf *WorkflowDefinition) error {
 func (db *DB) DeleteWorkflowDefinition(id string) error {
 	id = strings.TrimSpace(id)
 	if id == "" {
-		return fmt.Errorf("工作流 id 不能为空")
+		return fmt.Errorf("workflow id cannot be empty")
 	}
 	if _, err := db.Exec("DELETE FROM workflow_definitions WHERE id = ?", id); err != nil {
-		return fmt.Errorf("删除工作流失败: %w", err)
+		return fmt.Errorf("failed to delete workflow: %w", err)
 	}
 	return nil
 }
 
 func (db *DB) CreateWorkflowRun(run *WorkflowRun) error {
 	if run == nil {
-		return fmt.Errorf("工作流运行为空")
+		return fmt.Errorf("workflow run is nil")
 	}
 	if strings.TrimSpace(run.ID) == "" || strings.TrimSpace(run.WorkflowID) == "" {
-		return fmt.Errorf("工作流运行 id 和 workflow_id 不能为空")
+		return fmt.Errorf("workflow run id and workflow_id cannot be empty")
 	}
 	if run.WorkflowVersion <= 0 {
 		run.WorkflowVersion = 1
@@ -228,7 +228,7 @@ func (db *DB) CreateWorkflowRun(run *WorkflowRun) error {
 		run.ID, run.WorkflowID, run.WorkflowVersion, nullString(run.ConversationID), nullString(run.ProjectID), nullString(run.RoleID), run.Status, run.InputJSON, run.StartedAt,
 	)
 	if err != nil {
-		return fmt.Errorf("创建工作流运行失败: %w", err)
+		return fmt.Errorf("failed to create workflow run: %w", err)
 	}
 	return nil
 }
@@ -236,7 +236,7 @@ func (db *DB) CreateWorkflowRun(run *WorkflowRun) error {
 func (db *DB) FinishWorkflowRun(runID, status, outputJSON, errText string) error {
 	runID = strings.TrimSpace(runID)
 	if runID == "" {
-		return fmt.Errorf("工作流运行 id 不能为空")
+		return fmt.Errorf("workflow run id cannot be empty")
 	}
 	if strings.TrimSpace(status) == "" {
 		status = "completed"
@@ -247,17 +247,17 @@ func (db *DB) FinishWorkflowRun(runID, status, outputJSON, errText string) error
 		status, outputJSON, errText, now, runID,
 	)
 	if err != nil {
-		return fmt.Errorf("更新工作流运行失败: %w", err)
+		return fmt.Errorf("failed to update workflow run: %w", err)
 	}
 	return nil
 }
 
 func (db *DB) CreateWorkflowNodeRun(n *WorkflowNodeRun) error {
 	if n == nil {
-		return fmt.Errorf("工作流节点运行为空")
+		return fmt.Errorf("workflow node run is nil")
 	}
 	if strings.TrimSpace(n.ID) == "" || strings.TrimSpace(n.RunID) == "" || strings.TrimSpace(n.NodeID) == "" {
-		return fmt.Errorf("节点运行 id、run_id 和 node_id 不能为空")
+		return fmt.Errorf("node run id, run_id, and node_id cannot be empty")
 	}
 	if strings.TrimSpace(n.Status) == "" {
 		n.Status = "running"
@@ -271,7 +271,7 @@ func (db *DB) CreateWorkflowNodeRun(n *WorkflowNodeRun) error {
 		n.ID, n.RunID, n.NodeID, n.Status, n.InputJSON, n.StartedAt,
 	)
 	if err != nil {
-		return fmt.Errorf("创建工作流节点运行失败: %w", err)
+		return fmt.Errorf("failed to create workflow node run: %w", err)
 	}
 	return nil
 }
@@ -279,7 +279,7 @@ func (db *DB) CreateWorkflowNodeRun(n *WorkflowNodeRun) error {
 func (db *DB) FinishWorkflowNodeRun(nodeRunID, status, outputJSON, errText string) error {
 	nodeRunID = strings.TrimSpace(nodeRunID)
 	if nodeRunID == "" {
-		return fmt.Errorf("节点运行 id 不能为空")
+		return fmt.Errorf("node run id cannot be empty")
 	}
 	if strings.TrimSpace(status) == "" {
 		status = "completed"
@@ -290,7 +290,7 @@ func (db *DB) FinishWorkflowNodeRun(nodeRunID, status, outputJSON, errText strin
 		status, outputJSON, errText, now, nodeRunID,
 	)
 	if err != nil {
-		return fmt.Errorf("更新工作流节点运行失败: %w", err)
+		return fmt.Errorf("failed to update workflow node run: %w", err)
 	}
 	return nil
 }
@@ -298,7 +298,7 @@ func (db *DB) FinishWorkflowNodeRun(nodeRunID, status, outputJSON, errText strin
 func (db *DB) ListWorkflowNodeRuns(runID string) ([]*WorkflowNodeRun, error) {
 	runID = strings.TrimSpace(runID)
 	if runID == "" {
-		return nil, fmt.Errorf("工作流运行 id 不能为空")
+		return nil, fmt.Errorf("workflow run id cannot be empty")
 	}
 	rows, err := db.Query(
 		`SELECT id, run_id, node_id, status, input_json, output_json, error, started_at, finished_at
@@ -306,7 +306,7 @@ func (db *DB) ListWorkflowNodeRuns(runID string) ([]*WorkflowNodeRun, error) {
 		runID,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("查询工作流节点运行失败: %w", err)
+		return nil, fmt.Errorf("failed to query workflow node runs: %w", err)
 	}
 	defer rows.Close()
 	var out []*WorkflowNodeRun
@@ -362,7 +362,7 @@ func (db *DB) GetWorkflowRun(runID string) (*WorkflowRun, error) {
 		return nil, nil
 	}
 	if err != nil {
-		return nil, fmt.Errorf("查询工作流运行失败: %w", err)
+		return nil, fmt.Errorf("failed to query workflow run: %w", err)
 	}
 	return row, nil
 }
@@ -370,11 +370,11 @@ func (db *DB) GetWorkflowRun(runID string) (*WorkflowRun, error) {
 func (db *DB) SetWorkflowRunStatus(runID, status string) error {
 	runID = strings.TrimSpace(runID)
 	if runID == "" {
-		return fmt.Errorf("工作流运行 id 不能为空")
+		return fmt.Errorf("workflow run id cannot be empty")
 	}
 	_, err := db.Exec(`UPDATE workflow_runs SET status = ? WHERE id = ?`, strings.TrimSpace(status), runID)
 	if err != nil {
-		return fmt.Errorf("更新工作流运行状态失败: %w", err)
+		return fmt.Errorf("failed to update workflow run status: %w", err)
 	}
 	return nil
 }
@@ -382,14 +382,14 @@ func (db *DB) SetWorkflowRunStatus(runID, status string) error {
 func (db *DB) SetWorkflowRunAwaitingHITL(runID, nodeID, pendingJSON string) error {
 	runID = strings.TrimSpace(runID)
 	if runID == "" {
-		return fmt.Errorf("工作流运行 id 不能为空")
+		return fmt.Errorf("workflow run id cannot be empty")
 	}
 	_, err := db.Exec(
 		`UPDATE workflow_runs SET status = 'awaiting_hitl', pending_hitl_node_id = ?, pending_hitl_json = ?, finished_at = NULL WHERE id = ?`,
 		strings.TrimSpace(nodeID), pendingJSON, runID,
 	)
 	if err != nil {
-		return fmt.Errorf("更新工作流 HITL 等待状态失败: %w", err)
+		return fmt.Errorf("failed to update workflow HITL awaiting status: %w", err)
 	}
 	return nil
 }
@@ -398,14 +398,14 @@ func (db *DB) SetWorkflowRunAwaitingHITL(runID, nodeID, pendingJSON string) erro
 func (db *DB) RecordWorkflowRunHITLDecision(runID string, approved bool, comment string) error {
 	runID = strings.TrimSpace(runID)
 	if runID == "" {
-		return fmt.Errorf("工作流运行 id 不能为空")
+		return fmt.Errorf("workflow run id cannot be empty")
 	}
 	run, err := db.GetWorkflowRun(runID)
 	if err != nil {
 		return err
 	}
 	if run == nil {
-		return fmt.Errorf("工作流运行不存在")
+		return fmt.Errorf("workflow run not found")
 	}
 	pending := map[string]interface{}{}
 	if strings.TrimSpace(run.PendingHITLJSON) != "" {
@@ -423,7 +423,7 @@ func (db *DB) RecordWorkflowRunHITLDecision(runID string, approved bool, comment
 		string(raw), runID,
 	)
 	if err != nil {
-		return fmt.Errorf("记录工作流审批决定失败: %w", err)
+		return fmt.Errorf("failed to record workflow approval decision: %w", err)
 	}
 	return nil
 }
@@ -452,7 +452,7 @@ func (db *DB) ListWorkflowRunsAwaitingHITLFiltered(conversationID string, limit 
 		)
 	}
 	if err != nil {
-		return nil, fmt.Errorf("查询等待审批的工作流运行失败: %w", err)
+		return nil, fmt.Errorf("failed to query workflow runs awaiting approval: %w", err)
 	}
 	defer rows.Close()
 	var out []*WorkflowRun

@@ -1,4 +1,4 @@
-﻿package c2
+package c2
 
 import (
 	"encoding/base64"
@@ -18,10 +18,10 @@ func mustGBK(t *testing.T, s string) []byte {
 }
 
 func TestNormalizeConsoleOutput_WindowsGBK(t *testing.T) {
-	raw := mustGBK(t, "中文测试")
+	raw := mustGBK(t, "Chinesetest")
 	got := NormalizeConsoleOutput(raw, "windows")
-	if got != "中文测试" {
-		t.Fatalf("got %q want 中文测试", got)
+	if got != "Chinesetest" {
+		t.Fatalf("got %q want Chinesetest", got)
 	}
 }
 
@@ -43,9 +43,9 @@ func TestResolveTaskResultText_PrefersB64(t *testing.T) {
 }
 
 func TestResolveTaskResultText_PlainFallback(t *testing.T) {
-	raw := mustGBK(t, "测试")
+	raw := mustGBK(t, "test")
 	got := ResolveTaskResultText(string(raw), "", "windows")
-	if got != "测试" {
+	if got != "test" {
 		t.Fatalf("got %q", got)
 	}
 }

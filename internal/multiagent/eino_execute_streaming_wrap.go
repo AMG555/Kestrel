@@ -1,4 +1,4 @@
-﻿package multiagent
+package multiagent
 
 import (
 	"context"
@@ -18,9 +18,9 @@ import (
 	"github.com/cloudwego/eino/schema"
 )
 
-// prependPythonUnbufferedEnv 为 /bin/sh -c 注入 PYTHONUNBUFFERED=1。
-// eino-ext local 对流式 stdout 使用 bufio 按「行」推送；python3 写管道时默认块缓冲，print 长期留在用户态缓冲，
-// 管道里收不到换行，表现为长时间无输出直至超时或退出。若命令里已出现 PYTHONUNBUFFERED 则不再覆盖。
+// prependPythonUnbufferedEnv injects PYTHONUNBUFFERED=1 for /bin/sh -c.
+// eino-ext local pushes streaming stdout via bufio line-by-line; python3 uses block-buffering when writing to a pipe by default, leaving print in user-space buffers for a long time,
+// so the pipe receives no newlines, appearing as long periods of no output until timeout or exit. If PYTHONUNBUFFERED already appears in the command, do not override.
 func prependPythonUnbufferedEnv(shellCommand string) string {
 	if strings.TrimSpace(shellCommand) == "" {
 		return shellCommand
@@ -31,13 +31,13 @@ func prependPythonUnbufferedEnv(shellCommand string) string {
 	return "export PYTHONUNBUFFERED=1\n" + shellCommand
 }
 
-// einoExecuteTimeoutUserHint 与写入 ADK 工具消息（模型可见）及 SSE tool_result 尾标一致。
+// einoExecuteTimeoutUserHint is consistent with what is written to the ADK tool message (model-visible) and the SSE tool_result tail marker.
 func einoExecuteTimeoutUserHint() string {
-	return "已超时终止 · Timed out"
+	return "Timed out and terminated · Timed out"
 }
 
-// einoExecuteRecvErrIsToolTimeout 判断 Recv 错误是否由 agent.tool_timeout_minutes 触发。
-// WithTimeout 到期后 local 侧常报 canceled / exit -1，但 execCtx.Err() 仍为 DeadlineExceeded。
+// einoExecuteRecvErrIsToolTimeout determines whether a Recv error was triggered by agent.tool_timeout_minutes.
+// After WithTimeout expires, the local side often reports canceled / exit -1, but execCtx.Err() is still DeadlineExceeded.
 func einoExecuteRecvErrIsToolTimeout(rerr error, tctx context.Context) bool {
 	if tctx != nil && errors.Is(tctx.Err(), context.DeadlineExceeded) {
 		return true
@@ -45,29 +45,29 @@ func einoExecuteRecvErrIsToolTimeout(rerr error, tctx context.Context) bool {
 	return errors.Is(rerr, context.DeadlineExceeded)
 }
 
-// einoStreamingShellWrap 包装 Eino filesystem 使用的 StreamingShell（cloudwego eino-ext local.Local）。
-// 官方 execute 工具默认走 ExecuteStreaming 且不设 RunInBackendGround；末尾带 & 时子进程仍与管道相连，
-// streamStdout 按行读取会在无换行输出时长时间阻塞（与 MCP 工具 exec 的独立实现不同）。
-// 对「完全后台」命令自动开启 RunInBackendGround，与 local.runCmdInBackground 行为对齐。
+// einoStreamingShellWrap wraps the StreamingShell used by Eino filesystem (cloudwego eino-ext local.Local).
+// The official execute tool defaults to ExecuteStreaming without RunInBackendGround; when ending with &, the child process remains attached to the pipe,
+// and streamStdout reading line-by-line will block for a long time when there is no newline output (unlike the separate implementation of MCP tool exec).
+// Automatically enables RunInBackendGround for 'fully background' commands, aligning with local.runCmdInBackground behavior.
 //
-// 使用 Pipe 将内层流转发给调用方：在 inner EOF 后、关闭 Pipe 前同步调用 ToolInvokeNotify.Fire，
-// run loop 收到 Fire 后立即推送 tool_result（toolResultSent 去重），避免 ADK Tool 事件迟到时 UI 卡在「执行中」。
+// Uses a Pipe to forward the inner stream to the caller: synchronously calls ToolInvokeNotify.Fire after inner EOF but before closing the Pipe,
+// so the run loop pushes tool_result immediately upon Fire (toolResultSent deduplicates), preventing the UI from sticking on 'executing' when ADK Tool events arrive late.
 //
-// 若 inner 在校验阶段直接返回 error（未建立 reader），不会进入下方 goroutine，也必须 Fire；
-// 否则 pending tool_call 要等整轮 run 结束才被 force-close，与已展示的助手/工具软错误文案不同步。
+// If inner returns an error directly during validation (before a reader is established), the goroutine below is not entered; Fire must still be called;
+// otherwise the pending tool_call waits until the entire run ends to be force-closed, out of sync with the soft error text already shown for assistant/tool.
 type einoStreamingShellWrap struct {
 	inner         filesystem.StreamingShell
 	invokeNotify  *einomcp.ToolInvokeNotifyHolder
 	einoAgentName string
-	// outputChunk 可选；非 nil 时在收到内层 ExecuteResponse 片段时推送，与 MCP 工具的 tool_result_delta 一致（需有效 toolCallId）。
+	// outputChunk is optional; when non-nil, push each received inner ExecuteResponse chunk, consistent with MCP tool's tool_result_delta (requires a valid toolCallId).
 	outputChunk func(toolName, toolCallID, chunk string)
-	// toolTimeoutMinutes 与 agent.tool_timeout_minutes 对齐；>0 时对单次 execute 套用 context 超时（与 MCP 工具经 executeToolViaMCP 行为一致）。0 表示仅依赖上层 ctx（如整任务 10h 上限）。
+	// toolTimeoutMinutes aligns with agent.tool_timeout_minutes; when >0, applies a context timeout to a single execute call (like MCP tool via executeToolViaMCP 行为一致）。0 表示仅依赖上层 ctx（如整task 10h 上限）。
 	toolTimeoutMinutes int
-	// toolWaitTimeoutSeconds 与 agent.tool_wait_timeout_seconds 对齐；>0 时本轮等待到期后返回 execution_id，shell 继续后台运行。
+	// toolWaitTimeoutSeconds aligns with agent.tool_wait_timeout_seconds; when >0, returns execution_id after this wait expires while the shell continues running in the background.
 	toolWaitTimeoutSeconds int
-	// shellNoOutputTimeoutSec：无任何输出时的空闲秒数；0=关闭。
+	// shellNoOutputTimeoutSec: idle seconds with no output; 0 = disabled.
 	shellNoOutputTimeoutSec int
-	// beginMonitor 在 execute 开始时写入 running 状态；finishMonitor 在流结束后更新为 completed/failed。
+	// beginMonitor writes running status when execute starts; finishMonitor updates to completed/failed after the stream ends.
 	beginMonitor            func(toolCallID, command string) string
 	appendPartialMonitor    func(executionID, toolCallID, chunk string)
 	registerCancelMonitor   func(executionID string, cancel context.CancelFunc)
@@ -179,7 +179,7 @@ func (w *einoStreamingShellWrap) ExecuteStreaming(ctx context.Context, input *fi
 			defer w.unregisterCancelMonitor(execID)
 		}
 
-		// ctx 取消时关闭内层流，避免 amass 等长时间无换行输出时 Recv 永久阻塞。
+		// when ctx is cancelled, close the inner stream to avoid Recv permanently blocking when tools like amass produce no newline output for a long time.
 		stopWatch := make(chan struct{})
 		go func() {
 			select {
@@ -327,13 +327,13 @@ func (w *einoStreamingShellWrap) ExecuteStreaming(ctx context.Context, input *fi
 			success = false
 			invokeErr = &ExecuteExitError{Code: exitCode}
 		}
-		// WithTimeout 触发后，子进程常被信号结束，local 侧多报 exit -1 / canceled，错误链里不一定带 DeadlineExceeded。
-		// 用执行所用 ctx 归一化，便于 UI 展示「超时」而非含糊的 -1。
+		// After WithTimeout fires, the child process is often ended by a signal; the local side typically reports exit -1 / canceled; the error chain may not contain DeadlineExceeded.
+		// Normalize using the execution ctx so the UI shows 'timed out' rather than an ambiguous -1.
 		if tctx != nil && errors.Is(tctx.Err(), context.DeadlineExceeded) {
 			success = false
 			invokeErr = context.DeadlineExceeded
 		}
-		// 用户「中断并继续」终止 execute：合并说明进工具结果（与 MCP CancelToolExecutionWithNote 一致）。
+		// user 'interrupt and continue' terminates execute: merge the note into the tool result (consistent with MCP CancelToolExecutionWithNote).
 		partialStreamed := sb.String()
 		var abortNote string
 		if reg != nil && conversationID != "" && (invokeErr != nil || errors.Is(tctx.Err(), context.Canceled)) {
@@ -348,7 +348,7 @@ func (w *einoStreamingShellWrap) ExecuteStreaming(ctx context.Context, input *fi
 				}
 			}
 		}
-		// ADK 从本 Pipe 拼出 tool 消息正文；仅 Notify 尾标不会进入模型上下文。超时句写入流，与 UI 一致。
+		// ADK builds the tool message body from this Pipe; only the Notify tail marker does not enter the model context. The timeout message is written to the stream, consistent with the UI.
 		if invokeErr != nil && errors.Is(invokeErr, context.DeadlineExceeded) {
 			hint := "\n\n" + einoExecuteTimeoutUserHint() + "\n"
 			_ = sendOut(&filesystem.ExecuteResponse{Output: hint}, nil)
@@ -360,7 +360,7 @@ func (w *einoStreamingShellWrap) ExecuteStreaming(ctx context.Context, input *fi
 			}
 			sb.WriteString(hint)
 		}
-		// 中断时循环内已逐行写入 stdout；此处只追加 USER INTERRUPT NOTE，避免整段输出重复。
+		// During interruption the loop has already written stdout line by line; only append USER INTERRUPT NOTE here to avoid duplicating the full output.
 		if invokeErr != nil && errors.Is(invokeErr, context.Canceled) && abortNote != "" {
 			if partialStreamed != "" {
 				_ = sendOut(&filesystem.ExecuteResponse{Output: "\n\n" + mcp.AbortNoteBannerForModel + "\n" + abortNote}, nil)
@@ -372,7 +372,7 @@ func (w *einoStreamingShellWrap) ExecuteStreaming(ctx context.Context, input *fi
 		fireBody := rawOutput
 		if !success && hasExitCode && exitCode != 0 {
 			statusLine := security.ExecuteFailureStatusLine(exitCode)
-			if !strings.Contains(rawOutput, "命令执行失败:") {
+			if !strings.Contains(rawOutput, "command execution failed:") {
 				_ = sendOut(&filesystem.ExecuteResponse{Output: statusLine}, nil)
 				if w.appendPartialMonitor != nil && execID != "" {
 					w.appendPartialMonitor(execID, toolCallID, statusLine)
@@ -399,11 +399,11 @@ func einoExecuteSoftWaitTimeoutResult(executionID string, waitTimeoutSec int) st
 	if waitTimeoutSec > 0 {
 		waitText = fmt.Sprintf("%ds", waitTimeoutSec)
 	}
-	return fmt.Sprintf(`工具已提交到后台执行，当前仍在运行。
+	return fmt.Sprintf(`Tool submitted to background execution and is still running.
 
 execution_id: %s
 status: running
 wait_timeout: %s
 
-你可以继续推理、改用其他工具，或调用 get_tool_execution / wait_tool_execution 读取 partial_output 并继续等待；也可以调用 cancel_tool_execution 取消。`, executionID, waitText)
+You may continue reasoning, switch to another tool, or call get_tool_execution / wait_tool_execution to read partial_output and continue waiting; you may also call cancel_tool_execution cancelled。`, executionID, waitText)
 }

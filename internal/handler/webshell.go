@@ -1,4 +1,4 @@
-﻿package handler
+package handler
 
 import (
 	"bytes"
@@ -24,10 +24,10 @@ import (
 	"golang.org/x/text/transform"
 )
 
-// webshellSupportedEncodings 允许的 WebShell 响应编码取值（小写，含空串代表 auto）
-// 仅暴露目前最常见的几种，其他需求可后续扩展（如 Big5、Shift_JIS 等）。
+// webshellSupportedEncodings lists the allowed WebShell response encoding values (lowercase; empty string represents auto)
+// Only the most common encodings are exposed; others can be added later (e.g. Big5, Shift_JIS).
 var webshellSupportedEncodings = map[string]struct{}{
-	"":        {}, // 未配置，按 auto 处理
+	"":        {}, // not configured; treated as auto
 	"auto":    {},
 	"utf-8":   {},
 	"utf8":    {},
@@ -35,7 +35,7 @@ var webshellSupportedEncodings = map[string]struct{}{
 	"gb18030": {},
 }
 
-// normalizeWebshellEncoding 归一化编码标识：统一为小写，未知值回退为 auto，供持久化使用
+// normalizeWebshellEncoding normalises an encoding identifier to lowercase; unknown values fall back to auto, for persistence use
 func normalizeWebshellEncoding(enc string) string {
 	enc = strings.ToLower(strings.TrimSpace(enc))
 	if _, ok := webshellSupportedEncodings[enc]; !ok {
@@ -50,13 +50,13 @@ func normalizeWebshellEncoding(enc string) string {
 	return enc
 }
 
-// decodeWebshellOutput 把 WebShell 返回的字节按指定编码转换为合法 UTF-8 字符串。
-// 约定：
-//   - "" / "auto"：若已是合法 UTF-8 原样返回，否则依次尝试 GB18030（GBK 超集）解码。
-//   - "utf-8" / "utf8"：原样返回，非法字节交由 JSON 层按 U+FFFD 处理（保持原有行为）。
-//   - "gbk" / "gb18030"：强制按对应编码解码；失败则回退原始字节。
+// decodeWebshellOutput converts the bytes returned by WebShell to a valid UTF-8 string using the specified encoding.
+// Convention:
+//   - "" / "auto": return as-is if already valid UTF-8; otherwise try GB18030 (GBK superset) decoding.
+//   - "utf-8" / "utf8": return as-is; invalid bytes are handled by the JSON layer as U+FFFD (preserves existing behaviour).
+//   - "gbk" / "gb18030": force-decode with the corresponding encoding; fall back to raw bytes on failure.
 //
-// 该函数对空输入直接返回空串，避免不必要的转换。
+// This function returns an empty string for empty input to avoid unnecessary conversion.
 func decodeWebshellOutput(raw []byte, encoding string) string {
 	if len(raw) == 0 {
 		return ""
@@ -79,7 +79,7 @@ func decodeWebshellOutput(raw []byte, encoding string) string {
 		if utf8.Valid(raw) {
 			return string(raw)
 		}
-		// GB18030 是 GBK 的超集，覆盖范围最广，auto 模式统一用它兜底
+		// GB18030 is a superset of GBK and has the widest coverage; auto mode uses it as the fallback
 		if out, _, err := transform.Bytes(simplifiedchinese.GB18030.NewDecoder(), raw); err == nil {
 			return string(out)
 		}
@@ -87,7 +87,7 @@ func decodeWebshellOutput(raw []byte, encoding string) string {
 	}
 }
 
-// webshellSupportedOS 允许的 WebShell 目标操作系统（小写，空串代表 auto）
+// webshellSupportedOS lists the allowed WebShell target operating systems (lowercase; empty string represents auto)
 var webshellSupportedOS = map[string]struct{}{
 	"":        {},
 	"auto":    {},
@@ -95,7 +95,7 @@ var webshellSupportedOS = map[string]struct{}{
 	"windows": {},
 }
 
-// normalizeWebshellOS 归一化 OS 标识，未知值回退为 auto，供持久化使用
+// normalizeWebshellOS normalises an OS identifier; unknown values fall back to auto, for persistence use
 func normalizeWebshellOS(osTag string) string {
 	osTag = strings.ToLower(strings.TrimSpace(osTag))
 	if _, ok := webshellSupportedOS[osTag]; !ok {
@@ -107,10 +107,10 @@ func normalizeWebshellOS(osTag string) string {
 	return osTag
 }
 
-// resolveWebshellOS 根据连接的 os 与 shellType 推断最终目标 OS（仅返回 "linux" 或 "windows"）。
-// 规则：
-//   - 显式 linux / windows：按用户选择。
-//   - auto 或未知：asp/aspx → windows，其他 → linux。保持历史行为，平滑向后兼容。
+// resolveWebshellOS infers the final target OS from the connection's os and shellType (returns "linux" or "windows" only).
+// Rules:
+//   - Explicit linux / windows: use user selection.
+//   - auto or unknown: asp/aspx → windows; others → linux. Maintains historical behaviour for smooth backward compatibility.
 func resolveWebshellOS(osTag, shellType string) string {
 	osTag = strings.ToLower(strings.TrimSpace(osTag))
 	switch osTag {
@@ -126,8 +126,8 @@ func resolveWebshellOS(osTag, shellType string) string {
 	return "linux"
 }
 
-// quoteCmdPath 把路径按 Windows cmd.exe 规则转义。
-// 使用双引号包裹，内部双引号转义为 ""（cmd 接受的写法）。
+// quoteCmdPath escapes a path according to Windows cmd.exe rules.
+// Wraps in double quotes; internal double quotes are escaped as "" (accepted by cmd).
 func quoteCmdPath(p string) string {
 	if p == "" {
 		return "\".\""
@@ -135,8 +135,8 @@ func quoteCmdPath(p string) string {
 	return "\"" + strings.ReplaceAll(p, "\"", "\"\"") + "\""
 }
 
-// normalizeWindowsCmdPath 把前端统一的 "/" 路径转换为 cmd 更稳定识别的 "\"。
-// 仅用于 Windows 命令构造，不改变语义（例如 "." / ".." 会保持不变）。
+// normalizeWindowsCmdPath converts the frontend-standard "/" path to "\" which cmd recognises more reliably.
+// Used only for Windows command construction; does not change semantics (e.g. "." / ".." remain unchanged).
 func normalizeWindowsCmdPath(p string) string {
 	s := strings.TrimSpace(p)
 	if s == "" {
@@ -145,13 +145,13 @@ func normalizeWindowsCmdPath(p string) string {
 	return strings.ReplaceAll(s, "/", "\\")
 }
 
-// quotePsSingle 把字符串按 PowerShell 单引号字符串规则转义（内部 ' → ”）。
-// 供 PowerShell 脚本参数使用，全脚本只用单引号，外层 cmd 再用双引号包裹即可安全传递。
+// quotePsSingle escapes a string according to PowerShell single-quoted string rules (internal ' → '').
+// For use as PowerShell script parameters; script uses only single quotes, and the outer cmd wraps with double quotes for safe passing.
 func quotePsSingle(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", "''") + "'"
 }
 
-// quoteShellSinglePosix 把路径按 POSIX sh 单引号规则转义（内部 ' → '\”）
+// quoteShellSinglePosix escapes a path according to POSIX sh single-quote rules (internal ' → '\''
 func quoteShellSinglePosix(p string) string {
 	if p == "" {
 		return "."
@@ -159,7 +159,7 @@ func quoteShellSinglePosix(p string) string {
 	return "'" + strings.ReplaceAll(p, "'", "'\\''") + "'"
 }
 
-// quoteWebshellPath 按目标 OS 选择转义方案：Linux 用 POSIX 单引号，Windows 用 cmd 双引号
+// quoteWebshellPath selects the escaping scheme by target OS: POSIX single quotes for Linux, cmd double quotes for Windows
 func quoteWebshellPath(path, osTag string) string {
 	if resolveWebshellOS(osTag, "") == "windows" {
 		return quoteCmdPath(path)
@@ -167,15 +167,15 @@ func quoteWebshellPath(path, osTag string) string {
 	return quoteShellSinglePosix(path)
 }
 
-// buildWindowsPowerShellWrite 构造 Windows 端把 base64 内容一次性写入目标路径的 cmd 命令。
-// 外层走 cmd.exe 的 powershell 调用，PowerShell 脚本里只用单引号字符串，避免嵌套引号陷阱。
+// buildWindowsPowerShellWrite constructs a cmd command to write base64 content to the target path in a single operation on Windows.
+// The outer layer uses cmd.exe's powershell invocation; the PowerShell script uses only single-quote strings to avoid nested quote traps.
 func buildWindowsPowerShellWrite(path, b64 string) string {
 	script := "$b=[Convert]::FromBase64String(" + quotePsSingle(b64) + ");" +
 		"[IO.File]::WriteAllBytes(" + quotePsSingle(path) + ",$b)"
 	return "powershell -NoProfile -NonInteractive -Command \"" + script + "\""
 }
 
-// buildWindowsPowerShellAppend 构造 Windows 端把 base64 内容追加写入目标路径的 cmd 命令（用于分块上传）
+// buildWindowsPowerShellAppend constructs a cmd command to append base64 content to the target path on Windows (for chunked uploads)
 func buildWindowsPowerShellAppend(path, b64 string) string {
 	script := "$b=[Convert]::FromBase64String(" + quotePsSingle(b64) + ");" +
 		"$f=[IO.File]::Open(" + quotePsSingle(path) + ",[IO.FileMode]::Append,[IO.FileAccess]::Write,[IO.FileShare]::None);" +
@@ -183,7 +183,7 @@ func buildWindowsPowerShellAppend(path, b64 string) string {
 	return "powershell -NoProfile -NonInteractive -Command \"" + script + "\""
 }
 
-// fileCommandInput 封装 buildFileCommand 的输入，避免长参数列表
+// fileCommandInput encapsulates the input for buildFileCommand to avoid a long parameter list
 type fileCommandInput struct {
 	Action     string
 	Path       string
@@ -194,9 +194,9 @@ type fileCommandInput struct {
 	ShellType  string
 }
 
-// buildFileCommand 根据目标 OS 与文件操作类型生成具体的远端命令字符串。
-// 同一份实现供 HTTP 入口（FileOp）与 MCP 入口（FileOpWithConnection）共用，避免双份维护。
-// 返回值第二位是用户可见的业务错误（如 "path is required"）。
+// buildFileCommand generates a specific remote command string based on target OS and file operation type.
+// The same implementation is shared by the HTTP entry point (FileOp) and the MCP entry point (FileOpWithConnection) to avoid duplication.
+// The second return value is a user-visible business error (e.g. "path is required").
 func (h *WebShellHandler) buildFileCommand(in fileCommandInput) (string, error) {
 	targetOS := resolveWebshellOS(in.OS, in.ShellType)
 	action := strings.ToLower(strings.TrimSpace(in.Action))
@@ -240,7 +240,7 @@ func (h *WebShellHandler) buildFileCommand(in fileCommandInput) (string, error) 
 		}
 		if targetOS == "windows" {
 			path = normalizeWindowsCmdPath(path)
-			// cmd 的 md 默认会自动创建中间目录（等价于 Linux 的 mkdir -p）
+			// cmd's md automatically creates intermediate directories by default (equivalent to Linux mkdir -p)
 			return "md " + quoteCmdPath(path), nil
 		}
 		return "mkdir -p " + quoteShellSinglePosix(path), nil
@@ -262,8 +262,8 @@ func (h *WebShellHandler) buildFileCommand(in fileCommandInput) (string, error) 
 		if path == "" {
 			return "", errFileOpPathRequired
 		}
-		// 统一策略：先把内容 base64 编码，再用目标平台对应方式解码写回，
-		// 这样既能写入任意二进制/含引号的文本，又避免各家 shell 的转义地狱。
+		// Unified strategy: first base64-encode the content, then decode and write back using the target platform's method,
+		// so arbitrary binary / quote-containing text can be written while avoiding shell escape hell.
 		b64 := base64.StdEncoding.EncodeToString([]byte(in.Content))
 		if targetOS == "windows" {
 			path = normalizeWindowsCmdPath(path)
@@ -305,7 +305,7 @@ func (h *WebShellHandler) buildFileCommand(in fileCommandInput) (string, error) 
 	return "", errFileOpUnsupportedAction(action)
 }
 
-// 业务错误常量，便于上层统一返回用户可见提示
+// Business error constants for the upper layer to return user-visible messages uniformly
 var (
 	errFileOpPathRequired         = simpleError("path is required")
 	errFileOpRenameNeedsBothPaths = simpleError("path and target_path are required for rename")
@@ -316,12 +316,12 @@ func errFileOpUnsupportedAction(action string) error {
 	return simpleError("unsupported action: " + action)
 }
 
-// simpleError 是不带堆栈的轻量错误类型，供 buildFileCommand 报可预期的参数校验错误
+// simpleError is a lightweight error type without a stack trace, used by buildFileCommand to report expected parameter validation errors
 type simpleError string
 
 func (e simpleError) Error() string { return string(e) }
 
-// WebShellHandler 代理执行 WebShell 命令（类似冰蝎/蚁剑），避免前端跨域并统一构建请求
+// WebShellHandler proxies WebShell command execution (similar to Behinder/AntSword), avoiding frontend CORS issues and providing unified request construction
 type WebShellHandler struct {
 	logger *zap.Logger
 	client *http.Client
@@ -334,7 +334,7 @@ func (h *WebShellHandler) SetAudit(s *audit.Service) {
 	h.audit = s
 }
 
-// NewWebShellHandler 创建 WebShell 处理器，db 可为 nil（连接配置接口将不可用）
+// NewWebShellHandler creates a WebShell handler; db may be nil (connection config interface will be unavailable)
 func NewWebShellHandler(logger *zap.Logger, db *database.DB) *WebShellHandler {
 	return &WebShellHandler{
 		logger: logger,
@@ -342,7 +342,7 @@ func NewWebShellHandler(logger *zap.Logger, db *database.DB) *WebShellHandler {
 			Timeout: 30 * time.Second,
 			Transport: &http.Transport{
 				DisableKeepAlives: false,
-				// WebShell 场景常见自签证书或 IP 访问（证书无 IP SAN）；默认跳过校验，与蚁剑等客户端一致。
+				// Self-signed certificates or IP access (certificate has no IP SAN) are common in WebShell scenarios; skip verification by default, consistent with AntSword and similar clients.
 				TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // intentional for webshell proxy
 			},
 		},
@@ -350,7 +350,7 @@ func NewWebShellHandler(logger *zap.Logger, db *database.DB) *WebShellHandler {
 	}
 }
 
-// CreateConnectionRequest 创建连接请求
+// CreateConnectionRequest is the request body for creating a connection
 type CreateConnectionRequest struct {
 	ProjectID string `json:"project_id"`
 	URL       string `json:"url" binding:"required"`
@@ -363,7 +363,7 @@ type CreateConnectionRequest struct {
 	OS        string `json:"os"`
 }
 
-// UpdateConnectionRequest 更新连接请求
+// UpdateConnectionRequest is the request body for updating a connection
 type UpdateConnectionRequest struct {
 	ProjectID string `json:"project_id"`
 	URL       string `json:"url" binding:"required"`
@@ -376,7 +376,7 @@ type UpdateConnectionRequest struct {
 	OS        string `json:"os"`
 }
 
-// ListConnections 列出所有 WebShell 连接（GET /api/webshell/connections）
+// ListConnections lists all WebShell connections (GET /api/webshell/connections)
 func (h *WebShellHandler) ListConnections(c *gin.Context) {
 	if h.db == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "database not available"})
@@ -399,7 +399,7 @@ func (h *WebShellHandler) ListConnections(c *gin.Context) {
 	c.JSON(http.StatusOK, list)
 }
 
-// CreateConnection 创建 WebShell 连接（POST /api/webshell/connections）
+// CreateConnection creates a WebShell connection (POST /api/webshell/connections)
 func (h *WebShellHandler) CreateConnection(c *gin.Context) {
 	if h.db == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "database not available"})
@@ -458,14 +458,14 @@ func (h *WebShellHandler) CreateConnection(c *gin.Context) {
 		if u, err := url.Parse(req.URL); err == nil {
 			host = u.Host
 		}
-		h.audit.RecordOK(c, "webshell", "connection_create", "创建 WebShell 连接", "webshell_connection", conn.ID, map[string]interface{}{
+		h.audit.RecordOK(c, "webshell", "connection_create", "created WebShell connection", "webshell_connection", conn.ID, map[string]interface{}{
 			"host": host, "type": shellType,
 		})
 	}
 	c.JSON(http.StatusOK, publicWebshellConnection(conn))
 }
 
-// UpdateConnection 更新 WebShell 连接（PUT /api/webshell/connections/:id）
+// UpdateConnection updates a WebShell connection (PUT /api/webshell/connections/:id)
 func (h *WebShellHandler) UpdateConnection(c *gin.Context) {
 	if h.db == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "database not available"})
@@ -507,7 +507,7 @@ func (h *WebShellHandler) UpdateConnection(c *gin.Context) {
 	if password == maskedSecret {
 		stored, ok := h.authorizedWebshellConnection(c, id, "")
 		if !ok {
-			c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该连接"})
+			c.JSON(http.StatusForbidden, gin.H{"error": "access denied to this connection"})
 			return
 		}
 		password = stored.Password
@@ -540,7 +540,7 @@ func (h *WebShellHandler) UpdateConnection(c *gin.Context) {
 	}
 }
 
-// DeleteConnection 删除 WebShell 连接（DELETE /api/webshell/connections/:id）
+// DeleteConnection deletes a WebShell connection (DELETE /api/webshell/connections/:id)
 func (h *WebShellHandler) DeleteConnection(c *gin.Context) {
 	if h.db == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "database not available"})
@@ -560,12 +560,12 @@ func (h *WebShellHandler) DeleteConnection(c *gin.Context) {
 		return
 	}
 	if h.audit != nil {
-		h.audit.RecordOK(c, "webshell", "connection_delete", "删除 WebShell 连接", "webshell_connection", id, nil)
+		h.audit.RecordOK(c, "webshell", "connection_delete", "deleted WebShell connection", "webshell_connection", id, nil)
 	}
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
-// GetConnectionState 获取 WebShell 连接关联的前端持久化状态（GET /api/webshell/connections/:id/state）
+// GetConnectionState retrieves the frontend persistent state associated with a WebShell connection (GET /api/webshell/connections/:id/state)
 func (h *WebShellHandler) GetConnectionState(c *gin.Context) {
 	if h.db == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "database not available"})
@@ -597,7 +597,7 @@ func (h *WebShellHandler) GetConnectionState(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"state": state})
 }
 
-// SaveConnectionState 保存 WebShell 连接关联的前端持久化状态（PUT /api/webshell/connections/:id/state）
+// SaveConnectionState saves the frontend persistence state associated with a WebShell connection (PUT /api/webshell/connections/:id/state)
 func (h *WebShellHandler) SaveConnectionState(c *gin.Context) {
 	if h.db == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "database not available"})
@@ -644,7 +644,7 @@ func (h *WebShellHandler) SaveConnectionState(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
-// GetAIHistory 获取指定 WebShell 连接的 AI 助手对话历史（GET /api/webshell/connections/:id/ai-history）
+// GetAIHistory returns the AI assistant conversation history for the specified WebShell connection (GET /api/webshell/connections/:id/ai-history)
 func (h *WebShellHandler) GetAIHistory(c *gin.Context) {
 	if h.db == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "database not available"})
@@ -657,7 +657,7 @@ func (h *WebShellHandler) GetAIHistory(c *gin.Context) {
 	}
 	conv, err := h.db.GetConversationByWebshellConnectionID(id)
 	if err != nil {
-		h.logger.Warn("获取 WebShell AI 对话失败", zap.String("connectionId", id), zap.Error(err))
+		h.logger.Warn("failed to get WebShell AI conversation", zap.String("connectionId", id), zap.Error(err))
 		c.JSON(http.StatusOK, gin.H{"conversationId": nil, "messages": []database.Message{}})
 		return
 	}
@@ -668,7 +668,7 @@ func (h *WebShellHandler) GetAIHistory(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"conversationId": conv.ID, "messages": conv.Messages})
 }
 
-// ListAIConversations 列出该 WebShell 连接下的所有 AI 对话（供侧边栏）
+// ListAIConversations lists all AI conversations under the specified WebShell connection (for the sidebar)
 func (h *WebShellHandler) ListAIConversations(c *gin.Context) {
 	if h.db == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "database not available"})
@@ -681,7 +681,7 @@ func (h *WebShellHandler) ListAIConversations(c *gin.Context) {
 	}
 	list, err := h.db.ListConversationsByWebshellConnectionID(id)
 	if err != nil {
-		h.logger.Warn("列出 WebShell AI 对话失败", zap.String("connectionId", id), zap.Error(err))
+		h.logger.Warn("failed to list WebShell AI conversations", zap.String("connectionId", id), zap.Error(err))
 		c.JSON(http.StatusOK, []database.WebShellConversationItem{})
 		return
 	}
@@ -691,20 +691,20 @@ func (h *WebShellHandler) ListAIConversations(c *gin.Context) {
 	c.JSON(http.StatusOK, list)
 }
 
-// ExecRequest 执行命令请求（前端传入连接信息 + 命令）
+// ExecRequest is the execute command request (frontend supplies connection info + command)
 type ExecRequest struct {
 	URL          string `json:"url" binding:"required"`
 	Password     string `json:"password"`
 	Type         string `json:"type"`      // php, asp, aspx, jsp, custom
-	Method       string `json:"method"`    // GET 或 POST，空则默认 POST
-	CmdParam     string `json:"cmd_param"` // 命令参数名，如 cmd/xxx，空则默认 cmd
-	Encoding     string `json:"encoding"`  // 响应编码：auto / utf-8 / gbk / gb18030，空则 auto
-	OS           string `json:"os"`        // 目标操作系统：auto / linux / windows，当前 exec 不用它，保留字段便于未来扩展
+	Method       string `json:"method"`    // GET or POST; empty defaults to POST
+	CmdParam     string `json:"cmd_param"` // command argument name, e.g. cmd/xxx; empty defaults to cmd
+	Encoding     string `json:"encoding"`  // response encoding: auto / utf-8 / gbk / gb18030; empty means auto
+	OS           string `json:"os"`        // target OS: auto / linux / windows; exec does not currently use it; reserved for future expansion
 	ConnectionID string `json:"connection_id,omitempty"`
 	Command      string `json:"command" binding:"required"`
 }
 
-// ExecResponse 执行命令响应
+// ExecResponse execute commandresponse
 type ExecResponse struct {
 	OK       bool   `json:"ok"`
 	Output   string `json:"output"`
@@ -712,29 +712,29 @@ type ExecResponse struct {
 	HTTPCode int    `json:"http_code,omitempty"`
 }
 
-// FileOpRequest 文件操作请求
+// FileOpRequest is the file operation request
 type FileOpRequest struct {
 	URL          string `json:"url" binding:"required"`
 	Password     string `json:"password"`
 	Type         string `json:"type"`
-	Method       string `json:"method"`                    // GET 或 POST，空则默认 POST
-	CmdParam     string `json:"cmd_param"`                 // 命令参数名，如 cmd/xxx，空则默认 cmd
-	Encoding     string `json:"encoding"`                  // 响应编码：auto / utf-8 / gbk / gb18030，空则 auto
-	OS           string `json:"os"`                        // 目标操作系统：auto / linux / windows，空则按 shellType 推断
-	ConnectionID string `json:"connection_id,omitempty"`   // 可选：连接 ID；服务端探活出 OS 后会回写到此连接
+	Method       string `json:"method"`                    // GET or POST; empty defaults to POST
+	CmdParam     string `json:"cmd_param"`                 // command argument name, e.g. cmd/xxx; empty defaults to cmd
+	Encoding     string `json:"encoding"`                  // response encoding: auto / utf-8 / gbk / gb18030; empty means auto
+	OS           string `json:"os"`                        // target OS: auto / linux / windows; empty means infer from shellType
+	ConnectionID string `json:"connection_id,omitempty"`   // optional: connection ID; the server writes back the detected OS to this connection after probing
 	Action       string `json:"action" binding:"required"` // list, read, delete, write, mkdir, rename, upload, upload_chunk
 	Path         string `json:"path"`
-	TargetPath   string `json:"target_path"` // rename 时目标路径
-	Content      string `json:"content"`     // write/upload 时使用
-	ChunkIndex   int    `json:"chunk_index"` // upload_chunk 时，0 表示首块
+	TargetPath   string `json:"target_path"` // target path for rename
+	Content      string `json:"content"`     // used for write/upload
+	ChunkIndex   int    `json:"chunk_index"` // for upload_chunk; 0 means first chunk
 }
 
-// FileOpResponse 文件操作响应
+// FileOpResponse is the file operation response
 type FileOpResponse struct {
 	OK         bool   `json:"ok"`
 	Output     string `json:"output"`
 	Error      string `json:"error,omitempty"`
-	DetectedOS string `json:"detected_os,omitempty"` // 仅在 auto 模式且探活成功时返回，前端应更新本地缓存
+	DetectedOS string `json:"detected_os,omitempty"` // returned only when mode is auto and probing succeeds; frontend should update local cache
 }
 
 func (h *WebShellHandler) Exec(c *gin.Context) {
@@ -754,7 +754,7 @@ func (h *WebShellHandler) Exec(c *gin.Context) {
 	if cid := strings.TrimSpace(req.ConnectionID); cid != "" {
 		conn, allowed := h.authorizedWebshellConnection(c, cid, req.URL)
 		if !allowed {
-			c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+			c.JSON(http.StatusForbidden, gin.H{"error": "access denied for this resource"})
 			return
 		}
 		// Never let a caller pair an authorized ID with attacker-controlled
@@ -762,11 +762,11 @@ func (h *WebShellHandler) Exec(c *gin.Context) {
 		req.URL, req.Password, req.Type = conn.URL, conn.Password, conn.Type
 		req.Method, req.CmdParam, req.Encoding = conn.Method, conn.CmdParam, conn.Encoding
 	} else if !security.SessionHasPermission(c, "webshell:write") {
-		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+		c.JSON(http.StatusForbidden, gin.H{"error": "access denied for this resource"})
 		return
 	}
 	if req.Password == maskedSecret {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "请使用已保存连接或填写新的连接口令"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "please use a saved connection or enter a new connection password"})
 		return
 	}
 
@@ -820,13 +820,13 @@ func (h *WebShellHandler) Exec(c *gin.Context) {
 	})
 }
 
-// buildExecBody 按常见 WebShell 约定构建 POST 体（多数使用 pass + cmd，可配置命令参数名）
+// buildExecBody builds a POST body following common WebShell conventions (most use pass + cmd; command argument name is configurable)
 func (h *WebShellHandler) buildExecBody(shellType, password, cmdParam, command string) []byte {
 	form := h.execParams(shellType, password, cmdParam, command)
 	return []byte(form.Encode())
 }
 
-// buildExecURL 构建 GET 请求的完整 URL（baseURL + ?pass=xxx&cmd=yyy，cmd 可配置）
+// buildExecURL builds the full URL for a GET request (baseURL + ?pass=xxx&cmd=yyy; cmd is configurable)
 func (h *WebShellHandler) buildExecURL(baseURL, shellType, password, cmdParam, command string) string {
 	form := h.execParams(shellType, password, cmdParam, command)
 	if parsed, err := url.Parse(baseURL); err == nil {
@@ -865,13 +865,13 @@ func (h *WebShellHandler) FileOp(c *gin.Context) {
 	if cid := strings.TrimSpace(req.ConnectionID); cid != "" {
 		conn, allowed := h.authorizedWebshellConnection(c, cid, req.URL)
 		if !allowed {
-			c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+			c.JSON(http.StatusForbidden, gin.H{"error": "access denied for this resource"})
 			return
 		}
 		req.URL, req.Password, req.Type = conn.URL, conn.Password, conn.Type
 		req.Method, req.CmdParam, req.Encoding, req.OS = conn.Method, conn.CmdParam, conn.Encoding, conn.OS
 	} else if !security.SessionHasPermission(c, "webshell:write") {
-		c.JSON(http.StatusForbidden, gin.H{"error": "无权访问该资源"})
+		c.JSON(http.StatusForbidden, gin.H{"error": "access denied for this resource"})
 		return
 	}
 
@@ -881,15 +881,15 @@ func (h *WebShellHandler) FileOp(c *gin.Context) {
 		return
 	}
 
-	// 若 OS 未显式配置，先发一次探活命令，识别出真实 OS 再构造文件操作命令。
-	// 这解决了 "Windows + PHP + OS=auto" 场景下旧 fallback 错发 `ls -la` 导致目录列不出来的问题。
+	// If OS is not explicitly configured, send a probe command first to identify the actual OS before constructing file operation commands.
+	// This fixes the issue where the old fallback incorrectly sent `ls -la` in the "Windows + PHP + OS=auto" scenario, causing directory listing to fail.
 	osTag := req.OS
 	detectedOS := ""
 	if normalizeWebshellOS(osTag) == "auto" {
 		if probed := probeWebshellOSViaExec(h.newHTTPExecFn(req.URL, req.Password, req.Type, req.Method, req.CmdParam, req.Encoding)); probed != "" {
 			osTag = probed
 			detectedOS = probed
-			// 若前端带了 connection_id，顺带把探活结果持久化到该连接，后续刷新零成本
+			// If the frontend supplied a connection_id, also persist the probe result to that connection so future refreshes are cost-free
 			if cid := strings.TrimSpace(req.ConnectionID); cid != "" {
 				h.persistDetectedOS(cid, probed)
 			}
@@ -987,7 +987,7 @@ func (h *WebShellHandler) canAccessProject(c *gin.Context, projectID string) boo
 	return h.db.UserCanAccessResource(session.UserID, session.Scope, "project", projectID)
 }
 
-// ExecWithConnection 在指定 WebShell 连接上执行命令（供 MCP/Agent 等非 HTTP 调用）
+// ExecWithConnection executes a command on the specified WebShell connection (for non-HTTP callers such as MCP/Agent)
 func (h *WebShellHandler) ExecWithConnection(conn *database.WebShellConnection, command string) (output string, ok bool, errMsg string) {
 	if conn == nil {
 		return "", false, "connection is nil"
@@ -1027,21 +1027,21 @@ func (h *WebShellHandler) ExecWithConnection(conn *database.WebShellConnection, 
 	return decodeWebshellOutput(out, conn.Encoding), resp.StatusCode == http.StatusOK, ""
 }
 
-// FileOpWithConnection 在指定 WebShell 连接上执行文件操作（供 MCP/Agent 调用），支持 list / read / write
+// FileOpWithConnection performs a file operation on the specified WebShell connection (for MCP/Agent callers); supports list / read / write
 func (h *WebShellHandler) FileOpWithConnection(conn *database.WebShellConnection, action, path, content, targetPath string) (output string, ok bool, errMsg string) {
 	if conn == nil {
 		return "", false, "connection is nil"
 	}
 	action = strings.ToLower(strings.TrimSpace(action))
-	// MCP 入口仅开放 list / read / write 三种动作，与工具文档的承诺保持一致
+	// The MCP entry point only exposes list / read / write actions, consistent with the tool documentation
 	switch action {
 	case "list", "read", "write":
-		// 支持的动作
+		// supported actions
 	default:
 		return "", false, "unsupported action: " + action + " (supported: list, read, write)"
 	}
 
-	// 若连接的 OS 为 auto，先探活并持久化，避免 AI/MCP 每次都对 Windows 发 `ls -la`
+	// If the connection OS is auto, probe and persist first to avoid AI/MCP always sending `ls -la` to Windows
 	osTag := conn.OS
 	if normalizeWebshellOS(osTag) == "auto" {
 		if probed := probeWebshellOSViaExec(func(cmd string) (string, bool) {
@@ -1049,7 +1049,7 @@ func (h *WebShellHandler) FileOpWithConnection(conn *database.WebShellConnection
 			return out, exOk
 		}); probed != "" {
 			osTag = probed
-			conn.OS = probed // 本次请求内使用探活结果
+			conn.OS = probed // use probe result within this request
 			h.persistDetectedOS(conn.ID, probed)
 		}
 	}
