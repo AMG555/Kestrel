@@ -21,6 +21,15 @@ import SessionsPage from './pages/Sessions.jsx'
 import SessionDetailPage from './pages/SessionDetail.jsx'
 import ToolExecutionsPage from './pages/ToolExecutions.jsx'
 import SettingsPage from './pages/Settings.jsx'
+import SkillsPage from './pages/Skills.jsx'
+import ToolsPage from './pages/Tools.jsx'
+import RobotsPage from './pages/Robots.jsx'
+import TerminalPage from './pages/Terminal.jsx'
+import MonitorPage from './pages/Monitor.jsx'
+import ApiDocsPage from './pages/ApiDocs.jsx'
+import C2Page from './pages/C2.jsx'
+import OsintPage from './pages/Osint.jsx'
+import WebshellPage from './pages/Webshell.jsx'
 
 // ── Auth context ────────────────────────────────────────────────────────────
 export const AuthCtx = createContext(null)
@@ -73,6 +82,8 @@ const NAV = [
   { to: '/',               label: '⬡  Dashboard' },
   { to: '/projects',       label: '📁 Projects' },
   { to: '/agent',          label: '🤖 Agent' },
+  { to: '/skills',         label: '🎯 Skills' },
+  { to: '/tools-catalog',  label: '🧰 Tools Catalog' },
   { to: '/sessions',       label: '🗂  Sessions' },
   { to: '/tool-executions',label: '🔧 Tool History' },
   { to: '/conversations',  label: '💬 Conversations' },
@@ -82,6 +93,13 @@ const NAV = [
   { to: '/assets',         label: '📦 Assets' },
   { to: '/vulns',          label: '🛡  Vulnerabilities' },
   { to: '/knowledge',      label: '📚 Knowledge' },
+  { to: '/robots',         label: '🔔 Alert Bots' },
+  { to: '/terminal',       label: '💻 Terminal' },
+  { to: '/osint',          label: '🌐 OSINT Search' },
+  { to: '/webshell',       label: '🐚 WebShell' },
+  { to: '/monitor',        label: '📈 Telemetry' },
+  { to: '/c2',             label: '📡 C2 Emulation' },
+  { to: '/api-docs',       label: '📜 API Docs' },
   { to: '/audit',          label: '📋 Audit Logs' },
   { to: '/users',          label: '👤 Users' },
   { to: '/roles',          label: '🔑 Roles' },
@@ -162,6 +180,15 @@ export default function App() {
           <Route path="/users" element={<Protected><Layout><UsersPage /></Layout></Protected>} />
           <Route path="/roles" element={<Protected><Layout><RolesPage /></Layout></Protected>} />
           <Route path="/knowledge" element={<Protected><Layout><KnowledgePage /></Layout></Protected>} />
+          <Route path="/skills" element={<Protected><Layout><SkillsPage /></Layout></Protected>} />
+          <Route path="/tools-catalog" element={<Protected><Layout><ToolsPage /></Layout></Protected>} />
+          <Route path="/robots" element={<Protected><Layout><RobotsPage /></Layout></Protected>} />
+          <Route path="/terminal" element={<Protected><Layout><TerminalPage /></Layout></Protected>} />
+          <Route path="/osint" element={<Protected><Layout><OsintPage /></Layout></Protected>} />
+          <Route path="/webshell" element={<Protected><Layout><WebshellPage /></Layout></Protected>} />
+          <Route path="/monitor" element={<Protected><Layout><MonitorPage /></Layout></Protected>} />
+          <Route path="/c2" element={<Protected><Layout><C2Page /></Layout></Protected>} />
+          <Route path="/api-docs" element={<Protected><Layout><ApiDocsPage /></Layout></Protected>} />
           <Route path="/projects" element={<Protected><Layout><ProjectsPage /></Layout></Protected>} />
           <Route path="/projects/:id/attack-chain" element={<Protected><Layout><AttackChainPage /></Layout></Protected>} />
           <Route path="/batch" element={<Protected><Layout><BatchTasksPage /></Layout></Protected>} />

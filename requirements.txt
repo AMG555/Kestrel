@@ -1,0 +1,15 @@
+# Python HTTP helpers leveraged by security tools (api-fuzzer, dnslog, http-intruder, http-framework-test)
+requests>=2.32.3
+httpx[http2]>=0.27.0
+charset-normalizer>=3.3.2
+chardet>=5.2.0,<6
+
+# Security evaluation frameworks & utilities
+arjun>=2.2.0
+uro>=1.0.2
+bloodhound>=1.6.1
+impacket>=0.11.0
+pyyaml>=6.0
+
+# Model Context Protocol (MCP) SDK
+mcp>=1.0.0

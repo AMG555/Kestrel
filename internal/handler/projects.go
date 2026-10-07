@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"kestrel/internal/attackchain"
 	"kestrel/internal/database"
 	"kestrel/internal/middleware"
 )
@@ -265,3 +266,23 @@ func (h *ProjectHandler) AddChainEdge(c *gin.Context) {
 	}
 	c.JSON(http.StatusCreated, gin.H{"edge": e})
 }
+
+// promoteChainReq is the body for POST /api/projects/:id/attack-chain/promote.
+type promoteChainReq struct {
+	SessionID string `json:"session_id"`
+}
+
+// PromoteAttackChain handles POST /api/projects/:id/attack-chain/promote.
+func (h *ProjectHandler) PromoteAttackChain(c *gin.Context) {
+	projectID := c.Param("id")
+	var req promoteChainReq
+	_ = c.ShouldBindJSON(&req)
+
+	res, err := attackchain.PromoteSessionFindings(h.db, projectID, req.SessionID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, res)
+}
+

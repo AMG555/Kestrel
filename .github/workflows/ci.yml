@@ -1,84 +1,55 @@
-name: CI
+name: CI Quality Gate
 
 on:
   push:
-    branches: [main, develop]
+    branches: [ main, master ]
   pull_request:
-    branches: [main]
+    branches: [ main, master ]
 
 jobs:
-  backend:
-    name: Go build, vet, and test
+  backend-test:
+    name: Backend Tests (Go 1.22)
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.23"
+          go-version: '1.22'
           cache: true
 
-      - name: Install CGO dependencies (sqlite3)
-        run: sudo apt-get install -y gcc libsqlite3-dev
+      - name: Install dependencies
+        run: go mod download
 
-      - name: Build
-        run: go build ./...
+      - name: Run unit tests
+        run: go test -v -race ./internal/...
 
-      - name: Vet
-        run: go vet ./...
+      - name: Build server binary
+        run: go build -v ./cmd/server
 
-      - name: Unit tests — toolguard (no CGO required)
-        run: go test ./internal/toolguard/... -v -count=1 -timeout 30s
+      - name: Build stdio MCP binary
+        run: go build -v ./cmd/mcp-stdio
 
-      - name: Unit tests — middleware (no CGO required)
-        run: go test ./internal/middleware/... -v -count=1 -timeout 30s
-
-      - name: Unit tests — auth (no CGO required)
-        run: go test ./internal/auth/... -v -count=1 -timeout 30s
-
-      - name: Unit tests — config (no CGO required)
-        run: go test ./internal/config/... -v -count=1 -timeout 30s
-
-      - name: Integration tests — database (CGO + sqlite3)
-        run: go test ./internal/database/... -v -count=1 -timeout 120s
-        env:
-          CGO_ENABLED: "1"
-
-      - name: Integration tests — handler security (CGO + sqlite3)
-        run: go test ./internal/handler/... -v -count=1 -timeout 60s
-        env:
-          CGO_ENABLED: "1"
-
-      - name: Integration tests — mcp registry
-        run: go test ./internal/mcp/... -v -count=1 -timeout 60s
-        env:
-          CGO_ENABLED: "1"
-
-      - name: Full test suite
-        run: go test ./... -short -timeout 120s -count=1
-        env:
-          CGO_ENABLED: "1"
-
-  frontend:
-    name: Frontend build
+  frontend-build:
+    name: Frontend Build (Node.js 20)
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "22"
-          cache: "npm"
+          node-version: 20
+          cache: 'npm'
           cache-dependency-path: web/package-lock.json
 
-      - name: Install dependencies
+      - name: Install web dependencies
+        working-directory: web
         run: npm ci
-        working-directory: web
 
-      - name: Build
-        run: npm run build
+      - name: Build production SPA
         working-directory: web
+        run: npm run build

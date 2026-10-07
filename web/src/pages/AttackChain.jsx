@@ -23,6 +23,24 @@ export default function AttackChainPage() {
   const [addNodeForm, setAddNodeForm] = useState(null)
   const [addEdgeForm, setAddEdgeForm] = useState(null)
   const [saving, setSaving]     = useState(false)
+  const [promoting, setPromoting] = useState(false)
+  const [promoteNotice, setPromoteNotice] = useState(null)
+
+  const handleAutoPromote = async () => {
+    const sid = window.prompt("Enter Agent Session ID to promote findings from (or leave empty for all project sessions):")
+    if (sid === null) return
+    setPromoting(true)
+    setPromoteNotice(null)
+    try {
+      const res = await api.promoteAttackChain(id, sid.trim())
+      setPromoteNotice(`Auto-promoted successfully: ${res.nodes_created} nodes, ${res.edges_created} edges, ${res.facts_created} facts created!`)
+      load()
+    } catch (err) {
+      setError(`Auto-promote failed: ${err.message}`)
+    } finally {
+      setPromoting(false)
+    }
+  }
 
   const load = () => {
     setLoading(true)
@@ -111,6 +129,11 @@ export default function AttackChainPage() {
       </div>
 
       {error && <div className="error-banner" style={{ marginBottom: 12 }}>{error}</div>}
+      {promoteNotice && (
+        <div style={{ background: '#064e3b33', border: '1px solid #059669', color: '#6ee7b7', padding: '10px 14px', borderRadius: '6px', marginBottom: 12, fontSize: '13px' }}>
+          {promoteNotice}
+        </div>
+      )}
 
       {/* Controls */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
@@ -118,6 +141,13 @@ export default function AttackChainPage() {
         {nodes.length >= 2 && (
           <button onClick={() => setAddEdgeForm({ source_node_id: '', target_node_id: '', edge_type: 'leads_to' })}>+ Add Edge</button>
         )}
+        <button 
+          onClick={handleAutoPromote} 
+          disabled={promoting}
+          style={{ background: '#7c3aed', color: '#ffffff', border: 'none', borderRadius: '4px', padding: '6px 12px', cursor: promoting ? 'not-allowed' : 'pointer', fontWeight: 500 }}
+        >
+          {promoting ? 'Promoting...' : '⚡ Auto-Promote Session'}
+        </button>
       </div>
 
       {addNodeForm && (

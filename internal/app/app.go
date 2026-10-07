@@ -18,6 +18,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"kestrel/internal/agent"
+	"kestrel/internal/audit"
 	"kestrel/internal/auth"
 	"kestrel/internal/config"
 	"kestrel/internal/database"
@@ -27,6 +28,11 @@ import (
 	"kestrel/internal/mcp"
 	"kestrel/internal/middleware"
 	"kestrel/internal/report"
+	"kestrel/internal/robot"
+	"kestrel/internal/storage"
+	"kestrel/internal/termout"
+	"kestrel/internal/toolrecipe"
+	"kestrel/internal/vision"
 	"kestrel/internal/workflow"
 )
 
@@ -35,10 +41,14 @@ type App struct {
 	cfg      *config.Config
 	db       *database.DB
 	auth     *auth.Service
+	audit    *audit.Service
 	registry *mcp.Registry
 	runner   *agent.Runner
 	kb       *knowledge.Service
 	workflow *workflow.Engine
+	recipes  *toolrecipe.Registry
+	robot    *robot.Service
+	llm      *llm.Manager
 	router   *gin.Engine
 	logger   *zap.Logger
 }
@@ -51,8 +61,9 @@ func New(cfg *config.Config, logger *zap.Logger) (*App, error) {
 		return nil, fmt.Errorf("opening database: %w", err)
 	}
 
-	// Build auth service.
+	// Build auth and audit services.
 	authSvc := auth.New(db, cfg.Auth.JWTSecret, cfg.Auth.SessionDurationHours)
+	auditSvc := audit.NewService(db, logger)
 
 	// Seed the admin user if the database is empty.
 	if err := seedAdmin(db, authSvc, logger); err != nil {
@@ -94,14 +105,35 @@ func New(cfg *config.Config, logger *zap.Logger) (*App, error) {
 	router.Use(middleware.SecurityHeaders())
 	router.Use(middleware.CORS(cfg.Server.CORSOrigins))
 
+	// Register vision inspection tool.
+	vision.RegisterVisionTool(registry)
+
+	// Load curated tool recipes catalog.
+	recipes, err := toolrecipe.NewRegistry("./tools")
+	if err != nil {
+		logger.Warn("could not load tool recipes", zap.Error(err))
+	}
+
+	// Initialize robot notification service.
+	robotSvc := robot.NewService(robot.Config{
+		Enabled:              true,
+		NotifyOnCriticalVuln: true,
+		NotifyOnHITL:         true,
+		NotifyOnTaskDone:     true,
+	}, logger)
+
 	a := &App{
 		cfg:      cfg,
 		db:       db,
 		auth:     authSvc,
+		audit:    auditSvc,
 		registry: registry,
 		runner:   runner,
 		kb:       kb,
 		workflow: wfEngine,
+		recipes:  recipes,
+		robot:    robotSvc,
+		llm:      llmMgr,
 		router:   router,
 		logger:   logger,
 	}
@@ -127,6 +159,25 @@ func (a *App) Serve(ctx context.Context) error {
 		srv.TLSConfig = tlsCfg
 	}
 
+	// Start storage retention cleaner in background.
+	storage.StartRetentionWorker(ctx, "./data/spill", 30*time.Minute, 24*time.Hour, a.logger)
+
+	// Start audit retention worker in background (90-day retention, purge daily).
+	go func() {
+		ticker := time.NewTicker(24 * time.Hour)
+		defer ticker.Stop()
+		// Initial purge on startup
+		_, _ = a.audit.PurgeExpired(90)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				_, _ = a.audit.PurgeExpired(90)
+			}
+		}
+	}()
+
 	// Shutdown on context cancellation.
 	go func() {
 		<-ctx.Done()
@@ -140,6 +191,12 @@ func (a *App) Serve(ctx context.Context) error {
 	if a.cfg.Server.TLSActive() {
 		scheme = "https"
 	}
+	termout.PrintStartupWebUI(termout.StartupWebUIOptions{
+		Scheme:     scheme,
+		Host:       a.cfg.Server.Host,
+		Port:       a.cfg.Server.Port,
+		SelfSigned: a.cfg.Server.TLSAutoSelfSign,
+	})
 	a.logger.Info("Kestrel listening",
 		zap.String("address", fmt.Sprintf("%s://%s", scheme, srv.Addr)),
 		zap.String("status", "under development"),
@@ -177,6 +234,15 @@ func (a *App) registerRoutes() {
 	reportH    := handler.NewReportHandler(report.NewGenerator(a.db))
 	sessionH   := handler.NewSessionHandler(a.db)
 	toolguardH := handler.NewToolGuardHandler(a.registry, a.db)
+	skillsH    := handler.NewSkillsHandler("./skills")
+	toolCatalogH := handler.NewToolCatalogHandler(a.recipes)
+	robotH     := handler.NewRobotHandler(a.robot)
+	terminalH  := handler.NewTerminalHandler(a.db, a.registry, a.logger)
+	monitorH   := handler.NewMonitorHandler(a.db, a.registry, a.cfg.Database.Path)
+	openapiH   := handler.NewOpenAPIHandler()
+	c2H        := handler.NewC2Handler(a.db)
+	osintH     := handler.NewOSINTHandler(a.db, a.llm, a.logger)
+	webshellH  := handler.NewWebShellHandler(a.db, a.logger)
 
 	// Disclaimer / consent check on all routes.
 	a.router.Use(middleware.AuditContext())
@@ -325,6 +391,49 @@ func (a *App) registerRoutes() {
 	authed.DELETE("/workflows/:id", workflowH.DeleteWorkflow)
 	authed.POST("/workflows/:id/run", workflowH.RunWorkflow)
 	authed.GET("/workflows/runs/:run_id", workflowH.GetRun)
+
+	// Skills.
+	authed.GET("/skills", skillsH.ListSkills)
+	authed.GET("/skills/:id", skillsH.GetSkill)
+
+	// Tool Recipes Catalog.
+	authed.GET("/tools/catalog", toolCatalogH.ListCatalog)
+	authed.GET("/tools/catalog/:name", toolCatalogH.GetCatalogItem)
+
+	// Robots & Webhooks.
+	authed.GET("/robots/config", robotH.GetConfig)
+	authed.PUT("/robots/config", robotH.UpdateConfig)
+	authed.POST("/robots/test", robotH.TestNotification)
+
+	// Attack Chain Promotion.
+	authed.POST("/projects/:id/attack-chain/promote", projH.PromoteAttackChain)
+
+	// OpenAPI Spec.
+	api.GET("/openapi/spec", openapiH.GetSpec)
+
+	// Interactive Operator Terminal.
+	authed.POST("/terminal/exec", terminalH.ExecCommand)
+
+	// Runtime Monitor & Telemetry.
+	authed.GET("/monitor/status", monitorH.GetStatus)
+
+	// C2 Emulation.
+	authed.GET("/c2/listeners", c2H.ListListeners)
+	authed.POST("/c2/listeners", c2H.CreateListener)
+	authed.GET("/c2/beacons", c2H.ListBeacons)
+	authed.POST("/c2/beacons/:id/tasks", c2H.QueueTask)
+
+	// OSINT & Cyberspace Reconnaissance.
+	authed.POST("/osint/parse", osintH.ParseNLQuery)
+	authed.POST("/osint/search", osintH.Search)
+	authed.POST("/osint/import-assets", osintH.ImportAssets)
+
+	// WebShell & Target Probes.
+	authed.GET("/webshell/connections", webshellH.ListConnections)
+	authed.POST("/webshell/connections", webshellH.CreateConnection)
+	authed.DELETE("/webshell/connections/:id", webshellH.DeleteConnection)
+	authed.POST("/webshell/:id/probe", webshellH.ProbeConnection)
+	authed.POST("/webshell/:id/exec", webshellH.ExecCommand)
 }
 
 // buildTLSConfig returns a *tls.Config, generating a self-signed cert if needed.

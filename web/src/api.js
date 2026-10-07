@@ -140,6 +140,49 @@ export const api = {
   deleteWorkflow:      (id)          => request('DELETE', `/workflows/${id}`),
   runWorkflow:         (id, d)       => request('POST',   `/workflows/${id}/run`, d),
   getWorkflowRun:      (runId)       => request('GET',    `/workflows/runs/${runId}`),
+
+  // Skills
+  listSkills:          ()            => request('GET',    '/skills'),
+  getSkill:            (id)          => request('GET',    `/skills/${id}`),
+
+  // Tool recipes catalog
+  listToolCatalog:     (q)           => request('GET',    `/tools/catalog?${new URLSearchParams(q || {})}`),
+  getToolCatalogItem:  (name)        => request('GET',    `/tools/catalog/${name}`),
+
+  // Robots & Webhooks
+  getRobotsConfig:     ()            => request('GET',    '/robots/config'),
+  updateRobotsConfig:  (d)           => request('PUT',    '/robots/config', d),
+  testRobot:           (channel)     => request('POST',   '/robots/test', { channel }),
+
+  // Attack chain auto-promotion
+  promoteAttackChain:  (pid, sid)    => request('POST',   `/projects/${pid}/attack-chain/promote`, { session_id: sid }),
+
+  // Operator Terminal
+  execTerminal:        (d)           => request('POST',   '/terminal/exec', d),
+
+  // System Monitor & Telemetry
+  getMonitorStatus:    ()            => request('GET',    '/monitor/status'),
+
+  // OpenAPI Spec
+  getOpenApiSpec:      ()            => request('GET',    '/openapi/spec'),
+
+  // C2 Emulation
+  listC2Listeners:     ()            => request('GET',    '/c2/listeners'),
+  createC2Listener:    (d)           => request('POST',   '/c2/listeners', d),
+  listC2Beacons:       ()            => request('GET',    '/c2/beacons'),
+  queueC2Task:         (id, d)       => request('POST',   `/c2/beacons/${id}/tasks`, d),
+
+  // OSINT & Cyberspace Reconnaissance
+  parseOsintQuery:     (d)           => request('POST',   '/osint/parse', d),
+  searchOsint:         (d)           => request('POST',   '/osint/search', d),
+  importOsintAssets:   (d)           => request('POST',   '/osint/import-assets', d),
+
+  // WebShell Post-Exploitation Probes
+  listWebshells:       ()            => request('GET',    '/webshell/connections'),
+  createWebshell:      (d)           => request('POST',   '/webshell/connections', d),
+  deleteWebshell:      (id)          => request('DELETE', `/webshell/connections/${id}`),
+  probeWebshell:       (id)          => request('POST',   `/webshell/${id}/probe`),
+  execWebshell:        (id, d)       => request('POST',   `/webshell/${id}/exec`, d),
 }
 
 // WebSocket helper for streaming agent execution.

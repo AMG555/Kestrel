@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  kestrel:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: kestrel:latest
+    container_name: kestrel-ops
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+      - "8443:8443"
+    environment:
+      - KESTREL_ENV=production
+      - GIN_MODE=release
+    volumes:
+      - ./data:/opt/kestrel/data
+      - ./log:/opt/kestrel/log
+      - ./config.yaml:/opt/kestrel/config.yaml:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8080/api/system/info"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    security_opt:
+      - no-new-privileges:true

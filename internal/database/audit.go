@@ -3,6 +3,7 @@ package database
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -44,9 +45,18 @@ type AuditParams struct {
 func (db *DB) WriteAuditLog(p AuditParams) error {
 	var detailJSON string
 	if p.Detail != nil {
-		b, err := json.Marshal(p.Detail)
+		sanitized := sanitizeAuditDetail(p.Detail)
+		b, err := json.Marshal(sanitized)
 		if err == nil {
-			detailJSON = string(b)
+			if len(b) > 8192 {
+				trunc, _ := json.Marshal(map[string]interface{}{
+					"_truncated": true,
+					"_preview":   string(b[:8192]),
+				})
+				detailJSON = string(trunc)
+			} else {
+				detailJSON = string(b)
+			}
 		}
 	}
 	if detailJSON == "" {
@@ -168,3 +178,66 @@ func (db *DB) PurgeOldAuditLogs(retentionDays int) (int64, error) {
 	}
 	return res.RowsAffected()
 }
+
+var sensitiveAuditKeyPatterns = []string{
+	"password", "api_key", "apikey", "secret", "token", "authorization",
+	"credential", "private_key", "access_key", "auth_token", "jwt",
+}
+
+func sanitizeAuditDetail(v interface{}) interface{} {
+	if v == nil {
+		return nil
+	}
+	// If byte array or string, attempt to parse as JSON first
+	switch val := v.(type) {
+	case []byte:
+		var m interface{}
+		if err := json.Unmarshal(val, &m); err == nil {
+			return sanitizeAuditValue("", m)
+		}
+		return string(val)
+	case string:
+		var m interface{}
+		if err := json.Unmarshal([]byte(val), &m); err == nil {
+			return sanitizeAuditValue("", m)
+		}
+		return val
+	default:
+		// Convert struct or map via roundtrip if needed
+		b, err := json.Marshal(v)
+		if err != nil {
+			return v
+		}
+		var parsed interface{}
+		if err := json.Unmarshal(b, &parsed); err != nil {
+			return v
+		}
+		return sanitizeAuditValue("", parsed)
+	}
+}
+
+func sanitizeAuditValue(key string, v interface{}) interface{} {
+	kl := strings.ToLower(key)
+	for _, sub := range sensitiveAuditKeyPatterns {
+		if strings.Contains(kl, sub) {
+			return "***"
+		}
+	}
+	switch t := v.(type) {
+	case map[string]interface{}:
+		m := make(map[string]interface{}, len(t))
+		for k, val := range t {
+			m[k] = sanitizeAuditValue(k, val)
+		}
+		return m
+	case []interface{}:
+		arr := make([]interface{}, len(t))
+		for i, val := range t {
+			arr[i] = sanitizeAuditValue(key, val)
+		}
+		return arr
+	default:
+		return v
+	}
+}
+

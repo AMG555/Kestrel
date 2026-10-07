@@ -335,6 +335,48 @@ func (db *DB) initSchema() error {
 			total_tokens INTEGER NOT NULL DEFAULT 0,
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 		)`},
+		{"webshell_connections", `CREATE TABLE IF NOT EXISTS webshell_connections (
+			id TEXT PRIMARY KEY,
+			name TEXT NOT NULL,
+			url TEXT NOT NULL,
+			type TEXT NOT NULL DEFAULT 'php',
+			password TEXT NOT NULL,
+			encoding TEXT NOT NULL DEFAULT 'utf-8',
+			os TEXT NOT NULL DEFAULT 'linux',
+			status TEXT NOT NULL DEFAULT 'untested',
+			created_at DATETIME NOT NULL
+		)`},
+		{"c2_listeners", `CREATE TABLE IF NOT EXISTS c2_listeners (
+			id TEXT PRIMARY KEY,
+			name TEXT NOT NULL,
+			protocol TEXT NOT NULL DEFAULT 'http',
+			bind_host TEXT NOT NULL DEFAULT '0.0.0.0',
+			bind_port INTEGER NOT NULL,
+			status TEXT NOT NULL DEFAULT 'active',
+			created_at DATETIME NOT NULL
+		)`},
+		{"c2_beacons", `CREATE TABLE IF NOT EXISTS c2_beacons (
+			id TEXT PRIMARY KEY,
+			hostname TEXT NOT NULL,
+			ip TEXT NOT NULL,
+			os TEXT NOT NULL DEFAULT 'linux',
+			user TEXT NOT NULL DEFAULT 'root',
+			pid INTEGER NOT NULL DEFAULT 0,
+			sleep_sec INTEGER NOT NULL DEFAULT 10,
+			status TEXT NOT NULL DEFAULT 'alive',
+			last_seen DATETIME NOT NULL,
+			created_at DATETIME NOT NULL
+		)`},
+		{"c2_tasks", `CREATE TABLE IF NOT EXISTS c2_tasks (
+			id TEXT PRIMARY KEY,
+			beacon_id TEXT NOT NULL,
+			type TEXT NOT NULL,
+			payload TEXT NOT NULL,
+			status TEXT NOT NULL DEFAULT 'pending',
+			output TEXT NOT NULL DEFAULT '',
+			created_at DATETIME NOT NULL,
+			FOREIGN KEY (beacon_id) REFERENCES c2_beacons(id) ON DELETE CASCADE
+		)`},
 	}
 
 	for _, s := range stmts {
@@ -379,6 +421,8 @@ func (db *DB) initIndexes() error {
 		`CREATE INDEX IF NOT EXISTS idx_hitl_pending_status ON hitl_pending(status)`,
 		`CREATE INDEX IF NOT EXISTS idx_conversations_user ON conversations(user_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_conversations_project ON conversations(project_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_c2_tasks_beacon ON c2_tasks(beacon_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_c2_beacons_last_seen ON c2_beacons(last_seen)`,
 	}
 	for _, idx := range indexes {
 		if _, err := db.Exec(idx); err != nil {

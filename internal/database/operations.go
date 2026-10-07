@@ -508,3 +508,13 @@ func (db *DB) CancelOrphanedRunningToolExecutions(before time.Time, reason strin
 	}
 	return res.RowsAffected()
 }
+
+// PurgeToolExecutionsBefore deletes tool executions completed before cutoff.
+func (db *DB) PurgeToolExecutionsBefore(cutoff time.Time) (int64, error) {
+	res, err := db.Exec(`DELETE FROM tool_executions WHERE completed_at IS NOT NULL AND completed_at < ?`, cutoff)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}
+

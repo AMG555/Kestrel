@@ -12,6 +12,7 @@ import (
 	"kestrel/internal/database"
 	"kestrel/internal/llm"
 	"kestrel/internal/mcp"
+	"kestrel/internal/projectprompt"
 )
 
 // Mode describes the agent orchestration strategy.
@@ -576,16 +577,19 @@ func (r *Runner) persistMessage(sessionID, role, content, toolCallID string) err
 	return err
 }
 
-// buildSystemPrompt composes a system prompt listing available read-only tools.
+// buildSystemPrompt composes a system prompt listing available tools and operational guidelines.
 func buildSystemPrompt(tools []*mcp.ToolDefinition, allowedTools []string) string {
 	var sb strings.Builder
 	sb.WriteString("You are Kestrel, an AI-native security operations assistant.\n")
-	sb.WriteString("You help authorised security teams conduct reconnaissance on systems they own or are explicitly permitted to test.\n\n")
+	sb.WriteString("You help authorised security teams conduct security assessments and reconnaissance on systems they own or are explicitly permitted to test.\n\n")
 	sb.WriteString("IMPORTANT CONSTRAINTS:\n")
 	sb.WriteString("- You may only use the tools listed below.\n")
-	sb.WriteString("- All tools are read-only recon tools. No exploitation, credential-dumping, or remote-shell capabilities are available.\n")
-	sb.WriteString("- Never propose actions outside the available toolset.\n\n")
-	sb.WriteString("Available tools:\n")
+	sb.WriteString("- Strictly adhere to authorized target scopes.\n")
+	sb.WriteString("- Never propose destructive actions without explicit operator authorization.\n\n")
+	sb.WriteString(projectprompt.FactRecordingBlackboardSection())
+	sb.WriteString("\n")
+	sb.WriteString(projectprompt.ShellExecGuidanceSection())
+	sb.WriteString("\nAvailable tools:\n")
 	for _, t := range tools {
 		sb.WriteString(fmt.Sprintf("  - %s: %s\n", t.Name, t.Description))
 	}
