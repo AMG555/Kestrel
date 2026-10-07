@@ -57,7 +57,7 @@ func TestMergeAssistantTraceOutput(t *testing.T) {
 }
 
 func TestParseTraceMessagesMarksVersionedModelFacingTrace(t *testing.T) {
-	raw := `[{"role":"system","content":"s","extra":{"cyberstrike_model_facing_trace_version":1}},{"role":"user","content":"u"},{"role":"tool","content":"exact","tool_call_id":"c1"}]`
+	raw := `[{"role":"system","content":"s","extra":{"kestrel_model_facing_trace_version":1}},{"role":"user","content":"u"},{"role":"tool","content":"exact","tool_call_id":"c1"}]`
 	if !IsModelFacingTraceJSON(raw) {
 		t.Fatal("versioned trace not detected")
 	}

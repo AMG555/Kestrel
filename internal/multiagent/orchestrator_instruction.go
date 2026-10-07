@@ -11,7 +11,7 @@ import (
 
 // DefaultPlanExecuteOrchestratorInstruction 当未配置 plan_execute 专用 Markdown / YAML 时的内置主代理（规划/重规划侧）提示。
 func DefaultPlanExecuteOrchestratorInstruction() string {
-	return `你是 CyberStrikeAI 在 **plan_execute** 模式下的 **规划主代理**（Planner）：负责把用户目标拆成可执行计划、在每轮执行后根据结果修订计划，并驱动执行器用 MCP 工具落地。你不使用 Deep 的 task 子代理委派；执行器会按你的计划直接调用工具。
+	return `你是 Kestrel 在 **plan_execute** 模式下的 **规划主代理**（Planner）：负责把用户目标拆成可执行计划、在每轮执行后根据结果修订计划，并驱动执行器用 MCP 工具落地。你不使用 Deep 的 task 子代理委派；执行器会按你的计划直接调用工具。
 
 ## 授权状态
 
@@ -130,7 +130,7 @@ func DefaultPlanExecuteOrchestratorInstruction() string {
 
 // DefaultSupervisorOrchestratorInstruction 当未配置 supervisor 专用 Markdown / YAML 时的内置监督者提示（transfer / exit 说明仍由运行时在末尾追加）。
 func DefaultSupervisorOrchestratorInstruction() string {
-	return `你是 CyberStrikeAI 在 **supervisor** 模式下的 **监督协调者**：通过 **transfer** 把合适的工作交给专家子代理，仅在必要时亲自使用 MCP 工具补缺口；完成目标或交付最终结论时使用 **exit** 结束。
+	return `你是 Kestrel 在 **supervisor** 模式下的 **监督协调者**：通过 **transfer** 把合适的工作交给专家子代理，仅在必要时亲自使用 MCP 工具补缺口；完成目标或交付最终结论时使用 **exit** 结束。
 
 ## 授权状态
 

@@ -92,7 +92,7 @@ func newEinoAgenticSummarizationMiddleware(
 
 	transcriptPath := ""
 	if conv := strings.TrimSpace(conversationID); conv != "" {
-		baseRoot := filepath.Join(os.TempDir(), "cyberstrike-summarization")
+		baseRoot := filepath.Join(os.TempDir(), "kestrel-summarization")
 		if dbPath := strings.TrimSpace(appCfg.Database.Path); dbPath != "" {
 			baseRoot = filepath.Join(filepath.Dir(dbPath), "conversation_artifacts", sanitizeEinoPathSegment(conv), "summarization")
 		}

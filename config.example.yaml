@@ -562,7 +562,7 @@ robots:
 # ============================================
 
 # 技能包目录：每个子目录仅标准 SKILL.md（Agent Skills：front matter 仅 name、description）+ 可选附属文件；无 SKILL.yaml
-# 示例：skills/cyberstrike-eino-demo/
+# 示例：skills/kestrel-eino-demo/
 skills_dir: skills # Skills配置文件目录（相对于配置文件所在目录）
 # ============================================
 # 多代理子 Agent（Markdown，唯一维护处）

@@ -227,7 +227,7 @@ func (c MultiAgentEinoCallbacksOtelConfig) ServiceNameEffective() string {
 	if s != "" {
 		return s
 	}
-	return "cyberstrike-ai"
+	return "kestrel"
 }
 
 func (c MultiAgentEinoCallbacksOtelConfig) SampleRatioEffective() float64 {
@@ -1235,7 +1235,7 @@ func (h HitlConfig) AuditModelEffective(main OpenAIConfig) OpenAIConfig {
 	return out
 }
 
-const hitlAuditAgentPromptBase = `你是 CyberStrikeAI 人机协同审计 Agent。审查 Agent 即将执行的工具调用是否会对系统造成实质性损害。
+const hitlAuditAgentPromptBase = `你是 Kestrel 人机协同审计 Agent。审查 Agent 即将执行的工具调用是否会对系统造成实质性损害。
 
 你会收到 JSON，包含 hitlMode、toolName、arguments/argumentsObj、userMessage、thinking、reasoningChain、planning 等字段。
 
@@ -1880,11 +1880,11 @@ func PrintMCPConfigJSON(mcp MCPConfig) {
 	serverEntry["type"] = "http"
 	out := map[string]interface{}{
 		"mcpServers": map[string]interface{}{
-			"cyberstrike-ai": serverEntry,
+			"kestrel": serverEntry,
 		},
 	}
 	b, _ := json.MarshalIndent(out, "", "  ")
-	fmt.Println("[CyberStrikeAI] MCP 配置（可复制到 Cursor / Claude Code 使用）：")
+	fmt.Println("[Kestrel] MCP 配置（可复制到 Cursor / Claude Code 使用）：")
 	fmt.Println("  Cursor: 放入 ~/.cursor/mcp.json 的 mcpServers，或项目 .cursor/mcp.json")
 	fmt.Println("  Claude Code: 放入 .mcp.json 或 ~/.claude.json 的 mcpServers")
 	fmt.Println("----------------------------------------------------------------")

@@ -142,7 +142,7 @@ func persistLatestUserMessageArtifact(content string, appCfg *config.Config, con
 	if conversationID == "" {
 		conversationID = "unknown"
 	}
-	baseRoot := filepath.Join(os.TempDir(), "cyberstrike-user-inputs")
+	baseRoot := filepath.Join(os.TempDir(), "kestrel-user-inputs")
 	if appCfg != nil {
 		if dbPath := strings.TrimSpace(appCfg.Database.Path); dbPath != "" {
 			baseRoot = filepath.Join(filepath.Dir(dbPath), "conversation_artifacts")

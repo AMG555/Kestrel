@@ -1,4 +1,4 @@
-﻿// Package c2 实现 CyberStrikeAI 内置 C2（Command & Control）框架。
+﻿// Package c2 实现 Kestrel 内置 C2（Command & Control）框架。
 //
 // 设计概述：
 //   - Manager 作为统一入口，被 internal/app 实例化并注入到所有需要操控 C2 的组件

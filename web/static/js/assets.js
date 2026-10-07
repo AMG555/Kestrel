@@ -1,5 +1,5 @@
-﻿const ASSET_PAGE_SIZE_KEY = 'cyberstrike.asset_page_size';
-const ASSET_SAVED_VIEWS_KEY = 'cyberstrike.asset_saved_views';
+﻿const ASSET_PAGE_SIZE_KEY = 'kestrel.asset_page_size';
+const ASSET_SAVED_VIEWS_KEY = 'kestrel.asset_saved_views';
 function getAssetPageSize() {
     try {
         const value = Number(localStorage.getItem(ASSET_PAGE_SIZE_KEY));

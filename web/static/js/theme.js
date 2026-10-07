@@ -1,7 +1,7 @@
 ﻿(function () {
     'use strict';
 
-    const STORAGE_KEY = 'cyberstrike-theme';
+    const STORAGE_KEY = 'kestrel-theme';
     const THEMES = ['system', 'light', 'dark'];
     const FALLBACK_LABELS = {
         system: '跟随系统',
@@ -84,7 +84,7 @@
         root.style.colorScheme = resolved;
         updateButton(normalized, resolved);
         document.dispatchEvent(
-            new CustomEvent('cyberstrike-themechange', {
+            new CustomEvent('kestrel-themechange', {
                 detail: { preference: normalized, resolved: resolved },
             }),
         );

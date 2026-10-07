@@ -6,7 +6,7 @@ let auditLogsPageSize = 20;
 let auditLogsTotal = 0;
 let auditLogsCache = [];
 
-const AUDIT_PAGE_SIZE_KEY = 'cyberstrike_audit_page_size';
+const AUDIT_PAGE_SIZE_KEY = 'kestrel_audit_page_size';
 
 /** 按类别列出的操作（用于 datalist 提示，避免超长下拉） */
 const AUDIT_ACTIONS_BY_CATEGORY = {

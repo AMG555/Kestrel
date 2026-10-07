@@ -9,7 +9,7 @@
     <script>
         (function () {
             try {
-                var stored = localStorage.getItem('cyberstrike-theme') || 'system';
+                var stored = localStorage.getItem('kestrel-theme') || 'system';
                 if (stored !== 'system' && stored !== 'light' && stored !== 'dark') {
                     stored = 'system';
                 }
@@ -45,7 +45,7 @@
                 <h2 class="login-title">
                     <span data-i18n="login.titlePrefix">登录</span>
                     <span class="brand-wordmark brand-wordmark--sm" aria-label="Kestrel">
-                        <span class="brand-wordmark__core">CyberStrike</span><span class="brand-wordmark__ai">AI</span>
+                        <span class="brand-wordmark__core">Kestrel</span><span class="brand-wordmark__ai">AI</span>
                     </span>
                 </h2>
                 <p class="login-subtitle" data-i18n="login.subtitle">使用平台账号登录，默认管理员为 admin。</p>
@@ -76,7 +76,7 @@
                 <div class="logo header-logo-link" onclick="switchPage('dashboard')" role="button" data-i18n="header.backToDashboard" data-i18n-attr="title" data-i18n-skip-text="true" title="返回仪表盘">
                     <img src="/static/logo.png" alt="Kestrel Logo" class="brand-logo" width="36" height="36">
                     <h1 class="brand-wordmark brand-wordmark--lg">
-                        <span class="brand-wordmark__core">CyberStrike</span><span class="brand-wordmark__ai">AI</span>
+                        <span class="brand-wordmark__core">Kestrel</span><span class="brand-wordmark__ai">AI</span>
                     </h1>
                     <span class="version-badge" data-i18n="header.version" data-i18n-attr="title" data-i18n-skip-text="true" title="当前版本">{{.Version}}</span>
                 </div>

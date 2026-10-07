@@ -34,7 +34,7 @@ func TestNewEinoAgenticSummarizationMiddlewareCompactsWithNativeTypedMiddleware(
 	appCfg := &config.Config{}
 	appCfg.OpenAI.Model = "gpt-4o"
 	appCfg.OpenAI.MaxTotalTokens = 5000
-	appCfg.Database.Path = filepath.Join(t.TempDir(), "cyberstrike.db")
+	appCfg.Database.Path = filepath.Join(t.TempDir(), "kestrel.db")
 	mwCfg := &config.MultiAgentEinoMiddlewareConfig{
 		SummarizationEmitInternalEvents:  &emit,
 		SummarizationOutputReserveTokens: 1024,
@@ -96,7 +96,7 @@ func TestEinoAgenticChatModelAgentCompactsContextBeforeBusinessModel(t *testing.
 	appCfg := &config.Config{}
 	appCfg.OpenAI.Model = "gpt-4o"
 	appCfg.OpenAI.MaxTotalTokens = 5000
-	appCfg.Database.Path = filepath.Join(t.TempDir(), "cyberstrike.db")
+	appCfg.Database.Path = filepath.Join(t.TempDir(), "kestrel.db")
 	mwCfg := &config.MultiAgentEinoMiddlewareConfig{
 		SummarizationEmitInternalEvents:  &emit,
 		SummarizationOutputReserveTokens: 1024,
@@ -186,7 +186,7 @@ func TestEinoAgenticSummarizationMiddlewareRetriesWhenSummaryModelReturnsEmpty(t
 	appCfg := &config.Config{}
 	appCfg.OpenAI.Model = "gpt-4o"
 	appCfg.OpenAI.MaxTotalTokens = 5000
-	appCfg.Database.Path = filepath.Join(t.TempDir(), "cyberstrike.db")
+	appCfg.Database.Path = filepath.Join(t.TempDir(), "kestrel.db")
 	mwCfg := &config.MultiAgentEinoMiddlewareConfig{
 		SummarizationEmitInternalEvents:  &emit,
 		SummarizationOutputReserveTokens: 1024,

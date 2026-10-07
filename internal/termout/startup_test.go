@@ -149,7 +149,7 @@ func TestPrintStartupWebUIOptions(t *testing.T) {
 func TestBoxRowAlignedWidth(t *testing.T) {
 	s := New(nil)
 	rows := []string{
-		s.Bold("CyberStrikeAI") + s.White(" is ready"),
+		s.Bold("Kestrel") + s.White(" is ready"),
 		s.Dim("Web UI   ") + s.Bold("https://127.0.0.1:8080/"),
 	}
 	inner := maxDisplayWidth(rows...)

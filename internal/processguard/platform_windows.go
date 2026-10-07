@@ -47,7 +47,7 @@ func newPlatformGroup(id string, o Options) (Group, error) {
 	if err := configurePlatform(&o); err != nil {
 		return nil, err
 	}
-	name := "Local\\CyberStrikeAI-" + id
+	name := "Local\\Kestrel-" + id
 	g := &jobGroup{}
 	w, err := startWatchdog(watchRequest{Name: name, Options: o}, func() {
 		g.mu.Lock()

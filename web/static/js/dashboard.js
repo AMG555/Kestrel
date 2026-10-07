@@ -13,7 +13,7 @@
 var DASHBOARD_POLL_INTERVAL_MS = 60 * 1000;
 var DASHBOARD_STALE_THRESHOLD_MS = 5 * 60 * 1000;
 var DASHBOARD_STALE_CHECK_INTERVAL_MS = 30 * 1000;
-var DASHBOARD_SEVERITY_STATUS_FILTER_STORAGE_KEY = 'cyberstrike.dashboard.severityStatusFilter';
+var DASHBOARD_SEVERITY_STATUS_FILTER_STORAGE_KEY = 'kestrel.dashboard.severityStatusFilter';
 var DASHBOARD_SEVERITY_STATUS_FILTER_VALUES = ['', 'open', 'confirmed', 'fixed', 'ignored', 'false_positive'];
 
 var dashboardState = {

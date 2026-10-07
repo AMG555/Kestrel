@@ -52,7 +52,7 @@ func configurePlatform(o *Options) error {
 	// An exclusive host-side lock prevents one server's recovery sweep from
 	// killing tasks owned by another server using the same delegated root.
 	hash := sha256.Sum256([]byte(root))
-	lockPath := filepath.Join(os.TempDir(), fmt.Sprintf("cyberstrike-cgroup-%d-%x.lock", os.Getuid(), hash[:12]))
+	lockPath := filepath.Join(os.TempDir(), fmt.Sprintf("kestrel-cgroup-%d-%x.lock", os.Getuid(), hash[:12]))
 	fd, err := unix.Open(lockPath, unix.O_CREAT|unix.O_RDWR|unix.O_CLOEXEC|unix.O_NOFOLLOW, 0600)
 	if err != nil {
 		return err

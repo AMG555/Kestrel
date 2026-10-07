@@ -96,9 +96,9 @@ function hitlT(key, fallback, params) {
     return fallback;
 }
 
-const HITL_LOGS_PAGE_SIZE_KEY = 'cyberstrike_hitl_logs_page_size';
-const HITL_PENDING_PAGE_SIZE_KEY = 'cyberstrike_hitl_pending_page_size';
-const HITL_TIMEOUT_DEFAULT_MIGRATION_PREFIX = 'cyberstrike-hitl-timeout-default-v1:';
+const HITL_LOGS_PAGE_SIZE_KEY = 'kestrel_hitl_logs_page_size';
+const HITL_PENDING_PAGE_SIZE_KEY = 'kestrel_hitl_pending_page_size';
+const HITL_TIMEOUT_DEFAULT_MIGRATION_PREFIX = 'kestrel-hitl-timeout-default-v1:';
 const HITL_PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 const hitlConversationConfigSaveQueues = new Map();
 
@@ -185,7 +185,7 @@ function hitlEffectiveEnabled(cfg) {
 function readHitlLocalStorageConv(conversationId) {
     if (!conversationId) return null;
     try {
-        const key = 'cyberstrike-chat-hitl:' + String(conversationId).trim();
+        const key = 'kestrel-chat-hitl:' + String(conversationId).trim();
         const raw = localStorage.getItem(key);
         if (!raw) return null;
         const parsed = JSON.parse(raw);

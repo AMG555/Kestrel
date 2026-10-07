@@ -269,7 +269,7 @@ func GenerateDraftFromLLM(ctx context.Context, req DraftRequest, oa config.OpenA
 	callCtx, cancel := context.WithTimeout(ctx, 90*time.Second)
 	defer cancel()
 	toolJSON, _ := json.Marshal(req.AvailableTools)
-	systemPrompt := `你是 CyberStrikeAI 的工作流编排助手。你必须把用户的一句话需求转换为可保存的工作流草稿 JSON。
+	systemPrompt := `你是 Kestrel 的工作流编排助手。你必须把用户的一句话需求转换为可保存的工作流草稿 JSON。
 只返回 JSON 对象，不要 Markdown，不要解释。JSON 必须符合：
 {
   "meta": {"id":"kebab-case-id","name":"短名称","description":"用户需求","enabled":true},

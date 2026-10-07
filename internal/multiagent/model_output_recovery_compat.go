@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	modelOutputRecoveryKey          = "_cyberstrike_model_output_recovery"
+	modelOutputRecoveryKey          = "_kestrel_model_output_recovery"
 	modelOutputRejectedResultPrefix = "[Model Output Rejected]"
 )
 

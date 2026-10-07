@@ -165,9 +165,9 @@ function resolveWebshellAiStreamRequest() {
     }).then(function (cfg) {
         var norm = 'eino_single';
         if (typeof window.csaiChatAgentMode === 'object' && typeof window.csaiChatAgentMode.normalizeStored === 'function') {
-            norm = window.csaiChatAgentMode.normalizeStored(localStorage.getItem('cyberstrike-chat-agent-mode'), cfg);
+            norm = window.csaiChatAgentMode.normalizeStored(localStorage.getItem('kestrel-chat-agent-mode'), cfg);
         } else {
-            var mode = localStorage.getItem('cyberstrike-chat-agent-mode');
+            var mode = localStorage.getItem('kestrel-chat-agent-mode');
             norm = (mode && (mode === 'eino_single' || mode === 'deep' || mode === 'plan_execute' || mode === 'supervisor')) ? mode : 'eino_single';
         }
         if (cfg && cfg.multi_agent && cfg.multi_agent.enabled &&
@@ -298,7 +298,7 @@ function wsInitAgentMode() {
             }
         });
         // 标准化当前值
-        var stored = localStorage.getItem('cyberstrike-chat-agent-mode');
+        var stored = localStorage.getItem('kestrel-chat-agent-mode');
         var norm;
         if (typeof window.csaiChatAgentMode === 'object' && typeof window.csaiChatAgentMode.normalizeStored === 'function') {
             norm = window.csaiChatAgentMode.normalizeStored(stored, cfg);
@@ -333,7 +333,7 @@ function wsSyncAgentMode(value) {
 }
 
 function wsSelectAgentMode(mode) {
-    try { localStorage.setItem('cyberstrike-chat-agent-mode', mode); } catch (e) { /* */ }
+    try { localStorage.setItem('kestrel-chat-agent-mode', mode); } catch (e) { /* */ }
     wsSyncAgentMode(mode);
     wsCloseAgentModePanel();
     // 同步主页模式选择器
@@ -550,7 +550,7 @@ function wsRefreshSelectors() {
     wsUpdateRoleSelectorDisplay();
     wsRenderRoleList();
     wsUpdateProjectButtonLabel();
-    var stored = localStorage.getItem('cyberstrike-chat-agent-mode') || 'eino_single';
+    var stored = localStorage.getItem('kestrel-chat-agent-mode') || 'eino_single';
     if (stored !== 'eino_single' && stored !== 'deep' && stored !== 'plan_execute' && stored !== 'supervisor') {
         stored = 'eino_single';
     }

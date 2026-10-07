@@ -1,5 +1,5 @@
 ﻿(function () {
-    const STORAGE_LAST_SEEN_KEY = 'cyberstrike-notification-last-seen-at';
+    const STORAGE_LAST_SEEN_KEY = 'kestrel-notification-last-seen-at';
     const POLL_INTERVAL_ACTIVE_MS = 15000;
     const POLL_INTERVAL_HIDDEN_MS = 60000;
     const MAX_RENDER_ITEMS = 20;

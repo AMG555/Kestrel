@@ -21,7 +21,7 @@ type ExecutionRecorder func(executionID, toolCallID string)
 
 // ToolErrorPrefix 用于把内部 MCP 执行结果中的 IsError 标记传递到多代理上层。
 // Eino 工具通道目前只支持返回字符串，因此通过前缀标识，随后在多代理 runner 中解析为 success/isError。
-const ToolErrorPrefix = "__CYBERSTRIKE_AI_TOOL_ERROR__\n"
+const ToolErrorPrefix = "__KESTREL_TOOL_ERROR__\n"
 
 // ToolsFromDefinitions 将单 Agent 使用的 OpenAI 风格工具定义转为 Eino InvokableTool，执行时走 Agent 的 MCP 路径。
 // invokeNotify 可选：与 runEinoADKAgentLoop 共享，在 InvokableRun 返回时触发 UI 与 pending 清理（与 ADK Tool 事件去重）。

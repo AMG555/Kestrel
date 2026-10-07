@@ -24,7 +24,7 @@ const (
 
 const jevStateMaxFieldRunes = 8000
 
-// JevAuditQuestions is the built-in CyberStrikeAI approval policy, asked in English for Jev accuracy.
+// JevAuditQuestions is the built-in Kestrel approval policy, asked in English for Jev accuracy.
 // A non-empty operatorPolicy adds a Noul/Choice overlay so the organization prompt is evaluated as state, not as a chat system prompt.
 func JevAuditQuestions(operatorPolicy string) map[string]typesafe.Question {
 	qs := map[string]typesafe.Question{
@@ -54,7 +54,7 @@ func JevAuditQuestions(operatorPolicy string) map[string]typesafe.Question {
 			"Not a pentest payload, or the action is clearly aimed at destroying business availability or data.",
 		),
 		jevQDecision: typesafe.Choice(
-			"Should CyberStrikeAI approve this tool call? Approve authorized pentest activity. Reject only actions that would clearly destroy live business availability, irreversibly destroy real data, change production credentials/ACLs, or tamper with live system configuration.",
+			"Should Kestrel approve this tool call? Approve authorized pentest activity. Reject only actions that would clearly destroy live business availability, irreversibly destroy real data, change production credentials/ACLs, or tamper with live system configuration.",
 			map[string]string{
 				"approve": "Safe to execute in an authorized pentest. Includes exploit payloads, webshells, reverse shells, scans, and recon.",
 				"reject":  "Would clearly damage live business availability, destroy real data, change production accounts, or alter live system configuration.",

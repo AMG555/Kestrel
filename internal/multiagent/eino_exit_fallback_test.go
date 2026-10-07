@@ -137,7 +137,7 @@ func TestEinoRunResultBuilderPrefersExitFinalOverAssistantIntro(t *testing.T) {
 	runMessages.Append(toolExitMsg(report, "exit-1"))
 
 	assistantOutput := newEinoAssistantOutputAccumulator("supervisor")
-	assistantOutput.RecordMainAssistant("cyberstrike-supervisor", intro)
+	assistantOutput.RecordMainAssistant("kestrel-supervisor", intro)
 
 	got := newEinoRunResultBuilder(einoRunResultBuilderConfig{
 		OrchMode:        "supervisor",
@@ -168,7 +168,7 @@ func TestEinoRunResultBuilderPrefersExitFinalFromArgsWhenToolContentMissing(t *t
 	runMessages.Append(toolExitMsg("", "exit-1"))
 
 	assistantOutput := newEinoAssistantOutputAccumulator("supervisor")
-	assistantOutput.RecordMainAssistant("cyberstrike-supervisor", intro)
+	assistantOutput.RecordMainAssistant("kestrel-supervisor", intro)
 
 	got := newEinoRunResultBuilder(einoRunResultBuilderConfig{
 		OrchMode:        "supervisor",

@@ -79,7 +79,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 // 加载token
 async function loadToken() {
     try {
-        const authData = localStorage.getItem('cyberstrike-auth');
+        const authData = localStorage.getItem('kestrel-auth');
         if (authData) {
             const parsed = JSON.parse(authData);
             if (parsed && parsed.token) {

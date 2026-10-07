@@ -90,7 +90,7 @@ func (h *WebShellHandler) newHTTPExecFn(targetURL, password, shellType, method, 
 		if err != nil {
 			return "", false
 		}
-		httpReq.Header.Set("User-Agent", "Mozilla/5.0 (compatible; CyberStrikeAI-WebShell/1.0)")
+		httpReq.Header.Set("User-Agent", "Mozilla/5.0 (compatible; Kestrel-WebShell/1.0)")
 		resp, err := h.client.Do(httpReq)
 		if err != nil {
 			return "", false

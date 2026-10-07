@@ -397,7 +397,7 @@ func TestEinoSummarizationMiddlewareRetriesWhenSummaryModelReturnsEmpty(t *testi
 	appCfg := &config.Config{}
 	appCfg.OpenAI.Model = "gpt-4o"
 	appCfg.OpenAI.MaxTotalTokens = 5000
-	appCfg.Database.Path = filepath.Join(t.TempDir(), "cyberstrike.db")
+	appCfg.Database.Path = filepath.Join(t.TempDir(), "kestrel.db")
 	mwCfg := &config.MultiAgentEinoMiddlewareConfig{
 		SummarizationEmitInternalEvents:  &emit,
 		SummarizationOutputReserveTokens: 1024,
@@ -533,7 +533,7 @@ func TestSanitizeSystemContentForTranscript_BestPractice(t *testing.T) {
 		"1) 上表仅为名称索引",
 		"5) 不要臆造不存在的工具名。",
 		"",
-		"你是CyberStrikeAI，是一个专业的网络安全渗透测试专家。",
+		"你是Kestrel，是一个专业的网络安全渗透测试专家。",
 		"高强度扫描要求：全力出击",
 		"",
 		project.FactIndexSectionStartMarker,
@@ -568,7 +568,7 @@ func TestSanitizeSystemContentForTranscript_BestPractice(t *testing.T) {
 func TestFormatSummarizationTranscript_OmitsBloatedSystem(t *testing.T) {
 	t.Parallel()
 	msgs := []adk.Message{
-		schema.SystemMessage("以下是当前会话绑定的工具名称索引\n- nmap\n\n你是CyberStrikeAI\n" + project.FactIndexSectionStartMarker + "\n## 项目黑板索引（project: p1, id: x）\n（暂无事实）\n" + project.FactIndexSectionEndMarker + "\n" + transcriptSkillsSystemMarker + "\nboiler"),
+		schema.SystemMessage("以下是当前会话绑定的工具名称索引\n- nmap\n\n你是Kestrel\n" + project.FactIndexSectionStartMarker + "\n## 项目黑板索引（project: p1, id: x）\n（暂无事实）\n" + project.FactIndexSectionEndMarker + "\n" + transcriptSkillsSystemMarker + "\nboiler"),
 		schema.UserMessage("hello"),
 		schema.AssistantMessage("reply", nil),
 	}

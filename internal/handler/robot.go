@@ -194,7 +194,7 @@ func (h *RobotHandler) robotAccessDeniedMessage(platform string) string {
 	if h.config.Robots.AuthorizationFor(platform).EffectiveMode() == config.RobotAuthModeServiceAccount {
 		return "当前平台账号不在该机器人的服务账号白名单中，或服务账号不可用。"
 	}
-	return "当前平台账号尚未绑定 CyberStrikeAI 用户。请先在网页端生成绑定码，然后发送：绑定 XXXX-XXXX"
+	return "当前平台账号尚未绑定 Kestrel 用户。请先在网页端生成绑定码，然后发送：绑定 XXXX-XXXX"
 }
 
 func (h *RobotHandler) loadSessionBinding(sk string) (convID, role, agentMode string) {
@@ -468,7 +468,7 @@ func (h *RobotHandler) cmdHelp(platform, userID string) string {
 		return access != nil && access.Permissions[permission]
 	}
 	var b strings.Builder
-	b.WriteString("【CyberStrikeAI 机器人命令】\n\n")
+	b.WriteString("【Kestrel 机器人命令】\n\n")
 	b.WriteString("【通用 General】\n")
 	b.WriteString("· 帮助 / help — 显示本帮助\n")
 	b.WriteString("· 版本 / version — 显示当前版本号\n")
@@ -1039,7 +1039,7 @@ func (h *RobotHandler) cmdVersion() string {
 	if v == "" {
 		v = "未知"
 	}
-	return "CyberStrikeAI " + v
+	return "Kestrel " + v
 }
 
 func (h *RobotHandler) cmdIdentity(platform, userID string) string {
@@ -1196,7 +1196,7 @@ func (h *RobotHandler) executeUnbindUser(platform, userID string) string {
 			ResourceType: "robot_binding", ResourceID: platform + ":" + fmt.Sprintf("%x", hint[:4]), Message: "机器人平台账号解绑成功",
 		})
 	}
-	return "已解除当前平台账号与 CyberStrikeAI 用户的绑定。"
+	return "已解除当前平台账号与 Kestrel 用户的绑定。"
 }
 
 func (h *RobotHandler) setPendingConfirmation(platform, userID, action, target string) {

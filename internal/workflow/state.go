@@ -10,14 +10,14 @@ import (
 )
 
 func init() {
-	schema.RegisterName[*WorkflowLocalState]("_cyberstrike_workflow_local_state")
-	schema.RegisterName[NodeOutputEnvelope]("_cyberstrike_workflow_node_output_envelope")
-	schema.RegisterName[StartOutput]("_cyberstrike_workflow_start_output")
-	schema.RegisterName[ConditionOutput]("_cyberstrike_workflow_condition_output")
-	schema.RegisterName[ToolOutput]("_cyberstrike_workflow_tool_output")
-	schema.RegisterName[AgentOutput]("_cyberstrike_workflow_agent_output")
-	schema.RegisterName[HITLOutput]("_cyberstrike_workflow_hitl_output")
-	schema.RegisterName[OutputNodeOutput]("_cyberstrike_workflow_output_node_output")
+	schema.RegisterName[*WorkflowLocalState]("_kestrel_workflow_local_state")
+	schema.RegisterName[NodeOutputEnvelope]("_kestrel_workflow_node_output_envelope")
+	schema.RegisterName[StartOutput]("_kestrel_workflow_start_output")
+	schema.RegisterName[ConditionOutput]("_kestrel_workflow_condition_output")
+	schema.RegisterName[ToolOutput]("_kestrel_workflow_tool_output")
+	schema.RegisterName[AgentOutput]("_kestrel_workflow_agent_output")
+	schema.RegisterName[HITLOutput]("_kestrel_workflow_hitl_output")
+	schema.RegisterName[OutputNodeOutput]("_kestrel_workflow_output_node_output")
 }
 
 // WorkflowLocalState is the Eino WithGenLocalState payload (checkpoint-serializable).

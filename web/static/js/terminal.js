@@ -101,7 +101,7 @@
     // 从本地存储中获取当前登录 token（与 auth.js 使用的结构保持一致）
     function getStoredAuthToken() {
         try {
-            var raw = localStorage.getItem('cyberstrike-auth');
+            var raw = localStorage.getItem('kestrel-auth');
             if (!raw) return null;
             var o = JSON.parse(raw);
             if (o && o.token) return o.token;

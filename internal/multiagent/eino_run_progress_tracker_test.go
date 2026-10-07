@@ -143,7 +143,7 @@ func TestEinoRunProgressTrackerHidesModelOutputRecoveryToolCalls(t *testing.T) {
 		Type: "function",
 		Function: schema.FunctionCall{
 			Name:      "task",
-			Arguments: `{"_cyberstrike_model_output_recovery":{"reason":"invalid_tool_arguments_json","repair_attempt":1}}`,
+			Arguments: `{"_kestrel_model_output_recovery":{"reason":"invalid_tool_arguments_json","repair_attempt":1}}`,
 		},
 	}}}
 

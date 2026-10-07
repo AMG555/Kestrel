@@ -146,7 +146,7 @@ func TestCreateProgressCallback_PersistsRunningResponseBeforeDone(t *testing.T) 
 	cb := h.createProgressCallback(context.Background(), nil, conv.ID, asst.ID, nil)
 	meta := map[string]interface{}{
 		"streamId":      "response-refresh-1",
-		"einoAgent":     "cyberstrike-eino-single",
+		"einoAgent":     "kestrel-eino-single",
 		"orchestration": "eino_single",
 	}
 	cb("response_start", "", meta)

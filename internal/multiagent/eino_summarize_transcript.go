@@ -12,14 +12,14 @@ import (
 )
 
 const (
-	transcriptFileHeader = `# CyberStrikeAI summarization transcript
+	transcriptFileHeader = `# Kestrel summarization transcript
 # Pre-compaction session record for read_file after context compression.
 # Omits static system/tool-index/skills boilerplate; full user/assistant/tool turns below.
 
 `
 	transcriptStaticSystemOmitNote = "[static system prompt omitted — unchanged in live context after compaction]"
 	transcriptToolIndexStartMarker = "以下是当前会话绑定的工具名称索引"
-	transcriptPersonaStartMarker   = "你是CyberStrikeAI"
+	transcriptPersonaStartMarker   = "你是Kestrel"
 	// ADK LanguageChinese injects skill middleware prompt with this header (see eino adk/middlewares/skill/prompt.go).
 	transcriptSkillsSystemMarker        = "# Skill 系统"
 	transcriptSkillsSystemMarkerEnglish = "# Skills System"

@@ -35,7 +35,7 @@ func main() {
 		os.Exit(2)
 	}
 	if !*httpsBootstrap && !*httpBootstrap {
-		v := strings.TrimSpace(os.Getenv("CYBERSTRIKE_HTTPS"))
+		v := strings.TrimSpace(os.Getenv("KESTREL_HTTPS"))
 		if v == "1" || strings.EqualFold(v, "true") || strings.EqualFold(v, "yes") {
 			*httpsBootstrap = true
 		}
@@ -47,7 +47,7 @@ func main() {
 		cp = "config.yaml"
 	}
 	if strings.HasPrefix(cp, "-") {
-		fmt.Fprintf(os.Stderr, "Invalid -config path %q.\nIf HTTPS is also needed, use: ./cyberstrike-ai --https -config config.yaml (-config must be followed by a yaml file path).\n", cp)
+		fmt.Fprintf(os.Stderr, "Invalid -config path %q.\nIf HTTPS is also needed, use: ./kestrel --https -config config.yaml (-config must be followed by a yaml file path).\n", cp)
 		os.Exit(2)
 	}
 	localConfig, err := config.EnsureLocalConfig(cp)

@@ -350,7 +350,7 @@ func New(cfg *config.Config, log *logger.Logger, configPath string) (*App, error
 		}()
 	}
 
-	// 配置文件路径必须由入口传入（与 flag -config 一致）。勿再用 os.Args[1]，否则 ./cyberstrike-ai --https 会把 --https 当成路径。
+	// 配置文件路径必须由入口传入（与 flag -config 一致）。勿再用 os.Args[1]，否则 ./kestrel --https 会把 --https 当成路径。
 	configPath = strings.TrimSpace(configPath)
 	if configPath == "" {
 		configPath = "config.yaml"

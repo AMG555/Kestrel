@@ -831,7 +831,7 @@
         updateTurnRailState();
     }
 
-    window.CyberStrikeChatScroll = {
+    window.KestrelChatScroll = {
         init: initChatScroll,
         onUserSendMessage: onUserSendMessage,
         onStreamEnd: onStreamEnd,

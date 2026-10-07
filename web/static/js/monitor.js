@@ -7,7 +7,7 @@ const TASK_FINAL_STATUSES = new Set(['failed', 'timeout', 'cancelled', 'complete
 const hitlInterruptToolItemMap = new Map();
 let activeTasksLoadPromise = null;
 let activeTasksVisualSignature = '';
-const CHAT_TASK_SYNC_CHANNEL_NAME = 'cyberstrike-chat-task-sync-v1';
+const CHAT_TASK_SYNC_CHANNEL_NAME = 'kestrel-chat-task-sync-v1';
 let chatTaskSyncChannel = null;
 let visibleConversationReplaySyncPromise = null;
 let visibleConversationReplaySyncId = '';
@@ -2298,9 +2298,9 @@ function startProcessDetailsLatestFollow(assistantMessageId, options) {
         state.lastScrollTop = timeline.scrollTop;
         updateProcessDetailsReturnLatestControl(timeline);
         // 内层迭代区与外层对话区分别粘底；用户上滑内层后，本状态会暂停两者的自动跟随。
-        if (window.CyberStrikeChatScroll &&
-            typeof window.CyberStrikeChatScroll.scrollIfPinned === 'function') {
-            window.CyberStrikeChatScroll.scrollIfPinned(true);
+        if (window.KestrelChatScroll &&
+            typeof window.KestrelChatScroll.scrollIfPinned === 'function') {
+            window.KestrelChatScroll.scrollIfPinned(true);
         }
     };
     const scheduleFollowLatest = function () {
@@ -2626,8 +2626,8 @@ function toggleProcessDetails(progressId, assistantMessageId) {
     // 滚动到展开的详情位置（流式且用户上滑阅读时不抢主列表滚动）
     if (timeline && timeline.classList.contains('expanded')) {
         setTimeout(() => {
-            if (window.CyberStrikeChatScroll && typeof window.CyberStrikeChatScroll.scrollIntoViewIfFollowing === 'function') {
-                window.CyberStrikeChatScroll.scrollIntoViewIfFollowing(detailsContainer, { behavior: 'smooth', block: 'nearest' });
+            if (window.KestrelChatScroll && typeof window.KestrelChatScroll.scrollIntoViewIfFollowing === 'function') {
+                window.KestrelChatScroll.scrollIntoViewIfFollowing(detailsContainer, { behavior: 'smooth', block: 'nearest' });
             } else if (typeof window.captureScrollPinState === 'function' ? window.captureScrollPinState() : true) {
                 detailsContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }
@@ -5328,8 +5328,8 @@ function expandProcessDetailsTimeline(assistantMessageId) {
         window.syncAssistantTurnSummary(document.getElementById(assistantMessageId));
     }
     setTimeout(function () {
-        if (window.CyberStrikeChatScroll && typeof window.CyberStrikeChatScroll.scrollIntoViewIfFollowing === 'function') {
-            window.CyberStrikeChatScroll.scrollIntoViewIfFollowing(detailsContainer, { behavior: 'smooth', block: 'nearest' });
+        if (window.KestrelChatScroll && typeof window.KestrelChatScroll.scrollIntoViewIfFollowing === 'function') {
+            window.KestrelChatScroll.scrollIntoViewIfFollowing(detailsContainer, { behavior: 'smooth', block: 'nearest' });
         } else if (typeof window.captureScrollPinState === 'function' ? window.captureScrollPinState() : true) {
             detailsContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
@@ -5589,11 +5589,11 @@ async function reconcileConversationAfterTaskReplay(conversationId, keepFollowin
         await refreshLastAssistantProcessDetails(conversationId);
     }
     collapseAllProgressDetails(assistantEl.id, null, { force: true });
-    if (keepFollowing && window.CyberStrikeChatScroll) {
-        if (typeof window.CyberStrikeChatScroll.settleToBottomIfFollowing === 'function') {
-            window.CyberStrikeChatScroll.settleToBottomIfFollowing(24);
-        } else if (typeof window.CyberStrikeChatScroll.forceScrollToBottom === 'function') {
-            window.CyberStrikeChatScroll.forceScrollToBottom(false);
+    if (keepFollowing && window.KestrelChatScroll) {
+        if (typeof window.KestrelChatScroll.settleToBottomIfFollowing === 'function') {
+            window.KestrelChatScroll.settleToBottomIfFollowing(24);
+        } else if (typeof window.KestrelChatScroll.forceScrollToBottom === 'function') {
+            window.KestrelChatScroll.forceScrollToBottom(false);
         }
     }
     if (typeof loadConversations === 'function') loadConversations();
@@ -5688,8 +5688,8 @@ async function attachRunningTaskEventStream(conversationId) {
             const progressId = taskReplayProgressId(conversationId);
             beginCsTaskReplay(progressId, asEl.id, conversationId);
 
-            if (window.CyberStrikeChatScroll && typeof window.CyberStrikeChatScroll.onTaskEventStreamBegin === 'function') {
-                window.CyberStrikeChatScroll.onTaskEventStreamBegin(conversationId, asEl.id, progressId);
+            if (window.KestrelChatScroll && typeof window.KestrelChatScroll.onTaskEventStreamBegin === 'function') {
+                window.KestrelChatScroll.onTaskEventStreamBegin(conversationId, asEl.id, progressId);
             }
             // task-events 补流期间持续跟随迭代思考区；用户向上滚动详情时会立即解除。
             startProcessDetailsLatestFollow(asEl.id, { persistent: true });
@@ -5697,17 +5697,17 @@ async function attachRunningTaskEventStream(conversationId) {
             // 刷新后的初始消息渲染已经滚到底部，但恢复最新一页详情会再次增高 DOM。
             // 若用户期间没有主动上滑，完成补页后重新精确粘底；主动浏览历史时不抢滚动。
             if (
-                window.CyberStrikeChatScroll &&
-                typeof window.CyberStrikeChatScroll.settleToBottomIfFollowing === 'function' &&
+                window.KestrelChatScroll &&
+                typeof window.KestrelChatScroll.settleToBottomIfFollowing === 'function' &&
                 (typeof window.captureScrollPinState !== 'function' || window.captureScrollPinState())
             ) {
-                window.CyberStrikeChatScroll.settleToBottomIfFollowing(12);
+                window.KestrelChatScroll.settleToBottomIfFollowing(12);
             } else if (
-                window.CyberStrikeChatScroll &&
-                typeof window.CyberStrikeChatScroll.forceScrollToBottom === 'function' &&
+                window.KestrelChatScroll &&
+                typeof window.KestrelChatScroll.forceScrollToBottom === 'function' &&
                 (typeof window.captureScrollPinState !== 'function' || window.captureScrollPinState())
             ) {
-                window.CyberStrikeChatScroll.forceScrollToBottom(false);
+                window.KestrelChatScroll.forceScrollToBottom(false);
             }
 
             const eventStreamResult = await eventStreamResponsePromise;
@@ -5719,8 +5719,8 @@ async function attachRunningTaskEventStream(conversationId) {
                 if (progressTaskState.has(progressId)) {
                     progressTaskState.delete(progressId);
                 }
-                if (window.CyberStrikeChatScroll && typeof window.CyberStrikeChatScroll.onTaskEventStreamEnd === 'function') {
-                    window.CyberStrikeChatScroll.onTaskEventStreamEnd();
+                if (window.KestrelChatScroll && typeof window.KestrelChatScroll.onTaskEventStreamEnd === 'function') {
+                    window.KestrelChatScroll.onTaskEventStreamEnd();
                 }
                 await reconcileConversationAfterTaskReplay(conversationId, true);
                 return false;
@@ -5770,8 +5770,8 @@ async function attachRunningTaskEventStream(conversationId) {
             if (replaySawDone && progressTaskState.has(progressId)) {
                 finalizeProgressTask(progressId, typeof window.t === 'function' ? window.t('tasks.statusCompleted') : '已完成');
             }
-            if (window.CyberStrikeChatScroll && typeof window.CyberStrikeChatScroll.onTaskEventStreamEnd === 'function') {
-                window.CyberStrikeChatScroll.onTaskEventStreamEnd();
+            if (window.KestrelChatScroll && typeof window.KestrelChatScroll.onTaskEventStreamEnd === 'function') {
+                window.KestrelChatScroll.onTaskEventStreamEnd();
             }
             stopProcessDetailsLatestFollow(asEl.id);
             if (typeof loadActiveTasks === 'function') loadActiveTasks();
@@ -5800,16 +5800,16 @@ async function attachRunningTaskEventStream(conversationId) {
                 // 最终消息和详情重绘都会增高 DOM；仅当用户之前仍在跟随时重新粘底。
                 if (
                     keepFollowingFinalRender &&
-                    window.CyberStrikeChatScroll &&
-                    typeof window.CyberStrikeChatScroll.settleToBottomIfFollowing === 'function'
+                    window.KestrelChatScroll &&
+                    typeof window.KestrelChatScroll.settleToBottomIfFollowing === 'function'
                 ) {
-                    window.CyberStrikeChatScroll.settleToBottomIfFollowing(18);
+                    window.KestrelChatScroll.settleToBottomIfFollowing(18);
                 } else if (
                     keepFollowingFinalRender &&
-                    window.CyberStrikeChatScroll &&
-                    typeof window.CyberStrikeChatScroll.forceScrollToBottom === 'function'
+                    window.KestrelChatScroll &&
+                    typeof window.KestrelChatScroll.forceScrollToBottom === 'function'
                 ) {
-                    window.CyberStrikeChatScroll.forceScrollToBottom(false);
+                    window.KestrelChatScroll.forceScrollToBottom(false);
                 }
             }
             return true;
@@ -5821,8 +5821,8 @@ async function attachRunningTaskEventStream(conversationId) {
             if (ownsCurrentAttach && window.csTaskReplay && window.csTaskReplay.conversationId === conversationId) {
                 clearCsTaskReplay();
             }
-            if (ownsCurrentAttach && window.CyberStrikeChatScroll && typeof window.CyberStrikeChatScroll.onTaskEventStreamEnd === 'function') {
-                window.CyberStrikeChatScroll.onTaskEventStreamEnd();
+            if (ownsCurrentAttach && window.KestrelChatScroll && typeof window.KestrelChatScroll.onTaskEventStreamEnd === 'function') {
+                window.KestrelChatScroll.onTaskEventStreamEnd();
             }
             if (ownsCurrentAttach) {
                 const currentAssistant = findLastAssistantMessageElInChat();
@@ -5922,7 +5922,7 @@ function isToolGuardBlockedResult(value, depth, allowLegacy) {
     if (typeof value !== 'object') return false;
     if (Array.isArray(value)) return value.some(function (part) { return isToolGuardBlockedResult(part, depth + 1, allowLegacy); });
     if (value.blocked === true || value.status === 'blocked' || value.displayStatus === 'blocked') return true;
-    if (value._meta && value._meta['cyberstrike.ai/blocked'] === true) return true;
+    if (value._meta && value._meta['kestrel.ai/blocked'] === true) return true;
     if (value.success === true || value.isError === false || value.status === 'completed') allowLegacy = false;
     return ['result', 'error', 'content', 'text', 'resultPreview'].some(function (key) {
         return isToolGuardBlockedResult(value[key], depth + 1, allowLegacy);
@@ -6166,8 +6166,8 @@ async function renderToolCallDetailContent(item) {
     updateToolDetailToggleLabel(item);
 }
 
-if (typeof document !== 'undefined' && !document.__cyberStrikeToolCallDetailToggleBound) {
-    document.__cyberStrikeToolCallDetailToggleBound = true;
+if (typeof document !== 'undefined' && !document.__kestrelToolCallDetailToggleBound) {
+    document.__kestrelToolCallDetailToggleBound = true;
     document.addEventListener('click', function (event) {
         const target = event.target;
         if (target && target.closest && target.closest('button, a, input, textarea, select, pre, code, .timeline-item-content')) {

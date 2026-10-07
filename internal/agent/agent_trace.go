@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-const ModelFacingTraceVersionKey = "cyberstrike_model_facing_trace_version"
+const ModelFacingTraceVersionKey = "kestrel_model_facing_trace_version"
 
 // IsModelFacingTraceJSON reports whether a persisted trace was produced from the final
 // model-boundary state. Legacy traces have no version marker and require one-time migration.

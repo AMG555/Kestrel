@@ -198,7 +198,7 @@ func SlugID(name string) string {
 	return s
 }
 
-// sanitizeEinoAgentID 规范化 Deep 主代理在 Eino 中的 Name：小写 ASCII、数字、连字符，与默认 cyberstrike-deep 一致。
+// sanitizeEinoAgentID 规范化 Deep 主代理在 Eino 中的 Name：小写 ASCII、数字、连字符，与默认 kestrel-deep 一致。
 func sanitizeEinoAgentID(s string) string {
 	s = strings.TrimSpace(strings.ToLower(s))
 	var b strings.Builder
@@ -212,7 +212,7 @@ func sanitizeEinoAgentID(s string) string {
 	}
 	out := strings.Trim(b.String(), "-")
 	if out == "" {
-		return "cyberstrike-deep"
+		return "kestrel-deep"
 	}
 	return out
 }

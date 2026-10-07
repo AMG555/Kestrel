@@ -64,7 +64,7 @@ func generateMainServerSelfSignedCert() (tls.Certificate, error) {
 	}
 	tmpl := &x509.Certificate{
 		SerialNumber: serial,
-		Subject:      pkix.Name{CommonName: "CyberStrikeAI"},
+		Subject:      pkix.Name{CommonName: "Kestrel"},
 		NotBefore:    time.Now().Add(-1 * time.Hour),
 		NotAfter:     time.Now().Add(365 * 24 * time.Hour),
 		KeyUsage:     x509.KeyUsageDigitalSignature,
