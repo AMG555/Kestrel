@@ -1,48 +1,46 @@
 # Pent Claude Agent MCP
 
-[English](README.md)
+AI-powered **penetration testing engineer** MCP server. Kestrel can command it to run pentest tasks, analyze vulnerabilities, and perform security diagnostics. The agent runs a Claude-based AI internally and can be configured with its own MCP servers and tools.
 
-AI 驱动的**渗透测试工程师** MCP 服务。Kestrel 可指挥 pent_claude_agent 执行渗透测试任务、分析漏洞、进行安全诊断。Agent 内部使用 Claude Agent SDK，可独立配置 MCP、工具等，作为独立的渗透测试工程师运行。
+## Tools
 
-## 工具说明
+| Tool | Description |
+|------|-------------|
+| `pent_claude_run_pentest_task` | Run a penetration testing task. The agent executes independently and returns results. |
+| `pent_claude_analyze_vulnerability` | Analyze vulnerability information and provide remediation suggestions. |
+| `pent_agent_execute` | Execute a task. The agent chooses appropriate tools and methods. |
+| `pent_agent_diagnose` | Diagnose a target (URL, IP, domain) for security assessment. |
+| `pent_claude_status` | Get the current status of pent_claude_agent. |
 
-| 工具 | 说明 |
-|------|------|
-| `pent_claude_run_pentest_task` | 执行渗透测试任务，Agent 独立执行并返回结果。 |
-| `pent_claude_analyze_vulnerability` | 分析漏洞信息并给出修复建议。 |
-| `pent_agent_execute` | 执行指定任务，Agent 自动选择工具和方法。 |
-| `pent_agent_diagnose` | 对目标（URL、IP、域名）进行安全诊断。 |
-| `pent_claude_status` | 获取 pent_claude_agent 的当前状态。 |
-
-## 依赖
+## Requirements
 
 - Python 3.10+
-- `mcp`、`claude-agent-sdk`、`pyyaml`（使用项目 venv 时已包含；单独运行需：`pip install mcp claude-agent-sdk pyyaml`）
+- `mcp`, `claude-agent-sdk`, `pyyaml` (included if using the project venv; otherwise: `pip install mcp claude-agent-sdk pyyaml`)
 
-## 配置
+## Configuration
 
-Agent 默认使用本目录下的 `pent_claude_agent_config.yaml`。可通过以下方式覆盖：
+The agent uses `pent_claude_agent_config.yaml` in this directory by default. You can override via:
 
-- 启动 MCP 时传入 `--config /path/to/config.yaml`
-- 环境变量 `PENT_CLAUDE_AGENT_CONFIG`
+- `--config /path/to/config.yaml` when starting the MCP server
+- Environment variable `PENT_CLAUDE_AGENT_CONFIG`
 
-配置项（参见 `pent_claude_agent_config.yaml`）：
+Config options (see `pent_claude_agent_config.yaml`):
 
-- `cwd`: Agent 工作目录
-- `allowed_tools`: Agent 可用的工具（Read、Write、Bash、Grep、Glob 等）
-- `mcp_servers`: Agent 可挂载的 MCP 服务器（如 reverse_shell）
-- `env`: 环境变量（API Key 等）
-- `system_prompt`: 角色与行为定义
+- `cwd`: Working directory for the agent
+- `allowed_tools`: Tools the agent can use (Read, Write, Bash, Grep, Glob, etc.)
+- `mcp_servers`: MCP servers the agent can use (e.g. reverse_shell)
+- `env`: Environment variables (API keys, etc.)
+- `system_prompt`: Role and behavior definition
 
-路径占位符：`${PROJECT_ROOT}` = Kestrel 项目根目录，`${SCRIPT_DIR}` = 本脚本所在目录。
+Path placeholders: `${PROJECT_ROOT}` = Kestrel root, `${SCRIPT_DIR}` = this script's directory.
 
-## 在 Kestrel 中接入
+## Setup in Kestrel
 
-1. **路径**  
-   例如项目根为 `/path/to/Kestrel-main`，则脚本路径为：  
-   `/path/to/Kestrel-main/mcp-servers/pent_claude_agent/mcp_pent_claude_agent.py`
+1. **Paths**
+   Example: project root `/path/to/Kestrel-main`
+   Script: `/path/to/Kestrel-main/mcp-servers/pent_claude_agent/mcp_pent_claude_agent.py`
 
-2. **Web 界面** → **设置** → **外部 MCP** → **添加外部 MCP**，填入以下 JSON（将路径替换为你的实际路径）：
+2. **Web UI** → **Settings** → **External MCP** → **Add External MCP**. Paste JSON (replace paths with yours):
 
 ```json
 {
@@ -53,33 +51,33 @@ Agent 默认使用本目录下的 `pent_claude_agent_config.yaml`。可通过以
       "--config",
       "/path/to/Kestrel-main/mcp-servers/pent_claude_agent/pent_claude_agent_config.yaml"
     ],
-    "description": "渗透测试工程师：下发任务后独立执行并返回结果",
+    "description": "Penetration testing engineer: run pentest tasks, analyze vulnerabilities, get status",
     "timeout": 300,
     "external_mcp_enable": true
   }
 }
 ```
 
-   - `command`：建议使用项目 **venv** 中的 Python，或系统 `python3`。
-   - `args`：**必须使用绝对路径** 指向 `mcp_pent_claude_agent.py`。如需指定配置可追加 `--config` 及配置路径。
-   - `timeout`：建议 300（渗透测试任务可能较长）。
-   - 保存后点击该 MCP 的 **启动**，即可在对话中通过 AI 调用上述工具。
+   - `command`: Prefer the project **venv** Python; or use system `python3`.
+   - `args`: **Must be absolute path** to `mcp_pent_claude_agent.py`. Add `--config` and config path if needed.
+   - `timeout`: 300 recommended (pentest tasks can be long).
+   - Save, then click **Start** for this MCP to use the tools in chat.
 
-3. **使用流程示例**
-   - Kestrel 调用 `pent_claude_run_pentest_task("扫描目标 192.168.1.1 的开放端口")`。
-   - pent_claude_agent 内部启动 Claude Agent，可能使用 Bash、nmap 等工具执行。
-   - 结果返回给 Kestrel。
+3. **Typical workflow**
+   - Kestrel calls `pent_claude_run_pentest_task("Scan target 192.168.1.1 for open ports")`.
+   - pent_claude_agent starts a Claude agent internally, which may use Bash, nmap, etc.
+   - Results are returned to Kestrel.
 
-## 本地单独运行（可选）
+## Run locally (optional)
 
 ```bash
-# 在项目根目录，使用 venv
+# From project root, with venv
 ./venv/bin/python mcp-servers/pent_claude_agent/mcp_pent_claude_agent.py
 ```
 
-进程通过 stdio 与 MCP 客户端通信；Kestrel 以 stdio 方式启动该脚本时行为相同。
+The process talks MCP over stdio; Kestrel starts it the same way when using External MCP.
 
-## 安全提示
+## Security
 
-- 仅在有授权、隔离的测试环境中使用。
-- 配置中的 API Key 需妥善保管；生产环境建议使用环境变量。
+- Use only in authorized, isolated test environments.
+- API keys in config should be kept secure; prefer environment variables for production.

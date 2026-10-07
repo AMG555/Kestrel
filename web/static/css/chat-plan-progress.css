@@ -79,8 +79,10 @@
 }
 
 /*
- * “回到最新消息”只在用户离开底部时出现。它与任务进度同为居中浮层，
- * 两者同时可见时让任务进度上移，保留回到底部按钮靠近输入框的位置。
+ * "Back to latest message" only appears when the user has scrolled away from the bottom.
+ * It and the task progress indicator are both centred floating overlays;
+ * when both are visible, the task progress shifts up to keep the scroll-to-bottom
+ * button close to the input box.
  */
 .chat-return-latest:not([hidden]) + .agent-plan-progress:not([hidden]) {
     --agent-plan-trigger-bottom: 64px;

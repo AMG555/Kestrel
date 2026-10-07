@@ -1,14 +1,14 @@
-# API / 参考（示例）
+# API / Reference (example)
 
 ## HTTP `/api/skills/{id}`
 
-- `resource_path`：包内相对路径，例如 `FORMS.md`、`scripts/payloads.txt`。
-- `depth=summary`：仅摘要与目录，适合首轮检索。
+- `resource_path`: package-relative path, e.g. `FORMS.md`, `scripts/payloads.txt`.
+- `depth=summary`: summary and table of contents only, suitable for first-pass retrieval.
 
-## 多代理运行时
+## Multi-Agent Runtime
 
-- 使用 Eino ADK **`skill`** 工具按技能包渐进加载；可选开启 `multi_agent.eino_skills.filesystem_tools` 访问包内文件。
+- Use Eino ADK **`skill`** tool to progressively load by skill package; optionally enable `multi_agent.eino_skills.filesystem_tools` to access files within the package.
 
-## 链接
+## Links
 
-- [Agent Skills 概览](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview)
+- [Agent Skills Overview](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview)

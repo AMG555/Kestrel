@@ -1,6 +1,6 @@
 ## Kestrel Browser Extension
 
-**Version 0.3.10** — Full docs: **README.zh-CN.md**
+**Version 0.3.10** — Full docs: **README.zh-CN.md** (English)
 
 Chromium DevTools extension: capture Network traffic and send it to Kestrel for AI-assisted security testing. Aligned with the Burp Suite plugin.
 

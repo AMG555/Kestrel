@@ -1,112 +1,111 @@
-## Kestrel Burp Suite 插件（中文说明）
+## Kestrel Burp Suite Extension
 
-### 功能概述
+### Features
 
-- 在 Burp 的 `Kestrel` 标签页中配置 **Host、端口、密码**
-- 点击 **Validate（验证）**：
-  - 调用 `POST /api/auth/login` 用密码换取 Token
-  - 调用 `GET /api/auth/validate` 校验 Token
-  - 验证通过后 Token 会保存在插件内存中（本次 Burp 会话有效）
-- 右键任意 HTTP 请求包 → **Send to Kestrel (stream test)**：
-  - 弹出发送对话框，可针对**当前流量**选择：
-    - **项目**（`GET /api/projects`，新建对话时绑定 `projectId`）
-    - **角色**（`GET /api/roles`）
-    - **对话模式**（Eino 单代理 / Deep / Plan-Execute / Supervisor，按次选择并记住上次取值）
-    - **测试指令**（可编辑 prompt 前缀）
-  - 选择会记住上次取值，便于连续测同类流量
-- **测试历史侧边栏（可搜索）**：每次发送都会新增一条记录，方便回看与对比
-- **Output 分区**：`Progress`（可折叠）+ `Final Response`（主区域）
-- **Markdown 渲染**：最终输出可在 Output 主区域渲染为富文本（可开关）
-- **Request / Response 回看**：右侧 Tab 可直接查看该次捕获到的原始请求/响应
-- **Stop 取消**：任务创建会话后可调用 `/api/agent-loop/cancel` 停止当前会话任务
+- Configure **Host, Port, and Password** in the `Kestrel` tab inside Burp
+- Click **Validate**:
+  - Calls `POST /api/auth/login` to exchange the password for a token
+  - Calls `GET /api/auth/validate` to verify the token
+  - On success the token is stored in plugin memory (valid for the current Burp session)
+- Right-click any HTTP request → **Send to Kestrel (stream test)**:
+  - Opens a send dialog where you can configure for **the current traffic**:
+    - **Project** (`GET /api/projects`; the `projectId` is bound when a new conversation is created)
+    - **Role** (`GET /api/roles`)
+    - **Conversation mode** (Eino Single / Deep / Plan-Execute / Supervisor; chosen per request and remembered)
+    - **Test instruction** (editable prompt prefix)
+  - Selections are remembered from the previous request for convenient consecutive testing of similar traffic
+- **Test history sidebar (searchable)**: each Send adds a record for easy review and comparison
+- **Output area**: `Progress` (collapsible) + `Final Response` (main area)
+- **Markdown rendering**: final output can be rendered as rich text in the Output main area (toggleable)
+- **Request / Response review**: right-side tabs let you view the raw captured request/response
+- **Stop cancel**: after a task creates a conversation, call `/api/agent-loop/cancel` to stop the current session task
 
-### 编译（不依赖 Gradle/Maven，推荐）
+### Build (recommended — no Gradle/Maven required)
 
-> 给普通用户：你们应当直接发 **编译好的 jar**，用户在 Burp 里加载即可，**不需要编译**。
+> For regular users: distribute the **pre-built jar** and users load it in Burp — **no compilation needed**.
 
-#### 方式 A（推荐，通用）：用 Maven 编译（不需要知道 Burp 在哪）
+#### Method A (recommended, general): build with Maven (no need to know where Burp is)
 
-适合：开发者/CI 打包一次，发布给所有用户使用。
+Suitable for: developers / CI packaging once, distributing to all users.
 
-环境要求：
+Requirements:
 
 - JDK 11+
-- Maven（会从 Maven Central 下载 `burp-extender-api` 依赖）
+- Maven (downloads `burp-extender-api` dependency from Maven Central)
 
-编译打包：
+Build:
 
 ```bash
 cd plugins/burp-suite/Kestrel-burp-extension
 ./build-mvn.sh
 ```
 
-产物：
+Output:
 
 - `dist/Kestrel-burp-extension.jar`
 
-#### 方式 B（离线）：纯 JDK 编译（需要 Burp 的 API jar）
+#### Method B (offline): pure JDK build (requires the Burp API jar)
 
 - JDK 11+
-- Burp Extender API 的 jar（来自你的 Burp 安装目录）
+- Burp Extender API jar (from your Burp installation directory)
 
-#### 步骤
+#### Steps
 
-1) 在插件目录创建 `lib/`，并把 `burp-extender-api.jar` 复制进去：
+1) Create `lib/` in the plugin directory and copy `burp-extender-api.jar` into it:
 
 ```bash
 cd plugins/burp-suite/Kestrel-burp-extension
 mkdir -p lib
-# 复制 Burp 自带的 API jar 到这里，例如：
+# Copy the Burp API jar here, e.g.:
 # cp "/path/to/burp-extender-api.jar" lib/
 ```
 
-2) 一键编译打包：
+2) One-command build:
 
 ```bash
 cd plugins/burp-suite/Kestrel-burp-extension
 ./build.sh
 ```
 
-产物：
+Output:
 
 - `dist/Kestrel-burp-extension.jar`
 
-### 在 Burp Suite 中加载
+### Loading in Burp Suite
 
 - Burp Suite → **Extensions** → **Installed** → **Add**
-- Extension type：**Java**
-- 选择 `dist/Kestrel-burp-extension.jar`
+- Extension type: **Java**
+- Select `dist/Kestrel-burp-extension.jar`
 
-### 使用方法
+### Usage
 
-1) 打开 Burp 顶部标签页 `Kestrel`
-2) 填写：
-   - **Host**：例如 `127.0.0.1`
-   - **Port**：例如 `8080`
-   - **HTTPS**：默认勾选（对接 `config.yaml` 中 `tls_enabled` / 自签证书）；插件会自动信任本地自签证书，无需导入
-   - **Password**：你的 Kestrel 登录密码（对应服务端 `auth.password`）
-3) 点击 **Validate**
-   - 成功：状态显示 `OK (token saved)`
-   - 失败：状态会显示错误原因（例如密码错误、服务不可达、401/403 等）
-4) 在 Burp 的 Proxy/HTTP history/Repeater 等列表中选中一条 HTTP 包
-5) 右键 → **Send to Kestrel (stream test)**
-6) 在弹出框中按需选择**项目、角色、对话模式**，并编辑测试指令后点确定
-7) 每次发送后会在 `Kestrel` 标签页左侧显示一个“测试记录”（请求标题 + 模式/角色 + 状态）；点击对应记录即可在右侧查看该次的流式输出结果
+1) Open the `Kestrel` tab at the top of Burp
+2) Fill in:
+   - **Host**: e.g. `127.0.0.1`
+   - **Port**: e.g. `8080`
+   - **HTTPS**: checked by default (for `tls_enabled` / self-signed certificates in `config.yaml`); the plugin trusts local self-signed certificates automatically, no import required
+   - **Password**: your Kestrel login password (corresponds to `auth.password` on the server)
+3) Click **Validate**
+   - Success: status shows `OK (token saved)`
+   - Failure: status shows the error reason (e.g. wrong password, server unreachable, 401/403, etc.)
+4) Select an HTTP message in Burp's Proxy / HTTP history / Repeater list
+5) Right-click → **Send to Kestrel (stream test)**
+6) In the dialog, choose **project, role, and conversation mode** as needed, edit the test instruction, and confirm
+7) Each Send adds a "test record" (request title + mode/role + status) in the left sidebar of the `Kestrel` tab; click the record to view the streaming output on the right
 
-### 常见问题（排错）
+### Troubleshooting
 
-- **Validate 失败 / 401**
-  - 确认密码是否正确（服务端 `auth.password`）
-  - 确认 IP/端口是否能访问（例如浏览器能打开 `https://IP:PORT/`）
-  - 服务端启用 TLS 时勾选 **HTTPS**（默认已勾选）；自签证书无需手动导入
-  - 若仍为纯 HTTP 部署，取消勾选 **HTTPS**
+- **Validate fails / 401**
+  - Confirm the password is correct (server-side `auth.password`)
+  - Confirm the IP/port is reachable (e.g. the browser can open `https://IP:PORT/`)
+  - Check **HTTPS** when the server has TLS enabled (checked by default); self-signed certificates require no manual import
+  - Uncheck **HTTPS** if using plain HTTP
 
-- **选择 Multi Agent 后提示“多代理未启用”**
-  - 服务端需要开启：`config.yaml` 中 `multi_agent.enabled: true`
-  - 并重启服务（或按你们项目的动态 apply 配置流程启用）
+- **"Multi-agent not enabled" shown after selecting Multi Agent**
+  - Enable it server-side: set `multi_agent.enabled: true` in `config.yaml`
+  - Restart the server (or apply the config dynamically per your project's procedure)
 
-- **右键发送后无流式输出**
-  - 先确认已 Validate（拿到 Token）
-  - 确认 Burp 能访问到 Kestrel（网络/代理/防火墙）
-  - 服务端的流式端点为 SSE，插件会解析 `data: {json}` 行；如果中间件缓冲可能影响实时性
-
+- **No streaming output after right-click Send**
+  - Confirm Validate has been completed (token obtained)
+  - Confirm Burp can reach Kestrel (network / proxy / firewall)
+  - The server's streaming endpoint is SSE; the plugin parses `data: {json}` lines. Middleware buffering may reduce real-time responsiveness

@@ -293,7 +293,7 @@ html[data-theme="dark"] .c2-checkbox-label {
     cursor: pointer;
 }
 
-/* 原生下拉：避免 appearance:none 在部分浏览器中导致 select 无法正常展开 */
+/* Native dropdown: avoid appearance:none causing select to fail to open properly in some browsers */
 #page-c2-payloads select.form-control.c2-native-select,
 #page-c2-sessions select.form-control.c2-native-select,
 .c2-modal select.form-control.c2-native-select {
@@ -1572,7 +1572,7 @@ html[data-theme="dark"] #page-c2-payloads .c2-form-select-option.is-selected {
     transition: background 0.2s ease;
 }
 
-/* 悬停或滚动中才显示滑块 */
+/* Show scrollbar thumb only on hover or while scrolling */
 .c2-terminal-container:hover .xterm-viewport,
 .c2-terminal-container.is-scrollbar-visible .xterm-viewport {
     scrollbar-color: rgba(148, 163, 184, 0.45) transparent;
@@ -4127,7 +4127,7 @@ html[data-theme="dark"] .c2-session-note-textarea {
     color: var(--c2-text);
 }
 
-/* .c2-modal-close 样式见 style.css 统一关闭按钮 */
+/* .c2-modal-close styles are in style.css unified close button */
 
 .c2-modal-body {
     flex: 1 1 auto;

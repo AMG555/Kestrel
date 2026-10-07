@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 """
-Pent Claude Agent MCP Server - 渗透测试工程师 MCP 服务
+Pent Claude Agent MCP Server - Penetration Tester MCP Service
 
-通过 MCP 协议暴露 AI 渗透测试能力：Kestrel 可指挥 pent_claude_agent 执行渗透测试任务。
-pent_claude_agent 内部使用 Claude Agent SDK，可独立配置 MCP、工具等，作为独立的渗透测试工程师运行。
+Exposes AI penetration testing capabilities over the MCP protocol: Kestrel can
+direct pent_claude_agent to execute penetration testing tasks.
+Internally pent_claude_agent uses the Claude Agent SDK and can be configured
+independently with its own MCP servers and tools, running as a standalone
+penetration testing engineer.
 
-依赖：pip install mcp claude-agent-sdk（或使用项目 venv）
-运行：python mcp_pent_claude_agent.py [--config /path/to/config.yaml]
+Requirements: pip install mcp claude-agent-sdk (or use the project venv)
+Usage: python mcp_pent_claude_agent.py [--config /path/to/config.yaml]
 """
 
 from __future__ import annotations
@@ -19,7 +22,7 @@ from typing import Any
 import yaml
 from mcp.server.fastmcp import FastMCP
 
-# 延迟导入，避免未安装时影响 MCP 启动
+# Lazy import — avoids breaking MCP startup when the SDK is not installed
 _claude_sdk_available = False
 try:
     from claude_agent_sdk import ClaudeAgentOptions, query
@@ -29,21 +32,21 @@ except ImportError:
     pass
 
 # ---------------------------------------------------------------------------
-# 路径与配置
+# Paths and configuration
 # ---------------------------------------------------------------------------
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(os.path.dirname(SCRIPT_DIR))
 _DEFAULT_CONFIG_PATH = os.path.join(SCRIPT_DIR, "pent_claude_agent_config.yaml")
 
-# Agent 运行状态（简单内存状态，用于 status）
+# Agent runtime state (simple in-memory state used by status)
 _last_task: str | None = None
 _last_result: str | None = None
 _task_count: int = 0
 
 
 def _load_config(config_path: str | None) -> dict[str, Any]:
-    """加载 YAML 配置，合并默认值与用户配置。"""
+    """Load YAML configuration, merging defaults with user overrides."""
     defaults: dict[str, Any] = {
         "cwd": PROJECT_ROOT,
         "allowed_tools": ["Read", "Write", "Bash", "Grep", "Glob"],
@@ -55,8 +58,9 @@ def _load_config(config_path: str | None) -> dict[str, Any]:
         },
         "mcp_servers": {},
         "system_prompt": (
-            "你是一名专业的渗透测试工程师。根据用户给出的任务，进行安全测试、漏洞分析、信息收集等。"
-            "请按步骤执行，输出清晰、可复现的结果。仅在授权范围内进行测试。"
+            "You are a professional penetration testing engineer. Based on the task provided by the user, "
+            "perform security testing, vulnerability analysis, and information gathering. "
+            "Execute step by step and produce clear, reproducible results. Only test within the authorized scope."
         ),
     }
     path = config_path or os.environ.get("PENT_CLAUDE_AGENT_CONFIG", _DEFAULT_CONFIG_PATH)
@@ -65,7 +69,7 @@ def _load_config(config_path: str | None) -> dict[str, Any]:
     try:
         with open(path, "r", encoding="utf-8") as f:
             user = yaml.safe_load(f) or {}
-        # 深度合并
+        # Deep merge
         def merge(base: dict, override: dict) -> dict:
             out = dict(base)
             for k, v in override.items():
@@ -81,18 +85,18 @@ def _load_config(config_path: str | None) -> dict[str, Any]:
 
 
 def _resolve_path(s: str) -> str:
-    """解析路径占位符。"""
+    """Resolve path placeholders."""
     return s.replace("${PROJECT_ROOT}", PROJECT_ROOT).replace("${SCRIPT_DIR}", SCRIPT_DIR)
 
 
 def _build_agent_options(config: dict[str, Any], cwd_override: str | None = None) -> ClaudeAgentOptions:
-    """从配置构建 ClaudeAgentOptions。"""
+    """Build ClaudeAgentOptions from the loaded configuration."""
     raw_cwd = cwd_override or config.get("cwd", PROJECT_ROOT)
     cwd = _resolve_path(str(raw_cwd)) if isinstance(raw_cwd, str) else str(raw_cwd)
     env = dict(os.environ)
     env.update(config.get("env", {}))
     mcp_servers = config.get("mcp_servers") or {}
-    # 解析路径占位符
+    # Resolve path placeholders in MCP server args
     for name, cfg in list(mcp_servers.items()):
         if isinstance(cfg, dict):
             args = cfg.get("args") or []
@@ -112,13 +116,13 @@ def _build_agent_options(config: dict[str, Any], cwd_override: str | None = None
 
 
 async def _run_claude_agent(prompt: str, config_path: str | None = None, cwd: str | None = None) -> str:
-    """内部执行 Claude Agent，返回最后一轮文本结果。"""
+    """Run Claude Agent internally and return the final text result."""
     global _last_task, _last_result, _task_count
     _last_task = prompt
     _task_count += 1
 
     if not _claude_sdk_available:
-        _last_result = "错误：未安装 claude-agent-sdk，请执行 pip install claude-agent-sdk"
+        _last_result = "Error: claude-agent-sdk is not installed. Run: pip install claude-agent-sdk"
         return _last_result
 
     config = _load_config(config_path)
@@ -129,17 +133,17 @@ async def _run_claude_agent(prompt: str, config_path: str | None = None, cwd: st
         async for message in query(prompt=prompt, options=options):
             messages.append(message)
     except Exception as e:
-        _last_result = f"Agent 执行异常: {e}"
+        _last_result = f"Agent execution error: {e}"
         return _last_result
 
     if not messages:
-        _last_result = "(无输出)"
+        _last_result = "(no output)"
         return _last_result
 
-    # 多轮迭代时，取最后一个 ResultMessage（最后一波结果）
+    # For multi-turn iteration, take the last ResultMessage
     result_msgs = [m for m in messages if hasattr(m, "result") and getattr(m, "result", None) is not None]
     last = result_msgs[-1] if result_msgs else messages[-1]
-    # 提取文本内容，优先 ResultMessage.result，避免输出 metadata
+    # Extract text content — prefer ResultMessage.result to avoid outputting metadata
     if hasattr(last, "result") and last.result is not None:
         text = last.result
     elif hasattr(last, "content") and last.content:
@@ -147,25 +151,25 @@ async def _run_claude_agent(prompt: str, config_path: str | None = None, cwd: st
         for block in last.content:
             if hasattr(block, "text") and block.text:
                 parts.append(block.text)
-        text = "\n".join(parts) if parts else "(无输出)"
+        text = "\n".join(parts) if parts else "(no output)"
     else:
-        text = "(无输出)"
+        text = "(no output)"
     _last_result = text
     return _last_result
 
 
 # ---------------------------------------------------------------------------
-# MCP 服务与工具
+# MCP service and tools
 # ---------------------------------------------------------------------------
 
 app = FastMCP(
     name="pent-claude-agent",
-    instructions="渗透测试工程师 MCP：接收任务后，内部启动 Claude Agent 独立执行渗透测试、漏洞分析等，并返回结果。",
+    instructions="Penetration Tester MCP: receives a task, internally starts a Claude Agent to independently execute penetration testing, vulnerability analysis, and similar work, then returns the results.",
 )
 
 
 @app.tool(
-    description="执行渗透测试任务。下发任务描述后，pent_claude_agent 会作为独立的渗透测试工程师，使用 Claude Agent 执行任务并返回结果。支持：端口扫描、漏洞探测、Web 安全测试、信息收集等。",
+    description="Execute a penetration testing task. After receiving the task description, pent_claude_agent acts as an independent penetration testing engineer and uses Claude Agent to carry out the task and return results. Supports: port scanning, vulnerability probing, web security testing, information gathering, and more.",
 )
 async def pent_claude_run_pentest_task(task: str) -> str:
     """Run a penetration testing task. The agent executes independently and returns results."""
@@ -173,16 +177,20 @@ async def pent_claude_run_pentest_task(task: str) -> str:
 
 
 @app.tool(
-    description="分析漏洞信息。传入漏洞描述、PoC、影响范围等，由 Agent 进行专业分析并给出修复建议。",
+    description="Analyze vulnerability information. Provide a vulnerability description, PoC, affected scope, etc. and the agent will perform a professional analysis and suggest remediation steps.",
 )
 async def pent_claude_analyze_vulnerability(vuln_info: str) -> str:
     """Analyze vulnerability information and provide remediation suggestions."""
-    prompt = f"请对以下漏洞信息进行专业分析，包括：风险等级、影响范围、利用方式、修复建议。\n\n{vuln_info}"
+    prompt = (
+        "Please perform a professional analysis of the following vulnerability information, covering: "
+        "risk level, impact scope, exploitation methods, and remediation recommendations.\n\n"
+        + vuln_info
+    )
     return await _run_claude_agent(prompt)
 
 
 @app.tool(
-    description="执行指定任务。通用任务执行入口，Agent 会根据任务内容自动选择合适的工具和方法。",
+    description="Execute a specified task. General-purpose task execution entry point — the agent automatically selects appropriate tools and methods based on the task content.",
 )
 async def pent_agent_execute(task: str) -> str:
     """Execute a task. The agent chooses appropriate tools and methods."""
@@ -190,25 +198,28 @@ async def pent_agent_execute(task: str) -> str:
 
 
 @app.tool(
-    description="对目标进行安全诊断。可传入 URL、IP、域名等，Agent 会进行初步的安全评估和诊断。",
+    description="Perform a security assessment on a target. Accepts a URL, IP address, domain name, etc. and the agent will run a preliminary security evaluation and diagnosis.",
 )
 async def pent_agent_diagnose(target: str) -> str:
     """Diagnose a target (URL, IP, domain) for security assessment."""
-    prompt = f"请对以下目标进行安全诊断和初步评估：{target}\n\n包括：可达性、开放服务、常见漏洞面等。"
+    prompt = (
+        f"Please perform a security diagnosis and preliminary assessment of the following target: {target}\n\n"
+        "Include: reachability, open services, and common attack surface."
+    )
     return await _run_claude_agent(prompt)
 
 
 @app.tool(
-    description="获取 pent_claude_agent 的当前状态：最近任务、结果摘要、执行次数等。",
+    description="Get the current status of pent_claude_agent: most recent task, result summary, execution count, etc.",
 )
 def pent_claude_status() -> str:
     """Get the current status of pent_claude_agent."""
     global _last_task, _last_result, _task_count
     lines = [
-        f"任务执行次数: {_task_count}",
-        f"最近任务: {_last_task or '-'}",
-        f"最近结果摘要: {(str(_last_result or '-')[:200] + '...') if _last_result and len(str(_last_result)) > 200 else (_last_result or '-')}",
-        f"Claude SDK 可用: {_claude_sdk_available}",
+        f"Task execution count: {_task_count}",
+        f"Last task: {_last_task or '-'}",
+        f"Last result summary: {(str(_last_result or '-')[:200] + '...') if _last_result and len(str(_last_result)) > 200 else (_last_result or '-')}",
+        f"Claude SDK available: {_claude_sdk_available}",
     ]
     return "\n".join(lines)
 
@@ -221,7 +232,7 @@ if __name__ == "__main__":
         help="Path to pent_claude_agent config YAML (env: PENT_CLAUDE_AGENT_CONFIG)",
     )
     args, _ = parser.parse_known_args()
-    # 将 config 路径存入环境，供工具调用时使用
+    # Store the config path in the environment so tool calls can read it
     if args.config:
         os.environ["PENT_CLAUDE_AGENT_CONFIG"] = args.config
     app.run(transport="stdio")

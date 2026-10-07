@@ -1,13 +1,13 @@
-# 引用与外链（示例）
+# Citations and External Links (example)
 
-本文件用于验证技能包内 **`references/`** 目录是否被列表 API、HTTP `resource_path` 及多代理本机文件工具正常识别。
+This file is used to verify that the **`references/`** directory within the skill package is correctly recognized by the listing API, HTTP `resource_path`, and multi-agent native file tools.
 
-## 测试方式（授权环境内）
+## How to Test (within an authorized environment)
 
-1. `GET /api/skills/kestrel-eino-demo` 响应中的 `package_files` 应包含 `references/citations.md`。
-2. `GET /api/skills/kestrel-eino-demo?resource_path=references/citations.md` 应返回本文内容。
-3. 多代理且开启 `eino_skills.filesystem_tools` 时，可通过相对路径读取本文件。
+1. The `GET /api/skills/kestrel-eino-demo` response's `package_files` should include `references/citations.md`.
+2. `GET /api/skills/kestrel-eino-demo?resource_path=references/citations.md` should return the content of this file.
+3. In multi-agent sessions with `eino_skills.filesystem_tools` enabled, this file can be read via relative path.
 
-## 占位引用
+## Placeholder Citations
 
-- [OWASP Testing Guide](https://owasp.org/www-project-web-security-testing-guide/)（仅作链接格式示例）
+- [OWASP Testing Guide](https://owasp.org/www-project-web-security-testing-guide/) (link format example only)

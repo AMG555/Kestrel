@@ -49,11 +49,11 @@ final class SendOptionsDialog {
         gc.weighty = 0;
 
         JComboBox<KestrelClient.ProjectOption> projectBox = new JComboBox<>();
-        projectBox.addItem(new KestrelClient.ProjectOption("", "加载中..."));
+        projectBox.addItem(new KestrelClient.ProjectOption("", "Loading..."));
         projectBox.setEnabled(false);
 
         JComboBox<KestrelClient.RoleOption> roleBox = new JComboBox<>();
-        roleBox.addItem(new KestrelClient.RoleOption("", "加载中..."));
+        roleBox.addItem(new KestrelClient.RoleOption("", "Loading..."));
         roleBox.setEnabled(false);
 
         JComboBox<KestrelClient.AgentMode> agentBox = new JComboBox<>(KestrelClient.AgentMode.values());
@@ -69,16 +69,16 @@ final class SendOptionsDialog {
             }
         });
 
-        // Row 0: labels — 项目 | 角色 | 对话
+        // Row 0: labels — Project | Role | Agent
         gc.gridy = 0;
         gc.weightx = 1.0;
 
         gc.gridx = 0;
-        selectors.add(new JLabel("项目"), gc);
+        selectors.add(new JLabel("Project"), gc);
         gc.gridx = 1;
-        selectors.add(new JLabel("角色"), gc);
+        selectors.add(new JLabel("Role"), gc);
         gc.gridx = 2;
-        selectors.add(new JLabel("对话"), gc);
+        selectors.add(new JLabel("Agent"), gc);
 
         // Row 1: dropdowns
         gc.gridy = 1;
@@ -102,7 +102,7 @@ final class SendOptionsDialog {
         editor.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 13));
 
         JPanel instructionPanel = new JPanel(new BorderLayout(0, 6));
-        instructionPanel.add(new JLabel("测试指令（可针对当前流量修改）："), BorderLayout.NORTH);
+        instructionPanel.add(new JLabel("Test instruction (can be customised for the current request):"), BorderLayout.NORTH);
         instructionPanel.add(new JScrollPane(editor), BorderLayout.CENTER);
 
         panel.add(selectors, BorderLayout.NORTH);
@@ -117,13 +117,13 @@ final class SendOptionsDialog {
             } catch (Exception ex) {
                 SwingUtilities.invokeLater(() -> {
                     projectBox.removeAllItems();
-                    projectBox.addItem(new KestrelClient.ProjectOption("", "(加载失败)"));
+                    projectBox.addItem(new KestrelClient.ProjectOption("", "(load failed)"));
                     projectBox.setEnabled(true);
                     roleBox.removeAllItems();
-                    roleBox.addItem(new KestrelClient.RoleOption("", "默认"));
+                    roleBox.addItem(new KestrelClient.RoleOption("", "Default"));
                     roleBox.setEnabled(true);
                     JOptionPane.showMessageDialog(parent,
-                            "加载项目/角色失败: " + ex.getMessage(),
+                            "Failed to load projects/roles: " + ex.getMessage(),
                             "Kestrel", JOptionPane.WARNING_MESSAGE);
                 });
             }
@@ -133,7 +133,7 @@ final class SendOptionsDialog {
         int result = JOptionPane.showConfirmDialog(
                 parent,
                 panel,
-                "发送到 Kestrel",
+                "Send to Kestrel",
                 JOptionPane.OK_CANCEL_OPTION,
                 JOptionPane.PLAIN_MESSAGE
         );

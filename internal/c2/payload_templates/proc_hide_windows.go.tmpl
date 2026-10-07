@@ -7,12 +7,12 @@ import (
 	"syscall"
 )
 
-// prepareHiddenCmd 避免子进程弹出控制台窗口（cmd / powershell / 临时 exe 等）。
+// prepareHiddenCmd prevents child processes from opening a console window (cmd / powershell / temporary exe, etc.).
 func prepareHiddenCmd(cmd *exec.Cmd) {
 	if cmd == nil {
 		return
 	}
-	// 仅用 HideWindow：等价于 CREATE_NO_WINDOW，且 macOS/Linux 交叉编译 Windows 时
-	// syscall.CREATE_NO_WINDOW 常量不可用。
+	// Use HideWindow only: equivalent to CREATE_NO_WINDOW, and avoids the issue
+	// that syscall.CREATE_NO_WINDOW is unavailable when cross-compiling for Windows on macOS/Linux.
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 }

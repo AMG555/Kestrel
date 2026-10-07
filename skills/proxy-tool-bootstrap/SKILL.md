@@ -1,33 +1,32 @@
 ---
 name: proxy-tool-bootstrap
 description: >-
-  自找代理+工具自举:SOCKS5/HTTP/Tor换路序列,工具Python自举,字典自生成,OOB基础设施。Use when blocked by 403/429/WAF/timeout, missing tools, or needing OOB confirmation.
+  Self-sourced proxy + tool bootstrap: SOCKS5/HTTP/Tor rerouting sequences, Python tool self-implementation, wordlist generation, OOB infrastructure. Use when blocked by 403/429/WAF/timeout, missing tools, or needing OOB confirmation.
 metadata:
-  tags: [渗透测试, penetration-testing, 红队]
+  tags: [penetration-testing, red-team]
 ---
 
-## 自找代理 + 工具自举（被拦换路，没工具自己写）
+## Self-Sourced Proxy + Tool Bootstrap (reroute when blocked, implement tools yourself when missing)
 
 ```
-🔴代理(收到拒绝/限流/超时 → 第一反应不是重试,是换路。不换路=放弃=违反黑板触发器2（见 `pentest-blackboard`）):
-  执行序列(按顺序,前一步失败才下一步):
-  ①探目标地区: terminal: curl -s "http://ip-api.com/json/{目标IP}" | python3 -c "import sys,json;d=json.load(sys.stdin);print(d['country'],d['countryCode'])"
-  ②获取该地区SOCKS5代理: terminal: curl -s "https://api.proxyscrape.com/v2/?request=displayproxies&protocol=socks5&country={countryCode}&timeout=5000" | head -20
-  ③验证代理可达目标: terminal: curl --socks5 {PROXY_IP:PORT} --connect-timeout 8 -s -o /dev/null -w "%{http_code}" {目标URL}
-  ④200=可用,立即用此代理重新执行被拦请求; 非200=换下一个代理重复③
-  ⑤全部SOCKS5失败→获取HTTP代理: terminal: curl -s "https://api.proxyscrape.com/v2/?request=displayproxies&protocol=http&country={countryCode}&timeout=5000" | head -20
-  ⑥HTTP代理验证: terminal: curl --proxy http://{PROXY_IP:PORT} --connect-timeout 8 -s -o /dev/null -w "%{http_code}" {目标URL}
-  ⑦全代理失败→Tor: terminal: curl --socks5 127.0.0.1:9050 --connect-timeout 15 {目标URL}
-  工具统一加代理参数: curl --socks5 / sqlmap --proxy=socks5://{P} / nmap --proxies socks5://{P} / nuclei -proxy socks5://{P} / ffuf -x socks5://{P}
-  轮换策略: 429/403→立即换下一个代理,每20请求主动换(避免新IP也被ban) | Cloudflare→代理池+请求间隔2-5s随机
-  🚨HTTP代理vs SOCKS5: HTTP代理会插入自己的错误页(502/无法显示此页)导致无法区分目标实际响应→需探测时必须用SOCKS5(--socks5)
+🔴Proxy (receiving a rejection/rate-limit/timeout → first reaction is NOT to retry — it is to reroute. Not rerouting = giving up = violation of blackboard Trigger 2 (see `pentest-blackboard`)):
+  Execution sequence (in order — only advance to next step if previous fails):
+  ①Probe target region: terminal: curl -s "http://ip-api.com/json/{targetIP}" | python3 -c "import sys,json;d=json.load(sys.stdin);print(d['country'],d['countryCode'])"
+  ②Get SOCKS5 proxy for that region: terminal: curl -s "https://api.proxyscrape.com/v2/?request=displayproxies&protocol=socks5&country={countryCode}&timeout=5000" | head -20
+  ③Verify proxy can reach target: terminal: curl --socks5 {PROXY_IP:PORT} --connect-timeout 8 -s -o /dev/null -w "%{http_code}" {targetURL}
+  ④200 = usable, immediately re-execute the blocked request with this proxy; non-200 = try next proxy and repeat ③
+  ⑤All SOCKS5 failed → get HTTP proxy: terminal: curl -s "https://api.proxyscrape.com/v2/?request=displayproxies&protocol=http&country={countryCode}&timeout=5000" | head -20
+  ⑥HTTP proxy verify: terminal: curl --proxy http://{PROXY_IP:PORT} --connect-timeout 8 -s -o /dev/null -w "%{http_code}" {targetURL}
+  ⑦All proxies failed → Tor: terminal: curl --socks5 127.0.0.1:9050 --connect-timeout 15 {targetURL}
+  Add proxy param to all tools: curl --socks5 / sqlmap --proxy=socks5://{P} / nmap --proxies socks5://{P} / nuclei -proxy socks5://{P} / ffuf -x socks5://{P}
+  Rotation strategy: 429/403 → immediately switch to next proxy; rotate every 20 requests proactively (to avoid new IP also getting banned) | Cloudflare → proxy pool + 2-5s random request intervals
+  🚨HTTP proxy vs SOCKS5: HTTP proxy inserts its own error page (502 / "cannot display this page") making it impossible to distinguish the target's actual response → when probing, always use SOCKS5 (--socks5)
     ProxyScrape SOCKS5: https://api.proxyscrape.com/v2/?request=displayproxies&protocol=socks5&country=CN,JP&timeout=5000
-    验证SOCKS5: curl --socks5 IP:PORT --connect-timeout 5 目标 | HTTP代理只适合已确认可达的目标做匿名/轮换
-工具自举(which X || 用Python实现):
-  无nmap→socket扫端口 | 无ffuf→requests爆目录 | 无sqlmap→手工payload检测 | 无hydra→requests爆破 | 无nuclei→requests打已知payload
-  复杂工具用Python模拟:爬虫requests+bs4 / 编码base64/hex / 哈希hashlib / 加密pycryptodome / 嗅探scapy
-字典自生成: 基于目标域名/公司名造变体 | 从网页提关键词 | 用户名+年份+特殊字符组合 | 服务默认凭据
-OOB基础设施(盲漏洞都靠它): interactsh-client拿oast.fun域名 | 或VPS python3 -m http.server/nc看回连 | ngrok/cloudflared隧道
-  → 看到OOB回连(DNS查询/HTTP请求)才算确认 → 写Fact
+    Verify SOCKS5: curl --socks5 IP:PORT --connect-timeout 5 target | HTTP proxy is only suitable for confirmed-reachable targets for anonymity/rotation
+Tool bootstrap (which X || implement in Python):
+  No nmap → socket port scanning | No ffuf → requests directory brute-force | No sqlmap → manual payload detection | No hydra → requests brute-force | No nuclei → requests with known payloads
+  Complex tools via Python: crawler requests+bs4 / encoding base64/hex / hashing hashlib / crypto pycryptodome / sniffing scapy
+Wordlist generation: create variants from target domain / company name | extract keywords from web pages | username+year+special-char combinations | service default credentials
+OOB infrastructure (blind vulnerabilities all rely on it): interactsh-client to get oast.fun domain | or VPS python3 -m http.server/nc to watch callbacks | ngrok/cloudflared tunnels
+  → a confirmed OOB callback (DNS query / HTTP request) is required → write Fact
 ```
-

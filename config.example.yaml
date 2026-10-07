@@ -1,4 +1,4 @@
-# ============================================
+﻿# ============================================
 # Kestrel Configuration File
 # ============================================
 # This configuration file supports visual configuration through the Web interface
@@ -93,7 +93,7 @@ storage:
 # Supported API providers:
 #   - OpenAI: https://api.openai.com/v1
 #   - DeepSeek: https://api.deepseek.com/v1
-#   - 其他兼容 OpenAI 协议的 API
+#   - Other OpenAI-compatible API providers
 # Common models: gpt-4, gpt-3.5-turbo, deepseek-chat, claude-3-opus, etc.
 # provider: options: openai_compatible (default) | claude (Eino native Anthropic Messages API)
 ai:
@@ -410,96 +410,96 @@ security:
     max_processes: 256
     memory_max_bytes: 2147483648
     cpu_quota_micros: 0 # 0=no CPU cap; 100000=one core (100 ms period)
-  tools_dir: tools # 工具配置文件目录（相对于配置文件所在目录）
-  # 工具描述模式：加载 tools 下工具时，暴露给 AI/API 使用的描述来源
-  #   short - 优先使用 short_description（简短描述，省 token），为空时用 description
-  #   full  - 使用 description（详细描述）
+  tools_dir: tools # Tool configuration directory (relative to config file location)
+  # Tool description mode: source of description exposed to AI/API when loading tools
+  #   short - prefer short_description (concise, saves tokens); falls back to description if empty
+  #   full  - use description (full detail)
   tool_description_mode: full
 # ============================================
-# MCP 相关配置
+# MCP configuration
 # ============================================
 
-# MCP 协议配置
-# MCP (Model Context Protocol) 用于工具注册和调用
+# MCP protocol configuration
+# MCP (Model Context Protocol) — used for tool registration and invocation
 mcp:
-  enabled: false # 是否启用 MCP 服务器（http模式）
-  host: 127.0.0.1 # MCP 服务器监听地址；需要远程访问时再显式修改并配置网络层访问控制
-  port: 8081 # MCP 服务器端口
-  auth_header: "X-MCP-Token" # 可选的全局服务凭证 Header；普通调用请使用用户 Authorization: Bearer Token
-  auth_header_value: "" # 全局服务凭证值，仅 allow_global_access=true 时生效
-  allow_global_access: false # 高风险兼容模式：静态密钥映射为全局服务身份；默认请使用用户 Bearer Token
-# 外部 MCP 配置
+  enabled: false # Enable MCP server (HTTP mode)
+  host: 127.0.0.1 # MCP server listen address; modify explicitly and configure network-level access control when remote access is needed
+  port: 8081 # MCP server port
+  auth_header: "X-MCP-Token" # Optional global service credential header; for regular calls use user Authorization: Bearer Token
+  auth_header_value: "" # Global service credential value; only effective when allow_global_access=true
+  allow_global_access: false # High-risk compatibility mode: static key mapped to global service identity; use user Bearer Token by default
+# External MCP configuration
 external_mcp:
   servers: {}
-# 内置 C2：本机仅做对话/知识库时可设为 false，不启动监听器、不注册 C2 MCP 工具；省略本段时默认启用
+# Built-in C2: set to false if this instance only handles conversations/knowledge; disables listener and C2 MCP tools. Defaults to enabled when this section is omitted.
 c2:
   enabled: true
 # ============================================
-# 知识库相关配置
+# Knowledge base configuration
 # ============================================
 knowledge:
-  enabled: false # 是否启用知识检索功能
-  base_path: knowledge_base # 知识库目录路径（相对于配置文件所在目录）
+  enabled: false # Enable knowledge retrieval
+  base_path: knowledge_base # Knowledge base directory path (relative to config file location)
   embedding:
-    provider: openai # 嵌入模型提供商（目前仅支持openai）
-    model: text-embedding-v4 # 嵌入模型名称
-    base_url: https://dashscope.aliyuncs.com/compatible-mode/v1 # 留空则使用OpenAI配置的base_url
-    api_key: sk-xxxxxxx # 留空则使用OpenAI配置的api_key
+    provider: openai # Embedding model provider (currently only openai is supported)
+    model: text-embedding-v4 # Embedding model name
+    base_url: https://dashscope.aliyuncs.com/compatible-mode/v1 # Leave empty to use the OpenAI base_url
+    api_key: sk-xxxxxxx # Leave empty to use the OpenAI api_key
   retrieval:
-    top_k: 5 # 检索返回的Top-K结果数量
-    similarity_threshold: 0.4 # 余弦相似度阈值（0-1），低于此值的结果将被过滤
-    # Eino MultiQuery：LLM 改写查询后多路向量检索再融合（始终启用）
+    top_k: 5 # Number of top-K results returned by retrieval
+    similarity_threshold: 0.4 # Cosine similarity threshold (0-1); results below this value are filtered out
+    # Eino MultiQuery: LLM rewrites the query, runs multi-path vector retrieval, then fuses results (always enabled)
     multi_query:
-      max_queries: 4 # 改写变体上限（含语义覆盖）；建议 3~4
-    # 精排（始终启用）：dashscope 用 gte-rerank；其他 OpenAI 兼容端点走 /v1/rerank
+      max_queries: 4 # Max rewrite variants (including semantic coverage); 3–4 recommended
+    # Re-ranking (always enabled): dashscope uses gte-rerank; other OpenAI-compatible endpoints use /v1/rerank
     rerank:
-      provider: "" # 空=按 base_url 推断：dashscope | cohere
-      model: "" # 空=dashscope→gte-rerank，cohere→rerank-multilingual-v3.0
-      base_url: "" # 留空则用 embedding / openai 的 base_url
-      api_key: "" # 留空则用 embedding / openai 的 api_key
+      provider: "" # Empty = inferred from base_url: dashscope | cohere
+      model: "" # Empty = dashscope→gte-rerank, cohere→rerank-multilingual-v3.0
+      base_url: "" # Leave empty to use embedding/openai base_url
+      api_key: "" # Leave empty to use embedding/openai api_key
     post_retrieve:
-      prefetch_top_k: 20 # 每条 MultiQuery 变体的向量候选数；0=内置 max(top_k*4,20)
-      max_context_chars: 0 # 0 不限制；否则返回的正文总 Unicode 字符上限（整段 chunk）
-      max_context_tokens: 0 # 0 不限制；tiktoken 总 token 上限
+      prefetch_top_k: 20 # Number of vector candidates per MultiQuery variant; 0 = built-in max(top_k*4, 20)
+      max_context_chars: 0 # 0 = no limit; otherwise the total Unicode character cap for returned content (whole chunk)
+      max_context_tokens: 0 # 0 = no limit; tiktoken total token cap
     sub_index_filter: ""
   # ============================================
-  # 索引配置（用于解决 API 限制问题）
+  # Indexing configuration (to address API rate-limit issues)
   # ============================================
   indexing:
-    # 分块配置
-    chunk_size: 512 # 每个块的最大 token 数（默认 512），长文本会被分割成多个块
-    chunk_overlap: 50 # 块之间的重叠 token 数（默认 50），保持上下文连贯性
-    max_chunks_per_item: 0 # 单个知识项的最大块数量（0 表示不限制），防止单个文件消耗过多 API 配额
-    # 速率限制配置（解决 429 错误）
-    max_rpm: 0 # 每分钟最大请求数（默认 0 表示不限制），如 OpenAI 默认 200 RPM
-    rate_limit_delay_ms: 300 # 请求间隔毫秒数（默认 300），用于避免 API 速率限制，设为 0 不限制
-    # 建议值：200 次/分钟≈300ms, 100 次/分钟≈600ms
+    # Chunking configuration
+    chunk_size: 512 # Max tokens per chunk (default 512); long texts are split into multiple chunks
+    chunk_overlap: 50 # Token overlap between chunks (default 50); maintains context continuity
+    max_chunks_per_item: 0 # Max chunks per knowledge item (0 = no limit); prevents a single file from consuming too much API quota
+    # Rate-limit configuration (to resolve 429 errors)
+    max_rpm: 0 # Max requests per minute (0 = no limit); e.g. OpenAI default is 200 RPM
+    rate_limit_delay_ms: 300 # Interval between requests in milliseconds (default 300); set to 0 for no limit
+    # Recommended: 200 req/min ≈ 300 ms, 100 req/min ≈ 600 ms
 
-    # 重试配置
-    max_retries: 3 # 最大重试次数（默认 3），遇到速率限制或服务器错误时自动重试
-    retry_delay_ms: 1000 # 重试间隔毫秒数（默认 1000），每次重试会递增延迟
-    # 分块策略（Eino）：markdown_then_recursive = 先按 Markdown 标题切再递归；recursive = 仅递归切分。留空时程序内默认 markdown_then_recursive
+    # Retry configuration
+    max_retries: 3 # Max retries (default 3); automatically retries on rate-limit or server errors
+    retry_delay_ms: 1000 # Retry interval in milliseconds (default 1000); delay increments with each retry
+    # Chunking strategy (Eino): markdown_then_recursive = split by Markdown headings then recursively; recursive = recursive only. Defaults to markdown_then_recursive when empty.
     chunk_strategy: markdown_then_recursive
-    # 嵌入 HTTP 请求超时（秒）。0 表示使用内置默认（一般为 120），与向量化 API 客户端一致
+    # Embedding HTTP request timeout (seconds). 0 = use built-in default (typically 120), consistent with vectorisation API client.
     request_timeout_seconds: 120
-    # true：索引时优先用知识项 file_path 指向的磁盘文件内容（Eino FileLoader）；false：用数据库里存的正文。读盘失败会回退 DB
+    # true: during indexing prefer disk file content referenced by knowledge item file_path (Eino FileLoader); false: use content stored in DB. Falls back to DB on read failure.
     prefer_source_file: false
-    # 单次嵌入 API 请求的文本条数上限（索引写入按此分批）。须 ≤ 服务商限制（如部分兼容接口最多 10）；过大易 400
+    # Max texts per embedding API request (index writes are batched accordingly). Must be ≤ provider limit (some compatible endpoints allow at most 10); too large may cause 400.
     batch_size: 10
-    # Eino indexer.WithSubIndexes：逻辑分区标签列表，会写入向量表 sub_indexes，检索可用 sub_index_filter 过滤；无需求可 []
+    # Eino indexer.WithSubIndexes: logical partition label list written to vector table sub_indexes; retrieval can filter with sub_index_filter. Use [] if not needed.
     sub_indexes: []
 # ============================================
-# 机器人配置（企业微信、钉钉、飞书）
+# Robot / chatbot configuration (WeCom, DingTalk, Feishu/Lark)
 # ============================================
-# 用于在手机端通过企业微信/钉钉/飞书与 Kestrel 对话，无需部署在服务器上也可使用
-# 在系统设置 -> 机器人设置 中可配置
+# Allows interacting with Kestrel on mobile via WeCom/DingTalk/Feishu without deploying to a server.
+# Configurable in System Settings → Robot Settings
 robots:
-  wechat: # 微信 iLink（个人微信 ClawBot，扫码绑定）
+  wechat: # WeChat iLink (personal WeChat ClawBot, scan QR to bind)
     enabled: false
-    # 鉴权默认 user_binding；专用机器人可改 service_account，并必须限制真实发送者
+    # Auth defaults to user_binding; dedicated bots can use service_account and must restrict real senders
     auth:
       mode: user_binding # user_binding | service_account
-      # service_user_id: "admin 或专用服务账号的 RBAC user ID"
+      # service_user_id: "admin or dedicated service account RBAC user ID"
       # allowed_external_users: ["t:tenant|u:sender"]
     bot_token: ""
     ilink_bot_id: ""
@@ -507,7 +507,7 @@ robots:
     base_url: https://ilinkai.weixin.qq.com
     bot_type: "3"
     bot_agent: Kestrel/1.0
-  wecom: # 企业微信
+  wecom: # WeCom (Enterprise WeChat)
     enabled: false
     auth:
       mode: user_binding
@@ -516,14 +516,14 @@ robots:
     corp_id: ""
     secret: ""
     agent_id: 0
-  dingtalk: # 钉钉
+  dingtalk: # DingTalk
     enabled: false
     auth:
       mode: user_binding
     client_id: ""
     client_secret: ""
     allow_conversation_id_fallback: false
-  lark: # 飞书
+  lark: # Feishu/Lark
     enabled: false
     auth:
       mode: user_binding
@@ -550,7 +550,7 @@ robots:
       mode: user_binding
     bot_token: ""
     allow_guild_messages: false
-  qq: # QQ 机器人
+  qq: # QQ Bot
     enabled: false
     auth:
       mode: user_binding
@@ -558,34 +558,34 @@ robots:
     client_secret: ""
     sandbox: true
 # ============================================
-# Skills 相关配置
+# Skills configuration
 # ============================================
 
-# 技能包目录：每个子目录仅标准 SKILL.md（Agent Skills：front matter 仅 name、description）+ 可选附属文件；无 SKILL.yaml
-# 示例：skills/kestrel-eino-demo/
-skills_dir: skills # Skills配置文件目录（相对于配置文件所在目录）
+# Skills directory: each subdirectory contains only a standard SKILL.md (Agent Skills: front matter with name and description only) plus optional auxiliary files; no SKILL.yaml.
+# Example: skills/kestrel-eino-demo/
+skills_dir: skills # Skills configuration directory (relative to config file location)
 # ============================================
-# 多代理子 Agent（Markdown，唯一维护处）
+# Multi-agent sub-agents (Markdown, single source of truth)
 # ============================================
-# 每个 .md：YAML front matter（name / id / description / tools / bind_role / 可选 max_iterations>0 覆盖全局 / 可选 kind: orchestrator）+ 正文为系统提示词
-# 主代理：固定文件名 orchestrator.md，或任意文件名 + front matter kind: orchestrator（全目录仅允许一个）；主代理不参与 task 子代理列表
-# 高级用法：仍可在 multi_agent 块内写 sub_agents，会与本文目录合并且同 id 时 YAML 可被 .md 覆盖
+# Each .md: YAML front matter (name / id / description / tools / bind_role / optional max_iterations>0 to override global / optional kind: orchestrator) + body is the system prompt
+# Orchestrator: fixed filename orchestrator.md, or any filename + front matter kind: orchestrator (only one allowed per directory); the orchestrator is not included in the task sub-agent list
+# Advanced: sub_agents can still be defined in the multi_agent block; they are merged with the agents directory, and .md overrides YAML for duplicate IDs
 agents_dir: agents
 # ============================================
-# 角色相关配置
+# Role configuration
 # ============================================
 
-# 系统会从该目录加载所有 .yaml 格式的角色配置文件
-# 每个角色应创建独立的配置文件，例如：roles/CTF.yaml, roles/默认.yaml 等
-roles_dir: roles # 角色配置文件目录（相对于配置文件所在目录）
+# The system loads all .yaml role configuration files from this directory
+# Create a separate config file for each role, e.g.: roles/CTF.yaml, roles/Default.yaml, etc.
+roles_dir: roles # Role configuration directory (relative to config file location)
 # ============================================
-# 项目管理与事实黑板
+# Project management and fact blackboard
 # ============================================
 project:
   enabled: true
-  # default_project_id: "" # 可选：机器人/批量任务创建对话时的默认项目 ID
+  # default_project_id: "" # Optional: default project ID for conversations created by robots/batch tasks
   fact_index_max_runes: 65000
-  # 事实关系速览段预算（从索引总预算中预留）
+  # Fact relationship overview section budget (reserved from total index budget)
   fact_index_path_max_runes: 10000
   fact_summary_max_runes: 24000
   default_inject_deprecated: false

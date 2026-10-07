@@ -1,95 +1,95 @@
-name: "hydra"
+﻿name: "hydra"
 command: "hydra"
 args: ["-I"]
 enabled: true
-short_description: "密码暴力破解工具，支持多种协议和服务"
+short_description: "Password brute-force tool supporting multiple protocols and services"
 description: |
-  Hydra 是网络登录口令爆破工具，支持 SSH、FTP、HTTP、SMB 等多种协议。
+  Hydra is a network login password brute-force tool supporting SSH, FTP, HTTP, SMB, and many more protocols.
 
-  **调用约定（必读）：**
-  - 必须提供 **用户名**：`username`（-l）或 `username_file`（-L）至少其一
-  - 必须提供 **口令**：`password`（-p）、`password_file`（-P）或 `-C`（经 `additional_args`）至少其一
-  - **先用小字典试跑**（几十～几百条），确认目标可达再扩大；禁止默认使用 rockyou 等超大字典
-  - 默认已启用：找到即停（-f）、并行 4（-t）、忽略 restore（-I）；长任务请设 `output_file`
+  **Calling conventions (required reading):**
+  - Must provide a **username**: at least one of `username` (-l) or `username_file` (-L)
+  - Must provide a **password**: at least one of `password` (-p), `password_file` (-P), or `-C` (via `additional_args`)
+  - **Always start with a small wordlist** (tens to hundreds of entries) to confirm the target is reachable before scaling up; do not default to large wordlists like rockyou
+  - Defaults enabled: stop on first match (-f), 4 parallel threads (-t), ignore restore (-I); for long-running tasks, set `output_file`
 
-  **CLI 顺序：** `hydra [选项] <target> <service>`（本工具已按此顺序组参，勿把 target 写在选项前）
+  **CLI order:** `hydra [options] <target> <service>` (arguments are assembled in this order; do not place target before options)
 
-  **使用场景：** 授权环境下的弱口令检测、密码强度评估
+  **Use Cases:** Weak password detection and password strength assessment in authorized environments
 
-  **注意：** 仅用于已授权目标；对无响应目标请减小 `wait_time` 或缩小字典，避免长时间挂起。
+  **Note:** For authorized targets only; reduce `wait_time` or use a smaller wordlist for unresponsive targets to avoid long hangs.
 parameters:
   - name: "username"
     type: "string"
-    description: "单个用户名（-l）；与 username_file 二选一至少填一个"
+    description: "Single username (-l); at least one of username or username_file is required"
     required: false
     flag: "-l"
     format: "flag"
   - name: "username_file"
     type: "string"
-    description: "用户名字典文件（-L）"
+    description: "Username wordlist file (-L)"
     required: false
     flag: "-L"
     format: "flag"
   - name: "password"
     type: "string"
-    description: "单个密码（-p）"
+    description: "Single password (-p)"
     required: false
     flag: "-p"
     format: "flag"
   - name: "password_file"
     type: "string"
-    description: "密码字典文件（-P）；优先使用小字典试跑"
+    description: "Password wordlist file (-P); prefer a small wordlist for initial tests"
     required: false
     flag: "-P"
     format: "flag"
   - name: "stop_on_first"
     type: "bool"
-    description: "找到一对有效账密后立即退出（-f，默认 true）"
+    description: "Stop immediately after finding a valid credential pair (-f, default true)"
     required: false
     flag: "-f"
     format: "flag"
     default: true
   - name: "tasks"
     type: "int"
-    description: "每目标并行连接数（-t）；SSH 等建议 4，默认 4"
+    description: "Parallel connections per target (-t); 4 is recommended for SSH, default 4"
     required: false
     flag: "-t"
     format: "flag"
     default: 4
   - name: "wait_time"
     type: "int"
-    description: "单次连接等待响应秒数（-w），默认 16（低于 Hydra 默认 32，减少挂起感）"
+    description: "Seconds to wait for a response per connection (-w), default 16 (lower than Hydra's default 32, reduces hang time)"
     required: false
     flag: "-w"
     format: "flag"
     default: 16
   - name: "wait_between"
     type: "int"
-    description: "每线程连接间隔秒数（-W），默认 1"
+    description: "Seconds between connections per thread (-W), default 1"
     required: false
     flag: "-W"
     format: "flag"
     default: 1
   - name: "output_file"
     type: "string"
-    description: "将结果写入文件（-o），长任务建议指定"
+    description: "Write results to file (-o); recommended for long-running tasks"
     required: false
     flag: "-o"
     format: "flag"
   - name: "target"
     type: "string"
-    description: "目标 IP、主机名或 CIDR（须在选项之后）"
+    description: "Target IP, hostname, or CIDR (must follow options)"
     required: true
     position: 1
     format: "positional"
   - name: "service"
     type: "string"
-    description: "服务类型（ssh、ftp、http-get、http-post-form、smb 等，见 hydra -h）"
+    description: "Service type (ssh, ftp, http-get, http-post-form, smb, etc. — see hydra -h)"
     required: true
     position: 2
     format: "positional"
   - name: "additional_args"
     type: "string"
-    description: "额外参数（如 -s 端口、-S SSL、-m 模块选项、-C login:pass 文件），追加在命令末尾"
+    description: "Extra arguments (e.g. -s port, -S for SSL, -m module options, -C login:pass file), appended at the end of the command"
     required: false
     format: "positional"

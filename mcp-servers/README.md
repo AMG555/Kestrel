@@ -1,7 +1,5 @@
 # MCP Servers
 
-[中文](README_CN.md)
-
 This directory contains **standalone MCP (Model Context Protocol) servers**. They speak the standard MCP protocol over stdio (or HTTP/SSE when a server supports it), so **any MCP client** can use them—not only Kestrel, but also **Cursor**, **VS Code** (with an MCP extension), **Claude Code**, and other clients that support MCP.
 
 **We will keep adding useful MCP servers here.** New servers will cover security testing, automation, and integration scenarios. Stay tuned for updates.
