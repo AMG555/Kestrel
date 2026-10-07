@@ -519,7 +519,7 @@ func buildToolFailureMessage(toolName, detail string, err error) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "tool call failed\n\n")
 	fmt.Fprintf(&b, "tool name: %s\n", toolName)
-	fmt.Fprintf(&b, "errordetails: %s", detail)
+	fmt.Fprintf(&b, "error details: %s", detail)
 	return strings.TrimRight(b.String(), "\n")
 }
 

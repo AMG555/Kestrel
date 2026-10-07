@@ -138,7 +138,7 @@ func TestBuildToolFailureMessageUnknownKeepsGenericFallback(t *testing.T) {
 
 	for _, want := range []string{
 		"tool name: custom_tool",
-		"errordetails: dial tcp: connection reset by peer",
+		"error details: dial tcp: connection reset by peer",
 	} {
 		if !strings.Contains(msg, want) {
 			t.Fatalf("message missing %q:\n%s", want, msg)

@@ -242,7 +242,7 @@ func validateAsset(a *Asset) error {
 	}
 	for _, tag := range a.Tags {
 		if utf8.RuneCountInString(tag) > 64 {
-			return assetValidationErrorf("individual tag cannot exceed 64 characters")
+			return assetValidationErrorf("Tags: individual tag cannot exceed 64 characters")
 		}
 	}
 	return nil
