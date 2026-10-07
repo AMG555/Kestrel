@@ -121,8 +121,8 @@ func TestEinoRunResultBuilderFinalFallsBackToPlainAssistantTrace(t *testing.T) {
 }
 
 func TestEinoRunResultBuilderPrefersExitFinalOverAssistantIntro(t *testing.T) {
-	intro := "本轮渗透收束完成。交付终审report："
-	report := "## 终审report\n目标 alvin-whn.top completed getshell validate。"
+	intro := "This round of penetration testing is complete. Delivering final review report:"
+	report := "## Final Review Report\nTarget alvin-whn.top: getshell validation completed."
 	asst := schema.AssistantMessage(intro, []schema.ToolCall{{
 		ID:   "exit-1",
 		Type: "function",
@@ -153,7 +153,7 @@ func TestEinoRunResultBuilderPrefersExitFinalOverAssistantIntro(t *testing.T) {
 }
 
 func TestEinoRunResultBuilderPrefersExitFinalFromArgsWhenToolContentMissing(t *testing.T) {
-	intro := "交付终审report："
+	intro := "Delivering final review report:"
 	report := "full report body"
 	asst := schema.AssistantMessage(intro, []schema.ToolCall{{
 		ID:   "exit-1",

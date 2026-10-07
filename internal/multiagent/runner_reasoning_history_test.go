@@ -28,7 +28,7 @@ func TestHistoryToMessagesNormalizesLegacyRawToolOutput(t *testing.T) {
 	mw := &config.MultiAgentEinoMiddlewareConfig{ReductionMaxLengthForTrunc: 128}
 	h := []agent.ChatMessage{
 		{Role: "assistant", ToolCalls: []agent.ToolCall{{ID: "t1", Type: "function", Function: agent.FunctionCall{Name: "http-framework-test"}}}},
-		{Role: "tool", ToolCallID: "t1", ToolName: "http-framework-test", Content: strings.Repeat("response正文", 1000)},
+		{Role: "tool", ToolCallID: "t1", ToolName: "http-framework-test", Content: strings.Repeat("response-body", 1000)},
 	}
 	msgs := historyToMessages(h, nil, mw)
 	if len(msgs) != 2 {
@@ -87,7 +87,7 @@ func TestHistoryToMessagesCapsOversizedModelFacingToolTrace(t *testing.T) {
 func TestHistoryToMessagesNeverReinjectsRawOversizedUserFallback(t *testing.T) {
 	appCfg := &config.Config{OpenAI: config.OpenAIConfig{MaxTotalTokens: 10000}}
 	mw := &config.MultiAgentEinoMiddlewareConfig{LatestUserMessageMaxRunes: 8000}
-	h := []agent.ChatMessage{{Role: "user", Content: strings.Repeat("原始user输入", 2000)}}
+	h := []agent.ChatMessage{{Role: "user", Content: strings.Repeat("original-user-input", 2000)}}
 	msgs := historyToMessages(h, appCfg, mw)
 	if len(msgs) != 1 {
 		t.Fatalf("len=%d", len(msgs))

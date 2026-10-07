@@ -154,7 +154,7 @@ func finalizationBlockedMessage(d agentfinalizer.Decision) string {
 	}
 	parts := []string{"Task has not yet met the Final reply conditions, not generating a successful conclusion."}
 	if d.CompletionReason != "" {
-		parts = append(parts, "原因: "+d.CompletionReason)
+		parts = append(parts, "Reason: "+d.CompletionReason)
 	}
 	if len(d.PendingExecutionIDs) > 0 {
 		parts = append(parts, fmt.Sprintf("still %d tool execution(s) not yet finished: %s", len(d.PendingExecutionIDs), strings.Join(d.PendingExecutionIDs, ", ")))

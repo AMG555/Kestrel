@@ -639,7 +639,7 @@ func (a *Agent) UpdateMaxIterations(maxIterations int) {
 	}
 }
 
-// UpdateToolDescriptionMode updatetool descriptionpattern（short/full）
+// UpdateToolDescriptionMode updates the tool description pattern (short/full).
 func (a *Agent) UpdateToolDescriptionMode(mode string) {
 	a.mu.Lock()
 	defer a.mu.Unlock()

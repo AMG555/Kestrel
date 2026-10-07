@@ -8,7 +8,7 @@ import (
 	"kestrel/internal/projectprompt"
 )
 
-// PathGraphCategories attack path视图包含的事实分类。
+// PathGraphCategories contains the fact categories included in the attack path view.
 var PathGraphCategories = map[string]struct{}{
 	FactCategoryTarget:  {},
 	FactCategoryFinding: {},
@@ -18,8 +18,8 @@ var PathGraphCategories = map[string]struct{}{
 	"vuln":                       {},
 }
 
-// GraphNodeType 将 fact category map为graph nodetype（供前端样式与 ELK 分层）。
-// 优先使用 category；仅 synthetic 节点（vuln:）或none category 时才回退到 fact_key 前缀。
+// GraphNodeType maps a fact category to a graph node type (for frontend styling and ELK layering).
+// Category takes priority; falls back to fact_key prefix only for synthetic nodes (vuln:) or when category is empty.
 func GraphNodeType(category, factKey string) string {
 	key := strings.ToLower(strings.TrimSpace(factKey))
 	if strings.HasPrefix(key, "vuln:") {
@@ -84,14 +84,14 @@ func truncateGraphLabel(summary string, maxRunes int) string {
 	return string(r[:maxRunes]) + "…"
 }
 
-// BuildProjectFactGraph 构建project facts图（nodes + edges）。
+// BuildProjectFactGraph constructs the project facts graph (nodes + edges).
 func BuildProjectFactGraph(db *database.DB, projectID string, view string, excludeDeprecated bool) (*database.ProjectFactGraph, error) {
 	if db == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
 	projectID = strings.TrimSpace(projectID)
 	if projectID == "" {
-		return nil, fmt.Errorf("project_id 不能为null")
+		return nil, fmt.Errorf("project_id cannot be empty")
 	}
 
 	view = strings.TrimSpace(strings.ToLower(view))
@@ -130,7 +130,7 @@ func BuildProjectFactGraph(db *database.DB, projectID string, view string, exclu
 				nodeKeys[f.FactKey] = struct{}{}
 			}
 		}
-		// path视图中保留作为依赖目标的 auth/infra 节点
+		// Retain auth/infra nodes that are dependency targets in path view
 		for _, e := range edges {
 			if _, ok := nodeKeys[e.SourceFactKey]; !ok {
 				continue
@@ -145,7 +145,7 @@ func BuildProjectFactGraph(db *database.DB, projectID string, view string, exclu
 		}
 	}
 
-	// 边上引用的 endpoint 纳入节点集
+	// Include endpoints referenced by edges in the node set
 	for _, e := range edges {
 		if pathMode {
 			if _, ok := nodeKeys[e.SourceFactKey]; !ok {
@@ -154,7 +154,7 @@ func BuildProjectFactGraph(db *database.DB, projectID string, view string, exclu
 			if _, ok := nodeKeys[e.TargetFactKey]; ok {
 				// already included
 			} else if f, ok := factByKey[e.TargetFactKey]; !ok {
-				nodeKeys[e.TargetFactKey] = struct{}{} // 占位节点
+				nodeKeys[e.TargetFactKey] = struct{}{} // placeholder node
 			} else if isPathGraphFact(f.Category, f.FactKey) || isDependencyGraphFact(f.Category, f.FactKey) {
 				nodeKeys[e.TargetFactKey] = struct{}{}
 			} else {
@@ -218,7 +218,7 @@ func BuildProjectFactGraph(db *database.DB, projectID string, view string, exclu
 		})
 	}
 
-	// related_vulnerability_id 合成边（source=fact → target=vuln:<id>）
+	// Synthesize edges for related_vulnerability_id (source=fact → target=vuln:<id>)
 	for _, f := range facts {
 		if _, ok := nodeKeys[f.FactKey]; !ok {
 			continue
@@ -230,7 +230,7 @@ func BuildProjectFactGraph(db *database.DB, projectID string, view string, exclu
 		vulnNodeID := "vuln:" + vid
 		if _, exists := nodeKeys[vulnNodeID]; !exists {
 			nodeKeys[vulnNodeID] = struct{}{}
-			label := "漏洞"
+			label := "vulnerability"
 			if len(vid) >= 8 {
 				label += " " + vid[:8] + "…"
 			} else {
@@ -305,19 +305,19 @@ func filterDeprecatedEdges(edges []*database.ProjectFactEdge) []*database.Projec
 	return out
 }
 
-// ParsedFactLinks 解析 links 参数（from → 当前 fact）。
+// ParsedFactLinks parses the links parameter (from → current fact).
 type ParsedFactLinks struct {
 	Incoming []database.ProjectFactEdgeFromInput
 }
 
-// ParseFactLinkInputs 从 MCP links 参数解析；nullarray表示清nullall入边。
+// ParseFactLinkInputs parses from the MCP links parameter; an empty array clears all incoming edges.
 func ParseFactLinkInputs(raw interface{}) (*ParsedFactLinks, error) {
 	if raw == nil {
 		return nil, nil
 	}
 	items, ok := raw.([]interface{})
 	if !ok {
-		return nil, fmt.Errorf("links 须为array")
+		return nil, fmt.Errorf("links must be an array")
 	}
 	if len(items) == 0 {
 		return &ParsedFactLinks{
@@ -328,17 +328,17 @@ func ParseFactLinkInputs(raw interface{}) (*ParsedFactLinks, error) {
 	for i, item := range items {
 		m, ok := item.(map[string]interface{})
 		if !ok {
-			return nil, fmt.Errorf("links[%d] formatnone效", i)
+			return nil, fmt.Errorf("links[%d] is in an invalid format", i)
 		}
 		from, _ := m["from"].(string)
 		edgeType, _ := m["type"].(string)
 		from = strings.TrimSpace(from)
 		edgeType = strings.TrimSpace(edgeType)
 		if from == "" {
-			return nil, fmt.Errorf("links[%d] 须含 from", i)
+			return nil, fmt.Errorf("links[%d] must contain 'from'", i)
 		}
 		if edgeType == "" {
-			return nil, fmt.Errorf("links[%d] 须含 type", i)
+			return nil, fmt.Errorf("links[%d] must contain 'type'", i)
 		}
 		conf, _ := m["confidence"].(string)
 		parsed.Incoming = append(parsed.Incoming, database.ProjectFactEdgeFromInput{
@@ -348,17 +348,17 @@ func ParseFactLinkInputs(raw interface{}) (*ParsedFactLinks, error) {
 	return parsed, nil
 }
 
-// ParseFactLinksText 解析 UI 文本：`type: source_fact_key` 每行一条（from 语义）。
+// ParseFactLinksText parses UI text: one `type: source_fact_key` per line (from semantics).
 func ParseFactLinksText(text string) ([]database.ProjectFactEdgeFromInput, error) {
 	return ParseFactIncomingLinksText(text)
 }
 
-// FormatFactLinksText 将入边format化为 UI 文本。
+// FormatFactLinksText formats incoming edges as UI text.
 func FormatFactLinksText(edges []*database.ProjectFactEdge) string {
 	return FormatFactIncomingLinksText(edges)
 }
 
-// ParseFactIncomingLinksText 解析 UI 入边文本：`type: source_fact_key` 每行一条。
+// ParseFactIncomingLinksText parses UI incoming edge text: one `type: source_fact_key` per line.
 func ParseFactIncomingLinksText(text string) ([]database.ProjectFactEdgeFromInput, error) {
 	text = strings.TrimSpace(text)
 	if text == "" {
@@ -372,19 +372,19 @@ func ParseFactIncomingLinksText(text string) ([]database.ProjectFactEdgeFromInpu
 		}
 		edgeType, source, ok := strings.Cut(line, ":")
 		if !ok {
-			return nil, fmt.Errorf("第 %d 行formatnone效，应为 type: fact_key", i+1)
+			return nil, fmt.Errorf("line %d has invalid format, expected 'type: fact_key'", i+1)
 		}
 		edgeType = strings.TrimSpace(edgeType)
 		source = strings.TrimSpace(source)
 		if edgeType == "" || source == "" {
-			return nil, fmt.Errorf("第 %d 行 type 或 fact_key 为null", i+1)
+			return nil, fmt.Errorf("line %d: type or fact_key is empty", i+1)
 		}
 		out = append(out, database.ProjectFactEdgeFromInput{From: source, Type: edgeType})
 	}
 	return out, nil
 }
 
-// FormatFactIncomingLinksText 将入边format化为 UI 文本。
+// FormatFactIncomingLinksText formats incoming edges as UI text.
 func FormatFactIncomingLinksText(edges []*database.ProjectFactEdge) string {
 	if len(edges) == 0 {
 		return ""
@@ -401,7 +401,7 @@ func FormatFactIncomingLinksText(edges []*database.ProjectFactEdge) string {
 	return b.String()
 }
 
-// FactEdgeRecordingGuidance 写入边时的 Agent 规范。
+// FactEdgeRecordingGuidance returns the Agent guidelines for writing relationship edges.
 func FactEdgeRecordingGuidance() string {
 	return projectprompt.FactEdgeRecordingGuidance()
 }

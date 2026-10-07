@@ -1,6 +1,5 @@
 # Eino Multi-Agent Notes
 
-[中文](../zh-CN/MULTI_AGENT_EINO.md)
 
 Kestrel uses CloudWeGo Eino ADK for the current single-agent and multi-agent execution paths. The native legacy ReAct path has been removed.
 

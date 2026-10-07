@@ -5,8 +5,8 @@ import (
 	"strings"
 )
 
-// UnwrapPlanExecuteUserText 若model输出单层 JSON 且含常见「对user回复」字段，则取出纯文本；no则原样back。
-// 用于 Plan-Execute 下 executor 套 `{"response":"..."}` 或误把 replanner/planner JSON 当作最终气泡时的缓解。
+// UnwrapPlanExecuteUserText extracts plain text if the model outputs a single-layer JSON containing a common "response to user" field; otherwise returns the original string.
+// Used to handle Plan-Execute executor wrapping `{"response":"..."}` or accidentally treating replanner/planner JSON as the final bubble.
 func UnwrapPlanExecuteUserText(s string) string {
 	s = strings.TrimSpace(s)
 	if len(s) < 2 || s[0] != '{' || s[len(s)-1] != '}' {

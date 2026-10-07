@@ -8,6 +8,9 @@ import (
 	"kestrel/internal/mcp"
 )
 
+// legacyToolGuardPrefix is the original Chinese-language block message written by the old guard implementation.
+// It is preserved verbatim here because migrateLegacyToolGuardBlocks must match existing database records
+// that were written before the guard was translated to English. Do not change this value.
 const legacyToolGuardPrefix = "tool call已被安全规则拦截"
 
 // Only the exact envelope emitted by the old local guard is recognized here.

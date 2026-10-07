@@ -146,7 +146,7 @@ func (s *einoTurnLoopIteratorStarter) emitInterruptContinueProgress(note string)
 		"source":         "eino",
 		"orchestration":  s.cfg.OrchMode,
 	})
-	s.cfg.Progress("progress", "已将user补充推入 Eino TurnLoop，正在等待安全点切换…", map[string]interface{}{
+	s.cfg.Progress("progress", "User supplement pushed to Eino TurnLoop, waiting for safe checkpoint to switch…", map[string]interface{}{
 		"conversationId": s.cfg.ConversationID,
 		"source":         "eino",
 		"orchestration":  s.cfg.OrchMode,

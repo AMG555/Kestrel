@@ -8,8 +8,9 @@ import (
 	"kestrel/internal/einomcp"
 )
 
-// newEinoExecuteMonitorCallbacks 在 Eino filesystem execute 开始/结束时写入 MCP 监控库并 recorder(executionId)，
-// 与 CallTool path一致，使监控页能展示「执行中」status。
+// newEinoExecuteMonitorCallbacks writes to the MCP monitor library and calls recorder(executionId)
+// when an Eino filesystem execute starts/ends, consistent with the CallTool path so the monitor
+// page can display "running" status.
 func newEinoExecuteMonitorCallbacks(ctx context.Context, ag *agent.Agent, recorder einomcp.ExecutionRecorder) (
 	begin func(toolCallID, command string) string,
 	appendPartial func(executionID, toolCallID, chunk string),

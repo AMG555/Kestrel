@@ -26,7 +26,7 @@ func AuthMiddleware(manager *AuthManager) gin.HandlerFunc {
 		session, ok := manager.ValidateToken(token)
 		if !ok {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-				"error": "Unauthorized访问，请先登录",
+				"error": "Unauthorized: please log in first",
 			})
 			return
 		}
@@ -85,12 +85,12 @@ func RequireResourcePermission(db *database.DB, permission, resourceType, paramN
 			return
 		}
 		if db == nil {
-			c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"error": "资源鉴权service unavailable"})
+			c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"error": "Resource authorization service unavailable"})
 			return
 		}
 		resourceID := strings.TrimSpace(c.Param(paramName))
 		if resourceID == "" {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "资源 ID 不能为null"})
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Resource ID cannot be empty"})
 			return
 		}
 		session, ok := CurrentSession(c)

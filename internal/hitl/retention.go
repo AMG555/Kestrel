@@ -44,12 +44,12 @@ func (s *Service) PurgeExpired() {
 	n, err := s.db.PurgeHitlInterruptLogsBefore(cutoff)
 	if err != nil {
 		if s.logger != nil {
-			s.logger.Warn("cleanup过期人机协同audit logfailed", zap.Error(err))
+			s.logger.Warn("failed to clean up expired HITL audit logs", zap.Error(err))
 		}
 		return
 	}
 	if n > 0 && s.logger != nil {
-		s.logger.Info("已cleanup过期人机协同audit log", zap.Int64("deleted", n), zap.Int("retention_days", days))
+		s.logger.Info("expired HITL audit logs cleaned up", zap.Int64("deleted", n), zap.Int("retention_days", days))
 	}
 }
 

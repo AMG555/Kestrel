@@ -843,7 +843,7 @@ func (e *Executor) executeSystemCommand(ctx context.Context, args map[string]int
 		if err != nil {
 			return &mcp.ToolResult{Content: []mcp.Content{{Type: "text", Text: fmt.Sprintf("background command startup failed: %v", err)}}, IsError: true}, nil
 		}
-		return &mcp.ToolResult{Content: []mcp.Content{{Type: "text", Text: fmt.Sprintf("background command started\ncommand: %s\nprocess group ID: %d\n\n后台process由本轮task托管，task结束时自动cleanup。", command, session.rootPID)}}}, nil
+		return &mcp.ToolResult{Content: []mcp.Content{{Type: "text", Text: fmt.Sprintf("background command started\ncommand: %s\nprocess group ID: %d\n\nThe background process is managed by this task session and will be cleaned up automatically when the task ends.", command, session.rootPID)}}}, nil
 	}
 
 	// non-background command: wait for output

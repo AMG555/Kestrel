@@ -46,7 +46,7 @@ func TestOrphanToolPruner_NoOpWhenPaired(t *testing.T) {
 	if len(out.Messages) != len(msgs) {
 		t.Fatalf("expected %d messages kept, got %d", len(msgs), len(out.Messages))
 	}
-	// 快path：未Discovery孤儿时必须原地back state，不分配新切片。
+	// Fast path: when no orphan is found, state must be returned in-place without allocating a new slice.
 	if &out.Messages[0] != &msgs[0] {
 		t.Fatalf("expected state to be returned as-is (same backing slice) when no orphan present")
 	}
@@ -57,7 +57,7 @@ func TestOrphanToolPruner_DropsOrphanToolMessages(t *testing.T) {
 
 	msgs := []adk.Message{
 		schema.SystemMessage("sys"),
-		// summary前的 assistant(tc: c_old) 已被裁剪，但对应的 tool 结果漏保留了。
+		// The assistant(tc: c_old) before the summary was trimmed, but its corresponding tool result was accidentally retained.
 		schema.ToolMessage("orphan result", "c_old"),
 		schema.UserMessage("continue"),
 		assistantToolCallsMsg("", "c_new"),
@@ -80,7 +80,7 @@ func TestOrphanToolPruner_DropsOrphanToolMessages(t *testing.T) {
 			t.Fatalf("orphan tool message with ToolCallID=c_old should have been dropped")
 		}
 	}
-	// 合法的 tool(c_new) 必须保留。
+	// The legitimately paired tool(c_new) must be retained.
 	foundNew := false
 	for _, m := range out.Messages {
 		if m != nil && m.Role == schema.Tool && m.ToolCallID == "c_new" {
@@ -94,8 +94,8 @@ func TestOrphanToolPruner_DropsOrphanToolMessages(t *testing.T) {
 }
 
 func TestOrphanToolPruner_EmptyToolCallIDIsIgnored(t *testing.T) {
-	// null ToolCallID 的 tool message在true实场景中极罕见，但不应当被误判为孤儿。
-	// 语义上把它当作"none法校验，保留"，避免误删。
+	// A tool message with an empty ToolCallID is extremely rare in practice but must not be mistaken for an orphan.
+	// Treat it as "unverifiable, retain" to avoid accidental deletion.
 	mw := newOrphanToolPrunerMiddleware(nil, "test").(*orphanToolPrunerMiddleware)
 
 	odd := schema.ToolMessage("no_id", "")

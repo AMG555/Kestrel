@@ -19,7 +19,7 @@ func TestDecideJevRejectsDestructive(t *testing.T) {
 	if dec != "reject" {
 		t.Fatalf("decision=%s comment=%s", dec, comment)
 	}
-	if !strings.Contains(comment, "破坏业务可用性") {
+	if !strings.Contains(comment, "destroys business availability") {
 		t.Fatalf("comment=%s", comment)
 	}
 }
@@ -100,8 +100,8 @@ func TestJevAuditQuestionsCoverPolicyAxes(t *testing.T) {
 }
 
 func TestBuildJevStateIncludesOperatorPolicy(t *testing.T) {
-	state := BuildJevState("approval", "exec", map[string]interface{}{"command": "id"}, "拦截所有Command execution")
-	if state["operatorPolicy"] != "拦截所有Command execution" {
+	state := BuildJevState("approval", "exec", map[string]interface{}{"command": "id"}, "block all command execution")
+	if state["operatorPolicy"] != "block all command execution" {
 		t.Fatalf("operatorPolicy=%v", state["operatorPolicy"])
 	}
 	policy, _ := state["policy"].(string)
@@ -111,7 +111,7 @@ func TestBuildJevStateIncludesOperatorPolicy(t *testing.T) {
 }
 
 func TestJevAuditQuestionsAddsPolicyOverlay(t *testing.T) {
-	qs := JevAuditQuestions("拦截所有Command execution")
+	qs := JevAuditQuestions("block all command execution")
 	if _, ok := qs[jevQOperatorPolicy]; !ok {
 		t.Fatal("missing operator policy noul")
 	}
@@ -130,7 +130,7 @@ func TestDecideJevRejectsOperatorPolicy(t *testing.T) {
 	if dec != "reject" {
 		t.Fatalf("decision=%s comment=%s", dec, comment)
 	}
-	if !strings.Contains(comment, "组织审批策略") {
+	if !strings.Contains(comment, "organisation approval policy") {
 		t.Fatalf("comment=%s", comment)
 	}
 }
@@ -148,7 +148,7 @@ func TestDecideJevPolicyChoiceRejectsEvenIfPentest(t *testing.T) {
 	if dec != "reject" {
 		t.Fatalf("decision=%s comment=%s", dec, comment)
 	}
-	if !strings.Contains(comment, "组织策略") {
+	if !strings.Contains(comment, "organisation policy") {
 		t.Fatalf("comment=%s", comment)
 	}
 }

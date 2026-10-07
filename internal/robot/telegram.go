@@ -67,7 +67,7 @@ type telegramBotMe struct {
 	} `json:"result"`
 }
 
-// StartTelegram start Telegram Bot 长轮询（getUpdates，none需公网回调）。
+// StartTelegram starts the Telegram Bot long-polling (getUpdates, no public callback required).
 func StartTelegram(ctx context.Context, robotsCfg config.RobotsConfig, h MessageHandler, logger *zap.Logger) {
 	cfg := robotsCfg.Telegram
 	if !cfg.Enabled || strings.TrimSpace(cfg.BotToken) == "" {
@@ -81,11 +81,11 @@ func runTelegramLoop(ctx context.Context, cfg config.RobotTelegramConfig, h Mess
 	for {
 		err := runTelegramPoll(ctx, cfg, h, logger)
 		if ctx.Err() != nil {
-			logger.Info("Telegram 长轮询已按configclose")
+			logger.Info("Telegram long-polling closed as per config")
 			return
 		}
 		if err != nil {
-			logger.Warn("Telegram 长轮询abnormal，将自动重连", zap.Error(err), zap.Duration("retry_after", backoff))
+			logger.Warn("Telegram long-polling abnormal, will auto-reconnect", zap.Error(err), zap.Duration("retry_after", backoff))
 		}
 		if !waitReconnect(ctx, &backoff) {
 			return
@@ -104,7 +104,7 @@ func runTelegramPoll(ctx context.Context, cfg config.RobotTelegramConfig, h Mess
 		}
 	}
 	offset := cfg.UpdateOffset
-	logger.Info("Telegram 长轮询已start", zap.String("bot", botUsername))
+	logger.Info("Telegram long-polling started", zap.String("bot", botUsername))
 	client := &http.Client{Timeout: telegramLongPollSec*time.Second + 10*time.Second}
 
 	for {
@@ -140,10 +140,10 @@ func runTelegramPoll(ctx context.Context, cfg config.RobotTelegramConfig, h Mess
 				}
 			}
 			userID := telegramSessionKey(chatType, u.Message.Chat.ID, u.Message.From.ID)
-			logger.Info("Telegram 收到message", zap.String("from", userID), zap.String("content", text))
+			logger.Info("Telegram received message", zap.String("from", userID), zap.String("content", text))
 			reply := h.HandleMessage(telegramPlatform, userID, text)
 			if err := telegramSendReply(ctx, client, token, u.Message.Chat.ID, reply); err != nil {
-				logger.Warn("Telegram 发送回复failed", zap.String("to", userID), zap.Error(err))
+				logger.Warn("Telegram failed to send reply", zap.String("to", userID), zap.Error(err))
 			}
 		}
 	}

@@ -56,35 +56,35 @@ type InspectionResult struct {
 // dependency on the workflow runtime or database driver.
 func InspectArchive(ctx context.Context, archive []byte, validateGraph func(context.Context, string) error) (*InspectionResult, error) {
 	if len(archive) == 0 {
-		return nil, packageError("WFPKG_FILE_REQUIRED", "必须uploadworkflow packagefile")
+		return nil, packageError("WFPKG_FILE_REQUIRED", "workflow package file must be uploaded")
 	}
 	if len(archive) > MaxArchiveBytes {
-		return nil, packageError("WFPKG_FILE_TOO_LARGE", "workflow packagefile超过大小限制")
+		return nil, packageError("WFPKG_FILE_TOO_LARGE", "workflow package file exceeds size limit")
 	}
 	zr, err := zip.NewReader(bytes.NewReader(archive), int64(len(archive)))
 	if err != nil {
-		return nil, packageError("WFPKG_INVALID_ARCHIVE", "workflow package不yes有效 ZIP file")
+		return nil, packageError("WFPKG_INVALID_ARCHIVE", "workflow package is not a valid ZIP file")
 	}
 	entries := make(map[string][]byte, len(zr.File))
 	var extracted int64
 	for _, file := range zr.File {
 		if !safeArchivePath(file.Name) || file.FileInfo().IsDir() || file.FileInfo().Mode()&os.ModeSymlink != 0 {
-			return nil, packageError("WFPKG_INVALID_ARCHIVE", "workflow package包含不安全file path")
+			return nil, packageError("WFPKG_INVALID_ARCHIVE", "workflow package contains an unsafe file path")
 		}
 		if _, exists := entries[file.Name]; exists {
-			return nil, packageError("WFPKG_INVALID_ARCHIVE", "workflow package包含重复file")
+			return nil, packageError("WFPKG_INVALID_ARCHIVE", "workflow package contains duplicate files")
 		}
 		if file.UncompressedSize64 > MaxExtractedBytes || extracted+int64(file.UncompressedSize64) > MaxExtractedBytes {
-			return nil, packageError("WFPKG_INVALID_ARCHIVE", "workflow package解压后超过大小限制")
+			return nil, packageError("WFPKG_INVALID_ARCHIVE", "workflow package exceeds size limit when extracted")
 		}
 		reader, err := file.Open()
 		if err != nil {
-			return nil, packageError("WFPKG_INVALID_ARCHIVE", "none法读取workflow packagefile")
+			return nil, packageError("WFPKG_INVALID_ARCHIVE", "unable to read workflow package file")
 		}
 		data, readErr := io.ReadAll(io.LimitReader(reader, int64(MaxExtractedBytes)-extracted+1))
 		closeErr := reader.Close()
 		if readErr != nil || closeErr != nil || len(data) > MaxExtractedBytes-int(extracted) {
-			return nil, packageError("WFPKG_INVALID_ARCHIVE", "workflow package解压后超过大小限制")
+			return nil, packageError("WFPKG_INVALID_ARCHIVE", "workflow package exceeds size limit when extracted")
 		}
 		extracted += int64(len(data))
 		entries[file.Name] = data
@@ -93,50 +93,50 @@ func InspectArchive(ctx context.Context, archive []byte, validateGraph func(cont
 	manifestRaw, hasManifest := entries["manifest.json"]
 	checksumsRaw, hasChecksums := entries["checksums.sha256"]
 	if !hasManifest || !hasChecksums {
-		return nil, packageError("WFPKG_UNSUPPORTED_FORMAT", "workflow package缺少必需file")
+		return nil, packageError("WFPKG_UNSUPPORTED_FORMAT", "workflow package is missing required files")
 	}
 	manifest, err := parseManifest(manifestRaw)
 	if err != nil {
 		return nil, err
 	}
 	if len(manifest.Items) != 1 || manifest.Items[0].Type != "workflow" {
-		return nil, packageError("WFPKG_MULTIPLE_WORKFLOWS", "workflow package必须且只能包含一个工作流")
+		return nil, packageError("WFPKG_MULTIPLE_WORKFLOWS", "workflow package must contain exactly one workflow")
 	}
 	item := manifest.Items[0]
 	workflowRaw, exists := entries[item.Path]
 	if !exists || !safeWorkflowPath(item.Path) || len(entries) != 3 {
-		return nil, packageError("WFPKG_INVALID_ARCHIVE", "workflow package包含未声明file")
+		return nil, packageError("WFPKG_INVALID_ARCHIVE", "workflow package contains undeclared files")
 	}
 	checksums, err := parseChecksums(checksumsRaw)
 	if err != nil {
 		return nil, err
 	}
 	if len(checksums) != 2 || checksums["manifest.json"] != sha256Prefixed(manifestRaw) || checksums[item.Path] != sha256Prefixed(workflowRaw) {
-		return nil, packageError("WFPKG_CHECKSUM_MISMATCH", "workflow package校验和不匹配")
+		return nil, packageError("WFPKG_CHECKSUM_MISMATCH", "workflow package checksum mismatch")
 	}
 	if item.ContentHash != sha256Prefixed(workflowRaw) || !validHash(item.ContentHash) || !validHash(item.GraphHash) {
-		return nil, packageError("WFPKG_CHECKSUM_MISMATCH", "workflow package内容校验和不匹配")
+		return nil, packageError("WFPKG_CHECKSUM_MISMATCH", "workflow package content checksum mismatch")
 	}
 	doc, err := parseDocument(workflowRaw)
 	if err != nil {
 		return nil, err
 	}
 	if !safePackageWorkflowID(doc.ID) || doc.ID != item.SourceID || doc.Version != item.SourceRevision {
-		return nil, packageError("WFPKG_INVALID_MANIFEST", "workflow package manifest与工作流内容不一致")
+		return nil, packageError("WFPKG_INVALID_MANIFEST", "workflow package manifest is inconsistent with workflow content")
 	}
 	graph, err := canonicalJSON([]byte(doc.GraphJSON))
 	if err != nil || item.GraphHash != sha256Prefixed(graph) {
-		return nil, packageError("WFPKG_CHECKSUM_MISMATCH", "workflow graph校验和不匹配")
+		return nil, packageError("WFPKG_CHECKSUM_MISMATCH", "workflow graph checksum mismatch")
 	}
 	if validateGraph == nil || validateGraph(ctx, string(graph)) != nil {
-		return nil, packageError("WFPKG_WORKFLOW_INVALID", "workflow graph校验failed")
+		return nil, packageError("WFPKG_WORKFLOW_INVALID", "workflow graph validation failed")
 	}
 	var graphShape struct {
 		Nodes []json.RawMessage `json:"nodes"`
 		Edges []json.RawMessage `json:"edges"`
 	}
 	if err := json.Unmarshal(graph, &graphShape); err != nil {
-		return nil, packageError("WFPKG_WORKFLOW_INVALID", "workflow graph不yes有效 JSON")
+		return nil, packageError("WFPKG_WORKFLOW_INVALID", "workflow graph is not valid JSON")
 	}
 	return &InspectionResult{
 		PackageHash: sha256Prefixed(archive),
@@ -175,10 +175,10 @@ func parseManifest(raw []byte) (Manifest, error) {
 	dec := json.NewDecoder(bytes.NewReader(raw))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&manifest); err != nil {
-		return Manifest{}, packageError("WFPKG_INVALID_MANIFEST", "workflow package manifestformatnone效")
+		return Manifest{}, packageError("WFPKG_INVALID_MANIFEST", "workflow package manifest format is invalid")
 	}
 	if err := consumeJSONEnd(dec); err != nil || manifest.PackageFormat != PackageFormat || manifest.FormatVersion != FormatVersion || strings.TrimSpace(manifest.PackageID) == "" || len(manifest.Items) == 0 {
-		return Manifest{}, packageError("WFPKG_INVALID_MANIFEST", "workflow package manifestformat不受支持")
+		return Manifest{}, packageError("WFPKG_INVALID_MANIFEST", "workflow package manifest format is not supported")
 	}
 	return manifest, nil
 }
@@ -188,12 +188,12 @@ func parseDocument(raw []byte) (Document, error) {
 	dec := json.NewDecoder(bytes.NewReader(raw))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&doc); err != nil || consumeJSONEnd(dec) != nil {
-		return Document{}, packageError("WFPKG_WORKFLOW_INVALID", "工作流定义formatnone效")
+		return Document{}, packageError("WFPKG_WORKFLOW_INVALID", "workflow definition format is invalid")
 	}
 	doc.ID = strings.TrimSpace(doc.ID)
 	doc.Name = strings.TrimSpace(doc.Name)
 	if doc.ID == "" || doc.Name == "" || doc.Version <= 0 || strings.TrimSpace(doc.GraphJSON) == "" {
-		return Document{}, packageError("WFPKG_WORKFLOW_INVALID", "工作流定义缺少必需字段")
+		return Document{}, packageError("WFPKG_WORKFLOW_INVALID", "workflow definition is missing required fields")
 	}
 	return doc, nil
 }
@@ -214,10 +214,10 @@ func parseChecksums(raw []byte) (map[string]string, error) {
 	for _, line := range strings.Split(strings.TrimSpace(string(raw)), "\n") {
 		parts := strings.SplitN(strings.TrimSpace(line), "  ", 2)
 		if len(parts) != 2 || !validHash("sha256:"+parts[0]) || !safeArchivePath(parts[1]) {
-			return nil, packageError("WFPKG_CHECKSUM_MISMATCH", "workflow package校验和formatnone效")
+			return nil, packageError("WFPKG_CHECKSUM_MISMATCH", "workflow package checksum format is invalid")
 		}
 		if _, exists := entries[parts[1]]; exists {
-			return nil, packageError("WFPKG_CHECKSUM_MISMATCH", "workflow package校验和重复")
+			return nil, packageError("WFPKG_CHECKSUM_MISMATCH", "workflow package checksum is duplicated")
 		}
 		entries[parts[1]] = "sha256:" + parts[0]
 	}

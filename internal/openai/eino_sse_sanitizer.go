@@ -2,7 +2,7 @@ package openai
 
 // eino_sse_sanitizer.go resolves an issue when Eino uses the meguminnnnnnnnn/go-openai SDK:
 // proxy heartbeat/SSE control lines accumulating > 300 lines trigger ErrTooManyEmptyStreamMessages
-// （报错文案: "stream has sent too many empty messages"）的问题。
+// (error message: "stream has sent too many empty messages").
 //
 // Trigger chain:
 //   einoopenai.NewChatModel

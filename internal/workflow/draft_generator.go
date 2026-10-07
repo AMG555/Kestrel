@@ -80,14 +80,14 @@ type draftToolHint struct {
 }
 
 var draftToolHints = []draftToolHint{
-	{Label: "Subdomain Discovery", Keywords: []string{"子域名", "subdomain", "subfinder", "amass"}, Tools: []string{"subfinder", "amass"}},
+	{Label: "Subdomain Discovery", Keywords: []string{"subdomain", "sub-domain", "subfinder", "amass"}, Tools: []string{"subfinder", "amass"}},
 	{Label: "portscan", Keywords: []string{"port", "port", "nmap", "rustscan", "masscan"}, Tools: []string{"nmap", "rustscan", "masscan"}},
-	{Label: "Vulnerability Scan", Keywords: []string{"漏洞", "vuln", "漏洞scan", "nuclei", "nikto", "zap"}, Tools: []string{"nuclei", "nikto", "zap"}},
-	{Label: "Exposed Surface Detection", Keywords: []string{"directory", "path", "暴露页面", "dir", "ffuf", "gobuster", "feroxbuster"}, Tools: []string{"ffuf", "gobuster", "feroxbuster", "dirsearch"}},
-	{Label: "Certificate and Domain Intelligence Collection", Keywords: []string{"证书", "certificate", "crt"}, Tools: []string{"subfinder"}},
-	{Label: "Cloud Config Audit", Keywords: []string{"云", "cloud", "config审计", "prowler", "scout"}, Tools: []string{"prowler", "scout-suite"}},
-	{Label: "Container Security Check", Keywords: []string{"容器", "镜像", "k8s", "kubernetes", "trivy", "kube"}, Tools: []string{"trivy", "kube-bench", "kube-hunter"}},
-	{Label: "Threat Intelligence Collection", Keywords: []string{"情报", "威胁情报", "threat", "ioc", "virustotal", "shodan", "fofa"}, Tools: []string{"virustotal_search", "shodan_search", "fofa_search"}},
+	{Label: "Vulnerability Scan", Keywords: []string{"vuln", "vulnerability", "nuclei", "nikto", "zap"}, Tools: []string{"nuclei", "nikto", "zap"}},
+	{Label: "Exposed Surface Detection", Keywords: []string{"directory", "path", "exposed", "dir", "ffuf", "gobuster", "feroxbuster"}, Tools: []string{"ffuf", "gobuster", "feroxbuster", "dirsearch"}},
+	{Label: "Certificate and Domain Intelligence Collection", Keywords: []string{"certificate", "cert", "crt"}, Tools: []string{"subfinder"}},
+	{Label: "Cloud Config Audit", Keywords: []string{"cloud", "config audit", "prowler", "scout"}, Tools: []string{"prowler", "scout-suite"}},
+	{Label: "Container Security Check", Keywords: []string{"container", "image", "k8s", "kubernetes", "trivy", "kube"}, Tools: []string{"trivy", "kube-bench", "kube-hunter"}},
+	{Label: "Threat Intelligence Collection", Keywords: []string{"intelligence", "threat intel", "ioc", "virustotal", "shodan", "fofa"}, Tools: []string{"virustotal_search", "shodan_search", "fofa_search"}},
 }
 
 var highRiskDraftRE = regexp.MustCompile(`(?i)(isolate|block|harden|fix|execute|command|script|delete|cleanup|ban|attack|exploit|getshell|shell|payload|exploit|isolate|block|execute|script|delete|exploit|payload)`)
@@ -293,10 +293,10 @@ Hard rules:
 - All non-start nodes that may have multiple upstream nodes must configure join_strategy:"all_merge".
 - condition nodes have at most 2 outgoing edges; must use branch true/false with label yes/no.
 - tool nodes are only used when an enabled tool exists in available_tools; otherwise use an agent node and note the missing tool in audit.missing_fields.
-- High-risk actions (script execution, isolation, blocking, delete, exploitation, payload, command execution, etc.) must include hitl approval, or mark requires_human_confirmation:"true"、risk_level:"high"。
+- High-risk actions (script execution, isolation, blocking, delete, exploitation, payload, command execution, etc.) must include hitl approval, or mark requires_human_confirmation:"true", risk_level:"high".
 - Do not generate parameters that would actually execute attacks; use {{inputs.target}}, {{inputs.message}} as placeholders in tool parameters.
-- 所有节点 config 加 generated_by:"llm" 和 needs_review:"true"。`
-	userPrompt := fmt.Sprintf("user需求：%s\n\n选项：%+v\n\n可用tool JSON：%s", prompt, req.Options, string(toolJSON))
+- Add generated_by:"llm" and needs_review:"true" to all node configs.`
+	userPrompt := fmt.Sprintf("User request: %s\n\nOptions: %+v\n\nAvailable tools JSON: %s", prompt, req.Options, string(toolJSON))
 	requestBody := map[string]interface{}{
 		"model": strings.TrimSpace(oa.Model),
 		"messages": []map[string]interface{}{
@@ -318,10 +318,10 @@ Hard rules:
 	}
 	client := openai.NewClient(&oa, nil, logger)
 	if err := client.ChatCompletion(callCtx, requestBody, &apiResponse); err != nil {
-		return nil, fmt.Errorf("调用大modelfailed: %w", err)
+		return nil, fmt.Errorf("LLM call failed: %w", err)
 	}
 	if len(apiResponse.Choices) == 0 {
-		return nil, fmt.Errorf("大model未back候选结果")
+		return nil, fmt.Errorf("LLM returned no candidate results")
 	}
 	raw := strings.TrimSpace(apiResponse.Choices[0].Message.Content)
 	if raw == "" {
@@ -340,7 +340,7 @@ Hard rules:
 	result.Audit.Validation = validation
 	result.Audit.Savable = len(validation) == 0
 	if !result.Audit.Savable {
-		return nil, fmt.Errorf("大model生成的工作流未通过校验: %s", strings.Join(validation, "；"))
+		return nil, fmt.Errorf("LLM-generated workflow failed validation: %s", strings.Join(validation, "; "))
 	}
 	return result, nil
 }
@@ -387,7 +387,7 @@ func parseLLMDraftEnvelope(raw string) (llmDraftEnvelope, error) {
 		var env llmDraftEnvelope
 		if err := json.Unmarshal([]byte(candidate), &env); err == nil {
 			if len(env.Graph.Nodes) == 0 {
-				lastErr = fmt.Errorf("大model JSON 缺少 graph.nodes")
+				lastErr = fmt.Errorf("LLM JSON missing graph.nodes")
 				continue
 			}
 			return env, nil
@@ -396,9 +396,9 @@ func parseLLMDraftEnvelope(raw string) (llmDraftEnvelope, error) {
 		}
 	}
 	if lastErr == nil {
-		lastErr = fmt.Errorf("大empty model response")
+		lastErr = fmt.Errorf("LLM returned empty response")
 	}
-	return llmDraftEnvelope{}, fmt.Errorf("解析大model工作流 JSON failed: %w", lastErr)
+	return llmDraftEnvelope{}, fmt.Errorf("failed to parse LLM workflow JSON: %w", lastErr)
 }
 
 func jsonObjectCandidates(raw string) []string {
@@ -466,10 +466,10 @@ func normalizeLLMDraft(prompt string, req DraftRequest, env llmDraftEnvelope) *D
 	audit.HighRisk = highRisk
 	audit.NeedsHITL = graphHasNodeType(g, "hitl")
 	if highRisk && !audit.NeedsHITL && !graphHasConfirmation(g) {
-		audit.RiskWarnings = append(audit.RiskWarnings, "大model生成包含高风险语义，请补充human approval或confirm标记后再运行。")
+		audit.RiskWarnings = append(audit.RiskWarnings, "LLM-generated content contains high-risk semantics; please add a human approval or confirmation marker before running.")
 	}
 	if len(audit.RiskWarnings) == 0 && highRisk {
-		audit.RiskWarnings = append(audit.RiskWarnings, "检测到高风险动作，已标记为需要重点审计。")
+		audit.RiskWarnings = append(audit.RiskWarnings, "High-risk actions detected; marked for priority auditing.")
 	}
 	meta := env.Meta
 	if strings.TrimSpace(meta.Description) == "" {
@@ -542,7 +542,7 @@ func normalizeLLMNodeConfig(prompt string, node *graphNode, enabledTools map[str
 		ensureJoinStrategy(node)
 	case "hitl":
 		if cfgString(node.Config, "prompt") == "" {
-			node.Config["prompt"] = "请审核工作流阶段结果：" + prompt
+			node.Config["prompt"] = "Please review the workflow stage result: " + prompt
 		}
 		if cfgString(node.Config, "reviewer") == "" {
 			node.Config["reviewer"] = "human"
@@ -566,7 +566,7 @@ func normalizeAgentDraftConfig(prompt string, node *graphNode, usedOutputKeys ma
 		node.Config["agent_mode"] = "eino_single"
 	}
 	if cfgString(node.Config, "instruction") == "" {
-		node.Config["instruction"] = node.Label + "。根据user需求执行安全流程步骤，并输出结构化结果：" + prompt
+		node.Config["instruction"] = node.Label + ". Execute security process steps according to the user request and output structured results: " + prompt
 	}
 	if _, ok := parseFieldBinding(node.Config, "input_binding"); !ok {
 		node.Config["input_binding"] = map[string]any{"from": "previous", "field": "output"}
@@ -683,7 +683,7 @@ func detectDraftCapabilities(prompt string, tools []DraftTool) []DraftCapability
 		}
 	}
 	if len(capabilities) == 0 {
-		capabilities = append(capabilities, DraftCapability{Label: "节点能力", ToolCandidates: nil})
+		capabilities = append(capabilities, DraftCapability{Label: "Node Capability", ToolCandidates: nil})
 	}
 	return capabilities
 }
@@ -721,9 +721,9 @@ func containsAnyFold(text string, needles ...string) bool {
 
 func draftOutputLabel(wantsReport bool) string {
 	if wantsReport {
-		return "输出report"
+		return "Output Report"
 	}
-	return "输出"
+	return "Output"
 }
 
 func branchLabel(source, conditionID string) string {

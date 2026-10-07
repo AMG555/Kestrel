@@ -22,9 +22,9 @@ func testToolGuard(t *testing.T, enabled bool) *toolguard.Manager {
 		t.Fatal(err)
 	}
 	if err := guard.Update(toolguard.Config{Enabled: enabled, Rules: []toolguard.Rule{{
-		ID: "government", Name: "政府网站保护", Enabled: true,
+		ID: "government", Name: "government-site-protection", Enabled: true,
 		Pattern: `(?i)[a-z0-9.-]+\.gov(?:\.[a-z0-9.-]+)?`,
-		Message: "识别到 {match}，禁止攻击政府网站，请check目标授权。",
+		Message: "Detected {match}, attacking government sites is prohibited, please verify target authorization.",
 	}}}); err != nil {
 		t.Fatal(err)
 	}
@@ -39,7 +39,7 @@ func assertGuardRefusal(t *testing.T, result *ToolResult, err error) {
 	} else if result == nil || !result.IsError || !result.Blocked {
 		t.Fatalf("expected tool error result, got %#v", result)
 	}
-	for _, text := range []string{toolGuardBlockedPrefix, "禁止攻击政府网站", "agency.gov.cn", "government"} {
+	for _, text := range []string{toolGuardBlockedPrefix, "government sites is prohibited", "agency.gov.cn", "government"} {
 		if !strings.Contains(message, text) {
 			t.Errorf("refusal %q missing %q", message, text)
 		}

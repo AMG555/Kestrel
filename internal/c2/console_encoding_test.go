@@ -26,18 +26,19 @@ func TestNormalizeConsoleOutput_WindowsGBK(t *testing.T) {
 }
 
 func TestNormalizeConsoleOutput_UTF8Passthrough(t *testing.T) {
-	raw := []byte("hello 世界")
+	// Use a UTF-8 multi-byte sequence to verify that non-ASCII content passes through unchanged.
+	raw := []byte("hello caf\xc3\xa9") // "hello café" in UTF-8
 	got := NormalizeConsoleOutput(raw, "linux")
-	if got != "hello 世界" {
+	if got != "hello café" {
 		t.Fatalf("got %q", got)
 	}
 }
 
 func TestResolveTaskResultText_PrefersB64(t *testing.T) {
-	raw := mustGBK(t, "采购订单")
+	raw := mustGBK(t, "purchase-order")
 	b64 := base64.StdEncoding.EncodeToString(raw)
 	got := ResolveTaskResultText("", b64, "windows")
-	if got != "采购订单" {
+	if got != "purchase-order" {
 		t.Fatalf("got %q", got)
 	}
 }

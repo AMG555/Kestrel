@@ -4,7 +4,7 @@ import "kestrel/internal/config"
 
 const defaultAgentMaxIterations = 3000
 
-// agentMaxIterations 全局上限：仅使用 config.agent.max_iterations；≤0 时与 config 默认一致为 3000。
+// agentMaxIterations returns the global iteration cap: uses only config.agent.max_iterations; when ≤0 defaults to 3000.
 func agentMaxIterations(appCfg *config.Config) int {
 	if appCfg != nil && appCfg.Agent.MaxIterations > 0 {
 		return appCfg.Agent.MaxIterations
@@ -12,8 +12,8 @@ func agentMaxIterations(appCfg *config.Config) int {
 	return defaultAgentMaxIterations
 }
 
-// resolveMaxIterations 统一迭代上限：Markdown/sub-agent front matter 中 max_iterations>0 可单独覆盖，no则使用 agent.max_iterations。
-// multi_agent.max_iteration 与 sub_agent_max_iterations 已废弃，不再参与计算。
+// resolveMaxIterations returns the unified iteration cap: max_iterations>0 in Markdown/sub-agent front matter overrides per-agent; otherwise uses agent.max_iterations.
+// multi_agent.max_iteration and sub_agent_max_iterations are deprecated and no longer considered.
 func resolveMaxIterations(appCfg *config.Config, markdownOverride int) int {
 	if markdownOverride > 0 {
 		return markdownOverride

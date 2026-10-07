@@ -101,5 +101,5 @@ func einoTurnLoopInterruptTimelineSummary(note string) string {
 	if note == "" {
 		return "User chose 'interrupt and continue' without providing a note; pushed to Eino TurnLoop and waiting for a safe checkpoint to resume."
 	}
-	return "user中断说明（Eino TurnLoop 原生续跑）：\n\n" + note
+	return "User interrupt note (Eino TurnLoop native resume):\n\n" + note
 }

@@ -64,7 +64,7 @@ Output format (strictly follow; single-round response only):
 - Conclusions from each tool (summarize core output, not verbose logs)
 - Merge duplicate discoveries into single statements
 
-## 6. 所有user message
+## 6. All user messages
 <all_user_messages>
 - [List key points from each non-tool-result user message; preserve sensitive constraints and original wording as much as possible]
 </all_user_messages>
@@ -77,7 +77,7 @@ Output format (strictly follow; single-round response only):
 
 Reminder: do not call any tools; directly output <analysis> and <summary> based on the existing conversation above; do not output body text other than analysis.`
 
-// newEinoSummarizationMiddleware uses the Eino ADK Summarization middleware (see https://www.cloudwego.io/zh/docs/eino/core_modules/eino_adk/eino_adk_chatmodelagentmiddleware/middleware_summarization/）。
+// newEinoSummarizationMiddleware uses the Eino ADK Summarization middleware (see https://www.cloudwego.io/docs/eino/core_modules/eino_adk/eino_adk_chatmodelagentmiddleware/middleware_summarization/).
 // Trigger threshold: summarize when estimated tokens exceed openai.max_total_tokens * summarization_trigger_ratio (default 0.8).
 func newEinoSummarizationMiddleware(
 	ctx context.Context,
@@ -604,7 +604,7 @@ func summarizeFinalizeWithRecentAssistantToolTrail(
 	return out, nil
 }
 
-// messageRound 表示一个"不可分割"的message回合。
+// messageRound represents an indivisible message round.
 //   - for assistant(tool_calls) + subsequent tool messages, all call_ids within the round are fully paired;
 //   - for standalone user / assistant(reply) messages, the round contains only that message.
 type messageRound struct {

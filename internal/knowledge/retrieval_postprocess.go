@@ -16,15 +16,15 @@ import (
 	"github.com/pkoukk/tiktoken-go"
 )
 
-// postRetrieveMaxPrefetchCap 限制单次向量候选上限，避免误config导致全表扫压力过大。
+// postRetrieveMaxPrefetchCap limits the maximum vector candidates per query to avoid excessive full-table scans from misconfiguration.
 const postRetrieveMaxPrefetchCap = 200
 
-// DocumentReranker 精排（HTTP dashscope / Cohere 兼容 API），由 [WireRetrieverPipeline] 注入。
+// DocumentReranker is the fine-grained reranker (HTTP dashscope / Cohere-compatible API), injected by [WireRetrieverPipeline].
 type DocumentReranker interface {
 	Rerank(ctx context.Context, query string, docs []*schema.Document) ([]*schema.Document, error)
 }
 
-// NopDocumentReranker 占位实现，便于test或未enable重排时显式注入。
+// NopDocumentReranker is a placeholder implementation for use in tests or when reranking is disabled.
 type NopDocumentReranker struct{}
 
 // Rerank implements [DocumentReranker] as no-op.
@@ -65,7 +65,8 @@ func countDocTokens(text, model string) (int, error) {
 	return len(toks), nil
 }
 
-// normalizeContentFingerprintKey 去重key：trim + null白折叠（不改动大小写，避免合并仅大小写不同的代码片段）。
+// normalizeContentFingerprintKey computes a deduplication key: trims and collapses whitespace
+// (case is preserved to avoid merging code snippets that differ only in case).
 func normalizeContentFingerprintKey(s string) string {
 	s = strings.TrimSpace(s)
 	var b strings.Builder
@@ -97,7 +98,8 @@ func contentNormKey(d *schema.Document) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// dedupeByNormalizedContent 按规范化正文去重，保留向量检索顺序中首次出现的文档（同正文仅保留一条）。
+// dedupeByNormalizedContent deduplicates by normalized content, keeping the first occurrence in retrieval order
+// (only one entry is kept per identical body).
 func dedupeByNormalizedContent(docs []*schema.Document) []*schema.Document {
 	if len(docs) < 2 {
 		return docs
@@ -122,7 +124,8 @@ func dedupeByNormalizedContent(docs []*schema.Document) []*schema.Document {
 	return out
 }
 
-// truncateDocumentsByBudget 按检索顺序整段保留文档，直至字符数或 token 数（任一enable）超限则stop。
+// truncateDocumentsByBudget retains documents in retrieval order until the character or token budget
+// (whichever is enabled) is exceeded.
 func truncateDocumentsByBudget(docs []*schema.Document, maxRunes, maxTokens int, tokenModel string) ([]*schema.Document, error) {
 	if len(docs) == 0 {
 		return docs, nil
@@ -167,7 +170,8 @@ func truncateDocumentsByBudget(docs []*schema.Document, maxRunes, maxTokens int,
 	return out, nil
 }
 
-// EffectivePrefetchTopK 计算每条 MultiQuery 变体在向量阶段的候选条数（供融合 / 重排 / 后处理）。
+// EffectivePrefetchTopK computes the number of vector candidates per MultiQuery variant
+// (used for fusion / reranking / post-processing).
 func EffectivePrefetchTopK(topK int, po *config.PostRetrieveConfig) int {
 	if topK < 1 {
 		topK = 5
@@ -185,7 +189,8 @@ func EffectivePrefetchTopK(topK int, po *config.PostRetrieveConfig) int {
 	return fetch
 }
 
-// ApplyPostRetrieve 检索后处理：规范化正文去重 → 预算截断 → 最终 TopK（精排已在流水线中完成）。
+// ApplyPostRetrieve applies post-retrieval processing: normalized-content deduplication → budget truncation → final TopK
+// (fine-grained reranking is already done in the pipeline).
 func ApplyPostRetrieve(docs []*schema.Document, po *config.PostRetrieveConfig, tokenModel string, finalTopK int) ([]*schema.Document, error) {
 	if finalTopK < 1 {
 		finalTopK = 5

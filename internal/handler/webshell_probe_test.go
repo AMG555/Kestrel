@@ -10,7 +10,7 @@ func TestClassifyWebshellOSProbeOutput(t *testing.T) {
 	}{
 		{"Windows cmd complete echo", ":OSPROBE_Windows_NT:END\r\n", "windows"},
 		{"Windows cmd echo with extra empty line", "\r\n:OSPROBE_Windows_NT:END\r\n", "windows"},
-		{"Windows secondary hint - ver banner", "Microsoft Windows [版本 10.0.19045]\r\n", "windows"},
+		{"Windows secondary hint - ver banner", "Microsoft Windows [Version 10.0.19045]\r\n", "windows"},
 		{"Linux sh literal echo", ":OSPROBE_%OS%:END\n", "linux"},
 		{"Linux compact output (no newline)", ":OSPROBE_%OS%:END", "linux"},
 		{"empty output - cannot determine", "", ""},

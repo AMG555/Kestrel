@@ -141,9 +141,9 @@ func RegisterBatchTaskMCPTools(mcpServer *mcp.Server, h *AgentHandler, logger *z
 		Name: builtin.ToolBatchTaskCreate,
 		Description: `⚠️ Call constraint: this tool belongs to the [task management] module and may only be called when the user explicitly requests creating a batch task or task queue. Do NOT call it without keywords like "batch task", "task queue", "scheduled task" from the user. If the user simply wants you to do something, complete it directly in the current conversation — do not create a task queue on your own initiative.
 
-【Purpose】In-app [task management / batch task queue]: register multiple independent user instructions as a single queue for viewing progress, pausing/resuming, and scheduled re-runs in the UI. This is a queue data and scheduling entry point — not a "sub-agent session" to explore the current problem on your behalf.
+[Purpose] In-app [task management / batch task queue]: register multiple independent user instructions as a single queue for viewing progress, pausing/resuming, and scheduled re-runs in the UI. This is a queue data and scheduling entry point — not a "sub-agent session" to explore the current problem on your behalf.
 
-【When to use】Call when the user explicitly wants to queue tasks for batch execution, run the same batch of instructions on a Cron schedule, or align with the task management page. Analysis or coding that requires immediate follow-up or strong context dependency should be completed directly in the current conversation — do not create a queue just to "delegate".
+[When to use] Call when the user explicitly wants to queue tasks for batch execution, run the same batch of instructions on a Cron schedule, or align with the task management page. Analysis or coding that requires immediate follow-up or strong context dependency should be completed directly in the current conversation — do not create a queue just to "delegate".
 
 [Parameters] Choose one of tasks (string array) or tasks_text (multi-line, one per line); each item is an instruction that will later be executed by the system in queue order. agent_mode: eino_single (Eino ADK single-agent, default), deep / plan_execute / supervisor (requires multi-agent to be enabled in system). Not "splitting the main conversation to sub-agents". schedule_mode: manual (default) or cron; cron requires cron_expr (5 segments, e.g. "0 */6 * * *").
 
@@ -226,13 +226,13 @@ func RegisterBatchTaskMCPTools(mcpServer *mcp.Server, h *AgentHandler, logger *z
 		projectID := strings.TrimSpace(mcpArgString(args, "project_id"))
 		if principal, ok := authctx.PrincipalFromContext(ctx); ok && projectID != "" && principal.ScopeFor("tasks:write") != database.RBACScopeAll {
 			if h.db == nil || !h.db.UserCanAccessResource(principal.UserID, principal.ScopeFor("tasks:write"), "project", projectID) {
-				return batchMCPTextResult("access deniedtarget project", true), nil
+				return batchMCPTextResult("access denied to target project", true), nil
 			}
 		}
 		concurrency := int(mcpArgFloat(args, "concurrency"))
 		queue, createErr := h.batchTaskManager.CreateBatchQueue(title, role, agentMode, scheduleMode, cronExpr, projectID, nextRunAt, concurrency, tasks)
 		if createErr != nil {
-			return batchMCPTextResult("createqueuefailed: "+createErr.Error(), true), nil
+			return batchMCPTextResult("failed to create queue: "+createErr.Error(), true), nil
 		}
 		if principal, ok := authctx.PrincipalFromContext(ctx); ok && h.db != nil {
 			_ = h.db.SetResourceOwner("batch_task", queue.ID, principal.UserID)
@@ -301,7 +301,7 @@ func RegisterBatchTaskMCPTools(mcpServer *mcp.Server, h *AgentHandler, logger *z
 	// --- rerun (reset + start for completed/cancelled queues) ---
 	reg(mcp.Tool{
 		Name:             builtin.ToolBatchTaskRerun,
-		Description:      "Re-run a completed or cancelled batch task queue. Resets all sub-task statuses and executes a new round.\n\n⚠️ Call constraint: this tool belongs to the [task management] module; only call when the user明确要求重跑批量task时才可调用。不要在user未要求时自行调用。",
+		Description:      "Re-run a completed or cancelled batch task queue. Resets all sub-task statuses and executes a new round.\n\n⚠️ Call constraint: this tool belongs to the [task management] module; only call when the user explicitly requests re-running a batch task. Do not call without the user asking.",
 		ShortDescription: "re-run batch task queue",
 		InputSchema: map[string]interface{}{
 			"type": "object",
@@ -326,7 +326,7 @@ func RegisterBatchTaskMCPTools(mcpServer *mcp.Server, h *AgentHandler, logger *z
 			return batchMCPTextResult("only completed or cancelled queues can be re-run; current status: "+queue.Status, true), nil
 		}
 		if !h.batchTaskManager.ResetQueueForRerun(qid) {
-			return batchMCPTextResult("resetqueuefailed", true), nil
+			return batchMCPTextResult("failed to reset queue", true), nil
 		}
 		ok, err := h.startBatchQueueExecution(qid, false)
 		if !ok {

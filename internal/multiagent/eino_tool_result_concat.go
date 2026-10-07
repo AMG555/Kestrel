@@ -7,10 +7,10 @@ import (
 	"github.com/cloudwego/eino/schema"
 )
 
-// concatToolResultChunks 按 Eino 原生语义合并tool result流：
-//   - 同一 CallID（EventSender 一 call 一 event）：schema.ConcatMessages
-//   - 并行tool被摊进同一条流（ToolsNode MergeStreamReaders 扁平化后）：
-//     按 CallID 分列后再 ConcatMessages，等价于 schema.ConcatMessageArray
+// concatToolResultChunks merges tool result streams following Eino's native semantics:
+//   - Same CallID (EventSender: one call, one event): schema.ConcatMessages
+//   - Parallel tools flattened into the same stream (after ToolsNode MergeStreamReaders):
+//     split by CallID then ConcatMessages, equivalent to schema.ConcatMessageArray
 func concatToolResultChunks(chunks []*schema.Message) ([]*schema.Message, error) {
 	if len(chunks) == 0 {
 		return nil, nil

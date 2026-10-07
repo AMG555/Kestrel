@@ -1,6 +1,5 @@
 # API Reference
 
-[中文](../zh-CN/api-reference.md)
 
 Kestrel exposes built-in OpenAPI docs:
 

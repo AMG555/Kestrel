@@ -154,7 +154,7 @@ func (h *TerminalHandler) RunCommand(c *gin.Context) {
 				Stdout:   so,
 				Stderr:   se,
 				ExitCode: -1,
-				Error:    "command execution timed out (" + terminalTimeout.String() + "）",
+				Error:    "command execution timed out (" + terminalTimeout.String() + ")",
 			}
 			c.JSON(http.StatusOK, resp)
 			return
@@ -162,7 +162,7 @@ func (h *TerminalHandler) RunCommand(c *gin.Context) {
 		h.logger.Debug("terminal command execution abnormal", zap.String("command", maskTerminalCommand(cmdStr)), zap.Error(err))
 	}
 
-	// 统一为 \n，避免前端因 \r 出现错位/对角线排版
+	// Normalize to \n to avoid front-end misalignment or diagonal layout due to \r.
 	stdoutStr := strings.ReplaceAll(string(stdoutBytes), "\r\n", "\n")
 	stdoutStr = strings.ReplaceAll(stdoutStr, "\r", "\n")
 	stderrStr := strings.ReplaceAll(string(stderrBytes), "\r\n", "\n")

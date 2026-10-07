@@ -31,11 +31,12 @@ func adaptAgenticEventToEinoEvents(ev *adk.TypedAgentEvent[*schema.AgenticMessag
 		return []*adk.AgentEvent{base(&adk.AgentOutput{CustomizedOutput: customized})}
 	}
 	if mv.IsStreaming {
-		// Tool 流保持 1 event ↔ 1 MessageStream，对齐 ADK EventSenderToolWrapper：
-		// 每个 CallID 在tool包装层就已经yes独立event。这里不能再按 CallID 现场拆成
-		// 多条 live pipe——drain 会阻塞读完当前流，交错的并行 chunk 会把另一列写满后死锁。
-		// 若上游仍把 ToolsNode 的 MergeStreamReaders 摊成一条流，由
-		// concatToolResultChunks 按列 ConcatMessages resume。
+		// Tool streams keep 1 event ↔ 1 MessageStream, aligned with ADK EventSenderToolWrapper:
+		// each CallID is already a separate event at the tool wrapper layer. We must not re-split
+		// by CallID into multiple live pipes here — drain would block until the current stream is
+		// fully consumed, and interleaved parallel chunks would fill the other column and deadlock.
+		// If the upstream still flattens ToolsNode's MergeStreamReaders into a single stream,
+		// concatToolResultChunks resumes them per-column via ConcatMessages.
 		return []*adk.AgentEvent{base(&adk.AgentOutput{
 			MessageOutput: &adk.MessageVariant{
 				IsStreaming:   true,

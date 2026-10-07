@@ -5,8 +5,9 @@ import (
 	"testing"
 )
 
-// Eino execute 去重分支 EOF flush 须以 mainAssistantBuf 为基准计算 tail，
-// 若误用 TrimSpace(mainAssistantBuf)，会与已推前缀在null白处失配，normalize 走拼接path叠字。
+// The Eino execute deduplication branch's EOF flush must compute the tail based on mainAssistantBuf;
+// incorrectly using TrimSpace(mainAssistantBuf) causes a mismatch with the already-pushed prefix
+// at whitespace boundaries, making normalize take the concatenation path and duplicate text.
 func TestNormalizeStreamingDelta_eofTailUsesRawBufNotTrim(t *testing.T) {
 	wireAccum := "phrase "
 	rawFull := "phrase \n"

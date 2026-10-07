@@ -920,7 +920,7 @@ func (db *DB) GetAgentTrace(conversationID string) (traceInputJSON, assistantOut
 	return traceInputJSON, assistantOutput, nil
 }
 
-// ConversationHasToolProcessDetails reports whether a conversation has persisted tool call/result records (used to determine attack chain when MCP execution IDs are not aggregated in multi-agent scenarios)。
+// ConversationHasToolProcessDetails reports whether a conversation has persisted tool call/result records (used to determine attack chain when MCP execution IDs are not aggregated in multi-agent scenarios).
 func (db *DB) ConversationHasToolProcessDetails(conversationID string) (bool, error) {
 	var n int
 	err := db.QueryRow(

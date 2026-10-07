@@ -39,7 +39,7 @@ func (m *Manager) ScanKnowledgeBase() ([]string, error) {
 
 	// ensure directory exists
 	if err := os.MkdirAll(m.basePath, 0755); err != nil {
-		return nil, fmt.Errorf("create knowledge basedirectoryfailed: %w", err)
+		return nil, fmt.Errorf("failed to create knowledge base directory: %w", err)
 	}
 
 	var itemsToIndex []string
@@ -371,7 +371,7 @@ func (m *Manager) SearchItemsByKeyword(keyword string, category string) ([]*Know
 		return nil, fmt.Errorf("search keyword cannot be empty")
 	}
 
-	// build SQL query，使用LIKE进行关key字匹配（不区分大小写）
+	// build SQL query; use LIKE for keyword matching (case-insensitive)
 	var query string
 	var args []interface{}
 
@@ -640,28 +640,28 @@ func (m *Manager) UpdateItem(id, category, title, content string) (*KnowledgeIte
 		return nil, err
 	}
 
-	// 构建新file path
+	// build new file path
 	newFilePath := filepath.Join(m.basePath, category, title+".md")
 
-	// 如果path改变，需要移动file
+	// if the path changed, move the file
 	if item.FilePath != newFilePath {
-		// 确保新directory存在
+		// ensure the new directory exists
 		if err := os.MkdirAll(filepath.Dir(newFilePath), 0755); err != nil {
-			return nil, fmt.Errorf("createdirectoryfailed: %w", err)
+			return nil, fmt.Errorf("create directory failed: %w", err)
 		}
 
-		// 移动file
+		// move the file
 		if err := os.Rename(item.FilePath, newFilePath); err != nil {
-			return nil, fmt.Errorf("移动filefailed: %w", err)
+			return nil, fmt.Errorf("move file failed: %w", err)
 		}
 
-		// delete旧directory（如果为null）
+		// delete old directory if empty
 		oldDir := filepath.Dir(item.FilePath)
 		if isEmpty, _ := isEmptyDir(oldDir); isEmpty {
-			// 只有当directory不yes知识库根directory时才delete（避免delete根directory）
+			// only delete if directory is not the knowledge base root (avoid deleting root)
 			if oldDir != m.basePath {
 				if err := os.Remove(oldDir); err != nil {
-					m.logger.Warn("deletenulldirectoryfailed", zap.String("dir", oldDir), zap.Error(err))
+					m.logger.Warn("delete empty directory failed", zap.String("dir", oldDir), zap.Error(err))
 				}
 			}
 		}
@@ -678,21 +678,21 @@ func (m *Manager) UpdateItem(id, category, title, content string) (*KnowledgeIte
 		category, title, newFilePath, content, time.Now(), id,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("update知识项failed: %w", err)
+		return nil, fmt.Errorf("update knowledge item failed: %w", err)
 	}
 
-	// delete旧的向量嵌入（需要重新index）
+	// delete old vector embeddings (need to re-index)
 	_, err = m.db.Exec("DELETE FROM knowledge_embeddings WHERE item_id = ?", id)
 	if err != nil {
-		m.logger.Warn("delete旧向量嵌入failed", zap.Error(err))
+		m.logger.Warn("delete old vector embeddings failed", zap.Error(err))
 	}
 
 	return m.GetItem(id)
 }
 
-// DeleteItem delete知识项
+// DeleteItem deletes a knowledge item.
 func (m *Manager) DeleteItem(id string) error {
-	// 获取file path
+	// get file path
 	var filePath string
 	err := m.db.QueryRow("SELECT file_path FROM knowledge_base_items WHERE id = ?", id).Scan(&filePath)
 	if err != nil {
@@ -704,19 +704,19 @@ func (m *Manager) DeleteItem(id string) error {
 		m.logger.Warn("delete filefailed", zap.String("path", filePath), zap.Error(err))
 	}
 
-	// deletedatabase记录（级联delete向量）
+	// delete database record (cascades to delete vectors)
 	_, err = m.db.Exec("DELETE FROM knowledge_base_items WHERE id = ?", id)
 	if err != nil {
-		return fmt.Errorf("delete知识项failed: %w", err)
+		return fmt.Errorf("delete knowledge item failed: %w", err)
 	}
 
-	// deletenulldirectory（如果为null）
+	// delete empty directory if applicable
 	dir := filepath.Dir(filePath)
 	if isEmpty, _ := isEmptyDir(dir); isEmpty {
-		// 只有当directory不yes知识库根directory时才delete（避免delete根directory）
+		// only delete if directory is not the knowledge base root (avoid deleting root)
 		if dir != m.basePath {
 			if err := os.Remove(dir); err != nil {
-				m.logger.Warn("deletenulldirectoryfailed", zap.String("dir", dir), zap.Error(err))
+				m.logger.Warn("delete empty directory failed", zap.String("dir", dir), zap.Error(err))
 			}
 		}
 	}
@@ -724,14 +724,14 @@ func (m *Manager) DeleteItem(id string) error {
 	return nil
 }
 
-// isEmptyDir checkdirectoryyesno为null（忽略隐藏file和 . 开头的file）
+// isEmptyDir checks whether a directory is empty (ignoring hidden files starting with ".").
 func isEmptyDir(dir string) (bool, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return false, err
 	}
 	for _, entry := range entries {
-		// 忽略隐藏file（以 . 开头）
+		// ignore hidden files (starting with ".")
 		if !strings.HasPrefix(entry.Name(), ".") {
 			return false, nil
 		}
@@ -739,7 +739,7 @@ func isEmptyDir(dir string) (bool, error) {
 	return true, nil
 }
 
-// LogRetrieval 记录检索log
+// LogRetrieval records a retrieval log entry.
 func (m *Manager) LogRetrieval(conversationID, messageID, query, riskType string, retrievedItems []string) error {
 	id := uuid.New().String()
 	itemsJSON, _ := json.Marshal(retrievedItems)
@@ -751,26 +751,26 @@ func (m *Manager) LogRetrieval(conversationID, messageID, query, riskType string
 	return err
 }
 
-// GetIndexStatus 获取indexstatus
+// GetIndexStatus returns the current index status.
 func (m *Manager) GetIndexStatus() (map[string]interface{}, error) {
-	// 获取Total knowledge item count
+	// get total knowledge item count
 	var totalItems int
 	err := m.db.QueryRow("SELECT COUNT(*) FROM knowledge_base_items").Scan(&totalItems)
 	if err != nil {
-		return nil, fmt.Errorf("查询Total knowledge item countfailed: %w", err)
+		return nil, fmt.Errorf("query total knowledge item count failed: %w", err)
 	}
 
-	// 获取已index的知识项数（有向量嵌入的）
+	// get number of indexed items (those with vector embeddings)
 	var indexedItems int
 	err = m.db.QueryRow(`
-		SELECT COUNT(DISTINCT item_id) 
+		SELECT COUNT(DISTINCT item_id)
 		FROM knowledge_embeddings
 	`).Scan(&indexedItems)
 	if err != nil {
-		return nil, fmt.Errorf("查询已index项数failed: %w", err)
+		return nil, fmt.Errorf("query indexed item count failed: %w", err)
 	}
 
-	// 计算进度百分比
+	// calculate progress percentage
 	var progressPercent float64
 	if totalItems > 0 {
 		progressPercent = float64(indexedItems) / float64(totalItems) * 100
@@ -778,7 +778,7 @@ func (m *Manager) GetIndexStatus() (map[string]interface{}, error) {
 		progressPercent = 100.0
 	}
 
-	// 判断yesno完成
+	// determine whether indexing is complete
 	isComplete := indexedItems >= totalItems && totalItems > 0
 
 	return map[string]interface{}{
@@ -789,7 +789,7 @@ func (m *Manager) GetIndexStatus() (map[string]interface{}, error) {
 	}, nil
 }
 
-// GetRetrievalLogs 获取检索log
+// GetRetrievalLogs returns retrieval logs.
 func (m *Manager) GetRetrievalLogs(conversationID, messageID string, limit int) ([]*RetrievalLog, error) {
 	var rows *sql.Rows
 	var err error
@@ -812,7 +812,7 @@ func (m *Manager) GetRetrievalLogs(conversationID, messageID string, limit int) 
 	}
 
 	if err != nil {
-		return nil, fmt.Errorf("查询检索logfailed: %w", err)
+		return nil, fmt.Errorf("query retrieval logs failed: %w", err)
 	}
 	defer rows.Close()
 
@@ -822,7 +822,7 @@ func (m *Manager) GetRetrievalLogs(conversationID, messageID string, limit int) 
 		var createdAt string
 		var itemsJSON sql.NullString
 		if err := rows.Scan(&log.ID, &log.ConversationID, &log.MessageID, &log.Query, &log.RiskType, &itemsJSON, &createdAt); err != nil {
-			return nil, fmt.Errorf("scan检索logfailed: %w", err)
+			return nil, fmt.Errorf("scan retrieval log failed: %w", err)
 		}
 
 		// parse time - supports multiple formats
@@ -844,17 +844,17 @@ func (m *Manager) GetRetrievalLogs(conversationID, messageID string, limit int) 
 			}
 		}
 
-		// 如果所有format都failed，记录warning但continue处理
+		// if all formats failed, log warning but continue processing
 		if log.CreatedAt.IsZero() {
-			m.logger.Warn("解析检索log时间failed",
+			m.logger.Warn("parse retrieval log time failed",
 				zap.String("timeStr", createdAt),
 				zap.Error(err),
 			)
-			// 使用当前时间作为fallback
+			// use current time as fallback
 			log.CreatedAt = time.Now()
 		}
 
-		// 解析检索项
+		// parse retrieved items
 		if itemsJSON.Valid {
 			json.Unmarshal([]byte(itemsJSON.String), &log.RetrievedItems)
 		}
@@ -865,20 +865,20 @@ func (m *Manager) GetRetrievalLogs(conversationID, messageID string, limit int) 
 	return logs, nil
 }
 
-// DeleteRetrievalLog delete检索log
+// DeleteRetrievalLog deletes a retrieval log entry.
 func (m *Manager) DeleteRetrievalLog(id string) error {
 	result, err := m.db.Exec("DELETE FROM knowledge_retrieval_logs WHERE id = ?", id)
 	if err != nil {
-		return fmt.Errorf("delete检索logfailed: %w", err)
+		return fmt.Errorf("delete retrieval log failed: %w", err)
 	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("获取delete行数failed: %w", err)
+		return fmt.Errorf("get deleted row count failed: %w", err)
 	}
 
 	if rowsAffected == 0 {
-		return fmt.Errorf("检索log不存在")
+		return fmt.Errorf("retrieval log not found")
 	}
 
 	return nil

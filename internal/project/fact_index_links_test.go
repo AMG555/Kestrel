@@ -17,8 +17,8 @@ func TestFormatIncomingLinksHint(t *testing.T) {
 	hint := FormatIncomingLinksHint([]*database.ProjectFactEdge{
 		{EdgeType: "discovered_on", SourceFactKey: "finding/x", Confidence: "tentative"},
 	})
-	if !strings.Contains(hint, "入边:") {
-		t.Fatalf("expected 入边 label: %q", hint)
+	if !strings.Contains(hint, "incoming:") {
+		t.Fatalf("expected incoming label: %q", hint)
 	}
 	if !strings.Contains(hint, "discovered_on←finding/x") {
 		t.Fatalf("unexpected hint: %q", hint)
@@ -56,8 +56,8 @@ func TestFormatFactIndexLinksHint_incomingOnly(t *testing.T) {
 		{EdgeType: "exploits", SourceFactKey: "exploit/rce", Confidence: "confirmed"},
 	}
 	hint := FormatFactIndexLinksHint("finding/sqli", in)
-	if !strings.Contains(hint, "关系边:") {
-		t.Fatalf("missing 关系边 label: %q", hint)
+	if !strings.Contains(hint, "relation:") {
+		t.Fatalf("missing relation label: %q", hint)
 	}
 	if !strings.Contains(hint, "discovered_on←target/dev") {
 		t.Fatalf("missing discovered_on: %q", hint)
@@ -65,8 +65,8 @@ func TestFormatFactIndexLinksHint_incomingOnly(t *testing.T) {
 	if !strings.Contains(hint, "exploits←exploit/rce") {
 		t.Fatalf("missing exploits: %q", hint)
 	}
-	if strings.Contains(hint, "出边") || strings.Contains(hint, "入边") {
-		t.Fatalf("should not use legacy 出边/入边 labels: %q", hint)
+	if strings.Contains(hint, "outgoing:") && strings.Contains(hint, "incoming:") {
+		t.Fatalf("inline hint should not use separate outgoing/incoming labels: %q", hint)
 	}
 }
 
@@ -90,7 +90,7 @@ func TestBuildFactPathOverviewSection(t *testing.T) {
 		"target/dev": {}, "finding/sqli": {}, "exploit/rce": {}, "note/log": {},
 	}
 	section := BuildFactPathOverviewSection(edges, keys, 800)
-	if !strings.Contains(section, "### attack path（fact relationship）") {
+	if !strings.Contains(section, "### Attack path (fact relationships)") {
 		t.Fatalf("missing header: %q", section)
 	}
 	if !strings.Contains(section, "target/dev → finding/sqli") {
@@ -121,7 +121,7 @@ func TestBuildFactIndexBlock_withLinksAndPathOverview(t *testing.T) {
 		ProjectID:  proj.ID,
 		FactKey:    "target/dev",
 		Category:   "target",
-		Summary:    "dev 子域",
+		Summary:    "dev subdomain",
 		Confidence: "confirmed",
 	})
 	if err != nil {
@@ -131,7 +131,7 @@ func TestBuildFactIndexBlock_withLinksAndPathOverview(t *testing.T) {
 		ProjectID:  proj.ID,
 		FactKey:    "finding/sqli",
 		Category:   "finding",
-		Summary:    "时间盲注",
+		Summary:    "time-based blind injection",
 		Confidence: "tentative",
 	})
 	if err != nil {
@@ -149,10 +149,10 @@ func TestBuildFactIndexBlock_withLinksAndPathOverview(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(block, "关系边: discovered_on←target/dev") {
+	if !strings.Contains(block, "relation: discovered_on←target/dev") {
 		t.Fatalf("finding line should include relation hint: %q", block)
 	}
-	if !strings.Contains(block, "### attack path（fact relationship）") {
+	if !strings.Contains(block, "### Attack path (fact relationships)") {
 		t.Fatalf("missing relation overview: %q", block)
 	}
 	if !strings.Contains(block, "target/dev → finding/sqli") {

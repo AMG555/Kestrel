@@ -25,7 +25,7 @@ func RBACMiddlewareWithDenyHook(db *database.DB, denyHook RBACDenyHook) gin.Hand
 				denyHook(c, "unmapped_route", "")
 			}
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
-				"error": "未configAccess permission",
+				"error": "Access permission not configured",
 			})
 			return
 		}
@@ -81,7 +81,7 @@ func permissionAlternativesForRequest(method, path string) []string {
 	}
 	switch {
 	case strings.HasPrefix(path, "/config/tools"):
-		// MCP 管理页只需 mcp:read；systemsettings页仍可用 config:read 访问同一接口。
+		// The MCP management page requires only mcp:read; the system settings page can still access the same endpoint via config:read.
 		return []string{"mcp:read", "config:read"}
 	default:
 		return nil

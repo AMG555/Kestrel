@@ -425,7 +425,7 @@ func TestEinoSummarizationMiddlewareRetriesWhenSummaryModelReturnsEmpty(t *testi
 		t.Fatalf("summary model calls=%d, want retry after empty output", summaryModel.calls)
 	}
 	joined := joinClassicMessageContent(after.Messages)
-	for _, want := range []string{"Valid summary", "continue validating SQL injection path", "Original user input and constraint ledger"} {
+	for _, want := range []string{"Valid summary", "continue validating SQL injection path", "Original User Input and Constraint Ledger"} {
 		if !strings.Contains(joined, want) {
 			t.Fatalf("retried compacted context missing %q:\n%s", want, joined)
 		}
@@ -568,7 +568,7 @@ func TestSanitizeSystemContentForTranscript_BestPractice(t *testing.T) {
 func TestFormatSummarizationTranscript_OmitsBloatedSystem(t *testing.T) {
 	t.Parallel()
 	msgs := []adk.Message{
-		schema.SystemMessage("以下yes当前会话bind的tool nameindex\n- nmap\n\n你yesKestrel\n" + project.FactIndexSectionStartMarker + "\n## project黑板index（project: p1, id: x）\n（暂none事实）\n" + project.FactIndexSectionEndMarker + "\n" + transcriptSkillsSystemMarker + "\nboiler"),
+		schema.SystemMessage("The following are the tool name indices bound to the current session\n- nmap\n\nYou are Kestrel\n" + project.FactIndexSectionStartMarker + "\n## project blackboard index (project: p1, id: x)\n(no facts yet)\n" + project.FactIndexSectionEndMarker + "\n" + transcriptSkillsSystemMarker + "\nboiler"),
 		schema.UserMessage("hello"),
 		schema.AssistantMessage("reply", nil),
 	}
@@ -579,7 +579,7 @@ func TestFormatSummarizationTranscript_OmitsBloatedSystem(t *testing.T) {
 	if !strings.Contains(out, "hello") || !strings.Contains(out, "reply") {
 		t.Fatalf("conversation turns missing: %q", out)
 	}
-	if !strings.Contains(out, "## project黑板index（project: p1, id: x）") {
+	if !strings.Contains(out, "## project blackboard index (project: p1, id: x)") {
 		t.Fatalf("dynamic blackboard missing: %q", out)
 	}
 }
@@ -634,7 +634,7 @@ func TestRefreshFactIndexInMessages(t *testing.T) {
 
 func TestBuildOriginalUserIntentLedgerUsesOnlyModelFacingMessages(t *testing.T) {
 	ledger := buildOriginalUserIntentLedgerMessage(
-		[]adk.Message{schema.UserMessage("model实际看到的裁剪预览")},
+		[]adk.Message{schema.UserMessage("actual trimmed preview seen by model")},
 		config.DefaultSummarizationUserIntentLedgerMaxRunes,
 		config.DefaultSummarizationUserIntentLedgerEntryMaxRunes,
 	)
@@ -642,7 +642,7 @@ func TestBuildOriginalUserIntentLedgerUsesOnlyModelFacingMessages(t *testing.T) 
 		t.Fatal("expected ledger message")
 	}
 	body := ledger.Content
-	if !strings.Contains(body, "model实际看到的裁剪预览") {
+	if !strings.Contains(body, "actual trimmed preview seen by model") {
 		t.Fatalf("ledger should preserve the model-facing user message: %q", body)
 	}
 }

@@ -9,7 +9,7 @@ import (
 
 func TestFormatCommandFailureResult(t *testing.T) {
 	got := FormatCommandFailureResult(1, "sudo: password required")
-	want := "command execution failed: exit status 1\n输出: sudo: password required"
+	want := "command execution failed: exit status 1\nOutput: sudo: password required"
 	if got != want {
 		t.Fatalf("got %q want %q", got, want)
 	}
@@ -34,7 +34,7 @@ func TestFormatCommandFailureFromErr(t *testing.T) {
 	cmd := exec.Command("sh", "-c", "exit 42")
 	err := cmd.Run()
 	got := FormatCommandFailureFromErr(err, "oops")
-	if got != "command execution failed: exit status 42\n输出: oops" {
+	if got != "command execution failed: exit status 42\nOutput: oops" {
 		t.Fatalf("got %q", got)
 	}
 	timeoutErr := errors.New("shell inactivity timeout (300s)")

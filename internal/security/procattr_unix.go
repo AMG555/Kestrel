@@ -7,7 +7,7 @@ import (
 	"syscall"
 )
 
-// prepareShellCmdSession 让 shell child process在独立会话中运行，便于timed out/cancelled时整组 SIGKILL（含child process）。
+// prepareShellCmdSession makes the shell child process run in an independent session so that on timeout/cancel the entire group can be SIGKILL-ed (including child processes).
 func prepareShellCmdSession(cmd *exec.Cmd) error {
 	if cmd == nil {
 		return nil
@@ -19,7 +19,7 @@ func prepareShellCmdSession(cmd *exec.Cmd) error {
 	return nil
 }
 
-// terminateProcessGroup 对 rootPID 对应process group发 SIGKILL；rootPID 为 0 时回退到 cmd.Process.Pid。
+// terminateProcessGroup sends SIGKILL to the process group of rootPID; falls back to cmd.Process.Pid when rootPID is 0.
 func terminateProcessGroup(rootPID int, cmd *exec.Cmd) {
 	pid := rootPID
 	if pid <= 0 && cmd != nil && cmd.Process != nil {
@@ -35,7 +35,7 @@ func terminateProcessGroup(rootPID int, cmd *exec.Cmd) {
 	}
 }
 
-// terminateCmdTree 尽力终止 cmd 及其process group（Unix 下 Setsid 后 PGID == 首process PID）。
+// terminateCmdTree makes a best effort to terminate cmd and its process group (on Unix, PGID == first process PID after Setsid).
 func terminateCmdTree(cmd *exec.Cmd) {
 	terminateProcessGroup(0, cmd)
 }

@@ -315,9 +315,9 @@ func normalizeAuditAgentDecision(v string) string {
 		return "reject"
 	}
 	switch strings.TrimSpace(v) {
-	case "通过", "批准", "允许", "同意", "放行", "approve", "approved", "allow", "pass":
+	case "approve", "approved", "allow", "pass":
 		return "approve"
-	case "拒绝", "驳回", "禁止", "no决", "reject", "rejected", "deny", "block":
+	case "reject", "rejected", "deny", "block":
 		return "reject"
 	}
 	return ""

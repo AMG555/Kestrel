@@ -1,11 +1,11 @@
 package projectprompt
 
-// ShellExecExecuteGuidanceSection 供单代理/多代理system prompt追加：exec 与 execute 分工（尽量短）。
+// ShellExecExecuteGuidanceSection appends exec/execute role separation guidance for single/multi-agent system prompts (kept concise).
 func ShellExecExecuteGuidanceSection() string {
-	return `Shell（exec/execute）：有专用 MCP tool时优先专用tool；system命令（管道、workdir、后台 &）用 exec；skills/ 内脚本（配合 read_file、skill）用 execute；多步scan分拆调用，禁止一条 shell 串多个scan器。长脚本、request体或 Payload 必须先用 write_file 写入会话working directory，再用 exec/execute 执行短命令；禁止把长内容嵌入 command。download/临时file须写入system prompt中的「会话working directory」，禁止用 /tmp。`
+	return `Shell (exec/execute): when a dedicated MCP tool is available, prefer it; use exec for system commands (pipes, workdir, background &); use execute for scripts under skills/ (paired with read_file, skill); split multi-step scans into separate calls — do not chain multiple scanners in one shell command. Long scripts, request bodies, or payloads must first be written to the session working directory with write_file, then executed as short commands with exec/execute; do not embed long content in command. Downloads and temporary files must be written to the "session working directory" in the system prompt — do not use /tmp.`
 }
 
-// ShellExecExecuteGuidanceReconSuffix 侦察sub-agent可选追加（一行）。
+// ShellExecExecuteGuidanceReconSuffix is an optional one-line addition for reconnaissance sub-agents.
 func ShellExecExecuteGuidanceReconSuffix() string {
-	return `枚举优先 subfinder、amass 等专用 MCP，勿 exec/execute 拼长链。`
+	return `For enumeration, prefer dedicated MCPs such as subfinder or amass — do not chain long commands with exec/execute.`
 }

@@ -2,7 +2,7 @@ package project
 
 import "kestrel/internal/database"
 
-// GetProjectStats 聚合project统计（含待补全事实数）。
+// GetProjectStats aggregates project statistics (including count of sparse facts needing completion).
 func GetProjectStats(db *database.DB, projectID string) (*database.ProjectStats, error) {
 	stats, err := db.GetProjectStatsCounts(projectID)
 	if err != nil {

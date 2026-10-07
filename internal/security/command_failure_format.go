@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// FormatCommandFailureResult 与 exec tool ToolResult 文案一致（不含 ToolErrorPrefix）。
+// FormatCommandFailureResult produces failure text consistent with the exec tool ToolResult (without ToolErrorPrefix).
 func FormatCommandFailureResult(exitCode int, output string) string {
 	output = strings.TrimSpace(output)
 	errMsg := fmt.Sprintf("exit status %d", exitCode)
@@ -17,10 +17,10 @@ func FormatCommandFailureResult(exitCode int, output string) string {
 	if strings.HasPrefix(output, "command execution failed:") {
 		return output
 	}
-	return fmt.Sprintf("command execution failed: %s\n输出: %s", errMsg, output)
+	return fmt.Sprintf("command execution failed: %s\nOutput: %s", errMsg, output)
 }
 
-// FormatCommandFailureFromErr 根据 exec/execute back的 error 生成统一failed文案（IsError 正文）。
+// FormatCommandFailureFromErr generates a unified failure message from errors returned by exec/execute (IsError body).
 func FormatCommandFailureFromErr(err error, output string) string {
 	if err == nil {
 		return strings.TrimSpace(output)
@@ -36,20 +36,20 @@ func FormatCommandFailureFromErr(err error, output string) string {
 	if strings.HasPrefix(output, "command execution failed:") {
 		return output
 	}
-	return fmt.Sprintf("command execution failed: %v\n输出: %s", err, output)
+	return fmt.Sprintf("command execution failed: %v\nOutput: %s", err, output)
 }
 
-// ExecuteFailureStatusLine 流式 execute 结束时追加的单行status（输出正文已在流中推送过）。
+// ExecuteFailureStatusLine is the single-line status appended at the end of a streaming execute (the output body has already been streamed).
 func ExecuteFailureStatusLine(exitCode int) string {
 	return fmt.Sprintf("\ncommand execution failed: exit status %d", exitCode)
 }
 
-// IsCommandFailureResult 判断tool result正文yesno表示命令非零exit（用于 execute / exec 对齐 isError）。
+// IsCommandFailureResult reports whether the tool result body indicates a non-zero command exit (used to align execute / exec isError).
 func IsCommandFailureResult(content string) bool {
 	return strings.Contains(content, "command execution failed:")
 }
 
-// IsLegacyShellExitNoise filter旧版 shell 流中冗余的 exit code 行。
+// IsLegacyShellExitNoise filters redundant exit-code lines from legacy shell streams.
 func IsLegacyShellExitNoise(s string) bool {
 	trimmed := strings.TrimSpace(s)
 	return strings.HasPrefix(trimmed, "command exited with non-zero code ")

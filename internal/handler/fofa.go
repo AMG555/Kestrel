@@ -956,10 +956,10 @@ func extractRemoteAPIError(body []byte, statusCode int, label string) string {
 		}
 	}
 	if len(trimmed) > 0 && trimmed[0] == '<' {
-		return fmt.Sprintf("%s back了网页而不yes JSON（HTTP %d），请check Base URL 或networkyesno被拦截", label, statusCode)
+		return fmt.Sprintf("%s returned an HTML page instead of JSON (HTTP %d); check Base URL or whether the network is blocked", label, statusCode)
 	}
 	if statusCode < 200 || statusCode >= 300 {
-		return fmt.Sprintf("%s back非 2xx: %d", label, statusCode)
+		return fmt.Sprintf("%s returned non-2xx: %d", label, statusCode)
 	}
 	return ""
 }

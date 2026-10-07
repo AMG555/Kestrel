@@ -1,6 +1,5 @@
 # Security Hardening
 
-[中文](../zh-CN/security-hardening.md)
 
 This checklist covers pre-production and continuous hardening for Kestrel.
 

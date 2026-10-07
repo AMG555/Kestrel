@@ -84,7 +84,7 @@ func unixSecToRFC3339(sec int64) string {
 
 func normalizedSinceSec(sinceMs int64) int64 {
 	sec := sinceMs / 1000
-	// SQLite 默认时间精度到秒；给 1s 回看窗口，避免“同秒内新增”被漏算。
+	// SQLite default time precision is seconds; give a 1s look-back window to avoid missing rows added within the same second.
 	if sec > 0 {
 		return sec - 1
 	}
@@ -312,7 +312,7 @@ func (h *NotificationHandler) loadVulnerabilityItems(sinceMs int64, limit int, e
 		finalTitle := i18nText(english, "New Vulnerability ("+sevUpper+")", "New Vulnerability ("+sevUpper+")")
 		finalDesc := strings.TrimSpace(title)
 		if finalDesc == "" {
-			finalDesc = i18nText(english, "（nonetitle）", "(Untitled)")
+			finalDesc = i18nText(english, "(Untitled)", "(Untitled)")
 		}
 		items = append(items, NotificationSummaryItem{
 			ID:              "vuln:" + id,
@@ -631,7 +631,7 @@ func normalizeMarkableEventID(id string) (string, bool) {
 	if v == "" {
 		return "", false
 	}
-	// 仅允许“可读后隐藏”的info类event；Actionable event不参与 read 标记。
+	// Only allow "hide-after-read" info-class events; actionable events do not participate in the read marker.
 	allowedPrefixes := []string{
 		"vuln:",
 		"exec_failed:",

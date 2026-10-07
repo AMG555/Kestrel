@@ -61,7 +61,7 @@ type einoStreamingShellWrap struct {
 	einoAgentName string
 	// outputChunk is optional; when non-nil, push each received inner ExecuteResponse chunk, consistent with MCP tool's tool_result_delta (requires a valid toolCallId).
 	outputChunk func(toolName, toolCallID, chunk string)
-	// toolTimeoutMinutes aligns with agent.tool_timeout_minutes; when >0, applies a context timeout to a single execute call (like MCP tool via executeToolViaMCP 行为一致）。0 表示仅依赖上层 ctx（如整task 10h 上限）。
+	// toolTimeoutMinutes aligns with agent.tool_timeout_minutes; when >0, applies a context timeout to a single execute call (consistent with MCP tool via executeToolViaMCP). 0 means rely solely on the outer ctx (e.g. whole-task 10 h limit).
 	toolTimeoutMinutes int
 	// toolWaitTimeoutSeconds aligns with agent.tool_wait_timeout_seconds; when >0, returns execution_id after this wait expires while the shell continues running in the background.
 	toolWaitTimeoutSeconds int
@@ -405,5 +405,5 @@ execution_id: %s
 status: running
 wait_timeout: %s
 
-You may continue reasoning, switch to another tool, or call get_tool_execution / wait_tool_execution to read partial_output and continue waiting; you may also call cancel_tool_execution cancelled。`, executionID, waitText)
+You may continue reasoning, switch to another tool, or call get_tool_execution / wait_tool_execution to read partial_output and continue waiting; you may also call cancel_tool_execution to cancel.`, executionID, waitText)
 }

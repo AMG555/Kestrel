@@ -24,7 +24,7 @@ const (
 // FormatEmbeddingInput matches the historical indexing format so existing embeddings
 // stay comparable if users skip reindex; new indexes use the same string shape.
 func FormatEmbeddingInput(category, title, chunkText string) string {
-	return fmt.Sprintf("[风险type：%s] [title：%s]\n%s", category, title, chunkText)
+	return fmt.Sprintf("[risk_type: %s] [title: %s]\n%s", category, title, chunkText)
 }
 
 // FormatQueryEmbeddingText builds the string embedded at query time so it matches

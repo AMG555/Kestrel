@@ -31,17 +31,17 @@ func RunRoleBoundWorkflow(ctx context.Context, args RunArgs) (*RunResult, error)
 	}
 	workflowID := strings.TrimSpace(args.Role.WorkflowID)
 	if workflowID == "" {
-		return nil, fmt.Errorf("角色not bound工作流")
+		return nil, fmt.Errorf("role is not bound to a workflow")
 	}
 	wf, err := args.DB.GetWorkflowDefinition(workflowID)
 	if err != nil {
 		return nil, err
 	}
 	if wf == nil {
-		return nil, fmt.Errorf("角色bind的workflow not found: %s", workflowID)
+		return nil, fmt.Errorf("workflow bound to role not found: %s", workflowID)
 	}
 	if !wf.Enabled {
-		return nil, fmt.Errorf("角色bind的工作流disabled: %s", workflowID)
+		return nil, fmt.Errorf("workflow bound to role is disabled: %s", workflowID)
 	}
 
 	select {
@@ -75,7 +75,7 @@ func RunRoleBoundWorkflow(ctx context.Context, args RunArgs) (*RunResult, error)
 		return nil, err
 	}
 	if args.Progress != nil {
-		args.Progress("workflow_start", fmt.Sprintf("开始运行流程「%s」", wf.Name), map[string]interface{}{
+		args.Progress("workflow_start", fmt.Sprintf("Starting workflow '%s'", wf.Name), map[string]interface{}{
 			"workflowId":      wf.ID,
 			"workflowName":    wf.Name,
 			"workflowVersion": wf.Version,
@@ -121,7 +121,7 @@ func RunRoleBoundWorkflow(ctx context.Context, args RunArgs) (*RunResult, error)
 		}
 		partialJSON, _ := json.Marshal(partial)
 		_ = args.DB.SetWorkflowRunAwaitingHITL(runID, hitl.NodeID, string(partialJSON))
-		response := fmt.Sprintf("工作流「%s」已在节点「%s」pause，waiting for human approval。\n运行 ID：%s", wf.Name, firstNonEmpty(hitl.NodeLabel, hitl.NodeID), runID)
+		response := fmt.Sprintf("Workflow '%s' is paused at node '%s', waiting for human approval.\nRun ID: %s", wf.Name, firstNonEmpty(hitl.NodeLabel, hitl.NodeID), runID)
 		if args.Progress != nil {
 			args.Progress("workflow_paused", response, map[string]interface{}{
 				"workflowRunId": runID,
@@ -148,10 +148,10 @@ func RunRoleBoundWorkflow(ctx context.Context, args RunArgs) (*RunResult, error)
 		if !decision.Approved {
 			errText := strings.TrimSpace(decision.Comment)
 			if errText == "" {
-				errText = "human approval拒绝"
+				errText = "human approval rejected"
 			}
 			_ = args.DB.FinishWorkflowRun(runID, "rejected", "", errText)
-			rejectResponse := fmt.Sprintf("工作流已在审批节点「%s」被拒绝。", firstNonEmpty(hitl.NodeLabel, hitl.NodeID))
+			rejectResponse := fmt.Sprintf("Workflow was rejected at approval node '%s'.", firstNonEmpty(hitl.NodeLabel, hitl.NodeID))
 			if args.Progress != nil {
 				args.Progress("workflow_hitl_rejected", rejectResponse, map[string]interface{}{
 					"workflowRunId": runID,
@@ -166,7 +166,7 @@ func RunRoleBoundWorkflow(ctx context.Context, args RunArgs) (*RunResult, error)
 			}, nil
 		}
 		if args.Progress != nil {
-			args.Progress("workflow_hitl_resumed", "human approval已通过，continue执行", map[string]interface{}{
+			args.Progress("workflow_hitl_resumed", "Human approval passed; continuing execution", map[string]interface{}{
 				"workflowRunId": runID,
 				"nodeId":        hitl.NodeID,
 				"comment":       decision.Comment,
@@ -201,7 +201,7 @@ func RunRoleBoundWorkflow(ctx context.Context, args RunArgs) (*RunResult, error)
 		return nil, err
 	}
 	if args.Progress != nil {
-		args.Progress("workflow_done", fmt.Sprintf("流程「%s」运行完成", wf.Name), map[string]interface{}{
+		args.Progress("workflow_done", fmt.Sprintf("Workflow '%s' completed", wf.Name), map[string]interface{}{
 			"workflowRunId": runID,
 			"workflowId":    wf.ID,
 			"outputs":       state.Outputs,

@@ -8,7 +8,7 @@ import (
 	"kestrel/internal/database"
 )
 
-// AppendSystemPromptBlock 将附加块追加到 system prompt。
+// AppendSystemPromptBlock appends a block to the system prompt.
 func AppendSystemPromptBlock(base, block string) string {
 	base = strings.TrimSpace(base)
 	block = strings.TrimSpace(block)
@@ -22,12 +22,12 @@ func AppendSystemPromptBlock(base, block string) string {
 }
 
 const (
-	factIndexFooterGetDetail = "需要完整内容（attack chain、POC、requestresponse等）时必须调用 get_project_fact(fact_key)，禁止凭summary臆造细节。"
-	factIndexFooterWriteHint = "写入事实 links 时用 from（来源 fact_key → 当前 fact），如 finding 上 {from:target/*, type:discovered_on}；body 写可复现全流程（Discovery/利用类 fact_key 建议 finding|chain|exploit|poc/ 前缀）。"
-	factIndexFooterEmpty     = "需要写入请使用 upsert_project_fact；需要details请调用 get_project_fact(fact_key)。"
+	factIndexFooterGetDetail = "When you need the full content (attack chain, POC, request/response, etc.) you must call get_project_fact(fact_key) — never fabricate details from the summary alone."
+	factIndexFooterWriteHint = "When writing fact links, use from (source fact_key → current fact), e.g. for a finding: {from:target/*, type:discovered_on}; body should contain the full reproducible flow (for discovery/exploitation fact_keys, recommended prefixes: finding|chain|exploit|poc/)."
+	factIndexFooterEmpty     = "To write facts use upsert_project_fact; for details call get_project_fact(fact_key)."
 )
 
-// BuildFactIndexBlock 为 Agent system prompt生成project黑板index（key + summary + 关系边 + attack path，不含 body）。
+// BuildFactIndexBlock generates the project blackboard index for the Agent system prompt (key + summary + relationship edges + attack path, no body).
 func BuildFactIndexBlock(db *database.DB, projectID string, cfg config.ProjectConfig) (string, error) {
 	if db == nil || !cfg.Enabled {
 		return "", nil
@@ -50,7 +50,7 @@ func BuildFactIndexBlock(db *database.DB, projectID string, cfg config.ProjectCo
 	_, incomingByTarget := indexEdgeGroupMaps(allEdges)
 
 	if len(facts) == 0 {
-		return wrapFactIndexBlock(fmt.Sprintf("## project黑板index（project: %s, id: %s）\n（暂none事实）\n%s", proj.Name, proj.ID, factIndexFooterEmpty)), nil
+		return wrapFactIndexBlock(fmt.Sprintf("## Project Blackboard Index (project: %s, id: %s)\n(No facts yet)\n%s", proj.Name, proj.ID, factIndexFooterEmpty)), nil
 	}
 
 	sortFactsForIndex(facts)
@@ -67,7 +67,7 @@ func BuildFactIndexBlock(db *database.DB, projectID string, cfg config.ProjectCo
 
 	indexedKeys := make(map[string]struct{}, len(facts))
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("## project黑板index（project: %s, id: %s）\n", proj.Name, proj.ID))
+	b.WriteString(fmt.Sprintf("## Project Blackboard Index (project: %s, id: %s)\n", proj.Name, proj.ID))
 	used := len([]rune(b.String()))
 	omitted := 0
 
@@ -86,7 +86,7 @@ func BuildFactIndexBlock(db *database.DB, projectID string, cfg config.ProjectCo
 	}
 
 	if omitted > 0 {
-		b.WriteString(fmt.Sprintf("\n（另有 %d 条未列入index，请使用 list_project_facts 或 search_project_facts 查询。）\n", omitted))
+		b.WriteString(fmt.Sprintf("\n(%d more facts not listed in index; use list_project_facts or search_project_facts to query.)\n", omitted))
 	}
 
 	if pathSection := BuildFactPathOverviewSection(allEdges, indexedKeys, pathMaxRunes); pathSection != "" {

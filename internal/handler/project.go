@@ -138,7 +138,7 @@ func (h *ProjectHandler) ListProjects(c *gin.Context) {
 func (h *ProjectHandler) GetProjectStats(c *gin.Context) {
 	stats, err := project.GetProjectStats(h.db, c.Param("id"))
 	if err != nil {
-		if strings.Contains(err.Error(), "不存在") || strings.Contains(err.Error(), "not found") {
+		if strings.Contains(err.Error(), "does not exist") || strings.Contains(err.Error(), "not found") {
 			c.JSON(http.StatusNotFound, gin.H{"error": "project not found"})
 			return
 		}

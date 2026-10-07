@@ -4,7 +4,7 @@ import "strings"
 
 const backgroundJobStdioRedirect = " </dev/null >/dev/null 2>&1"
 
-// findStandaloneAmpersandPositions back不在引号内的独立 & 下标（排除 &&）。
+// findStandaloneAmpersandPositions returns the indices of standalone & characters not inside quotes (excluding &&).
 func findStandaloneAmpersandPositions(command string) []int {
 	command = strings.TrimSpace(command)
 	if command == "" {
@@ -81,8 +81,8 @@ func segmentHasStdioRedirect(segment string) bool {
 	return false
 }
 
-// RedirectBackgroundJobStdio 为每个独立 & 前的后台段注入 </dev/null >/dev/null 2>&1，
-// 避免后台child process占用 execute/exec 管道导致挂死。
+// RedirectBackgroundJobStdio injects </dev/null >/dev/null 2>&1 before each standalone & background segment
+// to prevent background child processes from holding the execute/exec pipe open and causing a deadlock.
 func RedirectBackgroundJobStdio(command string) string {
 	positions := findStandaloneAmpersandPositions(command)
 	if len(positions) == 0 {
@@ -104,8 +104,9 @@ func RedirectBackgroundJobStdio(command string) string {
 	return out
 }
 
-// PrepareShellCommandForExecute 组合 execute/exec 用的非交互包装与后台 IO 重定向。
-// 须先注入 exec </dev/null，再改写 & 后台段，no则段内 </dev/null 会使 stdin 重定向被误判为already exists。
+// PrepareShellCommandForExecute combines non-interactive wrapping and background IO redirection for execute/exec.
+// exec </dev/null must be injected first, then & background segments are rewritten; otherwise the </dev/null
+// inside a segment would cause the stdin redirect to be mistakenly treated as already present.
 func PrepareShellCommandForExecute(shellCommand string) string {
 	return RedirectBackgroundJobStdio(PrepareNonInteractiveShellCommand(shellCommand))
 }

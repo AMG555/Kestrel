@@ -12,22 +12,23 @@ import (
 //
 // Background:
 //   - The eino summarization middleware, after triggering a summary, replaces all non-system messages with 1 summary message by default;
-//     本project通过自定义 Finalize（summarizeFinalizeWithRecentAssistantToolTrail）在 summary 后回填
-//     最近的 assistant/tool 轨迹。若 Finalize 的保留策略按"条数"截断而未按 round 对齐，可能保留
-//     tool results while the corresponding assistant(tool_calls) falls before the summary, creating orphan tool messages.
+//     this project uses a custom Finalize (summarizeFinalizeWithRecentAssistantToolTrail) to backfill
+//     the most recent assistant/tool trail after the summary. If Finalize's retention policy truncates
+//     by count rather than round alignment, it may retain tool results whose corresponding
+//     assistant(tool_calls) falls before the summary, creating orphan tool messages.
 //   - Similarly, reduction / tool_search / custom checkpoint-resume or any logic that rewrites history may break
-//     tool_call ↔ tool_result 配对。
+//     tool_call ↔ tool_result pairing.
 //
-// 一旦孤儿 tool message进入 ChatModel，OpenAI 兼容 API（含 DashScope / 各类中转）会back
+// Once orphan tool messages reach ChatModel, OpenAI-compatible APIs (including DashScope / various proxies) return
 // 400 "No tool call found for function call output with call_id ...", which Eino wraps into
 // a [NodeRunError], terminating the entire round of orchestration.
 //
 // Design trade-offs:
-//   - 官方 patchtoolcalls 中间件只补反向（assistant(tc) 缺 tool_result），不处理孤儿 tool。
-//     本中间件与之互补，专职兜底正向孤儿。
-//   - 仅剔除message，不向历史里注入虚构 assistant(tc)：虚构 tool_calls 反而会误导model后续推理。
-//     summary已覆盖被裁剪段的语义，丢一条原始 tool 结果对conversation连贯性impact最小。
-//   - 位置建议：挂在 summarization / reduction / skill / plantask / system 合并 / 续聊 dedup 之后，
+//   - The official patchtoolcalls middleware only fills the reverse direction (assistant(tc) missing tool_result) and does not handle orphan tools.
+//     This middleware is complementary, handling forward orphans as a safety net.
+//   - Only messages are removed; no fabricated assistant(tc) is injected into history: fabricated tool_calls would mislead the model's subsequent reasoning.
+//     The summary already covers the semantics of the trimmed segment; dropping one raw tool result has minimal impact on conversation continuity.
+//   - Recommended position: attach after summarization / reduction / skill / plantask / system merge / continuation dedup,
 //     and after tool_search, close to the ChatModel call end.
 type orphanToolPrunerMiddleware struct {
 	adk.BaseChatModelAgentMiddleware
@@ -36,7 +37,7 @@ type orphanToolPrunerMiddleware struct {
 }
 
 // newOrphanToolPrunerMiddleware constructs the middleware. phase is used only for log distinction between deep / supervisor /
-// plan_execute_executor / sub_agent，不impact运行时行为。
+// plan_execute_executor / sub_agent — does not affect runtime behaviour.
 func newOrphanToolPrunerMiddleware(logger *zap.Logger, phase string) adk.ChatModelAgentMiddleware {
 	return &orphanToolPrunerMiddleware{
 		logger: logger,
@@ -44,10 +45,10 @@ func newOrphanToolPrunerMiddleware(logger *zap.Logger, phase string) adk.ChatMod
 	}
 }
 
-// BeforeModelRewriteState scanMessage list，收集 assistant.tool_calls 提供的 call_id set，
-// 再剔除掉 ToolCallID 不在该set中的 role=tool message。
+// BeforeModelRewriteState scans the message list, collects the call_id set provided by assistant.tool_calls,
+// then removes role=tool messages whose ToolCallID is not in that set.
 //
-// 复杂度：O(N)。当未Discovery孤儿时不产生任何分配，state 原样back以便上游快path。
+// Complexity: O(N). When no orphan is found, no allocation occurs and the state is returned as-is for the upstream fast path.
 func (m *orphanToolPrunerMiddleware) BeforeModelRewriteState(
 	ctx context.Context,
 	state *adk.ChatModelAgentState,
@@ -58,7 +59,7 @@ func (m *orphanToolPrunerMiddleware) BeforeModelRewriteState(
 		return ctx, state, nil
 	}
 
-	// 第一遍：收集所有已提供的 tool_call_id；同时快path判定yesnotrue的存在孤儿。
+	// First pass: collect all provided tool_call_ids; also fast-path check whether any orphan actually exists.
 	provided := make(map[string]struct{}, 8)
 	for _, msg := range state.Messages {
 		if msg == nil {

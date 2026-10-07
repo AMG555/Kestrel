@@ -161,6 +161,7 @@ SELECT msg.id, msg.conversation_id,
        ), msg.updated_at, msg.created_at) AS interrupted_at
 FROM messages msg
 WHERE msg.role = 'assistant'
+  -- '处理中...' is the legacy Chinese "Processing..." message; both variants are matched for backward compatibility with existing database records.
   AND TRIM(msg.content) IN ('处理中...', 'Processing...')
   AND (
       EXISTS (
@@ -246,6 +247,7 @@ WHERE msg.role = 'assistant'
 			eventType = "cancelled"
 		}
 		detailData, _ := json.Marshal(map[string]string{"reason": reason, "status": eventType})
+		// '处理中...' is the legacy Chinese "Processing..." placeholder; matched alongside 'Processing...' for backward-compatibility with existing database rows.
 		result, err := tx.Exec(`
 UPDATE messages
 SET content = ?, updated_at = ?

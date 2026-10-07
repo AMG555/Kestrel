@@ -21,7 +21,7 @@ var ErrTaskCancelled = errors.New("agent task cancelled by user")
 // ErrTaskAlreadyRunning indicates a task is already running in the conversation
 var ErrTaskAlreadyRunning = errors.New("agent task already running for conversation")
 
-// shouldPersistEinoAgentTraceAfterRunError: whether to still write last_react_* for use by loadHistoryFromAgentTrace in the next round, even when an Eino Run returns non-success.race。
+// shouldPersistEinoAgentTraceAfterRunError: whether to still write last_react_* for use by loadHistoryFromAgentTrace in the next round, even when an Eino Run returns non-success.
 // Current policy: regardless of normal termination, abnormal termination, or user-initiated stop, always try to preserve the last usable trace,
 // so that when continuing in the same conversation the run can resume from the original context rather than falling back to message-text history only.
 func shouldPersistEinoAgentTraceAfterRunError(baseCtx context.Context) bool {

@@ -16,7 +16,7 @@ func shellToolsPresent(toolNames []string) bool {
 	return false
 }
 
-// injectShellToolGuidance 在system prompt末尾追加 exec/execute 分工（仅当tool list含 exec 或 execute）。
+// injectShellToolGuidance appends exec/execute role guidance to the end of the system prompt (only when the tool list contains exec or execute).
 func injectShellToolGuidance(instruction string, toolNames []string) string {
 	if !shellToolsPresent(toolNames) {
 		return instruction

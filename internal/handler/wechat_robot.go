@@ -246,7 +246,7 @@ func (h *WechatRobotHandler) HandleWechatQRCodeStatus(c *gin.Context) {
 		h.mu.Unlock()
 		c.JSON(http.StatusOK, gin.H{
 			"status":        "confirmed",
-			"message":       "bind successful，WeChat robotenabled",
+			"message":       "bind successful, WeChat robot enabled",
 			"ilink_bot_id":  st.ILinkBotID,
 			"ilink_user_id": st.ILinkUserID,
 		})

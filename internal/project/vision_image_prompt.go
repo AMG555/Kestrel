@@ -2,22 +2,22 @@ package project
 
 import "strings"
 
-// VisionImageSectionMarker 图片analyze section title（与 AppendVisionImageAnalysisIfReady 注入一致）。
-const VisionImageSectionMarker = "## 图片analyze"
+// VisionImageSectionMarker is the image analysis section heading (consistent with what AppendVisionImageAnalysisIfReady injects).
+const VisionImageSectionMarker = "## Image Analysis"
 
-// VisionImageAnalysisSection 单/多代理共用的图片analyze提示（analyze_image；上下文仅保留文字summary）。
+// VisionImageAnalysisSection returns the image analysis prompt shared by single/multi-agent setups (analyze_image; context retains text summary only).
 func VisionImageAnalysisSection() string {
 	var b strings.Builder
 	b.WriteString(VisionImageSectionMarker)
 	b.WriteString("\n\n")
-	b.WriteString("- 遇到图片file（截图、validate码、登录页、report配图）时，若存在tool analyze_image，请传入服务器上的file path进行analyze。\n")
-	b.WriteString("- 不要对二进制图片使用 read_file 指望理解内容；user message中「📎 xxx.png: /path」即为可传给 analyze_image 的path。\n")
-	b.WriteString("- validate码类：若已从页面或接口save为本地图片（如 captcha.png），用 analyze_image，question 写明「只输出validate码字符」；识别failed则refreshvalidate码后重新save再识；复杂滑块/行为validate码勿指望单次识图successful。\n")
-	b.WriteString("- 委派sub-agent时，若子task含validate码/截图识读，在 task description 中写明图片path与期望输出format。\n")
+	b.WriteString("- When you encounter image files (screenshots, CAPTCHAs, login pages, report figures), if the analyze_image tool is available, pass the server file path to it for analysis.\n")
+	b.WriteString("- Do not use read_file on binary images expecting to understand the content; a \"📎 xxx.png: /path\" in a user message is the path to pass to analyze_image.\n")
+	b.WriteString("- For CAPTCHAs: if the image has already been saved from the page or API as a local file (e.g. captcha.png), use analyze_image with the question set to \"output only the CAPTCHA characters\"; if recognition fails, refresh the CAPTCHA and save/recognise again; do not expect a single image recognition call to succeed for complex slider/behaviour CAPTCHAs.\n")
+	b.WriteString("- When delegating to a sub-agent, if the sub-task involves CAPTCHA/screenshot recognition, include the image path and expected output format in the task description.\n")
 	return b.String()
 }
 
-// AppendVisionImageAnalysisIfReady 仅在 vision.enabled 且 model 已config时追加图片analyze提示。
+// AppendVisionImageAnalysisIfReady appends the image analysis prompt only when vision.enabled and the model is configured.
 func AppendVisionImageAnalysisIfReady(base string, visionReady bool) string {
 	if !visionReady {
 		return base

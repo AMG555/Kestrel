@@ -31,15 +31,15 @@ func main() {
 
 	fmt.Printf("Found %d external MCP server(s)\n\n", len(cfg.ExternalMCP.Servers))
 
-	// createlog
+	// create logger
 	log := logger.New("info", "stdout")
 
-	// create外部MCP管理器
+	// create external MCP manager
 	manager := mcp.NewExternalMCPManager(log.Logger)
 	manager.LoadConfigs(&cfg.ExternalMCP)
 
-	// 显示config
-	fmt.Println("=== configinfo ===")
+	// display config
+	fmt.Println("=== config info ===")
 	for name, srv := range cfg.ExternalMCP.Servers {
 		fmt.Printf("\n%s:\n", name)
 		fmt.Printf("  Transport: %s\n", getTransport(srv))
@@ -55,39 +55,39 @@ func main() {
 		fmt.Printf("  ExternalMCPEnable: %v\n", srv.ExternalMCPEnable)
 	}
 
-	// 获取Statistics info
-	fmt.Println("\n=== Statistics info ===")
+	// get statistics
+	fmt.Println("\n=== statistics ===")
 	stats := manager.GetStats()
 	fmt.Printf("total: %d\n", stats["total"])
 	fmt.Printf("enabled: %d\n", stats["enabled"])
-	fmt.Printf("已停用: %d\n", stats["disabled"])
-	fmt.Printf("已连接: %d\n", stats["connected"])
+	fmt.Printf("disabled: %d\n", stats["disabled"])
+	fmt.Printf("connected: %d\n", stats["connected"])
 
-	// teststart（仅testenable的）
-	fmt.Println("\n=== teststart ===")
+	// test start (enabled only)
+	fmt.Println("\n=== test start ===")
 	for name, srv := range cfg.ExternalMCP.Servers {
 		if srv.ExternalMCPEnable {
-			fmt.Printf("\n尝试start %s...\n", name)
-			// 注意：实际start可能会failed，因为需要true实的MCP服务器
+			fmt.Printf("\nattempting to start %s...\n", name)
+			// note: actual start may fail if no real MCP server is available
 			err := manager.StartClient(name)
 			if err != nil {
-				fmt.Printf("  startup failed（这yesnormal的，如果没有true实的MCP服务器）: %v\n", err)
+				fmt.Printf("  startup failed (this is normal if no real MCP server is present): %v\n", err)
 			} else {
-				fmt.Printf("  startsuccessful\n")
-				// 获取客户端status
+				fmt.Printf("  start successful\n")
+				// get client status
 				if client, exists := manager.GetClient(name); exists {
 					fmt.Printf("  status: %s\n", client.GetStatus())
-					fmt.Printf("  已连接: %v\n", client.IsConnected())
+					fmt.Printf("  connected: %v\n", client.IsConnected())
 				}
 			}
 		}
 	}
 
-	// 等待一下
+	// wait a moment
 	time.Sleep(2 * time.Second)
 
-	// test获取tool list
-	fmt.Println("\n=== test获取tool list ===")
+	// test get tool list
+	fmt.Println("\n=== test get tool list ===")
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -95,38 +95,38 @@ func main() {
 	if err != nil {
 		fmt.Printf("failed to get tool list: %v\n", err)
 	} else {
-		fmt.Printf("获取到 %d 个tool\n", len(tools))
+		fmt.Printf("retrieved %d tools\n", len(tools))
 		for i, tool := range tools {
-			if i < 5 { // 只显示前5个
+			if i < 5 { // show first 5 only
 				fmt.Printf("  - %s: %s\n", tool.Name, tool.Description)
 			}
 		}
 		if len(tools) > 5 {
-			fmt.Printf("  ... 还有 %d 个tool\n", len(tools)-5)
+			fmt.Printf("  ... and %d more tools\n", len(tools)-5)
 		}
 	}
 
-	// teststop
-	fmt.Println("\n=== teststop ===")
+	// test stop
+	fmt.Println("\n=== test stop ===")
 	for name := range cfg.ExternalMCP.Servers {
-		fmt.Printf("\nstop %s...\n", name)
+		fmt.Printf("\nstopping %s...\n", name)
 		err := manager.StopClient(name)
 		if err != nil {
 			fmt.Printf("  shutdown failed: %v\n", err)
 		} else {
-			fmt.Printf("  stopsuccessful\n")
+			fmt.Printf("  stop successful\n")
 		}
 	}
 
-	// 最终统计
-	fmt.Println("\n=== 最终统计 ===")
+	// final statistics
+	fmt.Println("\n=== final statistics ===")
 	stats = manager.GetStats()
 	fmt.Printf("total: %d\n", stats["total"])
 	fmt.Printf("enabled: %d\n", stats["enabled"])
-	fmt.Printf("已停用: %d\n", stats["disabled"])
-	fmt.Printf("已连接: %d\n", stats["connected"])
+	fmt.Printf("disabled: %d\n", stats["disabled"])
+	fmt.Printf("connected: %d\n", stats["connected"])
 
-	fmt.Println("\n=== test完成 ===")
+	fmt.Println("\n=== test complete ===")
 }
 
 func getTransport(srv config.ExternalMCPServerConfig) string {

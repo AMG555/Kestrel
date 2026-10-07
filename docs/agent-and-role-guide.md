@@ -1,6 +1,5 @@
 # Agent and Role Guide
 
-[中文](../zh-CN/agent-and-role-guide.md)
 
 Agent behavior is shaped by roles, Markdown sub-agents, Skills, tool visibility, and HITL policy.
 
@@ -37,7 +36,7 @@ description: Validate, classify, and summarize vulnerability evidence
 tools:
   - nmap
   - nuclei
-bind_role: 综合漏洞扫描
+bind_role: comprehensive-vulnerability-scan
 max_iterations: 200
 ---
 ```

@@ -10,8 +10,9 @@ import (
 	"github.com/cloudwego/eino/adk/prebuilt/planexecute"
 )
 
-// plan_execute 的 Replanner / Executor prompt 会线性拼接每步 Result；none界时易撑爆上下文。
-// 此处仅约束「写入model prompt 的视图」，不修改 Eino session 中的原始 ExecutedSteps。
+// The plan_execute Replanner/Executor prompt linearly concatenates each step's Result;
+// without a cap this can overflow the context. This only constrains the view written into the model prompt;
+// it does not modify the original ExecutedSteps in the Eino session.
 
 const (
 	defaultPlanExecuteMaxStepResultRunes = 4000
@@ -32,7 +33,7 @@ func truncateRunesWithSuffix(s string, maxRunes int, suffix string) string {
 	return string(rs[:maxRunes]) + suffix
 }
 
-// capPlanExecuteExecutedSteps 折叠较早步骤、截断单步过长结果，供 prompt 使用。
+// capPlanExecuteExecutedSteps folds earlier steps and truncates overly long step results for use in the prompt.
 func capPlanExecuteExecutedSteps(steps []planexecute.ExecutedStep) []planexecute.ExecutedStep {
 	return capPlanExecuteExecutedStepsWithConfig(steps, nil)
 }
@@ -52,7 +53,7 @@ func capPlanExecuteExecutedStepsWithConfig(steps []planexecute.ExecutedStep, mwC
 	if len(steps) > keepLastSteps {
 		start = len(steps) - keepLastSteps
 		var b strings.Builder
-		b.WriteString(fmt.Sprintf("（上文completed %d 步；此处仅保留步骤title以节省上下文，完整输出已省略。后续 %d 步仍保留正文。）\n",
+		b.WriteString(fmt.Sprintf("(Completed %d earlier steps; only step titles are retained here to save context, full output omitted. The following %d steps retain their full content.)\n",
 			start, keepLastSteps))
 		for i := 0; i < start; i++ {
 			b.WriteString(fmt.Sprintf("- %s\n", steps[i].Step))

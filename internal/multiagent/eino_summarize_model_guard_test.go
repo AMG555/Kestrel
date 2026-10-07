@@ -33,7 +33,7 @@ func (m *guardClassicSummaryModel) Stream(context.Context, []*schema.Message, ..
 
 func TestNonEmptySummaryChatModelReportsEmptyContentDiagnostics(t *testing.T) {
 	msg := schema.AssistantMessage("", nil)
-	msg.ReasoningContent = "只back了思考，没有最终summary"
+	msg.ReasoningContent = "returned only reasoning, no final summary"
 	msg.ResponseMeta = &schema.ResponseMeta{
 		FinishReason: "stop",
 		Usage: &schema.TokenUsage{
@@ -79,7 +79,7 @@ func TestNonEmptyAgenticSummaryModelReportsEmptyContentDiagnostics(t *testing.T)
 	msg := &schema.AgenticMessage{
 		Role: schema.AgenticRoleTypeAssistant,
 		ContentBlocks: []*schema.ContentBlock{
-			schema.NewContentBlock(&schema.Reasoning{Text: "只back了思考，没有最终summary"}),
+			schema.NewContentBlock(&schema.Reasoning{Text: "returned only reasoning, no final summary"}),
 		},
 		ResponseMeta: &schema.AgenticResponseMeta{
 			TokenUsage: &schema.TokenUsage{
@@ -131,13 +131,13 @@ func TestSummaryGenerateUsesStream(t *testing.T) {
 	t.Run("classic", func(t *testing.T) {
 		tail := schema.AssistantMessage("summary", nil)
 		tail.ResponseMeta = &schema.ResponseMeta{FinishReason: "stop", Usage: &schema.TokenUsage{TotalTokens: 42}}
-		base := &streamingSummaryTestModel[*schema.Message]{stream: schema.StreamReaderFromArray([]*schema.Message{schema.AssistantMessage("完整", nil), nil, tail})}
+		base := &streamingSummaryTestModel[*schema.Message]{stream: schema.StreamReaderFromArray([]*schema.Message{schema.AssistantMessage("complete", nil), nil, tail})}
 		input := []*schema.Message{schema.UserMessage("history")}
 		out, err := newNonEmptySummaryChatModel(base).Generate(context.Background(), input, model.WithMaxTokens(64000))
 		if err != nil {
 			t.Fatal(err)
 		}
-		if out.Content != "完整summary" || out.ResponseMeta.Usage.TotalTokens != 42 {
+		if out.Content != "completesummary" || out.ResponseMeta.Usage.TotalTokens != 42 {
 			t.Fatalf("lost streamed content or usage: %+v", out)
 		}
 		if base.input[0] != input[0] || *model.GetCommonOptions(nil, base.opts...).MaxTokens != 64000 {
@@ -152,13 +152,13 @@ func TestSummaryGenerateUsesStream(t *testing.T) {
 		}
 		tail := chunk("summary")
 		tail.ResponseMeta = &schema.AgenticResponseMeta{ClaudeExtension: &claude.ResponseMetaExtension{StopReason: "end_turn"}, TokenUsage: &schema.TokenUsage{TotalTokens: 42}}
-		base := &streamingSummaryTestModel[*schema.AgenticMessage]{stream: schema.StreamReaderFromArray([]*schema.AgenticMessage{chunk("完整"), nil, tail})}
+		base := &streamingSummaryTestModel[*schema.AgenticMessage]{stream: schema.StreamReaderFromArray([]*schema.AgenticMessage{chunk("complete"), nil, tail})}
 		input := []*schema.AgenticMessage{chunk("history")}
 		out, err := newNonEmptyAgenticSummaryModel(base).Generate(context.Background(), input, model.WithMaxTokens(64000))
 		if err != nil {
 			t.Fatal(err)
 		}
-		if agenticAssistantTextContent(out) != "完整summary" || out.ResponseMeta.TokenUsage.TotalTokens != 42 {
+		if agenticAssistantTextContent(out) != "completesummary" || out.ResponseMeta.TokenUsage.TotalTokens != 42 {
 			t.Fatalf("lost streamed content or usage: %+v", out)
 		}
 		if base.input[0] != input[0] || *model.GetCommonOptions(nil, base.opts...).MaxTokens != 64000 {
@@ -233,7 +233,7 @@ func TestClaudeSummaryLargeBudgetStreamsThroughNativeSDK(t *testing.T) {
 				events := []string{
 					`{"type":"message_start","message":{"id":"msg_test","type":"message","role":"assistant","content":[],"model":"claude-sonnet-4-20250514","stop_reason":null,"stop_sequence":null,"usage":{"input_tokens":10,"output_tokens":0}}}`,
 					`{"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}`,
-					`{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"完整"}}`,
+					`{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"complete"}}`,
 					`{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"summary"}}`,
 					`{"type":"content_block_stop","index":0}`,
 					`{"type":"message_delta","delta":{"stop_reason":"end_turn","stop_sequence":null},"usage":{"output_tokens":2}}`,
@@ -295,7 +295,7 @@ func TestClaudeSummaryLargeBudgetStreamsThroughNativeSDK(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if agenticAssistantTextContent(out) != "完整summary" {
+			if agenticAssistantTextContent(out) != "completesummary" {
 				t.Fatalf("unexpected summary: %+v", out)
 			}
 			if out.ResponseMeta == nil || out.ResponseMeta.TokenUsage == nil || out.ResponseMeta.TokenUsage.CompletionTokens != 2 {

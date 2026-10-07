@@ -21,16 +21,16 @@ type terminalResize struct {
 	Rows uint16 `json:"rows"`
 }
 
-// wsUpgrader 仅用于systemsettings中的终端 WebSocket，会复用已有的登录保护（JWT 中间件在上层路由组）
+// wsUpgrader is used only for the terminal WebSocket in system settings; it reuses the existing login protection (JWT middleware in the parent route group).
 var wsUpgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
-		// 由于已在 Gin 路由层做了认证，这里放宽 Origin，方便在同一域名下通过 HTTPS/WSS 访问
+		// Authentication is already done at the Gin router level; relax Origin here to allow HTTPS/WSS access under the same domain.
 		return true
 	},
 }
 
-// RunCommandWS 提供true正交互式 Shell：基于 WebSocket + PTY 的长会话
-// 前端建立 WebSocket 连接后，所有key盘输入都会透传到 Shell，Shell 的输出也会实时写回前端。
+// RunCommandWS provides a true interactive shell: a long-lived session based on WebSocket + PTY.
+// After the frontend establishes a WebSocket connection, all keyboard input is forwarded to the shell, and the shell output is written back to the frontend in real time.
 func (h *TerminalHandler) RunCommandWS(c *gin.Context) {
 	conn, err := wsUpgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
@@ -38,7 +38,7 @@ func (h *TerminalHandler) RunCommandWS(c *gin.Context) {
 	}
 	defer conn.Close()
 
-	// start交互式 Shell，这里优先使用 bash，找不到则退回 sh
+	// Start an interactive shell; prefer bash, fall back to sh if not found.
 	shell := "bash"
 	if _, err := exec.LookPath(shell); err != nil {
 		shell = "sh"
@@ -57,7 +57,7 @@ func (h *TerminalHandler) RunCommandWS(c *gin.Context) {
 	}
 	defer ptmx.Close()
 
-	// Shell -> WebSocket：将 PTY 输出实时发给前端
+	// Shell -> WebSocket: forward PTY output to the frontend in real time.
 	doneChan := make(chan struct{})
 	go func() {
 		buf := make([]byte, 4096)
@@ -73,7 +73,7 @@ func (h *TerminalHandler) RunCommandWS(c *gin.Context) {
 		close(doneChan)
 	}()
 
-	// WebSocket -> Shell：将前端输入写入 PTY（包括 sudo password、Ctrl+C 等）
+	// WebSocket -> Shell: write frontend input to the PTY (including sudo password, Ctrl+C, etc.).
 	conn.SetReadLimit(64 * 1024)
 	_ = conn.SetReadDeadline(time.Now().Add(terminalTimeout))
 	conn.SetPongHandler(func(string) error {

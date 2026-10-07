@@ -23,20 +23,20 @@ func TestEinoAssistantOutputAccumulatorRecordsMainAssistant(t *testing.T) {
 
 func TestEinoAssistantOutputAccumulatorPlanExecuteExecutor(t *testing.T) {
 	acc := newEinoAssistantOutputAccumulator("plan_execute")
-	raw := `{"response":"给user看的正文","scratchpad":"internal"}`
+	raw := `{"response":"user-facing body text","scratchpad":"internal"}`
 	acc.RecordMainAssistant("executor", raw)
 
 	if got := acc.LastAssistant(); got != raw {
 		t.Fatalf("last assistant = %q, want raw", got)
 	}
-	if got := acc.LastPlanExecuteExecutor(); got != "给user看的正文" {
+	if got := acc.LastPlanExecuteExecutor(); got != "user-facing body text" {
 		t.Fatalf("executor output = %q", got)
 	}
 	acc.RecordMainAssistant("planner", "planner note")
 	if got := acc.LastAssistant(); got != "planner note" {
 		t.Fatalf("last assistant after planner = %q", got)
 	}
-	if got := acc.LastPlanExecuteExecutor(); got != "给user看的正文" {
+	if got := acc.LastPlanExecuteExecutor(); got != "user-facing body text" {
 		t.Fatalf("planner should not overwrite executor output, got %q", got)
 	}
 }

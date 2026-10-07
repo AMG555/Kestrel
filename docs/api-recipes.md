@@ -1,6 +1,5 @@
 # API Recipes
 
-[中文](../zh-CN/api-recipes.md)
 
 Common API workflows for scripts and plugins. Use `/api-docs` and `/api/openapi/spec` for complete schemas.
 

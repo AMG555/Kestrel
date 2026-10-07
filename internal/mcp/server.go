@@ -1563,7 +1563,7 @@ func (s *Server) handleReadResource(msg *Message) *Message {
 		}
 	}
 
-	// 生成资源内容
+	// Generate resource content
 	content := s.generateResourceContent(resource)
 
 	response := ReadResourceResponse{
@@ -1578,39 +1578,39 @@ func (s *Server) handleReadResource(msg *Message) *Message {
 	}
 }
 
-// generateResourceContent 生成资源内容
+// generateResourceContent generates resource content.
 func (s *Server) generateResourceContent(resource *Resource) ResourceContent {
 	content := ResourceContent{
 		URI:      resource.URI,
 		MimeType: resource.MimeType,
 	}
 
-	// 如果yestool资源，生成详细文档
+	// If it is a tool resource, generate detailed documentation
 	if strings.HasPrefix(resource.URI, "tool://") {
 		toolName := strings.TrimPrefix(resource.URI, "tool://")
 		content.Text = s.generateToolDocumentation(toolName, resource)
 	} else {
-		// 其他资源使用description或默认内容
+		// Other resources use the description or default content
 		content.Text = resource.Description
 	}
 
 	return content
 }
 
-// generateToolDocumentation 生成tool文档
-// 注意：硬编码的tool文档已移除，现在只使用tool定义中的info
+// generateToolDocumentation generates tool documentation.
+// Note: hardcoded tool documentation has been removed; only info from the tool definition is used now.
 func (s *Server) generateToolDocumentation(toolName string, resource *Resource) string {
-	// 获取tool定义以获取更详细的info
+	// Get the tool definition for more detailed information
 	s.mu.RLock()
 	tool, hasTool := s.toolDefs[toolName]
 	s.mu.RUnlock()
 
-	// 使用tool定义中的descriptioninfo
+	// Use the description information from the tool definition
 	if hasTool {
 		doc := fmt.Sprintf("%s\n\n", resource.Description)
 		if tool.InputSchema != nil {
 			if props, ok := tool.InputSchema["properties"].(map[string]interface{}); ok {
-				doc += "参数说明：\n"
+				doc += "Parameter descriptions:\n"
 				for paramName, paramInfo := range props {
 					if paramMap, ok := paramInfo.(map[string]interface{}); ok {
 						if desc, ok := paramMap["description"].(string); ok {
@@ -1625,7 +1625,7 @@ func (s *Server) generateToolDocumentation(toolName string, resource *Resource) 
 	return resource.Description
 }
 
-// handleSamplingRequest 处理采样request
+// handleSamplingRequest handles a sampling request.
 func (s *Server) handleSamplingRequest(msg *Message) *Message {
 	var req SamplingRequest
 	if err := json.Unmarshal(msg.Params, &req); err != nil {
@@ -1637,8 +1637,8 @@ func (s *Server) handleSamplingRequest(msg *Message) *Message {
 		}
 	}
 
-	// 注意：采样功能通常需要连接到实际的LLM服务
-	// 这里back一个占位符response，实际实现需要集成LLM API
+	// Note: the sampling feature normally requires a connection to a real LLM service.
+	// A placeholder response is returned here; the actual implementation needs to integrate the LLM API.
 	s.logger.Warn("Sampling request received but not fully implemented",
 		zap.Any("request", req),
 	)
@@ -1647,7 +1647,7 @@ func (s *Server) handleSamplingRequest(msg *Message) *Message {
 		Content: []SamplingContent{
 			{
 				Type: "text",
-				Text: "采样功能需要configLLM服务。请使用Agent Loop API进行AIconversation。",
+				Text: "The sampling feature requires an LLM service to be configured. Please use the Agent Loop API for AI conversations.",
 			},
 		},
 		StopReason: "length",
@@ -1661,27 +1661,27 @@ func (s *Server) handleSamplingRequest(msg *Message) *Message {
 	}
 }
 
-// RegisterPrompt 注册提示词模板
+// RegisterPrompt registers a prompt template.
 func (s *Server) RegisterPrompt(prompt *Prompt) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.prompts[prompt.Name] = prompt
 }
 
-// RegisterResource 注册资源
+// RegisterResource registers a resource.
 func (s *Server) RegisterResource(resource *Resource) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.resources[resource.URI] = resource
 }
 
-// HandleStdio 处理标准输入输出（用于 stdio 传输pattern）
-// MCP protocol使用换行分隔的 JSON-RPC message；管道下需每次写入后 Flush，no则客户端会读不到response
+// HandleStdio handles standard input/output (for the stdio transport pattern).
+// The MCP protocol uses newline-delimited JSON-RPC messages; stdout must be flushed after each write when in pipe mode, otherwise the client will not receive the response.
 func (s *Server) HandleStdio() error {
 	decoder := json.NewDecoder(os.Stdin)
 	stdout := bufio.NewWriter(os.Stdout)
 	encoder := json.NewEncoder(stdout)
-	// 注意：不settings缩进，MCP protocol期望紧凑的 JSON format
+	// Note: do not set indentation; the MCP protocol expects compact JSON format.
 
 	for {
 		var msg Message
@@ -1689,9 +1689,9 @@ func (s *Server) HandleStdio() error {
 			if err == io.EOF {
 				break
 			}
-			// log output到 stderr，避免干扰 stdout 的 JSON-RPC 通信
-			s.logger.Error("读cancelled息failed", zap.Error(err))
-			// 发送errorresponse
+			// Log to stderr to avoid interfering with the JSON-RPC communication on stdout.
+			s.logger.Error("failed to read message", zap.Error(err))
+			// Send error response
 			errorMsg := Message{
 				ID:      msg.ID,
 				Type:    MessageTypeError,
@@ -1699,7 +1699,7 @@ func (s *Server) HandleStdio() error {
 				Error:   &Error{Code: -32700, Message: "Parse error", Data: err.Error()},
 			}
 			if err := encoder.Encode(errorMsg); err != nil {
-				return fmt.Errorf("发送errorresponsefailed: %w", err)
+				return fmt.Errorf("failed to send error response: %w", err)
 			}
 			if err := stdout.Flush(); err != nil {
 				return fmt.Errorf("refresh stdout failed: %w", err)
@@ -1707,17 +1707,17 @@ func (s *Server) HandleStdio() error {
 			continue
 		}
 
-		// 处理message
+		// Handle message
 		response := s.handleMessage(context.Background(), &msg)
 
-		// 如果yesnotification（response 为 nil），不需要发送response
+		// If it is a notification (response is nil), no response needs to be sent.
 		if response == nil {
 			continue
 		}
 
-		// 发送response
+		// Send response
 		if err := encoder.Encode(response); err != nil {
-			return fmt.Errorf("发送responsefailed: %w", err)
+			return fmt.Errorf("failed to send response: %w", err)
 		}
 		if err := stdout.Flush(); err != nil {
 			return fmt.Errorf("refresh stdout failed: %w", err)
@@ -1727,7 +1727,7 @@ func (s *Server) HandleStdio() error {
 	return nil
 }
 
-// sendError 发送errorresponse
+// sendError sends an error response.
 func (s *Server) sendError(w http.ResponseWriter, id interface{}, code int, message, data string) {
 	var msgID MessageID
 	if id != nil {

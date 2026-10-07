@@ -47,13 +47,13 @@ func newKnowledgeSplitter(chunkSize, overlap int, embeddingModel string) (docume
 		LenFunc:     tokenizerLenFunc(embeddingModel),
 		Separators: []string{
 			"\n\n", "\n## ", "\n### ", "\n#### ", "\n",
-			"。", "！", "？", ". ", "? ", "! ",
+			". ", "? ", "! ",
 			" ",
 		},
 	})
 }
 
-// newMarkdownHeaderSplitter Eino-ext Markdown 按title切分（#～####），适合技术/Markdown 知识库。
+// newMarkdownHeaderSplitter splits Markdown by headers (#–####) using Eino-ext, suitable for technical/Markdown knowledge bases.
 func newMarkdownHeaderSplitter(ctx context.Context) (document.Transformer, error) {
 	return markdown.NewHeaderSplitter(ctx, &markdown.HeaderConfig{
 		Headers: map[string]string{

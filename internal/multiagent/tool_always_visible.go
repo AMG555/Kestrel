@@ -4,8 +4,8 @@ import (
 	"strings"
 )
 
-// expandAlwaysVisibleNameSet 将config中的常驻tool nameexpand为可匹配运行时tool name的set。
-// 支持：内置短名 read_file；外部 mcp::tool；运行时 mcp__tool（OpenAI/Eino 命名）。
+// expandAlwaysVisibleNameSet expands always-visible tool names from config into a set that matches runtime tool names.
+// Supports: built-in short names like read_file; external mcp::tool; runtime mcp__tool (OpenAI/Eino naming).
 func expandAlwaysVisibleNameSet(names []string) map[string]struct{} {
 	set := make(map[string]struct{}, len(names)*3)
 	add := func(name string) {
@@ -22,7 +22,7 @@ func expandAlwaysVisibleNameSet(names []string) map[string]struct{} {
 		}
 		add(n)
 		if mcp, tool, ok := strings.Cut(n, "::"); ok && mcp != "" && tool != "" {
-			// 外部tool用 mcp::tool config时只expand运行时 mcp__tool，避免短名误伤其它 MCP 同名tool。
+			// When an external tool is configured as mcp::tool, only expand to runtime mcp__tool to avoid short-name collisions with other MCP tools of the same name.
 			add(mcp + "__" + tool)
 			continue
 		}
@@ -37,7 +37,7 @@ func expandAlwaysVisibleNameSet(names []string) map[string]struct{} {
 	return set
 }
 
-// toolMatchesAlwaysVisible 判断运行时tool nameyesno命中常驻白名单（含别名）。
+// toolMatchesAlwaysVisible reports whether the runtime tool name matches the always-visible whitelist (including aliases).
 func toolMatchesAlwaysVisible(runtimeName string, nameSet map[string]struct{}) bool {
 	if len(nameSet) == 0 {
 		return false

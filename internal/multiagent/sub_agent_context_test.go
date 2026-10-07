@@ -26,16 +26,16 @@ func TestBuildUserContextSupplement_SingleMessage(t *testing.T) {
 
 func TestBuildUserContextSupplement_MultiTurn(t *testing.T) {
 	history := []agent.ChatMessage{
-		{Role: "user", Content: "http://8.163.32.73:8081 这yes一个pikachu靶场，尝试testCommand execution"},
-		{Role: "assistant", Content: "好的，我来test..."},
-		{Role: "user", Content: "continue，并persistencewebshell"},
+		{Role: "user", Content: "http://8.163.32.73:8081 is a pikachu target range, try testing Command execution"},
+		{Role: "assistant", Content: "OK, let me test..."},
+		{Role: "user", Content: "continue, and persist the webshell"},
 		{Role: "assistant", Content: "processing..."},
 	}
-	result := buildUserContextSupplement("你好", history, 0)
+	result := buildUserContextSupplement("hello", history, 0)
 	if !strings.Contains(result, "http://8.163.32.73:8081") {
 		t.Error("expected first turn URL to be preserved")
 	}
-	if !strings.Contains(result, "你好") {
+	if !strings.Contains(result, "hello") {
 		t.Error("expected current message")
 	}
 }
@@ -47,20 +47,20 @@ func TestBuildUserContextSupplement_Empty(t *testing.T) {
 }
 
 func TestBuildUserContextSupplement_Deduplicate(t *testing.T) {
-	history := []agent.ChatMessage{{Role: "user", Content: "你好"}}
-	result := buildUserContextSupplement("你好", history, 0)
-	if strings.Count(result, "你好") != 1 {
-		t.Errorf("expected '你好' once, got: %s", result)
+	history := []agent.ChatMessage{{Role: "user", Content: "hello"}}
+	result := buildUserContextSupplement("hello", history, 0)
+	if strings.Count(result, "hello") != 1 {
+		t.Errorf("expected 'hello' once, got: %s", result)
 	}
 }
 
 func TestBuildUserContextSupplement_SkipsNonUser(t *testing.T) {
 	history := []agent.ChatMessage{
-		{Role: "user", Content: "目标yes 10.0.0.1"},
-		{Role: "assistant", Content: "不应该出现"},
+		{Role: "user", Content: "target is 10.0.0.1"},
+		{Role: "assistant", Content: "should not appear"},
 	}
 	result := buildUserContextSupplement("confirm", history, 0)
-	if strings.Contains(result, "不应该出现") {
+	if strings.Contains(result, "should not appear") {
 		t.Error("assistant message should not be included")
 	}
 }
@@ -88,7 +88,7 @@ func TestBuildUserContextSupplement_TruncateKeepsFirstAndLast(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		history = append(history, agent.ChatMessage{Role: "user", Content: strings.Repeat("B", 500)})
 	}
-	last := "最后一条指令"
+	last := "last instruction"
 	result := buildUserContextSupplement(last, history, 800)
 	if !strings.Contains(result, "http://target.com") {
 		t.Error("first message (target URL) should survive truncation")
@@ -103,7 +103,7 @@ func TestBuildUserContextSupplement_TruncateKeepsFirstAndLast(t *testing.T) {
 func TestTaskContextEnrichMiddleware_EnrichesTaskDescription(t *testing.T) {
 	mw := newTaskContextEnrichMiddleware(
 		"continuetest",
-		[]agent.ChatMessage{{Role: "user", Content: "http://8.163.32.73:8081 pikachu靶场"}},
+		[]agent.ChatMessage{{Role: "user", Content: "http://8.163.32.73:8081 pikachu target range"}},
 		0,
 		"",
 	)
@@ -126,7 +126,7 @@ func TestTaskContextEnrichMiddleware_EnrichesTaskDescription(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	taskArgs := `{"subagent_type":"recon","description":"scan目标port"}`
+	taskArgs := `{"subagent_type":"recon","description":"scan target ports"}`
 	wrapped(context.Background(), taskArgs)
 
 	if !called {
@@ -138,7 +138,7 @@ func TestTaskContextEnrichMiddleware_EnrichesTaskDescription(t *testing.T) {
 		t.Fatalf("enriched args not valid JSON: %v", err)
 	}
 	desc := parsed["description"].(string)
-	if !strings.Contains(desc, "scan目标port") {
+	if !strings.Contains(desc, "scan target ports") {
 		t.Error("original description should be preserved")
 	}
 	if !strings.Contains(desc, "http://8.163.32.73:8081") {

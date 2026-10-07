@@ -1,4 +1,4 @@
-// Package multiagent orchestrates multi-agent workflows using CloudWeGo Eino adk/prebuilt (deep / plan_execute / supervisor); MCP tools are bridged to the existing Agent。
+// Package multiagent orchestrates multi-agent workflows using CloudWeGo Eino adk/prebuilt (deep / plan_execute / supervisor); MCP tools are bridged to the existing Agent.
 package multiagent
 
 import (
@@ -109,7 +109,7 @@ func RunDeepAgent(
 		return nil, fmt.Errorf("when multi_agent.without_general_sub_agent is true, at least one sub-agent must be defined in multi_agent.sub_agents or the agents directory Markdown")
 	}
 	if orchMode == "supervisor" && len(effectiveSubs) == 0 {
-		return nil, fmt.Errorf("multi_agent.orchestration=supervisor requires at least one sub-agent configured (sub_agents or agents directory Markdown）")
+		return nil, fmt.Errorf("multi_agent.orchestration=supervisor requires at least one sub-agent configured (sub_agents or agents directory Markdown)")
 	}
 	if orchMode == "supervisor" && len(effectiveSubs) == 1 && progress != nil {
 		progress("progress", "Supervisor is in expert-routing mode; currently only 1 sub-agent, expert routing space is limited but execution will continue.", map[string]interface{}{
@@ -513,7 +513,7 @@ func RunDeepAgent(
 			ProjectID:            projectID,
 			Logger:               logger,
 			ModelName:            appCfg.OpenAI.Model,
-			// Same origin as Deep/Supervisor primary agent: typed patch / reduction / toolsearch / plantask (see buildPlanExecuteAgenticExecutorHandlers）。
+			// Same origin as Deep/Supervisor primary agent: typed patch / reduction / toolsearch / plantask (see buildPlanExecuteAgenticExecutorHandlers).
 			AgenticExecPreMiddlewares:   mainAgenticOrchestratorPre,
 			AgenticSkillMiddleware:      agenticSkillMW,
 			AgenticFilesystemMiddleware: peFsMw,
@@ -993,7 +993,7 @@ func emitToolCallsFromMessage(
 	if isSubToolRound {
 		role = "sub"
 	}
-	progress("tool_calls_detected", fmt.Sprintf("检测到 %d 个tool call", len(visibleToolCalls)), map[string]interface{}{
+	progress("tool_calls_detected", fmt.Sprintf("Detected %d tool call(s)", len(visibleToolCalls)), map[string]interface{}{
 		"count":          len(visibleToolCalls),
 		"conversationId": conversationID,
 		"source":         "eino",

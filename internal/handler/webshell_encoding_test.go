@@ -73,8 +73,8 @@ func TestDecodeWebshellOutput_AutoDetectsGBK(t *testing.T) {
 }
 
 func TestDecodeWebshellOutput_PassthroughUTF8(t *testing.T) {
-	// already valid UTF-8 Chinese string, all modes should return the original string unchanged
-	want := "hello 世界"
+	// Use a UTF-8 multi-byte sequence to verify that non-ASCII content passes through unchanged.
+	want := "hello café"
 	for _, enc := range []string{"", "auto", "utf-8"} {
 		if got := decodeWebshellOutput([]byte(want), enc); got != want {
 			t.Errorf("decodeWebshellOutput(%q) passthrough = %q, want %q", enc, got, want)

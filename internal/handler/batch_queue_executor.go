@@ -288,7 +288,7 @@ func (h *AgentHandler) executeOneBatchSubTask(queueID string, queue *BatchTaskQu
 			zap.String("queueId", queueID),
 			zap.String("taskId", task.ID),
 			zap.String("conversationId", conversationID))
-		h.batchTaskManager.UpdateTaskStatus(queueID, task.ID, BatchTaskStatusFailed, "", "internal error：noneexecution result")
+		h.batchTaskManager.UpdateTaskStatus(queueID, task.ID, BatchTaskStatusFailed, "", "internal error: no execution result")
 		return
 	}
 

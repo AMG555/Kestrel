@@ -63,6 +63,9 @@ func TestLegacyToolGuardBlockMigrationIsStrictAndIdempotent(t *testing.T) {
 		t.Fatal(err)
 	}
 	now := time.Now()
+	// These Chinese-language strings are verbatim reproductions of the old guard refusal messages that were
+	// written to the database before the guard was translated to English.
+	// They must not be changed; migrateLegacyToolGuardBlocks must match them exactly.
 	refusal := "tool call已被安全规则拦截：识别到 example.gov，禁止操作。\n规则: 政府网站保护 (government-domains)\n匹配内容: \"example.gov\""
 	for i, reason := range []string{
 		refusal,
@@ -110,6 +113,7 @@ func TestToolResultStatusFromPayloadDistinguishesBlocked(t *testing.T) {
 	}{
 		{map[string]interface{}{"blocked": true, "success": false, "isError": true}, "blocked"},
 		{map[string]interface{}{"status": "blocked", "success": false}, "blocked"},
+		// Legacy Chinese-language guard message: preserved to test backward-compatible toolResultStatusFromPayload.
 		{map[string]interface{}{"success": false, "isError": true, "result": "tool call已被安全规则拦截"}, "failed"},
 		{map[string]interface{}{"success": true}, "completed"},
 	} {

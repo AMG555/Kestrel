@@ -374,7 +374,7 @@ func (h *AgentHandler) EinoSingleAgentLoopStream(c *gin.Context) {
 			return
 		}
 
-		h.logger.Error("Eino ADK 单agent execution failed", zap.Error(runErr))
+		h.logger.Error("Eino ADK single-agent execution failed", zap.Error(runErr))
 		taskStatus = "failed"
 		h.tasks.UpdateTaskStatus(conversationID, taskStatus)
 		clientErr := multiagent.EinoClientRunErrorMessage(runErr)

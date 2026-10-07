@@ -18,8 +18,8 @@ const (
 
 `
 	transcriptStaticSystemOmitNote = "[static system prompt omitted — unchanged in live context after compaction]"
-	transcriptToolIndexStartMarker = "以下yes当前会话bind的tool nameindex"
-	transcriptPersonaStartMarker   = "你yesKestrel"
+	transcriptToolIndexStartMarker = "The following are the tool name indices bound to the current session"
+	transcriptPersonaStartMarker   = "You are Kestrel"
 	// ADK LanguageChinese injects skill middleware prompt with this header (see eino adk/middlewares/skill/prompt.go).
 	transcriptSkillsSystemMarker        = "# Skill system"
 	transcriptSkillsSystemMarkerEnglish = "# Skills System"

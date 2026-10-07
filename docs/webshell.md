@@ -1,6 +1,5 @@
 # WebShell Management
 
-[中文](../zh-CN/webshell.md)
 
 WebShell management stores authorized WebShell connections and allows command/file operations through the UI and Agent tools.
 

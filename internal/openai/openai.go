@@ -35,7 +35,7 @@ func (e *APIError) Error() string {
 	return fmt.Sprintf("openai api error: status=%d body=%s", e.StatusCode, e.Body)
 }
 
-// normalizeStreamingDelta 将可能yes“累计片段/重发片段”的内容归一化为“纯增量”。
+// normalizeStreamingDelta normalizes content that may be a "cumulative fragment/retransmitted fragment" into a "pure delta".
 // Some compatible gateways return cumulative content; appending directly would produce duplicate text.
 //
 // Notes:

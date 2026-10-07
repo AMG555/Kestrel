@@ -100,16 +100,16 @@ func parseJSONPathTokens(path string) []string {
 func validateJSONPathSyntax(path string) error {
 	path = strings.TrimSpace(path)
 	if path == "" {
-		return fmt.Errorf("JSONPath 不能为null")
+		return fmt.Errorf("JSONPath cannot be empty")
 	}
 	if !strings.HasPrefix(path, "$") && !strings.HasPrefix(path, ".") {
-		return fmt.Errorf("JSONPath/JQ path必须以 $ 或 . 开头")
+		return fmt.Errorf("JSONPath/JQ path must start with $ or .")
 	}
 	if strings.Contains(path, "..") || strings.ContainsAny(path, "*?()|") {
-		return fmt.Errorf("仅支持安全path子集，不支持通配符、递归或表达式")
+		return fmt.Errorf("only a safe path subset is supported; wildcards, recursion, and expressions are not allowed")
 	}
 	if strings.Count(path, "[") != strings.Count(path, "]") {
-		return fmt.Errorf("JSONPath 方括号不匹配")
+		return fmt.Errorf("JSONPath has unmatched square brackets")
 	}
 	return nil
 }

@@ -123,7 +123,7 @@ type einoADKRunLoopArgs struct {
 	McpIDsMu *sync.Mutex
 	McpIDs   *[]string
 
-	// FilesystemMonitorAgent / FilesystemMonitorRecord: when non-nil, records Eino ADK filesystem middleware tools (ls/read_file/write_file/edit_file/glob/grep）
+	// FilesystemMonitorAgent / FilesystemMonitorRecord: when non-nil, records Eino ADK filesystem middleware tools (ls/read_file/write_file/edit_file/glob/grep)
 	// to MCP monitor on completion; execute is still recorded by eino_execute_monitor and skipped here.
 	FilesystemMonitorAgent  *agent.Agent
 	FilesystemMonitorRecord einomcp.ExecutionRecorder

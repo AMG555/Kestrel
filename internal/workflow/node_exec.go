@@ -46,7 +46,7 @@ func executeNode(ctx context.Context, args RunArgs, runID string, node graphNode
 		return nil, false, err
 	}
 	if args.Progress != nil {
-		args.Progress("workflow_node_start", fmt.Sprintf("开始节点：%s", label), map[string]any{
+		args.Progress("workflow_node_start", fmt.Sprintf("Starting node: %s", label), map[string]any{
 			"workflowRunId": runID,
 			"nodeRunId":     nodeRunID,
 			"nodeId":        node.ID,
@@ -88,7 +88,7 @@ func executeNode(ctx context.Context, args RunArgs, runID string, node graphNode
 			"durationMs":    duration.Milliseconds(),
 			"output":        result,
 		}
-		progressMsg := fmt.Sprintf("节点完成：%s（%s）", label, status)
+		progressMsg := fmt.Sprintf("Node completed: %s (%s)", label, status)
 		if strings.EqualFold(node.Type, "condition") {
 			matched := false
 			if v, ok := result["matched"].(bool); ok {
@@ -96,9 +96,9 @@ func executeNode(ctx context.Context, args RunArgs, runID string, node graphNode
 			}
 			expr := cfgString(node.Config, "expression")
 			if matched {
-				progressMsg = fmt.Sprintf("条件判断：%s → yes", label)
+				progressMsg = fmt.Sprintf("Condition: %s → yes", label)
 			} else {
-				progressMsg = fmt.Sprintf("条件判断：%s → no", label)
+				progressMsg = fmt.Sprintf("Condition: %s → no", label)
 			}
 			progressData["expression"] = expr
 			progressData["matched"] = matched
@@ -128,15 +128,15 @@ func emitConditionBranchProgress(args RunArgs, runID string, node graphNode, edg
 			case 1:
 				branchLabel = "no"
 			default:
-				branchLabel = fmt.Sprintf("分支 %d", edgeIdx+1)
+				branchLabel = fmt.Sprintf("Branch %d", edgeIdx+1)
 			}
 		}
 		cond := firstNonEmpty(cfgString(edge.Config, "condition"), cfgString(edge.Config, "expression"))
 		eventType := "workflow_branch_skipped"
-		msg := fmt.Sprintf("跳过分支「%s」→ %s", branchLabel, targetLabel)
+		msg := fmt.Sprintf("Skipping branch '%s' → %s", branchLabel, targetLabel)
 		if allowed {
 			eventType = "workflow_branch_taken"
-			msg = fmt.Sprintf("执行分支「%s」→ %s", branchLabel, targetLabel)
+			msg = fmt.Sprintf("Taking branch '%s' → %s", branchLabel, targetLabel)
 		}
 		args.Progress(eventType, msg, map[string]any{
 			"workflowRunId": runID,

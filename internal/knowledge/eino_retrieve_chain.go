@@ -8,7 +8,7 @@ import (
 	"github.com/cloudwego/eino/schema"
 )
 
-// BuildKnowledgeRetrieveChain 编译「查询string → 文档list」的 Eino Chain（MultiQuery → 向量 → 重排 → 后处理）。
+// BuildKnowledgeRetrieveChain compiles an Eino Chain (MultiQuery → vector → rerank → post-processing) for "query string → document list".
 func BuildKnowledgeRetrieveChain(ctx context.Context, r *Retriever) (compose.Runnable[string, []*schema.Document], error) {
 	if r == nil {
 		return nil, fmt.Errorf("retriever is nil")
@@ -18,7 +18,7 @@ func BuildKnowledgeRetrieveChain(ctx context.Context, r *Retriever) (compose.Run
 	return ch.Compile(ctx)
 }
 
-// CompileRetrieveChain 等价于 [BuildKnowledgeRetrieveChain](ctx, r)。
+// CompileRetrieveChain is equivalent to [BuildKnowledgeRetrieveChain](ctx, r).
 func (r *Retriever) CompileRetrieveChain(ctx context.Context) (compose.Runnable[string, []*schema.Document], error) {
 	return BuildKnowledgeRetrieveChain(ctx, r)
 }

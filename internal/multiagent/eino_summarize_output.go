@@ -13,14 +13,14 @@ var (
 	summarizationAnalysisBlockRegex = regexp.MustCompile(`(?is)<analysis>\s*.*?\s*</analysis>`)
 	summarizationSummaryBlockRegex  = regexp.MustCompile(`(?is)<summary>\s*(.*?)\s*</summary>`)
 	userIntentLedgerBlockRegex      = regexp.MustCompile(`(?is)<original_user_intent_ledger>\s*(.*?)\s*</original_user_intent_ledger>`)
-	userIntentLedgerSectionRegex    = regexp.MustCompile(`(?is)\s*## 原始user输入与约束账本（system保true）\s*<original_user_intent_ledger>\s*.*?\s*</original_user_intent_ledger>\s*`)
+	userIntentLedgerSectionRegex    = regexp.MustCompile(`(?is)\s*## Original User Input and Constraint Ledger \(system-maintained\)\s*<original_user_intent_ledger>\s*.*?\s*</original_user_intent_ledger>\s*`)
 )
 
 const (
 	userIntentLedgerStartMarker = "<original_user_intent_ledger>"
 	userIntentLedgerEndMarker   = "</original_user_intent_ledger>"
 
-	summarizationTranscriptPathInstructionZh = "如果你需要压缩之前的具体细节（如精确的代码片段、errormessage或你生成的内容），完整的conversation记录位于：%s"
+	summarizationTranscriptPathInstructionEn = "If you need to retrieve specific details from earlier in the conversation (such as exact code snippets, error messages, or content you generated), the complete conversation transcript is located at: %s"
 )
 
 // stripAnalysisFromSummarizationMessage removes the <analysis> block from a post-processed
@@ -69,7 +69,7 @@ func appendTranscriptPathToSummarizationMessage(msg adk.Message, transcriptPath 
 	if msg == nil || transcriptPath == "" {
 		return msg
 	}
-	section := fmt.Sprintf(summarizationTranscriptPathInstructionZh, transcriptPath)
+	section := fmt.Sprintf(summarizationTranscriptPathInstructionEn, transcriptPath)
 	cloned := *msg
 	if cloned.Content != "" && !strings.Contains(cloned.Content, transcriptPath) {
 		cloned.Content = appendSummarizationSection(cloned.Content, section)
@@ -191,7 +191,7 @@ func buildOriginalUserIntentLedger(msgs []adk.Message, maxRunes, entryMaxRunes i
 	for i, entry := range entries {
 		line := fmt.Sprintf("- [U%03d] %s\n", i+1, sanitizeUserIntentLedgerEntry(entry, entryMaxRunes))
 		if maxRunes > 0 && utf8RuneLen(sb.String())+utf8RuneLen(line) > maxRunes {
-			sb.WriteString("- [...truncated] user原始输入账本超过预算；完整压缩前记录见 summarization transcript。\n")
+			sb.WriteString("- [...truncated] The original user input ledger exceeded budget; see the summarization transcript for the full pre-compaction record.\n")
 			break
 		}
 		sb.WriteString(line)
@@ -290,7 +290,7 @@ func stripOriginalUserIntentLedgerFromText(text string) string {
 }
 
 func wrapUserIntentLedger(ledger string) string {
-	return strings.TrimSpace("## 原始user输入与约束账本（system保true）\n" +
+	return strings.TrimSpace("## Original User Input and Constraint Ledger (system-maintained)\n" +
 		userIntentLedgerStartMarker + "\n" +
 		strings.TrimSpace(ledger) + "\n" +
 		userIntentLedgerEndMarker)
@@ -312,7 +312,7 @@ func normalizeUserIntentLedgerText(s string) string {
 
 func isSyntheticContinuationUserText(s string) bool {
 	return strings.Contains(s, continuationSessionMarker) ||
-		strings.Contains(s, "【systemAuto-continue / Auto resume】")
+		strings.Contains(s, "[System Auto-continue / Auto resume]")
 }
 
 func utf8RuneLen(s string) int {

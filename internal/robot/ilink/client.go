@@ -25,7 +25,7 @@ const (
 	GetUpdatesTimeout    = 35 * time.Second
 )
 
-// Client 微信 iLink Bot HTTP 客户端（与 @tencent-weixin/openclaw-weixin protocol兼容）
+// Client is the WeChat iLink Bot HTTP client (compatible with @tencent-weixin/openclaw-weixin protocol).
 type Client struct {
 	BaseURL       string
 	BotToken      string
@@ -52,7 +52,7 @@ func NewClient(baseURL, botToken, botAgent string, clientVersion uint32) *Client
 	}
 }
 
-// BuildClientVersion 将 semver 编码为 iLink-App-ClientVersion（0x00MMNNPP）
+// BuildClientVersion encodes a semver string as an iLink-App-ClientVersion value (0x00MMNNPP).
 func BuildClientVersion(version string) uint32 {
 	parts := strings.Split(version, ".")
 	parse := func(i int) int {
@@ -162,13 +162,13 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body []byte
 	return raw, nil
 }
 
-// QRCodeResponse 获取二维码response
+// QRCodeResponse is the response for fetching a QR code.
 type QRCodeResponse struct {
 	QRCode           string `json:"qrcode"`
 	QRCodeImgContent string `json:"qrcode_img_content"`
 }
 
-// GetBotQRCode 获取bind二维码
+// GetBotQRCode fetches the bot binding QR code.
 func (c *Client) GetBotQRCode(ctx context.Context, botType string, localTokenList []string) (*QRCodeResponse, error) {
 	if strings.TrimSpace(botType) == "" {
 		botType = DefaultBotType
@@ -188,7 +188,7 @@ func (c *Client) GetBotQRCode(ctx context.Context, botType string, localTokenLis
 	return &out, nil
 }
 
-// QRStatusResponse 二维码status轮询response
+// QRStatusResponse is the response for QR code status polling.
 type QRStatusResponse struct {
 	Status       string `json:"status"`
 	BotToken     string `json:"bot_token"`
@@ -198,7 +198,7 @@ type QRStatusResponse struct {
 	RedirectHost string `json:"redirect_host"`
 }
 
-// GetQRCodeStatus 长轮询二维码扫码status
+// GetQRCodeStatus long-polls the QR code scan status.
 func (c *Client) GetQRCodeStatus(ctx context.Context, qrcode, verifyCode string) (*QRStatusResponse, error) {
 	path := "ilink/bot/get_qrcode_status?qrcode=" + url.QueryEscape(qrcode)
 	if verifyCode != "" {
@@ -218,7 +218,7 @@ func (c *Client) GetQRCodeStatus(ctx context.Context, qrcode, verifyCode string)
 	return &out, nil
 }
 
-// MessageItem Message content项
+// MessageItem is a message content element.
 type MessageItem struct {
 	Type     int `json:"type"`
 	TextItem *struct {
@@ -226,7 +226,7 @@ type MessageItem struct {
 	} `json:"text_item,omitempty"`
 }
 
-// WeixinMessage 入站message
+// WeixinMessage is an inbound WeChat message.
 type WeixinMessage struct {
 	FromUserID    string        `json:"from_user_id"`
 	MessageType   int           `json:"message_type"`
@@ -235,7 +235,7 @@ type WeixinMessage struct {
 	ContextToken  string        `json:"context_token"`
 }
 
-// GetUpdatesResponse 长轮询messageresponse
+// GetUpdatesResponse is the response for the long-poll getUpdates call.
 type GetUpdatesResponse struct {
 	Ret                 int             `json:"ret"`
 	ErrCode             int             `json:"errcode"`
@@ -245,7 +245,7 @@ type GetUpdatesResponse struct {
 	LongPollingTimeoutMs int            `json:"longpolling_timeout_ms"`
 }
 
-// GetUpdates 长轮询获取新message
+// GetUpdates long-polls for new messages.
 func (c *Client) GetUpdates(ctx context.Context, getUpdatesBuf string) (*GetUpdatesResponse, error) {
 	body, _ := json.Marshal(map[string]interface{}{
 		"get_updates_buf": getUpdatesBuf,
@@ -265,7 +265,7 @@ func (c *Client) GetUpdates(ctx context.Context, getUpdatesBuf string) (*GetUpda
 	return &out, nil
 }
 
-// SendTextMessage 发送文本回复
+// SendTextMessage sends a text reply.
 func (c *Client) SendTextMessage(ctx context.Context, toUserID, contextToken, text, clientID string) error {
 	if clientID == "" {
 		clientID = randomClientID()
@@ -305,7 +305,7 @@ func sanitizeBotAgent(raw string) string {
 	return raw
 }
 
-// ExtractText 从message中提取首条文本
+// ExtractText extracts the first text item from a message.
 func ExtractText(msg WeixinMessage) string {
 	for _, item := range msg.ItemList {
 		if item.Type == 1 && item.TextItem != nil {

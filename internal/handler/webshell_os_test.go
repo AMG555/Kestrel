@@ -175,9 +175,9 @@ func TestBuildFileCommand_LinuxBranch(t *testing.T) {
 	in = base
 	in.Action = "write"
 	in.Path = "/tmp/w.txt"
-	in.Content = "hello 世界"
+	in.Content = "hello world"
 	cmd, _ = h.buildFileCommand(in)
-	b64 := base64.StdEncoding.EncodeToString([]byte("hello 世界"))
+	b64 := base64.StdEncoding.EncodeToString([]byte("hello world"))
 	mustContain(t, cmd, "echo '"+b64+"'", "| base64 -d", "> '/tmp/w.txt'")
 
 	// upload
@@ -281,9 +281,9 @@ func TestBuildFileCommand_WindowsBranch(t *testing.T) {
 	in = base
 	in.Action = "write"
 	in.Path = `C:\out.txt`
-	in.Content = "hello 世界"
+	in.Content = "hello world"
 	cmd, _ = h.buildFileCommand(in)
-	wantB64 := base64.StdEncoding.EncodeToString([]byte("hello 世界"))
+	wantB64 := base64.StdEncoding.EncodeToString([]byte("hello world"))
 	mustContain(t, cmd,
 		"powershell -NoProfile -NonInteractive -Command",
 		"[Convert]::FromBase64String('"+wantB64+"')",

@@ -12,7 +12,7 @@ import (
 )
 
 func sampleFactIndexWithFacts(projectLabel, summary string) string {
-	return wrapFactIndexBlock("## project黑板index（project: " + projectLabel + ", id: x）\n" +
+	return wrapFactIndexBlock("## Project Blackboard Index (project: " + projectLabel + ", id: x)\n" +
 		"- [target/a] target — " + summary + " (tentative)\n" +
 		factIndexFooterGetDetail + "\n" +
 		factIndexFooterWriteHint)
@@ -24,7 +24,7 @@ func TestReplaceFactIndexSection(t *testing.T) {
 	newIndex := sampleFactIndexWithFacts("p1", "new summary")
 
 	t.Run("replaces index before next section", func(t *testing.T) {
-		content := "你yesassistant\n\n" + oldIndex + "\n\n## 图片analyze\n看截图"
+		content := "You are an assistant\n\n" + oldIndex + "\n\n## Image Analysis\n see screenshot"
 		out, ok := ReplaceFactIndexSection(content, newIndex)
 		if !ok {
 			t.Fatal("expected replacement")
@@ -32,7 +32,7 @@ func TestReplaceFactIndexSection(t *testing.T) {
 		if strings.Contains(out, "old summary") {
 			t.Fatalf("old index should be gone: %q", out)
 		}
-		if !strings.Contains(out, "new summary") || !strings.Contains(out, "## 图片analyze") {
+		if !strings.Contains(out, "new summary") || !strings.Contains(out, "## Image Analysis") {
 			t.Fatalf("expected new index and preserved vision section: %q", out)
 		}
 		if strings.Count(out, FactIndexSectionStartMarker) != 1 || strings.Count(out, FactIndexSectionEndMarker) != 1 {
@@ -41,12 +41,12 @@ func TestReplaceFactIndexSection(t *testing.T) {
 	})
 
 	t.Run("replaces index at end", func(t *testing.T) {
-		content := "## projecttest范围\nscope\n\n" + oldIndex
+		content := "## Project Test Scope\nscope\n\n" + oldIndex
 		out, ok := ReplaceFactIndexSection(content, newIndex)
 		if !ok {
 			t.Fatal("expected replacement")
 		}
-		if !strings.Contains(out, "## projecttest范围") || !strings.Contains(out, "new summary") {
+		if !strings.Contains(out, "## Project Test Scope") || !strings.Contains(out, "new summary") {
 			t.Fatalf("scope preserved, index updated: %q", out)
 		}
 	})
@@ -55,7 +55,7 @@ func TestReplaceFactIndexSection(t *testing.T) {
 		summaryWithFakeHeader := "see\n\n## fake header in summary"
 		old := sampleFactIndexWithFacts("p1", summaryWithFakeHeader)
 		newIdx := sampleFactIndexWithFacts("p1", "new summary")
-		content := old + "\n\n## 图片analyze\nvision"
+		content := old + "\n\n## Image Analysis\nvision"
 		out, ok := ReplaceFactIndexSection(content, newIdx)
 		if !ok {
 			t.Fatal("expected replacement")
@@ -69,7 +69,7 @@ func TestReplaceFactIndexSection(t *testing.T) {
 		summary := "note " + FactIndexSectionEndMarker + " in summary"
 		old := sampleFactIndexWithFacts("p1", summary)
 		newIdx := sampleFactIndexWithFacts("p1", "clean")
-		content := old + "\n\n## 图片analyze\nvision"
+		content := old + "\n\n## Image Analysis\nvision"
 		out, ok := ReplaceFactIndexSection(content, newIdx)
 		if !ok {
 			t.Fatal("expected replacement")
@@ -80,7 +80,7 @@ func TestReplaceFactIndexSection(t *testing.T) {
 	})
 
 	t.Run("missing html markers does not replace", func(t *testing.T) {
-		legacy := "## project黑板index（project: p1, id: x）\n- [a] note — old (tentative)\n"
+		legacy := "## Project Blackboard Index (project: p1, id: x)\n- [a] note — old (tentative)\n"
 		newIdx := sampleFactIndexWithFacts("p1", "new")
 		out, ok := ReplaceFactIndexSection("prefix\n\n"+legacy, newIdx)
 		if ok {
@@ -89,7 +89,7 @@ func TestReplaceFactIndexSection(t *testing.T) {
 	})
 
 	t.Run("empty facts block", func(t *testing.T) {
-		oldEmpty := wrapFactIndexBlock("## project黑板index（project: p1, id: x）\n（暂none事实）\n" + factIndexFooterEmpty)
+		oldEmpty := wrapFactIndexBlock("## Project Blackboard Index (project: p1, id: x)\n(No facts yet)\n" + factIndexFooterEmpty)
 		newEmpty := sampleFactIndexWithFacts("p1", "first fact")
 		out, ok := ReplaceFactIndexSection(oldEmpty, newEmpty)
 		if !ok {

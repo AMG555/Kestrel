@@ -100,7 +100,7 @@ func TestEinoStreamingShellWrap_NoOutputTimeout(t *testing.T) {
 		t.Fatal("inner shell should run (no command blacklist)")
 	}
 	out := got.String()
-	if !strings.Contains(out, "没有新的输出") && !strings.Contains(out, "no new output") {
+	if !strings.Contains(out, "no new output") {
 		t.Fatalf("expected inactivity timeout message, got: %q notify=%q", out, fired)
 	}
 }
@@ -148,7 +148,7 @@ func TestEinoStreamingShellWrap_InactivityAfterPartialOutput(t *testing.T) {
 	if time.Since(start) > 5*time.Second {
 		t.Fatalf("expected inactivity timeout ~1s, took %v", time.Since(start))
 	}
-	if !strings.Contains(got.String(), "没有新的输出") && !strings.Contains(got.String(), "no new output") {
+	if !strings.Contains(got.String(), "no new output") {
 		t.Fatalf("expected inactivity message, got: %q", got.String())
 	}
 }
@@ -297,7 +297,7 @@ func TestEinoStreamingShellWrap_ToolTimeoutRecvErrIsSoft(t *testing.T) {
 		invokeNotify:       notify,
 		toolTimeoutMinutes: 60,
 	}
-	// 生产path由 Eino compose 注入 toolCallID；单测通过已过期 execCtx 识别 tool_timeout 软error。
+	// In production, Eino compose injects toolCallID; the unit test identifies tool_timeout soft errors via an already-expired execCtx.
 	tctx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
 	defer cancel()
 	time.Sleep(2 * time.Millisecond)
@@ -373,7 +373,7 @@ func TestEinoStreamingShellWrap_AbortNoteDoesNotDuplicateStreamedOutput(t *testi
 		inner:        inner,
 		invokeNotify: notify,
 	}
-	reg := &abortNoteTestRegistry{note: "改成20次"}
+	reg := &abortNoteTestRegistry{note: "change to 20 iterations"}
 	ctx := mcp.WithEinoExecuteRunRegistry(
 		mcp.WithMCPConversationID(context.Background(), "conv-abort-dup"),
 		reg,
@@ -401,7 +401,7 @@ func TestEinoStreamingShellWrap_AbortNoteDoesNotDuplicateStreamedOutput(t *testi
 	if strings.Count(out, "line1") != 1 || strings.Count(out, "line2") != 1 {
 		t.Fatalf("stream duplicated stdout: %q", out)
 	}
-	if !strings.Contains(out, "改成20次") {
+	if !strings.Contains(out, "change to 20 iterations") {
 		t.Fatalf("stream missing abort note: %q", out)
 	}
 }

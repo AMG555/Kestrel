@@ -43,7 +43,7 @@ func (p *lenientPlan) UnmarshalJSON(b []byte) error {
 
 	steps := extractPlanStepsLenient(string(b))
 	if len(steps) == 0 {
-		steps = []string{"continue按当前目标执行下一步，并输出可validate证据。"}
+		steps = []string{"Continue executing the next step toward the current objective and output verifiable evidence."}
 	}
 	p.Steps = steps
 	return nil
@@ -121,7 +121,7 @@ func splitStepsHeuristically(body string) []string {
 	for _, part := range parts {
 		t := strings.TrimSpace(part)
 		t = strings.Trim(t, "\"'`")
-		t = strings.TrimLeft(t, "-*0123456789.、 \t")
+		t = strings.TrimLeft(t, "-*0123456789., \t")
 		t = strings.TrimSpace(strings.ReplaceAll(t, `\"`, `"`))
 		if t == "" {
 			continue

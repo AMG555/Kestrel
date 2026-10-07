@@ -12,15 +12,15 @@ import (
 	"testing"
 )
 
-// 复现 meguminnnnnnnnn/go-openai 的 SSE 行计数算法 (默认 limit=300):
-// - 逐行读
-// - 非 "data:" 行 (null行 / ":" 注释 / event: / retry:) 累计 emptyMessagesCount
-// - > 300 抛 ErrTooManyEmptyStreamMessages
-// - 遇到 data: 行 reset, back payload
+// Reproduces the meguminnnnnnnnn/go-openai SSE line-counting algorithm (default limit=300):
+// - read line by line
+// - non-"data:" lines (empty lines / ":" comments / event: / retry:) increment emptyMessagesCount
+// - > 300 throws ErrTooManyEmptyStreamMessages
+// - on "data:" line, reset counter and return payload
 //
-// 这一算法与上游 SDK 的 stream_reader.go processLines() 严格一致 (validate依据见
-// /Users/temp/go/pkg/mod/github.com/meguminnnnnnnnn/go-openai@v0.1.2/stream_reader.go)。
-// test中只复刻 "限制触发" 这一行为, 用来回归validate sanitizer 的根因修复。
+// This algorithm matches processLines() in the upstream SDK's stream_reader.go exactly (see
+// /Users/temp/go/pkg/mod/github.com/meguminnnnnnnnn/go-openai@v0.1.2/stream_reader.go).
+// The test only reproduces the "limit triggered" behavior to regression-test the sanitizer root-cause fix.
 var errTooManyEmptyStreamMessages = errors.New("stream has sent too many empty messages")
 
 func sdkLikeRecvAll(body io.Reader, limit uint) ([]string, error) {
@@ -90,7 +90,7 @@ func readAll(t *testing.T, body io.ReadCloser) string {
 	return string(out)
 }
 
-// 1) 仅 data: 行 → 一字节不改地透传。
+// 1) Only "data:" lines → pass through byte-for-byte unchanged.
 func TestSSESanitizer_PassesDataLinesUnchanged(t *testing.T) {
 	body := "data: {\"a\":1}\ndata: {\"b\":2}\ndata: [DONE]\n"
 	srv := newSSEServer(t, body, "text/event-stream", 200)
@@ -106,7 +106,7 @@ func TestSSESanitizer_PassesDataLinesUnchanged(t *testing.T) {
 	}
 }
 
-// 2) 心跳/注释/eventtype行被吞掉, 仅保留 data: 行。
+// 2) Heartbeat/comment/event-type lines are dropped; only "data:" lines are retained.
 func TestSSESanitizer_DropsHeartbeatsAndControlLines(t *testing.T) {
 	body := strings.Join([]string{
 		": keepalive",
@@ -135,8 +135,8 @@ func TestSSESanitizer_DropsHeartbeatsAndControlLines(t *testing.T) {
 	}
 }
 
-// 3) 根因回归: 上游堆 500 行心跳后才发 data:, 原始 SDK 算法会抛
-// ErrTooManyEmptyStreamMessages, sanitize 之后必须能normal拿到所有 data:。
+// 3) Root-cause regression: upstream queues 500 heartbeat lines before sending data:;
+// the original SDK algorithm would throw ErrTooManyEmptyStreamMessages; after sanitization all data: must be received.
 func TestSSESanitizer_ProtectsAgainstTooManyEmptyMessages(t *testing.T) {
 	const heartbeats = 500
 	var buf bytes.Buffer
@@ -180,7 +180,7 @@ func TestSSESanitizer_ProtectsAgainstTooManyEmptyMessages(t *testing.T) {
 	})
 }
 
-// 4) 心跳穿插在 data: 之间也能正确清洗 (思考型model prefill 期间常见)。
+// 4) Heartbeats interleaved with data: lines are also cleaned correctly (common during thinking-model prefill).
 func TestSSESanitizer_HeartbeatsInterleavedWithData(t *testing.T) {
 	var buf bytes.Buffer
 	buf.WriteString("data: {\"chunk\":1}\n")
@@ -208,7 +208,7 @@ func TestSSESanitizer_HeartbeatsInterleavedWithData(t *testing.T) {
 	}
 }
 
-// 5) 非 SSE response (例如非流式 JSON) 不应被 sanitizer 介入。
+// 5) Non-SSE responses (e.g. non-streaming JSON) must not be touched by the sanitizer.
 func TestSSESanitizer_PassesNonSSEResponseUntouched(t *testing.T) {
 	body := `{"id":"x","object":"chat.completion","choices":[]}`
 	srv := newSSEServer(t, body, "application/json", 200)
@@ -224,8 +224,8 @@ func TestSSESanitizer_PassesNonSSEResponseUntouched(t *testing.T) {
 	}
 }
 
-// 6) errorresponse (4xx/5xx) 不应被 sanitize, 即使 Content-Type yes SSE 也不动,
-//    避免吞掉类似 "data: " 之外的error正文。
+// 6) Error responses (4xx/5xx) must not be sanitized, even if Content-Type is SSE,
+//    to avoid swallowing error bodies that contain text other than "data:".
 func TestSSESanitizer_PassesNon200Untouched(t *testing.T) {
 	body := `{"error":{"message":"rate limit"}}`
 	srv := newSSEServer(t, body, "text/event-stream", 429)
@@ -241,7 +241,7 @@ func TestSSESanitizer_PassesNon200Untouched(t *testing.T) {
 	}
 }
 
-// 7) data: 行末尾若缺 \n (abnormal上游) sanitizer 也补齐, 保证下游按行解析。
+// 7) If a data: line is missing a trailing \n (abnormal upstream), the sanitizer appends one to ensure downstream line parsing works.
 func TestSSESanitizer_AppendsTrailingNewlineIfMissing(t *testing.T) {
 	body := "data: {\"a\":1}"
 	srv := newSSEServer(t, body, "text/event-stream", 200)
@@ -258,7 +258,7 @@ func TestSSESanitizer_AppendsTrailingNewlineIfMissing(t *testing.T) {
 	}
 }
 
-// 8) 大 chunk (一行数十 KB) 也能完整透传, 不被切断。
+// 8) Large chunks (tens of KB per line) are passed through completely without truncation.
 func TestSSESanitizer_LargeDataLinePassesIntact(t *testing.T) {
 	huge := strings.Repeat("x", 80*1024)
 	body := "data: {\"big\":\"" + huge + "\"}\ndata: [DONE]\n"
@@ -275,7 +275,7 @@ func TestSSESanitizer_LargeDataLinePassesIntact(t *testing.T) {
 	}
 }
 
-// 9) isPassThroughSSELine 单元覆盖。
+// 9) Unit coverage for isPassThroughSSELine.
 func TestIsPassThroughSSELine(t *testing.T) {
 	cases := []struct {
 		line string

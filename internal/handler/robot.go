@@ -476,7 +476,7 @@ func (h *RobotHandler) cmdHelp(platform, userID string) string {
 	b.WriteString("· unbind / unbind — request account unbind (requires confirmation)\n")
 	b.WriteString("· identity / whoami — show platform sender, auth mode, and current RBAC identity\n")
 	if can("chat:read") || can("chat:write") || can("chat:delete") {
-		b.WriteString("\n【Conversation】\n")
+		b.WriteString("\n[Conversation]\n")
 		if can("chat:read") {
 			b.WriteString("· list / list — list all conversation titles and IDs\n· switch <ID> / switch <ID> — continue specified conversation\n· status / status — show current selection summary\n· task / task — view current task status\n")
 		}
@@ -488,22 +488,22 @@ func (h *RobotHandler) cmdHelp(platform, userID string) string {
 		}
 	}
 	if can("roles:read") {
-		b.WriteString("\n【Role】\n· roles / roles — list all available roles\n· role <name> / role <name> — switch current role\n")
+		b.WriteString("\n[Role]\n· roles / roles — list all available roles\n· role <name> / role <name> — switch current role\n")
 	}
 	if can("agent:execute") {
-		b.WriteString("\n【Mode】\n· modes / modes — list conversation modes and current selection\n· mode <name> / mode <name> — switch conversation mode\n· stop / stop — interrupt current task\n")
+		b.WriteString("\n[Mode]\n· modes / modes — list conversation modes and current selection\n· mode <name> / mode <name> — switch conversation mode\n· stop / stop — interrupt current task\n")
 	}
 	if can("vulnerability:read") {
-		b.WriteString("\n【Vulnerability Alerts】\n· vulnalerts — view subscription status\n· vulnalerts on / vuln alerts on — enable alerts\n· vulnalerts critical|high|medium / vuln alerts critical|high|medium — set minimum level\n· vulnalerts off / vuln alerts off — disable alerts\n")
+		b.WriteString("\n[Vulnerability Alerts]\n· vulnalerts — view subscription status\n· vulnalerts on / vuln alerts on — enable alerts\n· vulnalerts critical|high|medium / vuln alerts critical|high|medium — set minimum level\n· vulnalerts off / vuln alerts off — disable alerts\n")
 	}
-	b.WriteString("\n【Diagnostics】\n")
+	b.WriteString("\n[Diagnostics]\n")
 	b.WriteString("· permissions / permissions — view current business permissions\n")
 	if can("config:read") {
 		b.WriteString("· doctor / doctor — check robot key configuration status\n")
 	}
 	b.WriteString("· confirm / confirm; cancel / cancel — handle high-risk operation confirmation\n")
 	if h.projectsEnabled() && (can("project:read") || can("project:write")) {
-		b.WriteString("\n【Project】\n")
+		b.WriteString("\n[Project]\n")
 		if can("project:read") {
 			b.WriteString("· projects / projects — list all projects\n")
 		}
@@ -912,7 +912,7 @@ func (h *RobotHandler) cmdRoles() string {
 		return names[i] < names[j]
 	})
 	var b strings.Builder
-	b.WriteString("【Role list】\n")
+	b.WriteString("[Role list]\n")
 	for _, name := range names {
 		role := h.config.Roles[name]
 		desc := role.Description
@@ -1088,7 +1088,7 @@ func (h *RobotHandler) cmdIdentity(platform, userID string) string {
 
 func robotCommandPermission(text string) (string, bool) {
 	switch {
-	case text == robotCmdHelp || text == "help" || text == "?" || text == "？", text == robotCmdVersion || text == "version", text == robotCmdIdentity || text == "whoami":
+	case text == robotCmdHelp || text == "help" || text == "?", text == robotCmdVersion || text == "version", text == robotCmdIdentity || text == "whoami":
 		return "", true
 	case text == robotCmdList || text == robotCmdListAlt || text == "list",
 		strings.HasPrefix(text, robotCmdSwitch+" "), strings.HasPrefix(text, robotCmdContinue+" "),
@@ -1268,7 +1268,7 @@ func (h *RobotHandler) handleRobotCommand(platform, userID, text string) (string
 		return h.cmdVulnerabilityAlerts(platform, userID, strings.TrimSpace(text[len(robotCmdVulnAlerts)+1:])), true
 	case strings.HasPrefix(text, "vuln alerts "):
 		return h.cmdVulnerabilityAlerts(platform, userID, strings.TrimSpace(text[len("vuln alerts "):])), true
-	case text == robotCmdHelp || text == "help" || text == "?" || text == "？":
+	case text == robotCmdHelp || text == "help" || text == "?":
 		return h.cmdHelp(platform, userID), true
 	case text == robotCmdIdentity || text == "whoami":
 		return h.cmdIdentity(platform, userID), true

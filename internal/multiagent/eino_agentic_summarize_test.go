@@ -21,13 +21,13 @@ func TestNewEinoAgenticSummarizationMiddlewareCompactsWithNativeTypedMiddleware(
 		output: &schema.AgenticMessage{
 			Role:         schema.AgenticRoleTypeAssistant,
 			ResponseMeta: &schema.AgenticResponseMeta{OpenAIExtension: &schemaopenai.ResponseMetaExtension{Status: schemaopenai.ResponseStatusCompleted}},
-			ContentBlocks: []*schema.ContentBlock{schema.NewContentBlock(&schema.AssistantGenText{Text: `<analysis>check历史</analysis>
+			ContentBlocks: []*schema.ContentBlock{schema.NewContentBlock(&schema.AssistantGenText{Text: `<analysis>check history</analysis>
 <summary>
 ## 1. Authorisation scope and constraints
-- 仅test example.com
+- test only example.com
 
-## 7. 当前进度、策略决策与下一步
-- continuevalidate SQL 注入path
+## 7. Current progress, strategy decisions and next steps
+- continue validating SQL injection path
 </summary>`})},
 		},
 	}
@@ -47,9 +47,9 @@ func TestNewEinoAgenticSummarizationMiddlewareCompactsWithNativeTypedMiddleware(
 	state := &adk.TypedChatModelAgentState[*schema.AgenticMessage]{
 		Messages: []*schema.AgenticMessage{
 			schema.SystemAgenticMessage("system root"),
-			schema.UserAgenticMessage("授权范围 example.com\n" + strings.Repeat("历史scan输出 ", 12000)),
-			agenticAssistantTextMessage("已记录范围"),
-			schema.UserAgenticMessage("continuevalidate SQL 注入path"),
+			schema.UserAgenticMessage("authorization scope example.com\n" + strings.Repeat("historical scan output ", 12000)),
+			agenticAssistantTextMessage("scope recorded"),
+			schema.UserAgenticMessage("continue validating SQL injection path"),
 		},
 	}
 
@@ -69,7 +69,7 @@ func TestNewEinoAgenticSummarizationMiddlewareCompactsWithNativeTypedMiddleware(
 	if strings.Contains(joined, "<analysis>") {
 		t.Fatalf("analysis block leaked into compacted context: %s", joined)
 	}
-	for _, want := range []string{"continuevalidate SQL 注入path", "原始user输入与约束账本", "完整的conversation记录位于"} {
+	for _, want := range []string{"continue validating SQL injection path", "Original User Input and Constraint Ledger", "complete conversation transcript"} {
 		if !strings.Contains(joined, want) {
 			t.Fatalf("compacted context missing %q:\n%s", want, joined)
 		}
@@ -84,10 +84,10 @@ func TestEinoAgenticChatModelAgentCompactsContextBeforeBusinessModel(t *testing.
 		output: agenticAssistantTextMessage(`<analysis>internal scratchpad</analysis>
 <summary>
 ## 1. Authorisation scope and constraints
-- 仅test example.com
+- test only example.com
 
-## 7. 当前进度、策略决策与下一步
-- continuevalidate SQL 注入path
+## 7. Current progress, strategy decisions and next steps
+- continue validating SQL injection path
 </summary>`),
 	}
 	businessModel := &capturingAgenticChatModel{
@@ -121,12 +121,12 @@ func TestEinoAgenticChatModelAgentCompactsContextBeforeBusinessModel(t *testing.
 		t.Fatalf("newEinoAgenticChatModelAgentAdapter: %v", err)
 	}
 
-	rawHistory := "授权范围 example.com\n" + strings.Repeat("原始scan输出SHOULD_NOT_REACH_BUSINESS_MODEL ", 12000)
+	rawHistory := "authorization scope example.com\n" + strings.Repeat("rawScanOutputSHOULD_NOT_REACH_BUSINESS_MODEL ", 12000)
 	iter := agent.Run(ctx, &adk.AgentInput{
 		Messages: []*schema.Message{
 			schema.UserMessage(rawHistory),
-			schema.AssistantMessage("已记录范围", nil),
-			schema.UserMessage("continuevalidate SQL 注入path"),
+			schema.AssistantMessage("scope recorded", nil),
+			schema.UserMessage("continue validating SQL injection path"),
 		},
 	})
 	var last *adk.AgentEvent
@@ -156,7 +156,7 @@ func TestEinoAgenticChatModelAgentCompactsContextBeforeBusinessModel(t *testing.
 	}
 	finalClassicInput := AgenticMessagesToEino(businessInputs[0])
 	joined := joinClassicMessageContent(finalClassicInput)
-	for _, want := range []string{"continuevalidate SQL 注入path", "原始user输入与约束账本", "完整的conversation记录位于"} {
+	for _, want := range []string{"continue validating SQL injection path", "Original User Input and Constraint Ledger", "complete conversation transcript"} {
 		if !strings.Contains(joined, want) {
 			t.Fatalf("business model input missing %q:\n%s", want, joined)
 		}
@@ -164,11 +164,11 @@ func TestEinoAgenticChatModelAgentCompactsContextBeforeBusinessModel(t *testing.
 	if strings.Contains(joined, "<analysis>") {
 		t.Fatalf("analysis leaked to business model input:\n%s", joined)
 	}
-	if strings.Count(joined, "原始scan输出SHOULD_NOT_REACH_BUSINESS_MODEL") > 3 {
-		t.Fatalf("raw oversized history leaked to business model input, count=%d", strings.Count(joined, "原始scan输出SHOULD_NOT_REACH_BUSINESS_MODEL"))
+	if strings.Count(joined, "rawScanOutputSHOULD_NOT_REACH_BUSINESS_MODEL") > 3 {
+		t.Fatalf("raw oversized history leaked to business model input, count=%d", strings.Count(joined, "rawScanOutputSHOULD_NOT_REACH_BUSINESS_MODEL"))
 	}
 	traceJoined := joinClassicMessageContent(trace.Snapshot())
-	if !strings.Contains(traceJoined, "continuevalidate SQL 注入path") || strings.Count(traceJoined, "原始scan输出SHOULD_NOT_REACH_BUSINESS_MODEL") > 3 {
+	if !strings.Contains(traceJoined, "continue validating SQL injection path") || strings.Count(traceJoined, "rawScanOutputSHOULD_NOT_REACH_BUSINESS_MODEL") > 3 {
 		t.Fatalf("model-facing trace not compacted:\n%s", traceJoined)
 	}
 }
@@ -180,7 +180,7 @@ func TestEinoAgenticSummarizationMiddlewareRetriesWhenSummaryModelReturnsEmpty(t
 	summaryModel := &capturingAgenticChatModel{
 		outputs: []*schema.AgenticMessage{
 			agenticAssistantTextMessage(""),
-			agenticAssistantTextMessage("<summary>有效summary：continuevalidate SQL 注入path</summary>"),
+			agenticAssistantTextMessage("<summary>valid summary: continue validating SQL injection path</summary>"),
 		},
 	}
 	appCfg := &config.Config{}
@@ -199,9 +199,9 @@ func TestEinoAgenticSummarizationMiddlewareRetriesWhenSummaryModelReturnsEmpty(t
 	state := &adk.TypedChatModelAgentState[*schema.AgenticMessage]{
 		Messages: []*schema.AgenticMessage{
 			schema.SystemAgenticMessage("system root"),
-			schema.UserAgenticMessage("授权范围 example.com\n" + strings.Repeat("历史scan输出 ", 12000)),
-			agenticAssistantTextMessage("已记录范围"),
-			schema.UserAgenticMessage("continuevalidate SQL 注入path"),
+			schema.UserAgenticMessage("authorization scope example.com\n" + strings.Repeat("historical scan output ", 12000)),
+			agenticAssistantTextMessage("scope recorded"),
+			schema.UserAgenticMessage("continue validating SQL injection path"),
 		},
 	}
 
@@ -216,12 +216,12 @@ func TestEinoAgenticSummarizationMiddlewareRetriesWhenSummaryModelReturnsEmpty(t
 		t.Fatalf("summary model calls=%d, want retry after empty output", len(inputs))
 	}
 	joined := joinClassicMessageContent(AgenticMessagesToEino(after.Messages))
-	for _, want := range []string{"有效summary", "continuevalidate SQL 注入path", "原始user输入与约束账本"} {
+	for _, want := range []string{"valid summary", "continue validating SQL injection path", "Original User Input and Constraint Ledger"} {
 		if !strings.Contains(joined, want) {
 			t.Fatalf("retried compacted context missing %q:\n%s", want, joined)
 		}
 	}
-	if strings.Contains(joined, "本地压缩summary") {
+	if strings.Contains(joined, "local fallback summary") {
 		t.Fatalf("local fallback should not be used:\n%s", joined)
 	}
 }

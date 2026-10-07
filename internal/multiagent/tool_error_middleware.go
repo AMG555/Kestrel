@@ -93,14 +93,14 @@ func isSoftRecoverableToolError(err error) bool {
 		return false
 	}
 
-	// user主动cancelled — 唯一应当终止编排的情况，不应retry。
+	// User explicitly cancelled — the only case that should terminate orchestration; must not retry.
 	if errors.Is(err, context.Canceled) {
 		return false
 	}
 
-	// 其他所有tool executionerror（timed out、command not found、JSON parsing failed、toolnot found、
-	// insufficient permissions、network不可达……）一律转为 soft error，让 LLM 看到errorinfo
-	// 后自行决策：换tool、调整参数、或向user说明。
+	// All other tool execution errors (timed out, command not found, JSON parsing failed, tool not found,
+	// insufficient permissions, network unreachable, …) are converted to soft errors so the LLM can
+	// see the error info and decide: switch tools, adjust parameters, or explain to the user.
 	return true
 }
 
@@ -125,12 +125,7 @@ func buildSoftRecoveryMessage(toolName, arguments string, err error) string {
 				"Error: %s\n"+
 				"Arguments received: %s\n\n"+
 				"Please fix the JSON (ensure double-quoted keys, matched braces/brackets, no trailing commas, "+
-				"no truncation) and call the tool again.\n\n"+
-				"[toolerror] tool '%s' 的参数不yes合法 JSON，none法解析。\n"+
-				"error：%s\n"+
-				"收到的参数：%s\n\n"+
-				"请修正 JSON（确保双引号key名、括号配对、none尾部逗号、none截断），然后重新调用tool。",
-			toolName, errStr, argPreview,
+				"no truncation) and call the tool again.",
 			toolName, errStr, argPreview,
 		)
 	}
@@ -138,11 +133,7 @@ func buildSoftRecoveryMessage(toolName, arguments string, err error) string {
 	return fmt.Sprintf(
 		"[Tool Error] Tool '%s' execution failed: %s\n"+
 			"Arguments: %s\n\n"+
-			"Please review the available tools and their expected arguments, then retry.\n\n"+
-			"[toolerror] tool '%s' 执行failed：%s\n"+
-			"参数：%s\n\n"+
-			"请check可用tool及其参数要求，然后retry。",
-		toolName, errStr, argPreview,
+			"Please review the available tools and their expected arguments, then retry.",
 		toolName, errStr, argPreview,
 	)
 }

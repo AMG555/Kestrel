@@ -44,12 +44,12 @@ func (s *Service) PurgeExpired() {
 	n, err := s.db.PurgeToolExecutionsBefore(cutoff)
 	if err != nil {
 		if s.logger != nil {
-			s.logger.Warn("cleanup过期 MCP 执行记录failed", zap.Error(err))
+			s.logger.Warn("failed to clean up expired MCP execution records", zap.Error(err))
 		}
 		return
 	}
 	if n > 0 && s.logger != nil {
-		s.logger.Info("已cleanup过期 MCP 执行记录", zap.Int64("deleted", n), zap.Int("retention_days", days))
+		s.logger.Info("expired MCP execution records cleaned up", zap.Int64("deleted", n), zap.Int("retention_days", days))
 	}
 }
 

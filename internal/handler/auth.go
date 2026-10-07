@@ -69,7 +69,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 				Category: "auth",
 				Action:   "login",
 				Result:   "failure",
-				Message:  "login failed：incorrect password",
+				Message:  "login failed: incorrect password",
 				Actor:    strings.TrimSpace(req.Username),
 			})
 		}

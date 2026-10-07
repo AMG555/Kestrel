@@ -15,7 +15,7 @@ const WebshellSkillHintMultiAgent = "Please use the Eino multi-agent built-in `s
 
 // webshellAssistantToolList is the list of tools allowed for the AI assistant in the WebShell context (displayed to the model).
 // Note: this is only a display string; actual permission restrictions are in the roleTools slice set by the caller.
-const webshellAssistantToolList = "webshell_exec、webshell_file_list、webshell_file_read、webshell_file_write、record_vulnerability、list_vulnerabilities、get_vulnerability、upsert_project_fact、get_project_fact、list_project_facts、search_project_facts、deprecate_project_fact、restore_project_fact、list_knowledge_risk_types、search_knowledge_base"
+const webshellAssistantToolList = "webshell_exec, webshell_file_list, webshell_file_read, webshell_file_write, record_vulnerability, list_vulnerabilities, get_vulnerability, upsert_project_fact, get_project_fact, list_project_facts, search_project_facts, deprecate_project_fact, restore_project_fact, list_knowledge_risk_types, search_knowledge_base"
 
 // BuildWebshellAssistantContext assembles the AI assistant context prompt from the connection info and user's original message.
 // Context includes: connection ID, Remark, target system (with recommended command set), response encoding, available tool list, Skills loading entry point,

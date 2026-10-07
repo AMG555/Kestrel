@@ -17,18 +17,18 @@ import (
 	"github.com/cloudwego/eino/schema"
 )
 
-// Client 调用独立 Vision ChatModel（单次 Generate）。
+// Client calls an independent Vision ChatModel (single Generate call).
 type Client struct {
 	cfg    config.VisionConfig
 	mainOA config.OpenAIConfig
 }
 
-// NewClient 构造视觉客户端。
+// NewClient constructs a vision client.
 func NewClient(visionCfg config.VisionConfig, mainOpenAI config.OpenAIConfig) *Client {
 	return &Client{cfg: visionCfg, mainOA: mainOpenAI}
 }
 
-// Analyze 将图片字节送入 VL model并back文本description。
+// Analyze sends image bytes to the VL model and returns a text description.
 func (c *Client) Analyze(ctx context.Context, img ImagePayload, question string) (string, error) {
 	if len(img.Bytes) == 0 {
 		return "", fmt.Errorf("empty image payload")
@@ -145,22 +145,22 @@ func (c *Client) Analyze(ctx context.Context, img ImagePayload, question string)
 func buildVisionPrompt(question string) string {
 	q := strings.TrimSpace(question)
 	if q == "" {
-		q = "请对图片做通用description，侧重授权安全test场景（可见文本、表单、按钮、validate码、errorinfo、技术栈线索）。"
+		q = "Please provide a general description of the image, focusing on authorized security testing scenarios (visible text, forms, buttons, CAPTCHA, error messages, technology stack clues)."
 	}
 	extra := ""
 	if looksLikeCaptchaQuestion(q) {
-		extra = "\n若为validate码：仅输出你辨认出的字符序列，不要null格、标点、解释；看不清则明确说none法识别。"
+		extra = "\nFor CAPTCHA: output only the character sequence you can identify, no spaces, punctuation, or explanations; if unclear, explicitly say you cannot identify it."
 	}
-	return `你yes授权安全testassistant。请根据图片回答user问题，只description你能从图中confirm的内容，不要编造。
-user问题：` + q + extra
+	return `You are an authorized security testing assistant. Answer the user's question based on the image, describing only what you can confirm from the image — do not fabricate.
+User question: ` + q + extra
 }
 
 func looksLikeCaptchaQuestion(q string) bool {
 	s := strings.ToLower(q)
-	for _, kw := range []string{"validate码", "captcha", "verification code", "verify code", "vcode", "图形码"} {
+	for _, kw := range []string{"captcha", "verification code", "verify code", "vcode", "only output characters", "output only characters", "output only the characters"} {
 		if strings.Contains(s, kw) {
 			return true
 		}
 	}
-	return strings.Contains(s, "只输出") && (strings.Contains(s, "字符") || strings.Contains(s, "character"))
+	return strings.Contains(s, "only output") && (strings.Contains(s, "character") || strings.Contains(s, "code"))
 }

@@ -17,8 +17,8 @@ import (
 	"go.uber.org/zap"
 )
 
-// Retriever 检索器：SQLite 存向量 + Eino 嵌入，**纯向量检索**（余弦相似度、TopK、阈value），
-// 实现语义与 [retriever.Retriever] 适配层 [VectorEinoRetriever] 一致。
+// Retriever is the knowledge retriever: SQLite vector storage + Eino embedding, pure vector retrieval
+// (cosine similarity, TopK, threshold), implementing the same semantics as the [VectorEinoRetriever] adapter.
 type Retriever struct {
 	db       *sql.DB
 	embedder *Embedder
@@ -42,7 +42,7 @@ type RetrievalConfig struct {
 	PostRetrieve        config.PostRetrieveConfig
 }
 
-// NewRetriever create新的检索器
+// NewRetriever creates a new retriever.
 func NewRetriever(db *sql.DB, embedder *Embedder, config *RetrievalConfig, logger *zap.Logger) *Retriever {
 	return &Retriever{
 		db:       db,
@@ -52,12 +52,12 @@ func NewRetriever(db *sql.DB, embedder *Embedder, config *RetrievalConfig, logge
 	}
 }
 
-// UpdateConfig updateretrieval configuration并重建 Eino MultiQuery + 重排流水线。
+// UpdateConfig updates the retrieval configuration and rebuilds the Eino MultiQuery + rerank pipeline.
 func (r *Retriever) UpdateConfig(cfg *RetrievalConfig) {
 	if cfg != nil {
 		r.config = cfg
 		if r.logger != nil {
-			r.logger.Info("检索器config已update",
+			r.logger.Info("retriever config updated",
 				zap.Int("top_k", cfg.TopK),
 				zap.Float64("similarity_threshold", cfg.SimilarityThreshold),
 				zap.String("sub_index_filter", cfg.SubIndexFilter),
@@ -70,12 +70,12 @@ func (r *Retriever) UpdateConfig(cfg *RetrievalConfig) {
 	}
 	if r.wireOpenAI != nil {
 		if err := WireRetrieverPipeline(context.Background(), r, r.wireOpenAI); err != nil && r.logger != nil {
-			r.logger.Warn("检索流水线重建failed", zap.Error(err))
+			r.logger.Warn("failed to rebuild retrieval pipeline", zap.Error(err))
 		}
 	}
 }
 
-// SetDocumentReranker 注入可选重排器（并发安全）；nil 表示disable。
+// SetDocumentReranker injects an optional reranker (concurrency-safe); nil disables reranking.
 func (r *Retriever) SetDocumentReranker(rr DocumentReranker) {
 	if r == nil {
 		return
@@ -113,10 +113,10 @@ func cosineSimilarity(a, b []float32) float64 {
 	return dotProduct / (math.Sqrt(normA) * math.Sqrt(normB))
 }
 
-// Search search knowledge base（Eino MultiQuery → 向量检索 → 重排 → 后处理）。
+// Search searches the knowledge base (Eino MultiQuery → vector retrieval → rerank → post-processing).
 func (r *Retriever) Search(ctx context.Context, req *SearchRequest) ([]*RetrievalResult, error) {
 	if req == nil {
-		return nil, fmt.Errorf("request不能为null")
+		return nil, fmt.Errorf("request cannot be nil")
 	}
 	q := strings.TrimSpace(req.Query)
 	if q == "" {
@@ -151,7 +151,7 @@ func (r *Retriever) einoRetrieverOptions(req *SearchRequest) []retriever.Option 
 	return opts
 }
 
-// EinoRetrieve 直接back [schema.Document]，供 Eino Graph / Chain 使用。
+// EinoRetrieve returns [schema.Document] results directly, for use by Eino Graph / Chain.
 func (r *Retriever) EinoRetrieve(ctx context.Context, query string, opts ...retriever.Option) ([]*schema.Document, error) {
 	return r.activeEinoRetriever().Retrieve(ctx, query, opts...)
 }
@@ -163,7 +163,7 @@ func (r *Retriever) activeEinoRetriever() retriever.Retriever {
 	return NewVectorEinoRetriever(r)
 }
 
-// AsEinoRetriever 将知识库检索流水线暴露为 Eino [retriever.Retriever]。
+// AsEinoRetriever exposes the knowledge retrieval pipeline as an Eino [retriever.Retriever].
 func (r *Retriever) AsEinoRetriever() retriever.Retriever {
 	return r.activeEinoRetriever()
 }
@@ -186,7 +186,8 @@ WHERE 1=1`
 	return q, args
 }
 
-// vectorSearch 纯向量检索：余弦相似度sort，按相似度阈value与 TopK 截断（none BM25、none混合分、none邻块扩展）。
+// vectorSearch performs pure vector retrieval: cosine similarity sort, truncated by similarity threshold and TopK
+// (no BM25, no hybrid scoring, no neighbor chunk expansion).
 func (r *Retriever) vectorSearch(ctx context.Context, req *SearchRequest) ([]*RetrievalResult, error) {
 	if req.Query == "" {
 		return nil, fmt.Errorf("query cannot be empty")
@@ -216,7 +217,7 @@ func (r *Retriever) vectorSearch(ctx context.Context, req *SearchRequest) ([]*Re
 	queryText := FormatQueryEmbeddingText(req.RiskType, req.Query)
 	queryEmbedding, err := r.embedder.EmbedText(ctx, queryText)
 	if err != nil {
-		return nil, fmt.Errorf("向量化query failed: %w", err)
+		return nil, fmt.Errorf("failed to vectorize query: %w", err)
 	}
 	queryDim := len(queryEmbedding)
 	expectedModel := ""
@@ -227,7 +228,7 @@ func (r *Retriever) vectorSearch(ctx context.Context, req *SearchRequest) ([]*Re
 	sqlStr, sqlArgs := r.knowledgeEmbeddingSelectSQL(strings.TrimSpace(req.RiskType), subIdxFilter)
 	rows, err := r.db.QueryContext(ctx, sqlStr, sqlArgs...)
 	if err != nil {
-		return nil, fmt.Errorf("查询向量failed: %w", err)
+		return nil, fmt.Errorf("failed to query vectors: %w", err)
 	}
 	defer rows.Close()
 
@@ -253,26 +254,26 @@ func (r *Retriever) vectorSearch(ctx context.Context, req *SearchRequest) ([]*Re
 		var chunkIndex, rowDim int
 
 		if err := rows.Scan(&chunkID, &itemID, &chunkIndex, &chunkText, &embeddingJSON, &rowModel, &rowDim, &category, &title); err != nil {
-			r.logger.Warn("scan向量failed", zap.Error(err))
+			r.logger.Warn("failed to scan vector row", zap.Error(err))
 			continue
 		}
 
 		var embedding []float32
 		if err := json.Unmarshal([]byte(embeddingJSON), &embedding); err != nil {
-			r.logger.Warn("解析向量failed", zap.Error(err))
+			r.logger.Warn("failed to parse vector", zap.Error(err))
 			continue
 		}
 
 		if rowDim > 0 && len(embedding) != rowDim {
-			r.logger.Debug("跳过维度不一致的向量行", zap.String("chunkId", chunkID), zap.Int("rowDim", rowDim), zap.Int("got", len(embedding)))
+			r.logger.Debug("skipping vector row with mismatched dimension", zap.String("chunkId", chunkID), zap.Int("rowDim", rowDim), zap.Int("got", len(embedding)))
 			continue
 		}
 		if queryDim > 0 && len(embedding) != queryDim {
-			r.logger.Debug("跳过与查询维度不一致的向量", zap.String("chunkId", chunkID), zap.Int("queryDim", queryDim), zap.Int("got", len(embedding)))
+			r.logger.Debug("skipping vector with dimension mismatch from query", zap.String("chunkId", chunkID), zap.Int("queryDim", queryDim), zap.Int("got", len(embedding)))
 			continue
 		}
 		if expectedModel != "" && strings.TrimSpace(rowModel) != "" && strings.TrimSpace(rowModel) != expectedModel {
-			r.logger.Debug("跳过嵌入model不一致的行", zap.String("chunkId", chunkID), zap.String("rowModel", rowModel), zap.String("expected", expectedModel))
+			r.logger.Debug("skipping row with mismatched embedding model", zap.String("chunkId", chunkID), zap.String("rowModel", rowModel), zap.String("expected", expectedModel))
 			continue
 		}
 

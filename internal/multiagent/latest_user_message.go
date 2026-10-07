@@ -36,27 +36,27 @@ func prepareLatestUserMessageForModel(userMessage string, appCfg *config.Config,
 	head, tail := splitHeadTailRunes(userMessage, headRunes, tailRunes)
 	artifactPath, writeErr := persistLatestUserMessageArtifact(userMessage, appCfg, conversationID)
 	if writeErr != nil && logger != nil {
-		logger.Warn("latest user message artifact 写入failed，将仅使用预览",
+		logger.Warn("latest user message artifact write failed, will use preview only",
 			zap.String("conversationId", conversationID),
 			zap.Error(writeErr),
 		)
 	}
 
 	var sb strings.Builder
-	sb.WriteString("【system prompt：本轮user输入过长，已为model上下文生成裁剪预览。】\n")
-	sb.WriteString("user原始输入已完整save到database messages.role=user；")
+	sb.WriteString("[system prompt: the user input for this round is too long; a trimmed preview has been generated for the model context.]\n")
+	sb.WriteString("The original user input has been fully saved to the database (messages.role=user).")
 	if artifactPath != "" {
-		sb.WriteString("同时已落盘为 artifact，可在需要全文时读取：\n")
+		sb.WriteString(" It has also been persisted as an artifact that can be read when the full text is needed:\n")
 		sb.WriteString("artifact_path: ")
 		sb.WriteString(artifactPath)
 		sb.WriteByte('\n')
 	} else {
-		sb.WriteString("artifact 写入failed时仍可从database原始messageresume。\n")
+		sb.WriteString(" If the artifact write failed, the original message can still be retrieved from the database.\n")
 	}
 	sb.WriteString(fmt.Sprintf("original_runes: %d\n", utf8RuneLen(userMessage)))
 	sb.WriteString(fmt.Sprintf("preview_head_runes: %d\n", utf8RuneLen(head)))
 	sb.WriteString(fmt.Sprintf("preview_tail_runes: %d\n\n", utf8RuneLen(tail)))
-	sb.WriteString("请优先基于以下预览理解user目标；如必须view全文，请读取 artifact 或database原始message。\n\n")
+	sb.WriteString("Please prioritise the following preview to understand the user's intent; if the full text is required, read the artifact or the original database message.\n\n")
 	sb.WriteString("<latest_user_message_preview_head>\n")
 	sb.WriteString(head)
 	sb.WriteString("\n</latest_user_message_preview_head>\n")

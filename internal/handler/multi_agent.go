@@ -61,7 +61,7 @@ func (h *AgentHandler) MultiAgentLoopStream(c *gin.Context) {
 	var ssePublishConversationID string
 	sendEvent := func(eventType, message string, data interface{}) {
 		// When user actively stops, Eino may still concurrently report eventType=="error".
-		// 为避免 UI 看到“cancellederror + cancelled 文案”两条回复，这里直接丢弃cancelled对应的 error。
+		// To avoid the UI seeing two replies ("cancelled error" + "cancelled" message), discard the error corresponding to cancelled here.
 		if eventType == "error" && baseCtx != nil {
 			cause := context.Cause(baseCtx)
 			if errors.Is(cause, ErrTaskCancelled) || errors.Is(cause, multiagent.ErrInterruptContinue) {
@@ -325,7 +325,7 @@ func (h *AgentHandler) MultiAgentLoopStream(c *gin.Context) {
 				"kind":           "no_active_mcp_tool",
 			})
 			inject := formatInterruptContinueUserMessage(note)
-			// Not written to the messages table as a user bubble: avoids large template text in the main conversation stream; description is already recorded by user_interrupt_continue in assistant process_details (iteration details)。
+			// Not written to the messages table as a user bubble: avoids large template text in the main conversation stream; description is already recorded by user_interrupt_continue in assistant process_details (iteration details).
 			if hist, err := h.loadHistoryFromAgentTrace(conversationID); err == nil && len(hist) > 0 {
 				curHistory = hist
 			}
@@ -661,7 +661,7 @@ func multiAgentHTTPErrorStatus(err error) (int, string) {
 		return http.StatusNotFound, msg
 	case strings.Contains(msg, "WebShell not found"):
 		return http.StatusBadRequest, msg
-	case strings.Contains(msg, "附件最多"), strings.Contains(msg, "attachments"):
+	case strings.Contains(msg, "too many attachments"), strings.Contains(msg, "attachments"):
 		return http.StatusBadRequest, msg
 	case strings.Contains(msg, "saveuser messagefailed"), strings.Contains(msg, "create conversationfailed"):
 		return http.StatusInternalServerError, msg

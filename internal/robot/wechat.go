@@ -17,7 +17,7 @@ const (
 	wechatPlatform         = "wechat"
 )
 
-// StartWechat start微信 iLink 长轮询（none需公网回调），收到message后调用 handler 并回复。
+// StartWechat starts the WeChat iLink long-polling (no public callback required); messages are forwarded to the handler and replies are sent back.
 func StartWechat(ctx context.Context, robotsCfg config.RobotsConfig, h MessageHandler, appVersion string, logger *zap.Logger) {
 	cfg := robotsCfg.Wechat
 	if !cfg.Enabled || cfg.BotToken == "" {
@@ -31,11 +31,11 @@ func runWechatLoop(ctx context.Context, cfg config.RobotWechatConfig, h MessageH
 	for {
 		err := runWechatPoll(ctx, cfg, h, appVersion, logger)
 		if ctx.Err() != nil {
-			logger.Info("微信 iLink 长轮询已按configclose")
+			logger.Info("WeChat iLink long-polling closed as per config")
 			return
 		}
 		if err != nil {
-			logger.Warn("微信 iLink 长轮询abnormal，将自动重连", zap.Error(err), zap.Duration("retry_after", backoff))
+			logger.Warn("WeChat iLink long-polling abnormal, will auto-reconnect", zap.Error(err), zap.Duration("retry_after", backoff))
 		}
 		select {
 		case <-ctx.Done():
@@ -54,7 +54,7 @@ func runWechatLoop(ctx context.Context, cfg config.RobotWechatConfig, h MessageH
 func runWechatPoll(ctx context.Context, cfg config.RobotWechatConfig, h MessageHandler, appVersion string, logger *zap.Logger) error {
 	client := ilink.NewClient(cfg.BaseURL, cfg.BotToken, cfg.BotAgent, ilink.BuildClientVersion(appVersion))
 	buf := cfg.GetUpdatesBuf
-	logger.Info("微信 iLink 长轮询已start", zap.String("ilink_bot_id", cfg.ILinkBotID))
+	logger.Info("WeChat iLink long-polling started", zap.String("ilink_bot_id", cfg.ILinkBotID))
 	for {
 		select {
 		case <-ctx.Done():
@@ -66,7 +66,7 @@ func runWechatPoll(ctx context.Context, cfg config.RobotWechatConfig, h MessageH
 			return err
 		}
 		if resp.ErrCode != 0 && resp.Ret != 0 {
-			logger.Warn("微信 getUpdates backerror", zap.Int("errcode", resp.ErrCode), zap.String("errmsg", resp.ErrMsg))
+			logger.Warn("WeChat getUpdates returned error", zap.Int("errcode", resp.ErrCode), zap.String("errmsg", resp.ErrMsg))
 		}
 		if resp.GetUpdatesBuf != "" {
 			buf = resp.GetUpdatesBuf
@@ -83,13 +83,13 @@ func runWechatPoll(ctx context.Context, cfg config.RobotWechatConfig, h MessageH
 			if userID == "" {
 				continue
 			}
-			logger.Info("微信收到message", zap.String("from", userID), zap.String("content", text))
+			logger.Info("WeChat received message", zap.String("from", userID), zap.String("content", text))
 			reply := h.HandleMessage(wechatPlatform, userID, text)
 			if strings.TrimSpace(reply) == "" {
 				continue
 			}
 			if err := client.SendTextMessage(ctx, userID, msg.ContextToken, reply, ""); err != nil {
-				logger.Warn("微信发送回复failed", zap.String("to", userID), zap.Error(err))
+				logger.Warn("WeChat failed to send reply", zap.String("to", userID), zap.Error(err))
 			}
 		}
 	}

@@ -23,7 +23,7 @@ func RegisterKnowledgeTool(
 	// register the first tool: get all available risk type list
 	listRiskTypesTool := mcp.Tool{
 		Name:             builtin.ToolListKnowledgeRiskTypes,
-		Description:      "Get a list of all available risk types (risk_type) in the knowledge base. Before searching the knowledge base, call this tool to get available risk types and use the correct risk_type for precise search，这样可以大幅减少检索时间并提高检索准确性。",
+		Description:      "Get a list of all available risk types (risk_type) in the knowledge base. Before searching the knowledge base, call this tool to get available risk types and use the correct risk_type for precise search. This significantly reduces retrieval time and improves accuracy.",
 		ShortDescription: "Get a list of all available risk types in the knowledge base",
 		InputSchema: map[string]interface{}{
 			"type":       "object",
@@ -63,7 +63,7 @@ func RegisterKnowledgeTool(
 		for i, category := range categories {
 			resultText.WriteString(fmt.Sprintf("%d. %s\n", i+1, category))
 		}
-		resultText.WriteString("\nTip: when calling the " + builtin.ToolSearchKnowledgeBase + " tool, you can use one of the above risk types as the risk_type parameter to narrow the search范围并提高检索效率。")
+		resultText.WriteString("\nTip: when calling the " + builtin.ToolSearchKnowledgeBase + " tool, you can use one of the above risk types as the risk_type parameter to narrow the search scope and improve retrieval efficiency.")
 
 		return &mcp.ToolResult{
 			Content: []mcp.Content{
@@ -81,7 +81,7 @@ func RegisterKnowledgeTool(
 	// register the second tool: search knowledge base (preserving original functionality)
 	searchTool := mcp.Tool{
 		Name:             builtin.ToolSearchKnowledgeBase,
-		Description:      "Search the knowledge base for relevant security knowledge. Use this tool when you need to understand specific vulnerability types, attack techniques, detection methods, and other security knowledge进行检索。tool基于向量嵌入与余弦相似度检索（与 Eino retriever 语义一致）。建议：在search前可以先调用 " + builtin.ToolListKnowledgeRiskTypes + " tool获取可用的风险type，然后使用正确的 risk_type 参数进行精确search，这样可以大幅减少检索时间。",
+		Description:      "Search the knowledge base for relevant security knowledge. Use this tool when you need to understand specific vulnerability types, attack techniques, detection methods, and other security knowledge. Retrieval is based on vector embeddings and cosine similarity (consistent with Eino retriever semantics). Tip: call the " + builtin.ToolListKnowledgeRiskTypes + " tool first to get available risk types, then use the correct risk_type parameter for precise search, which significantly reduces retrieval time.",
 		ShortDescription: "Search security knowledge in the knowledge base (vector semantic search)",
 		InputSchema: map[string]interface{}{
 			"type": "object",
@@ -92,7 +92,7 @@ func RegisterKnowledgeTool(
 				},
 				"risk_type": map[string]interface{}{
 					"type":        "string",
-					"description": "Optional: specify risk type (e.g.: SQL Injection, XSS, file upload, etc.). Recommended to call " + builtin.ToolListKnowledgeRiskTypes + " tool first获取可用的风险typelist，然后使用正确的风险type进行精确search，这样可以大幅减少检索时间。如果不指定则search所有type。",
+					"description": "Optional: specify risk type (e.g.: SQL Injection, XSS, file upload, etc.). Recommended to call " + builtin.ToolListKnowledgeRiskTypes + " tool first to get available risk types, then use the correct risk type for precise search, which significantly reduces retrieval time. If not specified, all types are searched.",
 				},
 			},
 			"required": []string{"query"},

@@ -57,13 +57,13 @@ func BuildWorkspaceBlock(absPath string) string {
 	if absPath == "" {
 		return ""
 	}
-	return fmt.Sprintf(`## 会话working directory（download与本地analyze）
+	return fmt.Sprintf(`## Session working directory (downloads and local analysis)
 
-**必须使用以下directory**save curl/wget download的file、临时 HTML/JS，以及 read_file/glob/grep 的检索范围：
+**You must use the following directory** to save files downloaded by curl/wget, temporary HTML/JS, and as the search scope for read_file/glob/grep:
 `+"`%s`"+`
 
-- **禁止**使用system `+"`/tmp`"+` 或其它全局临时directory（多project/多会话会互窜遗留file）。
-- download示例：`+"`curl -o '%s/page.html' 'https://target/'`"+`；exec 时可将 `+"`workdir`"+` 设为该directory。
-- 读取download产物或临时analyzefile前，用 glob/grep/read_file **限定在该directory**下search，勿在 `+"`/tmp`"+` 盲目检索。
-- 当user询问“current directory”“project根directory”或应用自身file时，优先按服务process当前working directory理解；不要把null的会话working directory误当成project根directory。`, absPath, absPath)
+- **Do not** use the system `+"`/tmp`"+` or any other global temporary directory (multiple projects/sessions will interfere with each other's leftover files).
+- Download example: `+"`curl -o '%s/page.html' 'https://target/'`"+`; when using exec you can set `+"`workdir`"+` to this directory.
+- Before reading downloaded artefacts or temporary analysis files, use glob/grep/read_file **scoped to this directory** — do not search blindly under `+"`/tmp`"+`.
+- When the user asks about the "current directory", "project root directory", or the application's own files, interpret it as the service process's current working directory; do not mistake an empty session working directory for the project root directory.`, absPath, absPath)
 }

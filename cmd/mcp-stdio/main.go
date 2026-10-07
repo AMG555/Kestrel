@@ -24,7 +24,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	// initialize log（stdio pattern下使用 stderr 输出log，避免干扰 JSON-RPC 通信）
+	// initialize logger (in stdio mode, write to stderr to avoid interfering with JSON-RPC communication)
 	log := logger.New(cfg.Log.Level, "stderr", logger.DiagnosticOptions{
 		Dir:           cfg.Log.DiagnosticDir,
 		Disabled:      cfg.Log.DiagnosticDisabled,
@@ -32,11 +32,11 @@ func main() {
 	})
 	defer log.Sync()
 
-	// createMCP服务器
+	// create MCP server
 	mcpServer := mcp.NewServer(log.Logger)
 	guard, err := toolguard.NewManager(cfg.EffectiveToolGuard())
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "初始化调用拦截failed: %v\n", err)
+		fmt.Fprintf(os.Stderr, "failed to initialize tool guard: %v\n", err)
 		os.Exit(1)
 	}
 	mcpServer.SetToolGuard(guard)
@@ -48,11 +48,11 @@ func main() {
 	executor.RegisterTools(mcpServer)
 	mcp.RegisterExecutionControlTools(mcpServer, nil)
 
-	log.Logger.Info("MCP服务器（stdiopattern）已start，等待message...")
+	log.Logger.Info("MCP server (stdio mode) started, waiting for messages...")
 
-	// 运行 stdio 循环
+	// run stdio loop
 	if err := mcpServer.HandleStdio(); err != nil {
-		log.Logger.Error("MCP服务器运行failed", zap.Error(err))
+		log.Logger.Error("MCP server run failed", zap.Error(err))
 		os.Exit(1)
 	}
 }

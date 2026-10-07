@@ -20,7 +20,7 @@ const (
 	FactCategoryNote     = "note"
 )
 
-// RequiresAttackChainBody 判断该事实yesno应携带可复现的attack chain / exploit details（写在 body，非仅 summary）。
+// RequiresAttackChainBody returns true when the fact should carry a reproducible attack chain / exploit details in the body (not just a summary).
 func RequiresAttackChainBody(category, factKey string) bool {
 	c := strings.ToLower(strings.TrimSpace(category))
 	switch c {
@@ -36,7 +36,7 @@ func RequiresAttackChainBody(category, factKey string) bool {
 	return false
 }
 
-// IsSparseFactBody attack chain类事实 body 过短或缺少关key段落时back true（软校验，不Block写入）。
+// IsSparseFactBody returns true when an attack-chain fact's body is too short or missing key sections (soft check, does not block writes).
 func IsSparseFactBody(category, factKey, body string) bool {
 	if !RequiresAttackChainBody(category, factKey) {
 		return false
@@ -52,7 +52,7 @@ func IsSparseFactBody(category, factKey, body string) bool {
 	hasHTTP := strings.Contains(lower, "```http") || strings.Contains(lower, "```bash") ||
 		strings.Contains(lower, "curl ") || strings.Contains(lower, "get ") || strings.Contains(lower, "post ")
 	hasReq := strings.Contains(lower, "request") || strings.Contains(lower, "response") || strings.Contains(lower, "payload")
-	// noneattack chain/POC/request等结构线索，视为仅结论性description（不论长短）
+	// No structural clues such as attack chain/POC/request — treated as a conclusion-only description (regardless of length)
 	return !(hasSteps || hasHTTP || hasReq)
 }
 
@@ -64,8 +64,8 @@ func FactBodyTemplate(category, factKey string) string {
 	return envFactBodyTemplate
 }
 
-const attackChainFactBodyTemplate = `## 结论（可validate，一句话）
-<勿仅写「存在漏洞」；写明type + 位置 + 触发条件>
+const attackChainFactBodyTemplate = `## Conclusion (verifiable, one sentence)
+<Do not just write "vulnerability exists"; specify type + location + trigger condition>
 
 ## Target and Entry Point
 - Target: <URL / IP:Port / hostname>
@@ -73,30 +73,30 @@ const attackChainFactBodyTemplate = `## 结论（可validate，一句话）
 - Prerequisites: <anonymous / role / Cookie / other dependencies>
 
 ## Attack Chain (step-by-step reproducible)
-1. <侦察/Discovery>
-2. <exploitation/trigger>
-3. <impact证明（读file、RCE 回显、越权数据等）>
+1. <Reconnaissance/Discovery>
+2. <Exploitation/trigger>
+3. <Impact proof (file read, RCE output, privilege-escalation data, etc.)>
 
 ## Exploit / POC
-### request
+### Request
 ` + "```http\n<METHOD> <path> HTTP/1.1\nHost: ...\n...\n\n<body>\n```" + `
 
 ### Response / Observed Behaviour
-<关keyresponse片段、status码、差异点>
+<Key response fragments, status code, differences>
 
 ### Command / Script (if any)
 ` + "```bash\n<command>\n```" + `
 
 ## Key Evidence
-- <tool outputsummary / 截图path / 会话或message ID>
+- <Tool output summary / screenshot path / session or message ID>
 
 ## Associations
 - related_vulnerability_id: <optional, corresponds to the id from record_vulnerability>
-- links（upsert 参数）: [{ "from": "<fact_key>", "type": "discovered_on|..." }]（from → 当前 fact）
+- links (upsert parameter): [{ "from": "<fact_key>", "type": "discovered_on|..." }] (from → current fact)
 - dependent fact (body readable mirror): <fact_key, e.g. auth/session_cookie>
 
-## Remark与不OK性
-<待validatefalse设、环境差异、绕过尝试记录>`
+## Remarks and Open Questions
+<Pending validation hypotheses, environment differences, bypass attempt records>`
 
 const envFactBodyTemplate = `## summary
 <core insight of this fact>
@@ -110,23 +110,23 @@ const envFactBodyTemplate = `## summary
 ## Associations
 - related fact_key: <optional>`
 
-// FactRecordingGuidanceBlock 写入system prompt：要求事实沉淀attack chain上下文而非仅结论。
+// FactRecordingGuidanceBlock writes the fact recording guidance to the system prompt, requiring attack chain context rather than conclusions only.
 func FactRecordingGuidanceBlock() string {
 	return projectprompt.FactRecordingGuidanceBlock()
 }
 
-// SparseBodyWarning attack chain类事实 body 不足时的toolback提示（不Blocksave）。
+// SparseBodyWarning returns a tool-response hint when an attack-chain fact's body is insufficient (does not block saving).
 func SparseBodyWarning(category, factKey string) string {
 	if !IsSparseFactBody(category, factKey, "") {
 		return ""
 	}
 	return fmt.Sprintf(
-		"\n\n⚠ 提示：category=%q / fact_key=%q 属于attack chain类事实，但 body 为null或过简。请补充完整attack chain与 POC（参考模板），便于后续审计复现。\n建议 body 骨架：\n%s",
+		"\n\n⚠ Hint: category=%q / fact_key=%q is an attack-chain fact, but the body is empty or too brief. Please add a complete attack chain and POC (refer to the template) to aid future audit reproduction.\nSuggested body skeleton:\n%s",
 		category, factKey, FactBodyTemplate(category, factKey),
 	)
 }
 
-// SparseBodyWarningIfNeeded 根据实际 body 判断yesno追加warning。
+// SparseBodyWarningIfNeeded checks the actual body and appends a warning if needed.
 func SparseBodyWarningIfNeeded(category, factKey, body string) string {
 	if !IsSparseFactBody(category, factKey, body) {
 		return ""

@@ -17,16 +17,18 @@ import (
 )
 
 const (
-	larkReconnectInitial = 5 * time.Second  // 首次重连间隔
-	larkReconnectMax     = 60 * time.Second // 最大重连间隔
+	larkReconnectInitial = 5 * time.Second  // initial reconnect interval
+	larkReconnectMax     = 60 * time.Second // maximum reconnect interval
 )
 
 type larkTextContent struct {
 	Text string `json:"text"`
 }
 
-// StartLark startFeishu长连接（none需公网），收到message后调用 handler 并回复。
-// 断线（如笔记本睡眠、network中断）后会自动重连；ctx 被cancelled时exit，便于config变更时重启。
+// StartLark starts a Feishu (Lark) long-lived connection (no public network required).
+// Messages are forwarded to the handler and replies are sent back.
+// Automatically reconnects on disconnect (e.g. laptop sleep, network interruption);
+// exits when ctx is cancelled to allow restart on config changes.
 func StartLark(ctx context.Context, robotsCfg config.RobotsConfig, h MessageHandler, logger *zap.Logger) {
 	cfg := robotsCfg.Lark
 	if !cfg.Enabled || cfg.AppID == "" || cfg.AppSecret == "" {
@@ -35,7 +37,8 @@ func StartLark(ctx context.Context, robotsCfg config.RobotsConfig, h MessageHand
 	go runLarkLoop(ctx, cfg, robotsCfg.Session.StrictUserIdentityEnabled(), h, logger)
 }
 
-// runLarkLoop 循环维持Feishu长连接：断开且 ctx 未cancelled时按退避间隔重连。
+// runLarkLoop maintains the Feishu long-lived connection in a loop,
+// reconnecting with exponential backoff when disconnected (as long as ctx is not cancelled).
 func runLarkLoop(ctx context.Context, cfg config.RobotLarkConfig, strictUserIdentity bool, h MessageHandler, logger *zap.Logger) {
 	backoff := larkReconnectInitial
 	for {
@@ -48,14 +51,14 @@ func runLarkLoop(ctx context.Context, cfg config.RobotLarkConfig, strictUserIden
 			larkws.WithEventHandler(eventHandler),
 			larkws.WithLogLevel(larkcore.LogLevelInfo),
 		)
-		logger.Info("Feishu长连接正在连接…", zap.String("app_id", cfg.AppID))
+		logger.Info("Feishu long connection connecting…", zap.String("app_id", cfg.AppID))
 		err := wsClient.Start(ctx)
 		if ctx.Err() != nil {
-			logger.Info("Feishu长连接已按config重启close")
+			logger.Info("Feishu long connection closed as per config restart")
 			return
 		}
 		if err != nil {
-			logger.Warn("Feishu长连接断开（如睡眠/断网），将自动重连", zap.Error(err), zap.Duration("retry_after", backoff))
+			logger.Warn("Feishu long connection disconnected (e.g. sleep/network), will auto-reconnect", zap.Error(err), zap.Duration("retry_after", backoff))
 		}
 		select {
 		case <-ctx.Done():
@@ -78,12 +81,12 @@ func handleLarkMessage(ctx context.Context, event *larkim.P2MessageReceiveV1, cf
 	msg := event.Event.Message
 	msgType := larkcore.StringValue(msg.MessageType)
 	if msgType != larkim.MsgTypeText {
-		logger.Debug("Feishu暂仅处理文本message", zap.String("msg_type", msgType))
+		logger.Debug("Feishu currently only handles text messages", zap.String("msg_type", msgType))
 		return
 	}
 	var textBody larkTextContent
 	if err := json.Unmarshal([]byte(larkcore.StringValue(msg.Content)), &textBody); err != nil {
-		logger.Warn("Feishumessage Content parsing failed", zap.Error(err))
+		logger.Warn("Feishu message content parsing failed", zap.Error(err))
 		return
 	}
 	text := strings.TrimSpace(textBody.Text)
@@ -92,7 +95,7 @@ func handleLarkMessage(ctx context.Context, event *larkim.P2MessageReceiveV1, cf
 	}
 	userID := resolveLarkUserID(event, cfg.AllowChatIDFallback && !strictUserIdentity)
 	if userID == "" {
-		logger.Warn("Feishumessage缺少可用user标识，已忽略")
+		logger.Warn("Feishu message missing usable user identifier, ignoring")
 		return
 	}
 	messageID := larkcore.StringValue(msg.MessageId)
@@ -106,14 +109,14 @@ func handleLarkMessage(ctx context.Context, event *larkim.P2MessageReceiveV1, cf
 			Build()).
 		Build())
 	if err != nil {
-		logger.Warn("Feishu回复failed", zap.String("message_id", messageID), zap.Error(err))
+		logger.Warn("Feishu reply failed", zap.String("message_id", messageID), zap.Error(err))
 		return
 	}
-	logger.Debug("Feishu已回复", zap.String("message_id", messageID))
+	logger.Debug("Feishu replied successfully", zap.String("message_id", messageID))
 }
 
-// resolveLarkUserID 提取Feishu会话隔离key：
-// tenant_key + 稳定user标识（user_id/open_id/union_id）；按config可选 chat_id 兜底。
+// resolveLarkUserID extracts the Feishu session isolation key:
+// tenant_key + stable user identifier (user_id/open_id/union_id); optionally falls back to chat_id per config.
 func resolveLarkUserID(event *larkim.P2MessageReceiveV1, allowChatIDFallback bool) string {
 	if event == nil || event.Event == nil || event.Event.Sender == nil || event.Event.Sender.SenderId == nil {
 		return ""

@@ -1,6 +1,5 @@
 # Audit and Monitoring
 
-[中文](../zh-CN/audit-and-monitoring.md)
 
 Kestrel has separate observability streams:
 

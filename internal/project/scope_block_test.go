@@ -11,7 +11,7 @@ func TestBuildScopeBlock_targetsExcludeNotes(t *testing.T) {
 	proj := &database.Project{
 		ID:   "p1",
 		Name: "Acme",
-		ScopeJSON: `{"targets":["https://app.example.com"],"exclude":["*.cdn.example.com"],"notes":"仅 Web 层"}`,
+		ScopeJSON: `{"targets":["https://app.example.com"],"exclude":["*.cdn.example.com"],"notes":"Web layer only"}`,
 	}
 	block := BuildScopeBlock(proj)
 	if !strings.Contains(block, "https://app.example.com") {
@@ -20,7 +20,7 @@ func TestBuildScopeBlock_targetsExcludeNotes(t *testing.T) {
 	if !strings.Contains(block, "cdn.example.com") {
 		t.Fatalf("missing exclude: %s", block)
 	}
-	if !strings.Contains(block, "仅 Web 层") {
+	if !strings.Contains(block, "Web layer only") {
 		t.Fatalf("missing notes: %s", block)
 	}
 }
@@ -34,7 +34,7 @@ func TestBuildScopeBlock_empty(t *testing.T) {
 func TestBuildScopeBlock_invalidJSON(t *testing.T) {
 	proj := &database.Project{Name: "X", ScopeJSON: `{not json`}
 	block := BuildScopeBlock(proj)
-	if !strings.Contains(block, "非合法 JSON") {
+	if !strings.Contains(block, "not valid JSON") {
 		t.Fatalf("unexpected: %s", block)
 	}
 }

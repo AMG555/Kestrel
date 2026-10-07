@@ -9,12 +9,12 @@ import (
 )
 
 func TestStripAnalysisFromSummarizationText(t *testing.T) {
-	in := "<analysis>internal notes</analysis>\n\n<summary>\n## 1. 授权\n- example.com\n</summary>"
+	in := "<analysis>internal notes</analysis>\n\n<summary>\n## 1. Scope\n- example.com\n</summary>"
 	got := stripAnalysisFromSummarizationText(in)
 	if strings.Contains(got, "<analysis>") {
 		t.Fatalf("analysis block should be removed: %q", got)
 	}
-	if !strings.Contains(got, "## 1. 授权") {
+	if !strings.Contains(got, "## 1. Scope") {
 		t.Fatalf("summary body should remain: %q", got)
 	}
 }
@@ -25,11 +25,11 @@ func TestStripAnalysisFromSummarizationMessage_UserInputMultiContent(t *testing.
 		UserInputMultiContent: []schema.MessageInputPart{
 			{
 				Type: schema.ChatMessagePartTypeText,
-				Text: "此会话延续自此前一段因上下文耗尽而终止的conversation。\n\n<analysis>draft</analysis>\n<summary>body</summary>\n\n完整记录位于：/tmp/transcript.txt",
+				Text: "This session continues from a previous one that terminated due to context exhaustion.\n\n<analysis>draft</analysis>\n<summary>body</summary>\n\nFull transcript located at: /tmp/transcript.txt",
 			},
 			{
 				Type: schema.ChatMessagePartTypeText,
-				Text: "请从我们中断的地方continueconversation，none需向user提出任何进一步的问题。",
+				Text: "Please continue the conversation from where we left off without asking the user any further questions.",
 			},
 		},
 	}
@@ -43,7 +43,7 @@ func TestStripAnalysisFromSummarizationMessage_UserInputMultiContent(t *testing.
 	if !strings.Contains(out.UserInputMultiContent[0].Text, "<summary>body</summary>") {
 		t.Fatalf("part 0 should keep summary: %q", out.UserInputMultiContent[0].Text)
 	}
-	if out.UserInputMultiContent[1].Text != "请从我们中断的地方continueconversation，none需向user提出任何进一步的问题。" {
+	if out.UserInputMultiContent[1].Text != "Please continue the conversation from where we left off without asking the user any further questions." {
 		t.Fatalf("continue instruction part should be unchanged: %q", out.UserInputMultiContent[1].Text)
 	}
 }
@@ -69,9 +69,9 @@ func TestStripAnalysisFromSummarizationText_NoAnalysisUnchanged(t *testing.T) {
 
 func TestBuildOriginalUserIntentLedgerMessage_AppendsRawUserMessages(t *testing.T) {
 	original := []adk.Message{
-		schema.UserMessage("第一轮：只测 staging，不要碰 prod。"),
+		schema.UserMessage("Round 1: test staging only, do not touch prod."),
 		schema.AssistantMessage("ok", nil),
-		schema.UserMessage("第二轮：优先validate /api/login 的 SQL 注入。"),
+		schema.UserMessage("Round 2: prioritise validating SQL injection on /api/login."),
 		schema.UserMessage(FormatEmptyResponseContinueUserMessage()),
 	}
 
@@ -86,10 +86,10 @@ func TestBuildOriginalUserIntentLedgerMessage_AppendsRawUserMessages(t *testing.
 	if !strings.Contains(body, userIntentLedgerStartMarker) || !strings.Contains(body, userIntentLedgerEndMarker) {
 		t.Fatalf("ledger markers missing: %q", body)
 	}
-	if !strings.Contains(body, "只测 staging，不要碰 prod") {
+	if !strings.Contains(body, "test staging only, do not touch prod") {
 		t.Fatalf("first user constraint missing: %q", body)
 	}
-	if !strings.Contains(body, "优先validate /api/login") {
+	if !strings.Contains(body, "prioritise validating SQL injection on /api/login") {
 		t.Fatalf("second user request missing: %q", body)
 	}
 	if strings.Contains(body, "systemAuto-continue") {
@@ -98,19 +98,19 @@ func TestBuildOriginalUserIntentLedgerMessage_AppendsRawUserMessages(t *testing.
 }
 
 func TestBuildOriginalUserIntentLedgerMessage_CarriesPreviousLedgerAndDedups(t *testing.T) {
-	prevSummary := schema.AssistantMessage(wrapUserIntentLedger("- [U001] 原始目标：example.com\n- [U002] 禁止critical破坏性操作"), nil)
+	prevSummary := schema.AssistantMessage(wrapUserIntentLedger("- [U001] Original target: example.com\n- [U002] No critical destructive operations"), nil)
 	original := []adk.Message{
 		prevSummary,
-		schema.UserMessage("禁止critical破坏性操作"),
-		schema.UserMessage("新增约束：只输出Chinesereport"),
+		schema.UserMessage("No critical destructive operations"),
+		schema.UserMessage("New constraint: output report in English only"),
 	}
 
 	out := buildOriginalUserIntentLedgerMessage(original, 96000, 16000)
 	body := out.Content
-	if !strings.Contains(body, "原始目标：example.com") || !strings.Contains(body, "新增约束：只输出Chinesereport") {
+	if !strings.Contains(body, "Original target: example.com") || !strings.Contains(body, "New constraint: output report in English only") {
 		t.Fatalf("ledger did not carry old and new entries: %q", body)
 	}
-	if strings.Count(body, "禁止critical破坏性操作") != 1 {
+	if strings.Count(body, "No critical destructive operations") != 1 {
 		t.Fatalf("duplicate ledger entry was not deduped: %q", body)
 	}
 	if strings.Count(body, userIntentLedgerStartMarker) != 1 {

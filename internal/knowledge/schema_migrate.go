@@ -45,7 +45,7 @@ func addKnowledgeEmbeddingsColumnIfMissing(db *sql.DB, column, alterSQL string) 
 	return err
 }
 
-// ensureKnowledgeEmbeddingsSubIndexesColumn 向后兼容；请使用 [EnsureKnowledgeEmbeddingsSchema]。
+// ensureKnowledgeEmbeddingsSubIndexesColumn is a backward-compatibility shim; use [EnsureKnowledgeEmbeddingsSchema].
 func ensureKnowledgeEmbeddingsSubIndexesColumn(db *sql.DB) error {
 	return EnsureKnowledgeEmbeddingsSchema(db)
 }

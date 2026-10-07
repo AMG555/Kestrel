@@ -822,7 +822,7 @@ func (db *DB) DeleteC2SessionsByIDsForAccess(ids []string, access RBACListAccess
 }
 
 // ----------------------------------------------------------------------------
-// CRUD：C2 task
+// CRUD: C2 task
 // ----------------------------------------------------------------------------
 
 // CreateC2Task enqueues a new task.
@@ -1407,7 +1407,7 @@ func (db *DB) DeleteC2TasksByIDsForAccess(ids []string, access RBACListAccess) (
 }
 
 // ----------------------------------------------------------------------------
-// CRUD：C2 file
+// CRUD: C2 file
 // ----------------------------------------------------------------------------
 
 // CreateC2File records an upload/download credential (actual file persistence is handled by the caller).
@@ -1829,7 +1829,7 @@ func (db *DB) DeleteC2EventsByIDsForAccess(ids []string, access RBACListAccess) 
 }
 
 // ----------------------------------------------------------------------------
-// CRUD：C2 Malleable Profile
+// CRUD: C2 Malleable Profile
 // ----------------------------------------------------------------------------
 
 // CreateC2Profile creates or overwrites a Profile (unique by name).

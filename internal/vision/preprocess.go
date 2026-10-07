@@ -10,13 +10,13 @@ import (
 	"github.com/disintegration/imaging"
 )
 
-// ImagePayload 送入 VL API 的图片字节与 MIME。
+// ImagePayload holds image bytes and MIME type for the VL API.
 type ImagePayload struct {
 	Bytes    []byte
 	MIMEType string
 }
 
-// PreprocessMeta 记录缩放与编码结果，供tool output与排障。
+// PreprocessMeta records scaling and encoding results for tool output and debugging.
 type PreprocessMeta struct {
 	OriginalPath      string
 	OriginalBytes     int64
@@ -26,20 +26,20 @@ type PreprocessMeta struct {
 	OutputHeight      int
 	OutputBytes       int
 	OutputMIMEType    string
-	JPEGQuality       int // 0 表示未 JPEG 重编码（原图直传）
+	JPEGQuality       int    // 0 means no JPEG re-encoding (original image passed through)
 	PreprocessMode    string // passthrough | jpeg
 }
 
-// PreprocessOptions 图片预处理参数。
+// PreprocessOptions holds image preprocessing parameters.
 type PreprocessOptions struct {
 	MaxImageBytes            int64
 	MaxDimension             int
 	JPEGQuality              int
 	MaxPayloadBytes          int64
-	SkipPreprocessBelowBytes int64 // 0 = 始终压缩；>0 时小图+尺寸合规可直传
+	SkipPreprocessBelowBytes int64 // 0 = always compress; >0 small images that fit dimensions can pass through
 }
 
-// PreprocessImageFile 读取图片；大图或超尺寸走 imaging 缩放+JPEG，no则可原图直传。
+// PreprocessImageFile reads an image; large or oversized images go through imaging scale+JPEG, otherwise the original is passed through.
 func PreprocessImageFile(path string, opt PreprocessOptions) (ImagePayload, PreprocessMeta, error) {
 	var meta PreprocessMeta
 	meta.OriginalPath = path
@@ -201,7 +201,7 @@ func mimeFromImageFormat(format string) string {
 	}
 }
 
-// DecodeImageConfig 用于test：confirmfile可被解码。
+// DecodeImageConfig is used for testing: verifies that a file can be decoded.
 func DecodeImageConfig(path string) (image.Config, string, error) {
 	f, err := os.Open(path)
 	if err != nil {

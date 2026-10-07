@@ -14,7 +14,7 @@ func prepareShellCmdSession(cmd *exec.Cmd) error {
 	if cmd == nil {
 		return nil
 	}
-	// 独立process group，便于 taskkill /T 终止整棵child process树。
+	// Independent process group so that taskkill /T can terminate the entire child process tree.
 	if cmd.SysProcAttr == nil {
 		cmd.SysProcAttr = &syscall.SysProcAttr{}
 	}
@@ -22,7 +22,7 @@ func prepareShellCmdSession(cmd *exec.Cmd) error {
 	return nil
 }
 
-// terminateProcessGroup 使用 taskkill /F /T 终止process及其child process；rootPID 为 0 时回退到 cmd.Process.Pid。
+// terminateProcessGroup terminates a process and its children using taskkill /F /T; falls back to cmd.Process.Pid when rootPID is 0.
 func terminateProcessGroup(rootPID int, cmd *exec.Cmd) {
 	pid := rootPID
 	if pid <= 0 && cmd != nil && cmd.Process != nil {
@@ -41,7 +41,7 @@ func terminateProcessGroup(rootPID int, cmd *exec.Cmd) {
 	}
 }
 
-// terminateCmdTree 使用 taskkill /F /T 终止process及其child process（Windows 上 Process.Kill none法保证杀掉 python 等孙process）。
+// terminateCmdTree terminates a process and its children using taskkill /F /T (Process.Kill on Windows cannot guarantee killing grandchild processes such as python).
 func terminateCmdTree(cmd *exec.Cmd) {
 	terminateProcessGroup(0, cmd)
 }

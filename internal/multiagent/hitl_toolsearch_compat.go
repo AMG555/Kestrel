@@ -8,9 +8,9 @@ import (
 
 const toolSearchToolName = "tool_search"
 
-// HitlExemptMetaTools 为 HITL 内置免审批tool：包括编排/元tool，以及model输出修复链路依赖的 write_file。
-// tool_search 必须免审批，no则其 HITL 拒绝结果与 Eino toolsearch 中间件不兼容（会硬崩 ChatModel）；
-// write_file 必须免审批，no则长脚本或request体none法先安全落盘，model输出修复链路会被再次阻塞。
+// HitlExemptMetaTools are HITL built-in tools exempt from approval: includes orchestration/meta tools and write_file (required by the model output repair path).
+// tool_search must be exempt, otherwise its HITL rejection result is incompatible with the Eino toolsearch middleware (hard-crashes ChatModel);
+// write_file must be exempt, otherwise long scripts or request bodies cannot be safely persisted first, and the model output repair path would be blocked again.
 var HitlExemptMetaTools = []string{
 	toolSearchToolName,
 	"skill",

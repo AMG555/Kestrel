@@ -12,12 +12,12 @@ func TestExecutionServiceBackgroundWaitResultCompletesWaitTool(t *testing.T) {
 		Run: func(context.Context) (*ToolResult, error) {
 			return &ToolResult{
 				Content: []Content{{Type: "text", Text: `{
-  "execution_id": "3eaaa391-050b-4be1-a870-48a855923cb7",
-  "tool": "exec",
-  "status": "running"
+		"execution_id": "3eaaa391-050b-4be1-a870-48a855923cb7",
+		"tool": "exec",
+		"status": "running"
 }
 
-本次等待已到达 timeout_seconds，上述 execution 仍未完成。可continue等待、cancelled，或采用其他步骤。`}},
+wait_timeout: timeout_seconds reached, the above execution is still not complete. You may continue waiting, cancel, or take other steps.`}},
 				IsError: true,
 			}, nil
 		},

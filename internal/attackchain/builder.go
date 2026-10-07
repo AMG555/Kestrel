@@ -98,7 +98,7 @@ func (b *Builder) BuildChainFromConversation(ctx context.Context, conversationID
 	}
 
 	// check for actual tool executions: assistant mcp_execution_ids, or tool_call/tool_result in process details
-	//（in multi-agent mode if MCP does not return execution_id, IDs may be empty, but tools have been executed via Eino and written to process_details）
+	// (in multi-agent mode if MCP does not return execution_id, IDs may be empty, but tools have been executed via Eino and written to process_details)
 	hasToolExecutions := false
 	for i := len(messages) - 1; i >= 0; i-- {
 		if strings.EqualFold(messages[i].Role, "assistant") {

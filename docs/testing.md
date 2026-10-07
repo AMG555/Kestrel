@@ -1,6 +1,5 @@
 # Testing Guide
 
-[中文](../zh-CN/testing.md)
 
 Testing Kestrel means more than running Go tests. Agent, MCP, HITL, C2, WebShell, and frontend streaming all have different failure modes.
 

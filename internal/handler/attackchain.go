@@ -33,7 +33,7 @@ func NewAttackChainHandler(db *database.DB, openAIConfig *config.OpenAIConfig, l
 	}
 }
 
-// UpdateConfig updateOpenAIconfig
+// UpdateConfig updates the OpenAI config.
 func (h *AttackChainHandler) UpdateConfig(cfg *config.OpenAIConfig) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -147,8 +147,8 @@ func (h *AttackChainHandler) RegenerateAttackChain(c *gin.Context) {
 
 	acquired := lock.TryLock()
 	if !acquired {
-		h.logger.Info("attack chain正在生成中，Please try again later", zap.String("conversationId", conversationID))
-		c.JSON(http.StatusConflict, gin.H{"error": "attack chain正在生成中，Please try again later"})
+		h.logger.Info("attack chain is currently being generated, please try again later", zap.String("conversationId", conversationID))
+		c.JSON(http.StatusConflict, gin.H{"error": "attack chain is currently being generated, please try again later"})
 		return
 	}
 	defer lock.Unlock()

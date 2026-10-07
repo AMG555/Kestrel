@@ -21,7 +21,7 @@ func TestMCPExecutionBinder(t *testing.T) {
 	}
 }
 
-// TestMCPExecutionBinder_ConcurrentBind 回归并行 tool 回调不得 concurrent map panic。
+// TestMCPExecutionBinder_ConcurrentBind is a regression test ensuring that parallel tool callbacks do not trigger a concurrent map panic.
 func TestMCPExecutionBinder_ConcurrentBind(t *testing.T) {
 	b := NewMCPExecutionBinder()
 	const workers = 64

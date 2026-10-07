@@ -323,7 +323,8 @@ func normalizeEffort(s string) string {
 	}
 }
 
-// usesExtraFieldsReasoningEffort 为 Eino none枚举的最高档 effort，经 ExtraFields 原样下发（max / xhigh 由网关自行识别，不做互转）。
+// usesExtraFieldsReasoningEffort returns true for the highest effort levels not enumerated by Eino,
+// which are passed through as-is via ExtraFields (max / xhigh are recognised by the gateway, no conversion is done).
 func usesExtraFieldsReasoningEffort(e string) bool {
 	return e == "max" || e == "xhigh"
 }
@@ -423,6 +424,7 @@ func applyOutputConfigEffort(cfg *einoopenai.ChatModelConfig, mode, effort strin
 }
 
 func effortStringForAPI(e string) string {
-	// 原样透传：OpenAI 官方多为 xhigh，部分兼容网关为 max，由config/conversation effort 选择。
+	// Pass through as-is: official OpenAI typically uses xhigh; some compatible gateways use max.
+	// The value is chosen by the config/conversation effort setting.
 	return strings.ToLower(strings.TrimSpace(e))
 }
