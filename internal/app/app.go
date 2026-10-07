@@ -79,6 +79,9 @@ func New(cfg *config.Config, logger *zap.Logger) (*App, error) {
 	tgCfg := cfg.EffectiveToolGuard()
 	registry := mcp.NewRegistryWithGuard(&cfg.MCP, &tgCfg, logger)
 
+	// Register execution control tools (query/cancel in-flight tool tasks).
+	mcp.RegisterExecutionControlTools(registry, db)
+
 	// Build knowledge service.
 	kb := knowledge.New(&cfg.Knowledge, db, logger)
 

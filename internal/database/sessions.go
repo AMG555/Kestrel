@@ -273,3 +273,45 @@ func (db *DB) ListToolExecutions(p ListToolExecutionsParams) ([]*ToolExecution, 
 	}
 	return execs, total, rows.Err()
 }
+
+// GetToolExecutionByID returns a single tool execution record by ID.
+func (db *DB) GetToolExecutionByID(id string) (*ToolExecution, error) {
+	e := &ToolExecution{}
+	var outputTruncated, hitlRequired int
+	var hitlApproved sql.NullInt64
+
+	row := db.QueryRow(`
+		SELECT id,session_id,COALESCE(message_id,''),COALESCE(user_id,''),tool_name,arguments_json,
+		       status,COALESCE(result,''),COALESCE(error,''),output_bytes,output_truncated,
+		       hitl_required,hitl_approved,started_at,completed_at,duration_ms
+		FROM tool_executions WHERE id=?`, id)
+
+	err := row.Scan(
+		&e.ID, &e.SessionID, &e.MessageID, &e.UserID, &e.ToolName, &e.ArgumentsJSON,
+		&e.Status, &e.Result, &e.Error, &e.OutputBytes, &outputTruncated,
+		&hitlRequired, &hitlApproved, &e.StartedAt, &e.CompletedAt, &e.DurationMs,
+	)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	e.OutputTruncated = outputTruncated == 1
+	e.HITLRequired = hitlRequired == 1
+	if hitlApproved.Valid {
+		v := hitlApproved.Int64 == 1
+		e.HITLApproved = &v
+	}
+	return e, nil
+}
+
+// CancelToolExecution marks an in-flight tool execution as cancelled.
+func (db *DB) CancelToolExecution(id, reason string) error {
+	now := time.Now().UTC()
+	_, err := db.Exec(`
+		UPDATE tool_executions SET status='cancelled', error=?, completed_at=?
+		WHERE id=? AND status='running'`, reason, now, id)
+	return err
+}
+
