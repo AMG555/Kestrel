@@ -1,4 +1,4 @@
-package workflowpackage
+﻿package workflowpackage
 
 import (
 	"crypto/sha256"
@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	PackageFormat = "kestrel.workflow-package"
+	PackageFormat = "cyberstrikeai.workflow-package"
 	FormatVersion = "1.0"
 )
 

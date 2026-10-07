@@ -1,11 +1,11 @@
-package audit
+﻿package audit
 
 import (
 	"sync"
 	"time"
 )
 
-// failureThrottle deduplicates high-frequency failure audit records (e.g. repeated bad login attempts).
+// failureThrottle deduplicates high-frequency failure audit rows (e.g. wrong password).
 type failureThrottle struct {
 	mu   sync.Mutex
 	last map[string]time.Time
@@ -15,7 +15,7 @@ func newFailureThrottle() *failureThrottle {
 	return &failureThrottle{last: make(map[string]time.Time)}
 }
 
-// allow reports whether a record with the given key may be written now.
+// allow reports whether a row with the given key may be written now.
 func (t *failureThrottle) allow(key string, cooldown time.Duration) bool {
 	if t == nil || cooldown <= 0 || key == "" {
 		return true
@@ -37,18 +37,17 @@ func (t *failureThrottle) allow(key string, cooldown time.Duration) bool {
 	return true
 }
 
-// AuthFailureThrottleKey builds a per-IP key for auth failure deduplication.
-func AuthFailureThrottleKey(category, action, clientIP string) string {
+// authFailureThrottleKey builds a per-IP key for auth failure deduplication.
+func authFailureThrottleKey(category, action, clientIP string) string {
 	return category + ":" + action + ":" + clientIP
 }
 
-// IsAuthFailureThrottled checks if a given action qualifies for auth failure throttling.
-func IsAuthFailureThrottled(category, action string) bool {
-	if category != CategoryAuth {
+func isAuthFailureThrottled(category, action string) bool {
+	if category != "auth" {
 		return false
 	}
 	switch action {
-	case ActionLogin, ActionChangePassword:
+	case "login", "change_password":
 		return true
 	default:
 		return false

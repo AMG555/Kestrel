@@ -1,10 +1,11 @@
-//go:build windows
+﻿//go:build windows
 
 package processguard
 
 import (
 	"context"
 	"fmt"
+	"golang.org/x/sys/windows"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,12 +13,10 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"golang.org/x/sys/windows"
 )
 
 func TestWindowsJobOwnerHelper(t *testing.T) {
-	if os.Getenv("KESTREL_JOB_OWNER") != "1" {
+	if os.Getenv("CSAI_JOB_OWNER") != "1" {
 		t.Skip("subprocess helper")
 	}
 	g, err := NewWithOptions(fmt.Sprintf("test-%d-%d", os.Getpid(), time.Now().UnixNano()), Options{Mode: "required"})
@@ -25,7 +24,7 @@ func TestWindowsJobOwnerHelper(t *testing.T) {
 		t.Fatal(err)
 	}
 	cmd := exec.Command(os.Args[0], "-test.run=^TestWindowsJobPayload$")
-	cmd.Env = append(os.Environ(), "KESTREL_JOB_PAYLOAD=1")
+	cmd.Env = append(os.Environ(), "CSAI_JOB_PAYLOAD=1")
 	launch, err := g.Prepare(cmd)
 	if err != nil {
 		t.Fatal(err)
@@ -40,21 +39,19 @@ func TestWindowsJobOwnerHelper(t *testing.T) {
 	go cmd.Wait()
 	select {}
 }
-
 func TestWindowsJobPayload(t *testing.T) {
-	if os.Getenv("KESTREL_JOB_PAYLOAD") != "1" {
+	if os.Getenv("CSAI_JOB_PAYLOAD") != "1" {
 		t.Skip("subprocess helper")
 	}
-	if err := os.WriteFile(os.Getenv("KESTREL_JOB_PIDFILE"), []byte(strconv.Itoa(os.Getpid())), 0600); err != nil {
+	if err := os.WriteFile(os.Getenv("CSAI_JOB_PIDFILE"), []byte(strconv.Itoa(os.Getpid())), 0600); err != nil {
 		t.Fatal(err)
 	}
 	time.Sleep(300 * time.Second)
 }
-
 func TestWindowsJobReapsAfterOwnerKilled(t *testing.T) {
 	file := filepath.Join(t.TempDir(), "pid")
 	owner := exec.Command(os.Args[0], "-test.run=^TestWindowsJobOwnerHelper$")
-	owner.Env = append(os.Environ(), "KESTREL_JOB_OWNER=1", "KESTREL_JOB_PIDFILE="+file)
+	owner.Env = append(os.Environ(), "CSAI_JOB_OWNER=1", "CSAI_JOB_PIDFILE="+file)
 	if err := owner.Start(); err != nil {
 		t.Fatal(err)
 	}
@@ -84,7 +81,6 @@ func TestWindowsJobReapsAfterOwnerKilled(t *testing.T) {
 		t.Fatalf("child survived owner death: %d %v", event, err)
 	}
 }
-
 func TestWindowsJobClose(t *testing.T) {
 	g, err := NewWithOptions(fmt.Sprintf("test-%d-%d", os.Getpid(), time.Now().UnixNano()), Options{Mode: "required", CPUQuotaMicros: 100000})
 	if err != nil {

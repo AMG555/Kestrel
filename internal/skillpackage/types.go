@@ -1,29 +1,43 @@
-// Package skillpackage provides discovery, validation, and rendering for Agent Skills (SKILL.md).
+﻿// Package skillpackage provides filesystem-backed Agent Skills layout (SKILL.md + package files)
+// for HTTP admin APIs. Runtime discovery and progressive loading for agents use Eino ADK skill middleware.
 package skillpackage
 
-// SkillManifest is parsed from SKILL.md YAML front matter.
+// SkillManifest is parsed from SKILL.md front matter (https://agentskills.io/specification.md).
 type SkillManifest struct {
-	Name          string                 `yaml:"name" json:"name"`
-	Description   string                 `yaml:"description" json:"description"`
-	License       string                 `yaml:"license,omitempty" json:"license,omitempty"`
-	Compatibility string                 `yaml:"compatibility,omitempty" json:"compatibility,omitempty"`
-	AllowedTools  string                 `yaml:"allowed-tools,omitempty" json:"allowed_tools,omitempty"`
-	Metadata      map[string]interface{} `yaml:"metadata,omitempty" json:"metadata,omitempty"`
+	Name          string         `yaml:"name"`
+	Description   string         `yaml:"description"`
+	License       string         `yaml:"license,omitempty"`
+	Compatibility string         `yaml:"compatibility,omitempty"`
+	Metadata      map[string]any `yaml:"metadata,omitempty"`
+	AllowedTools  string         `yaml:"allowed-tools,omitempty"`
 }
 
-// SkillSummary provides index metadata for a skill directory.
+// SkillSummary is API metadata for one skill directory.
 type SkillSummary struct {
 	ID          string   `json:"id"`
 	DirName     string   `json:"dir_name"`
 	Name        string   `json:"name"`
 	Description string   `json:"description"`
+	Version     string   `json:"version"`
 	Path        string   `json:"path"`
 	Tags        []string `json:"tags"`
+	Triggers    []string `json:"triggers,omitempty"`
+	ScriptCount int      `json:"script_count"`
 	FileCount   int      `json:"file_count"`
+	FileSize    int64    `json:"file_size"`
 	ModTime     string   `json:"mod_time"`
+	Progressive bool     `json:"progressive"`
 }
 
-// SkillSection represents an H2 heading section in SKILL.md.
+// SkillScriptInfo describes a file under scripts/.
+type SkillScriptInfo struct {
+	Name        string `json:"name"`
+	RelPath     string `json:"rel_path"`
+	Description string `json:"description,omitempty"`
+	Size        int64  `json:"size"`
+}
+
+// SkillSection is derived from ## headings in SKILL.md.
 type SkillSection struct {
 	ID      string `json:"id"`
 	Title   string `json:"title"`
@@ -31,23 +45,23 @@ type SkillSection struct {
 	Level   int    `json:"level"`
 }
 
-// PackageFileInfo describes a file inside a skill package directory.
+// PackageFileInfo describes one file inside a package.
 type PackageFileInfo struct {
 	Path  string `json:"path"`
 	Size  int64  `json:"size"`
 	IsDir bool   `json:"is_dir,omitempty"`
 }
 
-// SkillView represents a loaded skill package with full content and metadata.
+// SkillView is a loaded package for admin / API.
 type SkillView struct {
-	ID           string            `json:"id"`
 	DirName      string            `json:"dir_name"`
 	Name         string            `json:"name"`
 	Description  string            `json:"description"`
 	Content      string            `json:"content"`
-	AllowedTools string            `json:"allowed_tools,omitempty"`
 	Path         string            `json:"path"`
+	Version      string            `json:"version"`
 	Tags         []string          `json:"tags"`
+	Scripts      []SkillScriptInfo `json:"scripts,omitempty"`
 	Sections     []SkillSection    `json:"sections,omitempty"`
 	PackageFiles []PackageFileInfo `json:"package_files,omitempty"`
 }

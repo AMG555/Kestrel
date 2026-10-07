@@ -1,4 +1,4 @@
-package main
+﻿package main
 
 import (
 	"fmt"
@@ -8,32 +8,44 @@ import (
 )
 
 func main() {
-	configPath := "config.yaml"
-	if len(os.Args) > 1 {
-		configPath = os.Args[1]
-	}
-
-	fmt.Printf("Validating Kestrel configuration file: %s\n", configPath)
-	cfg, err := config.Load(configPath)
-	if err != nil {
-		fmt.Printf("❌ Configuration error: %v\n", err)
+	if len(os.Args) < 2 {
+		fmt.Println("Usage: go run cmd/test-config/main.go <config.yaml>")
 		os.Exit(1)
 	}
 
-	fmt.Printf("✅ Configuration syntax is valid.\n\n")
-	fmt.Printf("Server Address: %s\n", cfg.Server.Address())
-	fmt.Printf("TLS Active:     %v\n", cfg.Server.TLSActive())
-	fmt.Printf("Database Path:  %s\n", cfg.Database.Path)
-	fmt.Printf("AI Provider:    %s\n", cfg.AI.DefaultChannel)
-
-	fmt.Printf("\nExternal MCP Servers (%d configured):\n", len(cfg.MCP.Servers))
-	for name, srv := range cfg.MCP.Servers {
-		fmt.Printf("  - %s (transport: %s, command: %v, url: %s)\n", name, srv.Transport, srv.Command, srv.URL)
+	configPath := os.Args[1]
+	cfg, err := config.Load(configPath)
+	if err != nil {
+		fmt.Printf("Error loading config: %v\n", err)
+		os.Exit(1)
 	}
 
-	effectiveTG := cfg.EffectiveToolGuard()
-	fmt.Printf("\nToolGuard Rules (%d rules, enabled: %v):\n", len(effectiveTG.Rules), effectiveTG.Enabled)
-	for _, rule := range effectiveTG.Rules {
-		fmt.Printf("  - %s [%s] (enabled: %v): %s\n", rule.ID, rule.Name, rule.Enabled, rule.Pattern)
+	if cfg.ExternalMCP.Servers == nil {
+		fmt.Println("No external MCP servers configured")
+		os.Exit(0)
 	}
+
+	fmt.Printf("Found %d external MCP server(s):\n\n", len(cfg.ExternalMCP.Servers))
+
+	for name, srv := range cfg.ExternalMCP.Servers {
+		fmt.Printf("Name: %s\n", name)
+		fmt.Printf("  Transport: %s\n", getTransport(srv))
+		fmt.Printf("  Command: %s\n", srv.Command)
+		if len(srv.Args) > 0 {
+			fmt.Printf("  Args: %v\n", srv.Args)
+		}
+		fmt.Printf("  URL: %s\n", srv.URL)
+		fmt.Printf("  Description: %s\n", srv.Description)
+		fmt.Printf("  Timeout: %d seconds\n", srv.Timeout)
+		fmt.Printf("  ExternalMCPEnable: %v\n", srv.ExternalMCPEnable)
+		fmt.Println()
+	}
+}
+
+func getTransport(srv config.ExternalMCPServerConfig) string {
+	t := srv.GetTransportType()
+	if t == "" {
+		return "unknown"
+	}
+	return t
 }

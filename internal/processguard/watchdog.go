@@ -1,4 +1,4 @@
-package processguard
+﻿package processguard
 
 import (
 	"encoding/json"
@@ -10,8 +10,8 @@ import (
 	"time"
 )
 
-const guardianArg = "--kestrel-internal-process-guardian"
-const childArg = "--kestrel-internal-process-child"
+const guardianArg = "--cyberstrike-internal-process-guardian"
+const childArg = "--cyberstrike-internal-process-child"
 
 type watchRequest struct {
 	Op      string
@@ -20,7 +20,6 @@ type watchRequest struct {
 	Name    string
 	Options Options
 }
-
 type watchReply struct {
 	PID   int
 	Error string
@@ -114,7 +113,7 @@ func (w *watchdog) send(req watchRequest) (watchReply, error) {
 	}
 	result := make(chan response, 1)
 	// Pipe deadlines are not supported by every Windows pipe implementation.
-	// On timeout kill helper and close both ends to release this goroutine.
+	// On timeout kill the helper and close both ends to release this goroutine.
 	go func() {
 		if err := w.encoder.Encode(req); err != nil {
 			result <- response{err: err}

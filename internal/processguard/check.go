@@ -1,4 +1,4 @@
-package processguard
+﻿package processguard
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 	"os/exec"
 )
 
-// Check exercises real creation path, including Job/cgroup inheritance,
+// Check exercises the real creation path, including clone3/Job inheritance,
 // watchdog readiness, admission and cleanup. It does not start the HTTP server.
 func Check(ctx context.Context) (backend string, err error) {
 	var id [16]byte

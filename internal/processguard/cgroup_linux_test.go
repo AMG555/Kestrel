@@ -1,4 +1,4 @@
-//go:build linux
+﻿//go:build linux
 
 package processguard
 
@@ -17,7 +17,7 @@ import (
 func TestCgroupContainsSetsidAndAppliesLimits(t *testing.T) {
 	opts := testOptions()
 	if opts.CgroupRoot == "" {
-		t.Skip("set KESTREL_TEST_CGROUP_ROOT to a delegated cgroup v2 root")
+		t.Skip("set CSAI_TEST_CGROUP_ROOT to a delegated cgroup v2 root")
 	}
 	opts.Mode = "required"
 	opts.CPUQuotaMicros = 50000
@@ -35,7 +35,7 @@ func TestCgroupContainsSetsidAndAppliesLimits(t *testing.T) {
 	reaped := make(chan struct{})
 	go func() { _ = cmd.Wait(); close(reaped) }()
 	pid := readPID(t, file)
-	<-reaped
+	<-reaped // The launching shell is gone; the cgroup must still own setsid descendants.
 	root := filepath.Join(opts.CgroupRoot, "task-"+id)
 	for name, want := range map[string]string{"pids.max": "64", "memory.max": "268435456", "cpu.max": "50000 100000"} {
 		data, err := os.ReadFile(filepath.Join(root, name))

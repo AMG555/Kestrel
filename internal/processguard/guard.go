@@ -1,6 +1,6 @@
-// Package processguard provides OS containment and out-of-process crash cleanup.
+﻿// Package processguard provides OS containment and out-of-process crash cleanup.
 // It is intentionally independent of the Agent/MCP packages so it can be
-// cross-compiled and exercised without starting the full application server.
+// cross-compiled and exercised without starting the application.
 package processguard
 
 import (
@@ -10,7 +10,6 @@ import (
 	"sync"
 )
 
-// Options specifies resource limits and containment mode.
 type Options struct {
 	Mode           string `yaml:"mode" json:"mode"` // auto, required, process_group
 	CgroupRoot     string `yaml:"cgroup_root" json:"cgroup_root"`
@@ -19,14 +18,14 @@ type Options struct {
 	CPUQuotaMicros int64  `yaml:"cpu_quota_micros" json:"cpu_quota_micros"` // per 100000 us
 }
 
-// Launch wraps hooks for safe process invocation under containment.
 // Prepared commands must call Commit after Start and always call Dispose.
+// Commit releases the Unix fallback launch gate only after watchdog ownership
+// is acknowledged. Strong backends assign containment atomically at creation.
 type Launch struct {
 	Commit  func() error
 	Dispose func()
 }
 
-// Group represents a platform-specific containment group.
 type Group interface {
 	Name() string
 	Prepare(*exec.Cmd) (*Launch, error)
@@ -74,16 +73,12 @@ func Configure(o Options) error {
 	configured.Unlock()
 	return nil
 }
-
-// New creates a containment group using globally configured options.
 func New(id string) (Group, error) {
 	configured.RLock()
 	o := configured.opts
 	configured.RUnlock()
 	return NewWithOptions(id, o)
 }
-
-// NewWithOptions creates a containment group with specified options.
 func NewWithOptions(id string, o Options) (Group, error) {
 	var err error
 	o, err = normalize(o)

@@ -1,239 +1,243 @@
-package handler
+﻿package handler
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
-	"unicode"
+	"time"
+	"unicode/utf8"
+
+	"kestrel/internal/audit"
+	"kestrel/internal/config"
+	"kestrel/internal/security"
 
 	"github.com/gin-gonic/gin"
-	"kestrel/internal/auth"
-	"kestrel/internal/database"
-	"kestrel/internal/middleware"
+	"go.uber.org/zap"
 )
 
-// AuthHandler handles authentication endpoints.
+// AuthHandler handles authentication-related endpoints.
 type AuthHandler struct {
-	auth *auth.Service
-	db   *database.DB
+	manager    *security.AuthManager
+	config     *config.Config
+	configPath string
+	logger     *zap.Logger
+	audit      *audit.Service
 }
 
-// NewAuthHandler creates an AuthHandler.
-func NewAuthHandler(authSvc *auth.Service, db *database.DB) *AuthHandler {
-	return &AuthHandler{auth: authSvc, db: db}
+// SetAudit wires platform audit logging.
+func (h *AuthHandler) SetAudit(s *audit.Service) {
+	h.audit = s
 }
 
-// loginRequest is the body for POST /api/auth/login.
+// NewAuthHandler creates a new AuthHandler.
+func NewAuthHandler(manager *security.AuthManager, cfg *config.Config, configPath string, logger *zap.Logger) *AuthHandler {
+	return &AuthHandler{
+		manager:    manager,
+		config:     cfg,
+		configPath: configPath,
+		logger:     logger,
+	}
+}
+
 type loginRequest struct {
-	Username string `json:"username" binding:"required"`
+	Username string `json:"username"`
 	Password string `json:"password" binding:"required"`
 }
 
-// Login handles POST /api/auth/login.
+type changePasswordRequest struct {
+	OldPassword string `json:"oldPassword"`
+	NewPassword string `json:"newPassword"`
+}
+
+// Login verifies password and returns a session token.
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req loginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "username and password are required"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "密码不能为空"})
 		return
 	}
-
 	req.Username = strings.TrimSpace(req.Username)
-	if req.Username == "" || req.Password == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "username and password are required"})
+	if req.Username == "" || utf8.RuneCountInString(req.Username) > 64 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "用户名不能为空，且不能超过 64 个字符"})
 		return
 	}
 
-	token, user, err := h.auth.Login(req.Username, req.Password, c.ClientIP(), c.Request.UserAgent())
+	token, expiresAt, err := h.manager.Authenticate(req.Username, req.Password)
 	if err != nil {
-		// Audit the failed login attempt.
-		_ = h.db.WriteAuditLog(database.AuditParams{
-			ActorName:    req.Username,
-			Action:       "login",
-			Category:     "auth",
-			Result:       "failure",
-			ResourceType: "session",
-			ClientIP:     c.ClientIP(),
-			UserAgent:    c.Request.UserAgent(),
-			Message:      "login failed: " + err.Error(),
-		})
-		if err == auth.ErrBadCredentials {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid username or password"})
-			return
+		if h.audit != nil {
+			h.audit.Record(c, audit.Entry{
+				Level:    "warn",
+				Category: "auth",
+				Action:   "login",
+				Result:   "failure",
+				Message:  "登录失败：密码错误",
+				Actor:    strings.TrimSpace(req.Username),
+			})
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "login failed"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "密码错误"})
 		return
 	}
+	session, _ := h.manager.ValidateToken(token)
 
-	// Audit the successful login.
-	_ = h.db.WriteAuditLog(database.AuditParams{
-		ActorID:      user.ID,
-		ActorName:    user.Username,
-		Action:       "login",
-		Category:     "auth",
-		Result:       "success",
-		ResourceType: "session",
-		ClientIP:     c.ClientIP(),
-		UserAgent:    c.Request.UserAgent(),
-		Message:      "login successful",
-	})
+	if h.audit != nil {
+		h.audit.Record(c, audit.Entry{
+			Category:    "auth",
+			Action:      "login",
+			Result:      "success",
+			SessionHint: audit.HintFromToken(token),
+			Message:     "登录成功",
+			Actor:       session.Username,
+			Detail: map[string]interface{}{
+				"expires_at": expiresAt.UTC().Format(time.RFC3339),
+			},
+		})
+	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"token":                token,
-		"user_id":              user.ID,
-		"username":             user.Username,
-		"display_name":         user.DisplayName,
-		"must_change_password": user.MustChangePassword,
+		"token":               token,
+		"expires_at":          expiresAt.UTC().Format(time.RFC3339),
+		"session_duration_hr": h.manager.SessionDurationHours(),
+		"user": gin.H{
+			"id":           session.UserID,
+			"username":     session.Username,
+			"display_name": session.DisplayName,
+		},
+		"roles":             session.Roles,
+		"permissions":       permissionKeys(session.Permissions),
+		"permission_scopes": session.PermissionScopes,
+		"scope":             session.Scope,
 	})
 }
 
-// Logout handles POST /api/auth/logout.
+// Logout revokes the current session token.
 func (h *AuthHandler) Logout(c *gin.Context) {
-	userID, _ := c.Get(middleware.CtxUserID)
-	uid, _ := userID.(string)
-	username, _ := c.Get(middleware.CtxUsername)
-	uname, _ := username.(string)
-
-	token := auth.ExtractBearerToken(c.Request)
-	if token != "" {
-		_ = h.auth.Logout(token)
+	token := c.GetString(security.ContextAuthTokenKey)
+	if token == "" {
+		authHeader := c.GetHeader("Authorization")
+		if len(authHeader) > 7 && strings.EqualFold(authHeader[:7], "Bearer ") {
+			token = strings.TrimSpace(authHeader[7:])
+		} else {
+			token = strings.TrimSpace(authHeader)
+		}
 	}
 
-	_ = h.db.WriteAuditLog(database.AuditParams{
-		ActorID:      uid,
-		ActorName:    uname,
-		Action:       "logout",
-		Category:     "auth",
-		Result:       "success",
-		ResourceType: "session",
-		ClientIP:     c.ClientIP(),
-		UserAgent:    c.Request.UserAgent(),
-		Message:      "logout",
-	})
-
-	c.JSON(http.StatusOK, gin.H{"message": "logged out"})
+	h.manager.RevokeToken(token)
+	if h.audit != nil {
+		h.audit.Record(c, audit.Entry{
+			Category: "auth",
+			Action:   "logout",
+			Result:   "success",
+			Message:  "退出登录",
+		})
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "已退出登录"})
 }
 
-// changePasswordRequest is the body for POST /api/auth/change-password.
-type changePasswordRequest struct {
-	CurrentPassword string `json:"current_password" binding:"required"`
-	NewPassword     string `json:"new_password" binding:"required"`
-}
-
-// ChangePassword handles POST /api/auth/change-password.
+// ChangePassword updates the login password.
 func (h *AuthHandler) ChangePassword(c *gin.Context) {
-	userID, _ := c.Get(middleware.CtxUserID)
-	uid, _ := userID.(string)
-	username, _ := c.Get(middleware.CtxUsername)
-	uname, _ := username.(string)
-
 	var req changePasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "current_password and new_password are required"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "参数无效"})
 		return
 	}
 
-	if err := validatePasswordStrength(req.NewPassword); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	oldPassword := strings.TrimSpace(req.OldPassword)
+	newPassword := strings.TrimSpace(req.NewPassword)
+
+	if oldPassword == "" || newPassword == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "当前密码和新密码均不能为空"})
 		return
 	}
 
-	user, err := h.db.GetUserByID(uid)
-	if err != nil || user == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "user not found"})
+	if len(newPassword) < 8 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "新密码长度至少需要 8 位"})
 		return
 	}
 
-	if !auth.CheckPassword(req.CurrentPassword, user.PasswordHash) {
-		_ = h.db.WriteAuditLog(database.AuditParams{
-			ActorID:      uid,
-			ActorName:    uname,
-			Action:       "change_password",
-			Category:     "auth",
-			Result:       "failure",
-			ResourceType: "user",
-			ResourceID:   uid,
-			ClientIP:     c.ClientIP(),
-			UserAgent:    c.Request.UserAgent(),
-			Message:      "current password incorrect",
+	if oldPassword == newPassword {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "新密码不能与旧密码相同"})
+		return
+	}
+
+	session, _ := security.CurrentSession(c)
+	if session.Username == "" {
+		session.Username = "admin"
+	}
+	if !h.manager.CheckUserPassword(session.Username, oldPassword) {
+		if h.audit != nil {
+			h.audit.Record(c, audit.Entry{
+				Level:    "warn",
+				Category: "auth",
+				Action:   "change_password",
+				Result:   "failure",
+				Message:  "修改密码失败：当前密码不正确",
+			})
+		}
+		c.JSON(http.StatusBadRequest, gin.H{"error": "当前密码不正确"})
+		return
+	}
+
+	if session.UserID == "" {
+		session.UserID = "admin"
+	}
+	if err := h.manager.UpdateUserPassword(session.UserID, newPassword); err != nil {
+		if h.logger != nil {
+			h.logger.Error("更新用户密码失败", zap.Error(err))
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "更新用户密码失败"})
+		return
+	}
+
+	if h.logger != nil {
+		h.logger.Info("登录密码已更新，所有会话已失效")
+	}
+
+	if h.audit != nil {
+		h.audit.Record(c, audit.Entry{
+			Category: "auth",
+			Action:   "change_password",
+			Result:   "success",
+			Message:  "登录密码已修改",
 		})
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "current password is incorrect"})
-		return
 	}
 
-	newHash, err := auth.HashPassword(req.NewPassword)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to hash password"})
-		return
-	}
-
-	if err := h.db.UpdateUserPassword(uid, newHash); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update password"})
-		return
-	}
-
-	_ = h.db.WriteAuditLog(database.AuditParams{
-		ActorID:      uid,
-		ActorName:    uname,
-		Action:       "change_password",
-		Category:     "auth",
-		Result:       "success",
-		ResourceType: "user",
-		ResourceID:   uid,
-		ClientIP:     c.ClientIP(),
-		UserAgent:    c.Request.UserAgent(),
-		Message:      "password changed successfully",
-	})
-
-	c.JSON(http.StatusOK, gin.H{"message": "password changed successfully"})
+	c.JSON(http.StatusOK, gin.H{"message": "密码已更新，请使用新密码重新登录"})
 }
 
-// Me handles GET /api/auth/me.
-func (h *AuthHandler) Me(c *gin.Context) {
-	userID, _ := c.Get(middleware.CtxUserID)
-	uid, _ := userID.(string)
-
-	user, err := h.db.GetUserByID(uid)
-	if err != nil || user == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "user not found"})
+// Validate returns the current session status.
+func (h *AuthHandler) Validate(c *gin.Context) {
+	token := c.GetString(security.ContextAuthTokenKey)
+	if token == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "会话无效"})
 		return
 	}
 
-	roles, err := h.db.GetUserRoles(uid)
-	if err != nil {
-		roles = nil
+	session, ok := h.manager.ValidateToken(token)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "会话已过期"})
+		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"id":                   user.ID,
-		"username":             user.Username,
-		"display_name":         user.DisplayName,
-		"email":                user.Email,
-		"must_change_password": user.MustChangePassword,
-		"roles":                roles,
+		"token":      session.Token,
+		"expires_at": session.ExpiresAt.UTC().Format(time.RFC3339),
+		"user": gin.H{
+			"id":           session.UserID,
+			"username":     session.Username,
+			"display_name": session.DisplayName,
+		},
+		"roles":             session.Roles,
+		"permissions":       permissionKeys(session.Permissions),
+		"permission_scopes": session.PermissionScopes,
+		"scope":             session.Scope,
 	})
 }
 
-// validatePasswordStrength returns an error if the password doesn't meet complexity requirements.
-// Requirements: ≥12 chars, at least 1 uppercase, 1 lowercase, 1 digit, 1 special char.
-func validatePasswordStrength(password string) error {
-	if len(password) < 12 {
-		return fmt.Errorf("password must be at least 12 characters")
-	}
-	var hasUpper, hasLower, hasDigit, hasSpecial bool
-	for _, ch := range password {
-		switch {
-		case unicode.IsUpper(ch):
-			hasUpper = true
-		case unicode.IsLower(ch):
-			hasLower = true
-		case unicode.IsDigit(ch):
-			hasDigit = true
-		case unicode.IsPunct(ch) || unicode.IsSymbol(ch):
-			hasSpecial = true
+func permissionKeys(perms map[string]bool) []string {
+	keys := make([]string, 0, len(perms))
+	for key, ok := range perms {
+		if ok {
+			keys = append(keys, key)
 		}
 	}
-	if !hasUpper || !hasLower || !hasDigit || !hasSpecial {
-		return fmt.Errorf("password must contain uppercase, lowercase, digit, and special character")
-	}
-	return nil
+	return keys
 }

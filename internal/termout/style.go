@@ -1,4 +1,4 @@
-package termout
+﻿package termout
 
 import (
 	"fmt"
@@ -87,4 +87,22 @@ func (s *Style) boxBottom(innerWidth int) string {
 
 func (s *Style) boxRow(innerWidth int, content string) string {
 	return s.Cyan("│ ") + padRightDisplay(content, innerWidth) + s.Cyan(" │")
+}
+
+func (s *Style) printBox(rows []string, minInner, maxInner int) {
+	inner := maxDisplayWidth(rows...)
+	if inner < minInner {
+		inner = minInner
+	}
+	if maxInner > 0 && inner > maxInner {
+		inner = maxInner
+	}
+
+	s.BlankLine()
+	s.Println(s.boxTop(inner))
+	for _, row := range rows {
+		s.Println(s.boxRow(inner, row))
+	}
+	s.Println(s.boxBottom(inner))
+	s.BlankLine()
 }

@@ -1,4 +1,4 @@
-package runlease
+﻿package runlease
 
 import (
 	"context"
@@ -41,7 +41,6 @@ func TestConcurrentAdmissionAndCancellation(t *testing.T) {
 		t.Fatal(err)
 	}
 }
-
 func TestDetachedWorkerCapacityReleasedOnCompletion(t *testing.T) {
 	scope := New()
 	releases := make([]func(), 0, MaxTaskWorkers)
@@ -61,11 +60,11 @@ func TestDetachedWorkerCapacityReleasedOnCompletion(t *testing.T) {
 		t.Fatal(err)
 	}
 	release()
-	for _, r := range releases {
-		r()
+	for _, release := range releases {
+		release()
 	}
 	scope.Cancel()
-	if err := scope.Wait(context.Background()); err != nil {
+	if err = scope.Wait(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 }

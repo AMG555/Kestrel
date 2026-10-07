@@ -1,90 +1,100 @@
-package monitor
+﻿package monitor
 
 import (
-	"context"
 	"time"
 
-	"go.uber.org/zap"
 	"kestrel/internal/database"
+	"kestrel/internal/mcp"
+
+	"go.uber.org/zap"
 )
 
 const (
-	defaultStaleRunningAge   = 5 * time.Minute
-	defaultReconcileInterval = 2 * time.Minute
+	staleRunningMinAge       = 45 * time.Second
+	staleRunningReconcileGap = 2 * time.Minute
 )
 
-// ExecutionReconciler reconciles orphaned and stale running tool executions.
+// ExecutionReconciler 在启动或运行期将无对应协程的 running 执行记录收尾为 orphaned。
 type ExecutionReconciler struct {
-	db     *database.DB
-	logger *zap.Logger
+	db          *database.DB
+	mcpServer   *mcp.Server
+	externalMgr *mcp.ExternalMCPManager
+	logger      *zap.Logger
 }
 
-// NewExecutionReconciler creates a reconciler for tool executions.
-func NewExecutionReconciler(db *database.DB, logger *zap.Logger) *ExecutionReconciler {
+// NewExecutionReconciler creates a reconciler for orphaned MCP tool executions.
+func NewExecutionReconciler(db *database.DB, mcpServer *mcp.Server, externalMgr *mcp.ExternalMCPManager, logger *zap.Logger) *ExecutionReconciler {
 	return &ExecutionReconciler{
-		db:     db,
-		logger: logger,
+		db:          db,
+		mcpServer:   mcpServer,
+		externalMgr: externalMgr,
+		logger:      logger,
 	}
 }
 
-// ReconcileOnStartup marks all persisted running records as orphaned upon server restart.
-func (r *ExecutionReconciler) ReconcileOnStartup() int64 {
+// ReconcileOnStartup marks every persisted running row as orphaned (safe right after process start).
+func (r *ExecutionReconciler) ReconcileOnStartup() {
 	if r == nil || r.db == nil {
-		return 0
+		return
 	}
-	now := time.Now().UTC()
-	n, err := r.db.CancelOrphanedRunningToolExecutions(now, "execution interrupted by server restart")
+	now := time.Now()
+	n, err := r.db.CancelOrphanedRunningToolExecutions(now, "执行已中断（服务重启）")
 	if err != nil {
 		if r.logger != nil {
-			r.logger.Warn("Failed to reconcile orphaned running tool executions on startup", zap.Error(err))
+			r.logger.Warn("启动时清理孤儿 running 工具执行记录失败", zap.Error(err))
 		}
-		return 0
+		return
 	}
 	if n > 0 && r.logger != nil {
-		r.logger.Info("Reconciled orphaned running tool executions on startup", zap.Int64("count", n))
+		r.logger.Info("启动时已收尾孤儿 running 工具执行记录", zap.Int64("count", n))
 	}
-	return n
 }
 
-// ReconcileStaleRunning marks executions running longer than staleAge as orphaned.
-func (r *ExecutionReconciler) ReconcileStaleRunning(staleAge time.Duration) int64 {
+func (r *ExecutionReconciler) activeExecutionIDs() map[string]struct{} {
+	ids := make(map[string]struct{})
+	if r.mcpServer != nil {
+		for id := range r.mcpServer.ActiveRunningExecutionIDs() {
+			ids[id] = struct{}{}
+		}
+	}
+	if r.externalMgr != nil {
+		for id := range r.externalMgr.ActiveRunningExecutionIDs() {
+			ids[id] = struct{}{}
+		}
+	}
+	return ids
+}
+
+// ReconcileStaleRunning finalizes running rows that are not tracked in-memory and older than staleRunningMinAge.
+func (r *ExecutionReconciler) ReconcileStaleRunning() {
 	if r == nil || r.db == nil {
-		return 0
+		return
 	}
-	if staleAge <= 0 {
-		staleAge = defaultStaleRunningAge
-	}
-	cutoff := time.Now().UTC().Add(-staleAge)
-	n, err := r.db.CancelOrphanedRunningToolExecutions(cutoff, "execution timed out / worker detached")
+	now := time.Now()
+	n, err := r.db.FinalizeStaleRunningToolExecutions(now, staleRunningMinAge, r.activeExecutionIDs(), "执行已中断（会话已结束）")
 	if err != nil {
 		if r.logger != nil {
-			r.logger.Warn("Failed to reconcile stale running tool executions", zap.Error(err))
+			r.logger.Warn("定期收尾 stale running 工具执行记录失败", zap.Error(err))
 		}
-		return 0
+		return
 	}
 	if n > 0 && r.logger != nil {
-		r.logger.Info("Reconciled stale running tool executions", zap.Int64("count", n))
+		r.logger.Info("已收尾 stale running 工具执行记录", zap.Int64("count", n))
 	}
-	return n
 }
 
-// StartReconcileLoop periodically cleans up stale running tool executions.
-func (r *ExecutionReconciler) StartReconcileLoop(ctx context.Context, interval time.Duration) {
+// StartStaleRunningReconcileLoop periodically reconciles orphaned running tool executions.
+func StartStaleRunningReconcileLoop(r *ExecutionReconciler, logger *zap.Logger) {
 	if r == nil {
 		return
 	}
-	if interval <= 0 {
-		interval = defaultReconcileInterval
-	}
 	go func() {
-		ticker := time.NewTicker(interval)
+		ticker := time.NewTicker(staleRunningReconcileGap)
 		defer ticker.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				r.ReconcileStaleRunning(defaultStaleRunningAge)
+		for range ticker.C {
+			r.ReconcileStaleRunning()
+			if logger != nil {
+				logger.Debug("monitor stale running reconcile tick completed")
 			}
 		}
 	}()

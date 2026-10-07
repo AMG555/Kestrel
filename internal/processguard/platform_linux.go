@@ -1,4 +1,4 @@
-//go:build linux
+﻿//go:build linux
 
 package processguard
 
@@ -20,12 +20,12 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-var rootLock *os.File
+var rootLock *os.File // retained until server exit; never inherited by commands
 
 func configurePlatform(o *Options) error {
 	if o.CgroupRoot == "" {
 		if o.Mode == "required" {
-			return fmt.Errorf("required containment mode needs cgroup_root")
+			return fmt.Errorf("required isolation needs security.process_isolation.cgroup_root")
 		}
 		return nil
 	}
@@ -49,25 +49,27 @@ func configurePlatform(o *Options) error {
 		return err
 	}
 	o.CgroupRoot = root
-
+	// An exclusive host-side lock prevents one server's recovery sweep from
+	// killing tasks owned by another server using the same delegated root.
 	hash := sha256.Sum256([]byte(root))
-	lockPath := filepath.Join(os.TempDir(), fmt.Sprintf("kestrel-cgroup-%d-%x.lock", os.Getuid(), hash[:12]))
+	lockPath := filepath.Join(os.TempDir(), fmt.Sprintf("cyberstrike-cgroup-%d-%x.lock", os.Getuid(), hash[:12]))
 	fd, err := unix.Open(lockPath, unix.O_CREAT|unix.O_RDWR|unix.O_CLOEXEC|unix.O_NOFOLLOW, 0600)
 	if err != nil {
 		return err
 	}
 	lock := os.NewFile(uintptr(fd), lockPath)
 	if err = unix.Flock(fd, unix.LOCK_EX|unix.LOCK_NB); err != nil {
-		_ = lock.Close()
+		lock.Close()
 		return fmt.Errorf("cgroup root is already owned: %w", err)
 	}
 	success := false
 	defer func() {
 		if !success {
-			_ = lock.Close()
+			lock.Close()
 		}
 	}()
-
+	// cgroup v2 requires the delegated parent to have no processes before
+	// domain controllers can be enabled. Move only this server, never outsiders.
 	data, err := os.ReadFile(filepath.Join(root, "cgroup.procs"))
 	if err != nil {
 		return err
@@ -89,7 +91,7 @@ func configurePlatform(o *Options) error {
 	if err = os.WriteFile(filepath.Join(root, "cgroup.subtree_control"), []byte("+cpu +memory +pids"), 0600); err != nil {
 		return fmt.Errorf("delegate cpu, memory and pids controllers: %w", err)
 	}
-
+	// Recover only our names under the exclusively owned root. No PID replay.
 	entries, err := os.ReadDir(root)
 	if err != nil {
 		return err
@@ -119,7 +121,7 @@ func validateRoot(root string) (string, error) {
 		return "", err
 	}
 	if root != resolved || root == "/sys/fs/cgroup" || root == "/" {
-		return "", fmt.Errorf("use a dedicated delegated cgroup, not hierarchy root or symlink")
+		return "", fmt.Errorf("use a dedicated delegated cgroup, not the hierarchy root or a symlink")
 	}
 	var st unix.Statfs_t
 	if err = unix.Statfs(root, &st); err != nil {
@@ -130,7 +132,6 @@ func validateRoot(root string) (string, error) {
 	}
 	return root, nil
 }
-
 func validTaskName(name string) bool {
 	if !strings.HasPrefix(name, "task-") || len(name) != 41 {
 		return false
@@ -176,11 +177,7 @@ func newPlatformGroup(id string, o Options) (Group, error) {
 			_ = os.Remove(path)
 		}
 	}()
-	limits := map[string]string{
-		"pids.max":        strconv.Itoa(o.MaxProcesses),
-		"memory.max":      strconv.FormatInt(o.MemoryMaxBytes, 10),
-		"memory.oom.group": "1",
-	}
+	limits := map[string]string{"pids.max": strconv.Itoa(o.MaxProcesses), "memory.max": strconv.FormatInt(o.MemoryMaxBytes, 10), "memory.oom.group": "1"}
 	if o.CPUQuotaMicros > 0 {
 		limits["cpu.max"] = fmt.Sprintf("%d 100000", o.CPUQuotaMicros)
 	}
@@ -198,19 +195,18 @@ func newPlatformGroup(id string, o Options) (Group, error) {
 	}
 	g := &cgroupGroup{path: path, dir: dir}
 	w, err := startWatchdog(watchRequest{Name: "cgroup", Path: path}, func() {
+		// A guardian crash is also fail-closed while the owner is still alive.
 		_ = os.WriteFile(filepath.Join(path, "cgroup.kill"), []byte("1"), 0600)
 	})
 	if err != nil {
-		_ = dir.Close()
+		dir.Close()
 		return nil, err
 	}
 	g.watcher = w
 	success = true
 	return g, nil
 }
-
 func (g *cgroupGroup) Name() string { return "cgroup_v2" }
-
 func (g *cgroupGroup) Prepare(cmd *exec.Cmd) (*Launch, error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -223,13 +219,12 @@ func (g *cgroupGroup) Prepare(cmd *exec.Cmd) (*Launch, error) {
 	if cmd.SysProcAttr == nil {
 		cmd.SysProcAttr = &syscall.SysProcAttr{}
 	}
+	// clone3(CLONE_INTO_CGROUP), not a racy write of a newly started PID.
 	cmd.SysProcAttr.UseCgroupFD = true
 	cmd.SysProcAttr.CgroupFD = int(g.dir.Fd())
 	return &Launch{Commit: func() error { return nil }, Dispose: func() {}}, nil
 }
-
 func (g *cgroupGroup) Release(pid int) error { return nil }
-
 func (g *cgroupGroup) Close(ctx context.Context) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -245,7 +240,6 @@ func (g *cgroupGroup) Close(ctx context.Context) error {
 	g.dir = nil
 	return err
 }
-
 func killAndRemoveCgroup(ctx context.Context, path string) error {
 	if err := os.WriteFile(filepath.Join(path, "cgroup.kill"), []byte("1"), 0600); err != nil {
 		if os.IsNotExist(err) {
@@ -271,7 +265,6 @@ func killAndRemoveCgroup(ctx context.Context, path string) error {
 		}
 	}
 }
-
 func removeCgroupTree(path string) error {
 	entries, err := os.ReadDir(path)
 	if os.IsNotExist(err) {
@@ -293,7 +286,6 @@ func removeCgroupTree(path string) error {
 	}
 	return err
 }
-
 func guardianMain(dec *json.Decoder, enc *json.Encoder) error {
 	var req watchRequest
 	if err := dec.Decode(&req); err != nil {

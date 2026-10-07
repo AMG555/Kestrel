@@ -1,4 +1,4 @@
-package vision
+﻿package vision
 
 import (
 	"fmt"
@@ -12,30 +12,61 @@ var allowedImageExt = map[string]struct{}{
 	".bmp": {}, ".tif": {}, ".tiff": {},
 }
 
-// ResolveImagePath resolves and validates an image file path safely.
+// ResolveImagePath 解析并校验可读图片路径（支持任意目录；仍校验扩展名与常规文件）。
 func ResolveImagePath(path string, cwd string) (string, error) {
 	p := strings.TrimSpace(path)
 	if p == "" {
 		return "", fmt.Errorf("path is empty")
 	}
-
-	clean := filepath.Clean(p)
-	if !filepath.IsAbs(clean) && cwd != "" {
-		clean = filepath.Join(cwd, clean)
+	cwdTrim := strings.TrimSpace(cwd)
+	if cwdTrim == "" {
+		var err error
+		cwdTrim, err = os.Getwd()
+		if err != nil {
+			return "", fmt.Errorf("getwd: %w", err)
+		}
 	}
-
-	ext := strings.ToLower(filepath.Ext(clean))
-	if _, ok := allowedImageExt[ext]; !ok {
-		return "", fmt.Errorf("unsupported image format %q; allowed: png, jpg, jpeg, webp, gif, bmp, tiff", ext)
-	}
-
-	fi, err := os.Stat(clean)
+	cwdAbs, err := filepath.Abs(filepath.Clean(cwdTrim))
 	if err != nil {
-		return "", fmt.Errorf("cannot access image file: %w", err)
-	}
-	if fi.IsDir() {
-		return "", fmt.Errorf("path is a directory: %s", clean)
+		return "", err
 	}
 
-	return clean, nil
+	var candidate string
+	if filepath.IsAbs(p) {
+		candidate = filepath.Clean(p)
+	} else {
+		candidate = filepath.Clean(filepath.Join(cwdAbs, p))
+	}
+	resolved := normalizeAbsPath(candidate)
+	if resolved == "" {
+		return "", fmt.Errorf("invalid path")
+	}
+
+	ext := strings.ToLower(filepath.Ext(resolved))
+	if _, ok := allowedImageExt[ext]; !ok {
+		return "", fmt.Errorf("unsupported image extension %q", ext)
+	}
+
+	st, err := os.Stat(resolved)
+	if err != nil {
+		return "", fmt.Errorf("stat: %w", err)
+	}
+	if st.IsDir() {
+		return "", fmt.Errorf("not a regular file")
+	}
+	if st.Size() > 0 && st.Size() > 1<<30 {
+		return "", fmt.Errorf("file too large on disk")
+	}
+	return resolved, nil
+}
+
+func normalizeAbsPath(p string) string {
+	abs, err := filepath.Abs(filepath.Clean(p))
+	if err != nil {
+		return ""
+	}
+	if link, err := filepath.EvalSymlinks(abs); err == nil {
+		return link
+	}
+	return abs
 }

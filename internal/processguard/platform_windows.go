@@ -1,4 +1,4 @@
-//go:build windows
+﻿//go:build windows
 
 package processguard
 
@@ -27,11 +27,9 @@ func configurePlatform(o *Options) error {
 	}
 	return nil
 }
-
 func configureGuardian(cmd *exec.Cmd) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{CreationFlags: syscall.CREATE_NEW_PROCESS_GROUP}
 }
-
 func gatedChildMain(args []string) error {
 	return fmt.Errorf("Unix launch gates are unavailable on Windows")
 }
@@ -49,7 +47,7 @@ func newPlatformGroup(id string, o Options) (Group, error) {
 	if err := configurePlatform(&o); err != nil {
 		return nil, err
 	}
-	name := "Local\\Kestrel-" + id
+	name := "Local\\CyberStrikeAI-" + id
 	g := &jobGroup{}
 	w, err := startWatchdog(watchRequest{Name: name, Options: o}, func() {
 		g.mu.Lock()
@@ -62,7 +60,7 @@ func newPlatformGroup(id string, o Options) (Group, error) {
 	if err != nil {
 		return nil, err
 	}
-	fail := func(err error) (Group, error) { _ = w.close(); return nil, err }
+	fail := func(err error) (Group, error) { w.close(); return nil, err }
 	namePtr, err := windows.UTF16PtrFromString(name)
 	if err != nil {
 		return fail(err)
@@ -74,14 +72,14 @@ func newPlatformGroup(id string, o Options) (Group, error) {
 	}
 	parent, err := windows.OpenProcess(windows.PROCESS_CREATE_PROCESS|windows.PROCESS_DUP_HANDLE, false, uint32(w.cmd.Process.Pid))
 	if err != nil {
-		_ = windows.CloseHandle(windows.Handle(h))
+		windows.CloseHandle(windows.Handle(h))
 		return fail(err)
 	}
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	if g.broken {
-		_ = windows.CloseHandle(parent)
-		_ = windows.CloseHandle(windows.Handle(h))
+		windows.CloseHandle(parent)
+		windows.CloseHandle(windows.Handle(h))
 		return fail(fmt.Errorf("job guardian exited during setup"))
 	}
 	g.job = windows.Handle(h)
@@ -89,9 +87,7 @@ func newPlatformGroup(id string, o Options) (Group, error) {
 	g.watcher = w
 	return g, nil
 }
-
 func (g *jobGroup) Name() string { return "windows_job" }
-
 func (g *jobGroup) Prepare(cmd *exec.Cmd) (*Launch, error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -104,13 +100,13 @@ func (g *jobGroup) Prepare(cmd *exec.Cmd) (*Launch, error) {
 	if cmd.SysProcAttr == nil {
 		cmd.SysProcAttr = &syscall.SysProcAttr{}
 	}
-	// Windows inherits job at CreateProcess time from this parent.
+	// Windows inherits the job at CreateProcess time from this parent. The
+	// guardian joined the job BEFORE acknowledging readiness, closing the
+	// Start-then-Assign race and its suspended-process crash window.
 	cmd.SysProcAttr.ParentProcess = syscall.Handle(g.parent)
 	return &Launch{Commit: func() error { return nil }, Dispose: func() {}}, nil
 }
-
 func (g *jobGroup) Release(pid int) error { return nil }
-
 func (g *jobGroup) Close(ctx context.Context) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -141,7 +137,6 @@ func (g *jobGroup) Close(ctx context.Context) error {
 	g.closed = true
 	return errors.Join(g.watcher.close(), windows.CloseHandle(g.parent), windows.CloseHandle(g.job))
 }
-
 func guardianMain(dec *json.Decoder, enc *json.Encoder) error {
 	var req watchRequest
 	if err := dec.Decode(&req); err != nil {

@@ -1,224 +1,155 @@
-package skillpackage
+﻿package skillpackage
 
 import (
 	"fmt"
 	"os"
-	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
-	"time"
-
-	"gopkg.in/yaml.v3"
 )
 
-var headingRegex = regexp.MustCompile(`(?m)^(#+)\s+(.+)$`)
-
-// ParseSkillMD splits a SKILL.md into its YAML frontmatter and markdown body.
-func ParseSkillMD(raw []byte) (*SkillManifest, string, error) {
-	rawStr := string(raw)
-	if !strings.HasPrefix(strings.TrimSpace(rawStr), "---") {
-		return &SkillManifest{}, rawStr, nil
-	}
-
-	trimmed := strings.TrimLeft(rawStr, "\r\n ")
-	if !strings.HasPrefix(trimmed, "---") {
-		return &SkillManifest{}, rawStr, nil
-	}
-
-	parts := strings.SplitN(trimmed[3:], "---", 2)
-	if len(parts) < 2 {
-		return &SkillManifest{}, rawStr, nil
-	}
-
-	frontMatterYAML := parts[0]
-	body := strings.TrimLeft(parts[1], "\r\n")
-
-	var manifest SkillManifest
-	if err := yaml.Unmarshal([]byte(frontMatterYAML), &manifest); err != nil {
-		return nil, body, fmt.Errorf("parsing frontmatter yaml: %w", err)
-	}
-
-	return &manifest, body, nil
-}
-
-// ListSkills scans the skills root directory and returns metadata summaries.
-func ListSkills(skillsRoot string) ([]SkillSummary, error) {
-	entries, err := os.ReadDir(skillsRoot)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return []SkillSummary{}, nil
-		}
-		return nil, err
-	}
-
-	var results []SkillSummary
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-		dirName := entry.Name()
-		if strings.HasPrefix(dirName, ".") {
-			continue
-		}
-
-		skillDir := filepath.Join(skillsRoot, dirName)
-		skillMDPath := filepath.Join(skillDir, "SKILL.md")
-		data, err := os.ReadFile(skillMDPath)
-		if err != nil {
-			// Check lowercase or alternative
-			skillMDPath = filepath.Join(skillDir, "skill.md")
-			data, err = os.ReadFile(skillMDPath)
-			if err != nil {
-				continue
-			}
-		}
-
-		manifest, _, _ := ParseSkillMD(data)
-		fi, _ := os.Stat(skillMDPath)
-		modTime := ""
-		if fi != nil {
-			modTime = fi.ModTime().Format(time.RFC3339)
-		}
-
-		name := dirName
-		desc := ""
-		if manifest != nil {
-			if manifest.Name != "" {
-				name = manifest.Name
-			}
-			desc = manifest.Description
-		}
-
-		// Count package files
-		files, _ := os.ReadDir(skillDir)
-		fileCount := len(files)
-
-		tags := extractTags(dirName, manifest)
-
-		results = append(results, SkillSummary{
-			ID:          dirName,
-			DirName:     dirName,
-			Name:        name,
-			Description: desc,
-			Path:        skillDir,
-			Tags:        tags,
-			FileCount:   fileCount,
-			ModTime:     modTime,
-		})
-	}
-
-	sort.Slice(results, func(i, j int) bool {
-		return results[i].DirName < results[j].DirName
-	})
-
-	return results, nil
-}
-
-// GetSkill retrieves full details and package files for a specific skill.
-func GetSkill(skillsRoot, id string) (*SkillView, error) {
-	skillDir := filepath.Join(skillsRoot, id)
-	skillMDPath := filepath.Join(skillDir, "SKILL.md")
-	data, err := os.ReadFile(skillMDPath)
-	if err != nil {
-		skillMDPath = filepath.Join(skillDir, "skill.md")
-		data, err = os.ReadFile(skillMDPath)
-		if err != nil {
-			return nil, fmt.Errorf("skill not found: %w", err)
-		}
-	}
-
-	manifest, body, err := ParseSkillMD(data)
+// ListSkillSummaries scans skillsRoot and returns index rows for the admin API.
+func ListSkillSummaries(skillsRoot string) ([]SkillSummary, error) {
+	names, err := ListSkillDirNames(skillsRoot)
 	if err != nil {
 		return nil, err
 	}
-
-	sections := extractSections(body)
-	pkgFiles := listPackageFiles(skillDir)
-
-	name := id
-	desc := ""
-	allowedTools := ""
-	if manifest != nil {
-		if manifest.Name != "" {
-			name = manifest.Name
+	sort.Strings(names)
+	out := make([]SkillSummary, 0, len(names))
+	for _, dirName := range names {
+		su, err := loadSummary(skillsRoot, dirName)
+		if err != nil {
+			continue
 		}
-		desc = manifest.Description
-		allowedTools = manifest.AllowedTools
+		out = append(out, su)
 	}
+	return out, nil
+}
 
-	return &SkillView{
-		ID:           id,
-		DirName:      id,
-		Name:         name,
-		Description:  desc,
-		Content:      string(data),
-		AllowedTools: allowedTools,
-		Path:         skillDir,
-		Tags:         extractTags(id, manifest),
-		Sections:     sections,
-		PackageFiles: pkgFiles,
+func loadSummary(skillsRoot, dirName string) (SkillSummary, error) {
+	skillPath := SkillDir(skillsRoot, dirName)
+	mdPath, err := ResolveSKILLPath(skillPath)
+	if err != nil {
+		return SkillSummary{}, err
+	}
+	raw, err := os.ReadFile(mdPath)
+	if err != nil {
+		return SkillSummary{}, err
+	}
+	man, _, err := ParseSkillMD(raw)
+	if err != nil {
+		return SkillSummary{}, err
+	}
+	if err := ValidateAgentSkillManifestInPackage(man, dirName); err != nil {
+		return SkillSummary{}, err
+	}
+	fi, err := os.Stat(mdPath)
+	if err != nil {
+		return SkillSummary{}, err
+	}
+	pfiles, err := ListPackageFiles(skillsRoot, dirName)
+	if err != nil {
+		return SkillSummary{}, err
+	}
+	nFiles := 0
+	for _, p := range pfiles {
+		if !p.IsDir {
+			nFiles++
+		}
+	}
+	scripts, err := listScripts(skillsRoot, dirName)
+	if err != nil {
+		return SkillSummary{}, err
+	}
+	ver := versionFromMetadata(man)
+	return SkillSummary{
+		ID:          dirName,
+		DirName:     dirName,
+		Name:        man.Name,
+		Description: man.Description,
+		Version:     ver,
+		Path:        skillPath,
+		Tags:        manifestTags(man),
+		ScriptCount: len(scripts),
+		FileCount:   nFiles,
+		FileSize:    fi.Size(),
+		ModTime:     fi.ModTime().Format("2006-01-02 15:04:05"),
+		Progressive: true,
 	}, nil
 }
 
-func extractSections(body string) []SkillSection {
-	matches := headingRegex.FindAllStringSubmatch(body, -1)
-	var sections []SkillSection
-	for _, m := range matches {
-		level := len(m[1])
-		title := strings.TrimSpace(m[2])
-		id := strings.ToLower(strings.ReplaceAll(title, " ", "-"))
-		sections = append(sections, SkillSection{
-			ID:      id,
-			Title:   title,
-			Heading: m[0],
-			Level:   level,
-		})
-	}
-	return sections
+// LoadOptions mirrors legacy API query params for the web admin.
+type LoadOptions struct {
+	Depth   string // summary | full
+	Section string
 }
 
-func listPackageFiles(dir string) []PackageFileInfo {
-	var files []PackageFileInfo
-	_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-		if err != nil {
-			return nil
+// LoadSkill returns manifest + body + package listing for admin.
+func LoadSkill(skillsRoot, skillID string, opt LoadOptions) (*SkillView, error) {
+	skillPath := SkillDir(skillsRoot, skillID)
+	mdPath, err := ResolveSKILLPath(skillPath)
+	if err != nil {
+		return nil, err
+	}
+	raw, err := os.ReadFile(mdPath)
+	if err != nil {
+		return nil, err
+	}
+	man, body, err := ParseSkillMD(raw)
+	if err != nil {
+		return nil, err
+	}
+	if err := ValidateAgentSkillManifestInPackage(man, skillID); err != nil {
+		return nil, err
+	}
+	pfiles, err := ListPackageFiles(skillsRoot, skillID)
+	if err != nil {
+		return nil, err
+	}
+	scripts, err := listScripts(skillsRoot, skillID)
+	if err != nil {
+		return nil, err
+	}
+	sort.Slice(scripts, func(i, j int) bool { return scripts[i].RelPath < scripts[j].RelPath })
+	sections := deriveSections(body)
+	ver := versionFromMetadata(man)
+	v := &SkillView{
+		DirName:      skillID,
+		Name:         man.Name,
+		Description:  man.Description,
+		Content:      body,
+		Path:         skillPath,
+		Version:      ver,
+		Tags:         manifestTags(man),
+		Scripts:      scripts,
+		Sections:     sections,
+		PackageFiles: pfiles,
+	}
+	depth := strings.ToLower(strings.TrimSpace(opt.Depth))
+	if depth == "" {
+		depth = "full"
+	}
+	sec := strings.TrimSpace(opt.Section)
+	if sec != "" {
+		mds := splitMarkdownSections(body)
+		chunk := findSectionContent(mds, sec)
+		if chunk == "" {
+			v.Content = fmt.Sprintf("_(section %q not found in SKILL.md for skill %s)_", sec, skillID)
+		} else {
+			v.Content = chunk
 		}
-		rel, err := filepath.Rel(dir, p)
-		if err != nil || rel == "." {
-			return nil
-		}
-		files = append(files, PackageFileInfo{
-			Path:  filepath.ToSlash(rel),
-			Size:  info.Size(),
-			IsDir: info.IsDir(),
-		})
-		return nil
-	})
-	return files
+		return v, nil
+	}
+	if depth == "summary" {
+		v.Content = buildSummaryMarkdown(man.Name, man.Description, v.Tags, scripts, sections, body)
+	}
+	return v, nil
 }
 
-func extractTags(dirName string, manifest *SkillManifest) []string {
-	tagsSet := make(map[string]bool)
-	parts := strings.Split(dirName, "-")
-	for _, p := range parts {
-		if len(p) > 2 {
-			tagsSet[p] = true
-		}
+// ReadScriptText returns file content as string (for HTTP resource_path).
+func ReadScriptText(skillsRoot, skillID, relPath string, maxBytes int64) (string, error) {
+	b, err := ReadPackageFile(skillsRoot, skillID, relPath, maxBytes)
+	if err != nil {
+		return "", err
 	}
-	if manifest != nil && manifest.Metadata != nil {
-		if rawTags, ok := manifest.Metadata["tags"].([]interface{}); ok {
-			for _, t := range rawTags {
-				if s, ok := t.(string); ok {
-					tagsSet[s] = true
-				}
-			}
-		}
-	}
-	var tags []string
-	for t := range tagsSet {
-		tags = append(tags, t)
-	}
-	sort.Strings(tags)
-	return tags
+	return string(b), nil
 }

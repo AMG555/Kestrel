@@ -1,4 +1,4 @@
-//go:build !linux && !windows
+﻿//go:build !linux && !windows
 
 package processguard
 
@@ -13,14 +13,12 @@ func configurePlatform(o *Options) error {
 	}
 	return nil
 }
-
 func newPlatformGroup(id string, o Options) (Group, error) {
 	if err := configurePlatform(&o); err != nil {
 		return nil, err
 	}
 	return newUnixGroup()
 }
-
 func guardianMain(dec *json.Decoder, enc *json.Encoder) error {
 	var req watchRequest
 	if err := dec.Decode(&req); err != nil {

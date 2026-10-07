@@ -1,118 +1,167 @@
-package database
+﻿package database
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
-	"time"
 
-	"github.com/google/uuid"
+	"go.uber.org/zap"
 )
 
-// AttackChainNode is a node in the project attack graph.
+// AttackChainNode 攻击链节点
 type AttackChainNode struct {
-	ID          string                 `json:"id"`
-	ProjectID   string                 `json:"project_id"`
-	SessionID   string                 `json:"session_id"`
-	NodeType    string                 `json:"node_type"` // recon | exploit | finding | asset | pivot
-	NodeName    string                 `json:"node_name"`
-	ToolExecID  string                 `json:"tool_exec_id,omitempty"`
-	Metadata    map[string]interface{} `json:"metadata,omitempty"`
-	RiskScore   int                    `json:"risk_score"`
-	CreatedAt   time.Time              `json:"created_at"`
+	ID              string                 `json:"id"`
+	Type            string                 `json:"type"` // tool, vulnerability, target, exploit
+	Label           string                 `json:"label"`
+	ToolExecutionID string                 `json:"tool_execution_id,omitempty"`
+	Metadata        map[string]interface{} `json:"metadata"`
+	RiskScore       int                    `json:"risk_score"`
 }
 
-// AttackChainEdge connects two nodes.
+// AttackChainEdge 攻击链边
 type AttackChainEdge struct {
-	ID           string    `json:"id"`
-	ProjectID    string    `json:"project_id"`
-	SourceNodeID string    `json:"source_node_id"`
-	TargetNodeID string    `json:"target_node_id"`
-	EdgeType     string    `json:"edge_type"`
-	Weight       int       `json:"weight"`
-	CreatedAt    time.Time `json:"created_at"`
+	ID     string `json:"id"`
+	Source string `json:"source"`
+	Target string `json:"target"`
+	Type   string `json:"type"` // leads_to, exploits, enables, depends_on
+	Weight int    `json:"weight"`
 }
 
-// AddAttackChainNode inserts a node into the attack graph.
-func (db *DB) AddAttackChainNode(n *AttackChainNode) (*AttackChainNode, error) {
-	n.ID = uuid.New().String()
-	n.CreatedAt = time.Now().UTC()
-	meta, _ := json.Marshal(n.Metadata)
-	_, err := db.Exec(`
-		INSERT INTO attack_chain_nodes (id,project_id,session_id,node_type,node_name,tool_exec_id,metadata_json,risk_score,created_at)
-		VALUES (?,?,?,?,?,?,?,?,?)`,
-		n.ID, n.ProjectID, n.SessionID, n.NodeType, n.NodeName, n.ToolExecID, string(meta), n.RiskScore, n.CreatedAt,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("adding attack chain node: %w", err)
+// SaveAttackChainNode 保存攻击链节点
+func (db *DB) SaveAttackChainNode(conversationID, nodeID, nodeType, nodeName, toolExecutionID, metadata string, riskScore int) error {
+	var toolExecID sql.NullString
+	if toolExecutionID != "" {
+		toolExecID = sql.NullString{String: toolExecutionID, Valid: true}
 	}
-	return n, nil
+
+	var metadataJSON sql.NullString
+	if metadata != "" {
+		metadataJSON = sql.NullString{String: metadata, Valid: true}
+	}
+
+	query := `
+		INSERT OR REPLACE INTO attack_chain_nodes 
+		(id, conversation_id, node_type, node_name, tool_execution_id, metadata, risk_score, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+	`
+
+	_, err := db.Exec(query, nodeID, conversationID, nodeType, nodeName, toolExecID, metadataJSON, riskScore)
+	if err != nil {
+		db.logger.Error("保存攻击链节点失败", zap.Error(err), zap.String("nodeId", nodeID))
+		return err
+	}
+
+	return nil
 }
 
-// AddAttackChainEdge inserts an edge into the attack graph.
-func (db *DB) AddAttackChainEdge(e *AttackChainEdge) (*AttackChainEdge, error) {
-	e.ID = uuid.New().String()
-	e.CreatedAt = time.Now().UTC()
-	if e.Weight == 0 {
-		e.Weight = 1
-	}
-	_, err := db.Exec(`
-		INSERT INTO attack_chain_edges (id,project_id,source_node_id,target_node_id,edge_type,weight,created_at)
-		VALUES (?,?,?,?,?,?,?)`,
-		e.ID, e.ProjectID, e.SourceNodeID, e.TargetNodeID, e.EdgeType, e.Weight, e.CreatedAt,
-	)
+// SaveAttackChainEdge 保存攻击链边
+func (db *DB) SaveAttackChainEdge(conversationID, edgeID, sourceNodeID, targetNodeID, edgeType string, weight int) error {
+	query := `
+		INSERT OR REPLACE INTO attack_chain_edges 
+		(id, conversation_id, source_node_id, target_node_id, edge_type, weight, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+	`
+
+	_, err := db.Exec(query, edgeID, conversationID, sourceNodeID, targetNodeID, edgeType, weight)
 	if err != nil {
-		return nil, fmt.Errorf("adding attack chain edge: %w", err)
+		db.logger.Error("保存攻击链边失败", zap.Error(err), zap.String("edgeId", edgeID))
+		return err
 	}
-	return e, nil
+
+	return nil
 }
 
-// GetAttackChain returns all nodes and edges for a project.
-func (db *DB) GetAttackChain(projectID string) ([]*AttackChainNode, []*AttackChainEdge, error) {
-	nodeRows, err := db.Query(`
-		SELECT id,project_id,session_id,node_type,node_name,tool_exec_id,metadata_json,risk_score,created_at
-		FROM attack_chain_nodes WHERE project_id=? ORDER BY created_at`, projectID,
-	)
-	if err != nil {
-		return nil, nil, err
-	}
-	defer nodeRows.Close()
+// LoadAttackChainNodes 加载攻击链节点
+func (db *DB) LoadAttackChainNodes(conversationID string) ([]AttackChainNode, error) {
+	query := `
+		SELECT id, node_type, node_name, tool_execution_id, metadata, risk_score
+		FROM attack_chain_nodes
+		WHERE conversation_id = ?
+		ORDER BY created_at ASC, rowid ASC
+	`
 
-	var nodes []*AttackChainNode
-	for nodeRows.Next() {
-		n := &AttackChainNode{}
-		var meta string
-		if err := nodeRows.Scan(&n.ID, &n.ProjectID, &n.SessionID, &n.NodeType, &n.NodeName, &n.ToolExecID, &meta, &n.RiskScore, &n.CreatedAt); err != nil {
-			return nil, nil, err
+	rows, err := db.Query(query, conversationID)
+	if err != nil {
+		return nil, fmt.Errorf("查询攻击链节点失败: %w", err)
+	}
+	defer rows.Close()
+
+	var nodes []AttackChainNode
+	for rows.Next() {
+		var node AttackChainNode
+		var toolExecID sql.NullString
+		var metadataJSON sql.NullString
+
+		err := rows.Scan(&node.ID, &node.Type, &node.Label, &toolExecID, &metadataJSON, &node.RiskScore)
+		if err != nil {
+			db.logger.Warn("扫描攻击链节点失败", zap.Error(err))
+			continue
 		}
-		_ = json.Unmarshal([]byte(meta), &n.Metadata)
-		nodes = append(nodes, n)
-	}
-	if err := nodeRows.Err(); err != nil {
-		return nil, nil, err
-	}
 
-	edgeRows, err := db.Query(`
-		SELECT id,project_id,source_node_id,target_node_id,edge_type,weight,created_at
-		FROM attack_chain_edges WHERE project_id=? ORDER BY created_at`, projectID,
-	)
-	if err != nil {
-		return nil, nil, err
-	}
-	defer edgeRows.Close()
-
-	var edges []*AttackChainEdge
-	for edgeRows.Next() {
-		e := &AttackChainEdge{}
-		if err := edgeRows.Scan(&e.ID, &e.ProjectID, &e.SourceNodeID, &e.TargetNodeID, &e.EdgeType, &e.Weight, &e.CreatedAt); err != nil {
-			return nil, nil, err
+		if toolExecID.Valid {
+			node.ToolExecutionID = toolExecID.String
 		}
-		edges = append(edges, e)
+
+		if metadataJSON.Valid && metadataJSON.String != "" {
+			if err := json.Unmarshal([]byte(metadataJSON.String), &node.Metadata); err != nil {
+				db.logger.Warn("解析节点元数据失败", zap.Error(err))
+				node.Metadata = make(map[string]interface{})
+			}
+		} else {
+			node.Metadata = make(map[string]interface{})
+		}
+
+		nodes = append(nodes, node)
 	}
-	return nodes, edges, edgeRows.Err()
+
+	return nodes, nil
 }
 
-// DeleteAttackChainNode removes a node (cascades to edges).
-func (db *DB) DeleteAttackChainNode(id string) error {
-	_, err := db.Exec(`DELETE FROM attack_chain_nodes WHERE id=?`, id)
-	return err
+// LoadAttackChainEdges 加载攻击链边
+func (db *DB) LoadAttackChainEdges(conversationID string) ([]AttackChainEdge, error) {
+	query := `
+		SELECT id, source_node_id, target_node_id, edge_type, weight
+		FROM attack_chain_edges
+		WHERE conversation_id = ?
+		ORDER BY created_at ASC, rowid ASC
+	`
+
+	rows, err := db.Query(query, conversationID)
+	if err != nil {
+		return nil, fmt.Errorf("查询攻击链边失败: %w", err)
+	}
+	defer rows.Close()
+
+	var edges []AttackChainEdge
+	for rows.Next() {
+		var edge AttackChainEdge
+
+		err := rows.Scan(&edge.ID, &edge.Source, &edge.Target, &edge.Type, &edge.Weight)
+		if err != nil {
+			db.logger.Warn("扫描攻击链边失败", zap.Error(err))
+			continue
+		}
+
+		edges = append(edges, edge)
+	}
+
+	return edges, nil
+}
+
+// DeleteAttackChain 删除对话的攻击链数据
+func (db *DB) DeleteAttackChain(conversationID string) error {
+	// 先删除边（因为有外键约束）
+	_, err := db.Exec("DELETE FROM attack_chain_edges WHERE conversation_id = ?", conversationID)
+	if err != nil {
+		db.logger.Warn("删除攻击链边失败", zap.Error(err))
+	}
+
+	// 再删除节点
+	_, err = db.Exec("DELETE FROM attack_chain_nodes WHERE conversation_id = ?", conversationID)
+	if err != nil {
+		db.logger.Error("删除攻击链节点失败", zap.Error(err), zap.String("conversationId", conversationID))
+		return err
+	}
+
+	return nil
 }

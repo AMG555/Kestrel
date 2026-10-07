@@ -1,67 +1,70 @@
-package monitor
+﻿package monitor
 
 import (
-	"context"
 	"time"
 
-	"go.uber.org/zap"
+	"kestrel/internal/config"
 	"kestrel/internal/database"
+
+	"go.uber.org/zap"
 )
 
-const defaultPurgeInterval = 24 * time.Hour
+const retentionPurgeInterval = time.Hour
 
-// RetentionService periodically purges completed tool executions older than retentionDays.
-type RetentionService struct {
+// Service manages MCP tool execution monitor retention.
+type Service struct {
 	db     *database.DB
+	cfg    *config.Config
 	logger *zap.Logger
 }
 
-// NewRetentionService creates a new tool execution retention service.
-func NewRetentionService(db *database.DB, logger *zap.Logger) *RetentionService {
-	return &RetentionService{
-		db:     db,
-		logger: logger,
-	}
+// NewService creates a monitor retention service.
+func NewService(db *database.DB, cfg *config.Config, logger *zap.Logger) *Service {
+	return &Service{db: db, cfg: cfg, logger: logger}
 }
 
-// PurgeExpired deletes tool execution records older than retentionDays.
-func (s *RetentionService) PurgeExpired(retentionDays int) int64 {
-	if s == nil || s.db == nil || retentionDays <= 0 {
-		return 0
+// RetentionDays returns configured retention; 0 means keep forever.
+func (s *Service) RetentionDays() int {
+	if s == nil || s.cfg == nil {
+		return config.MonitorConfig{}.RetentionDaysEffective()
 	}
-	cutoff := time.Now().UTC().AddDate(0, 0, -retentionDays)
+	return s.cfg.Monitor.RetentionDaysEffective()
+}
+
+// PurgeExpired deletes tool execution rows older than retention_days when configured.
+func (s *Service) PurgeExpired() {
+	if s == nil || s.db == nil || s.cfg == nil {
+		return
+	}
+	days := s.cfg.Monitor.RetentionDaysEffective()
+	if days <= 0 {
+		return
+	}
+	cutoff := time.Now().AddDate(0, 0, -days)
 	n, err := s.db.PurgeToolExecutionsBefore(cutoff)
 	if err != nil {
 		if s.logger != nil {
-			s.logger.Warn("Failed to purge expired tool executions", zap.Error(err))
+			s.logger.Warn("清理过期 MCP 执行记录失败", zap.Error(err))
 		}
-		return 0
-	}
-	if n > 0 && s.logger != nil {
-		s.logger.Info("Purged expired tool executions", zap.Int64("deleted", n), zap.Int("retention_days", retentionDays))
-	}
-	return n
-}
-
-// StartRetentionLoop starts the background purge worker.
-func (s *RetentionService) StartRetentionLoop(ctx context.Context, retentionDays int, interval time.Duration) {
-	if s == nil || retentionDays <= 0 {
 		return
 	}
-	if interval <= 0 {
-		interval = defaultPurgeInterval
+	if n > 0 && s.logger != nil {
+		s.logger.Info("已清理过期 MCP 执行记录", zap.Int64("deleted", n), zap.Int("retention_days", days))
+	}
+}
+
+// StartRetentionLoop periodically purges expired tool execution rows.
+func StartRetentionLoop(s *Service, logger *zap.Logger) {
+	if s == nil {
+		return
 	}
 	go func() {
-		ticker := time.NewTicker(interval)
+		ticker := time.NewTicker(retentionPurgeInterval)
 		defer ticker.Stop()
-		// Initial purge on launch
-		s.PurgeExpired(retentionDays)
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				s.PurgeExpired(retentionDays)
+		for range ticker.C {
+			s.PurgeExpired()
+			if logger != nil {
+				logger.Debug("monitor retention tick completed")
 			}
 		}
 	}()

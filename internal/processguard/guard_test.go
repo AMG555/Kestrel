@@ -1,4 +1,4 @@
-//go:build !windows
+﻿//go:build !windows
 
 package processguard
 
@@ -19,11 +19,9 @@ import (
 func testID() string {
 	return fmt.Sprintf("%08x-1111-4111-8111-%012x", os.Getpid(), uint64(time.Now().UnixNano())&0xffffffffffff)
 }
-
 func testOptions() Options {
-	return Options{CgroupRoot: os.Getenv("KESTREL_TEST_CGROUP_ROOT"), MaxProcesses: 64, MemoryMaxBytes: 256 << 20}
+	return Options{CgroupRoot: os.Getenv("CSAI_TEST_CGROUP_ROOT"), MaxProcesses: 64, MemoryMaxBytes: 256 << 20}
 }
-
 func closeTestGroup(t *testing.T, g Group) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -32,7 +30,6 @@ func closeTestGroup(t *testing.T, g Group) {
 		t.Error(err)
 	}
 }
-
 func startTestCommand(g Group, command string) (*exec.Cmd, error) {
 	cmd := exec.Command("sh", "-c", command)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
@@ -51,7 +48,6 @@ func startTestCommand(g Group, command string) (*exec.Cmd, error) {
 	}
 	return cmd, nil
 }
-
 func readPID(t *testing.T, path string) int {
 	t.Helper()
 	deadline := time.Now().Add(5 * time.Second)
@@ -68,7 +64,6 @@ func readPID(t *testing.T, path string) int {
 	t.Fatalf("no PID written to %s", path)
 	return 0
 }
-
 func waitGone(t *testing.T, pid int) {
 	t.Helper()
 	deadline := time.Now().Add(5 * time.Second)
@@ -80,11 +75,10 @@ func waitGone(t *testing.T, pid int) {
 	}
 	t.Fatalf("PID %d survived cleanup", pid)
 }
-
 func TestGuardianReapsAfterOwnerSIGKILL(t *testing.T) {
 	pidPath := filepath.Join(t.TempDir(), "pid")
 	owner := exec.Command(os.Args[0], "-test.run=^TestGuardianOwnerHelper$")
-	owner.Env = append(os.Environ(), "KESTREL_GUARD_TEST_OWNER=1", "KESTREL_GUARD_TEST_PID="+pidPath)
+	owner.Env = append(os.Environ(), "CSAI_GUARD_TEST_OWNER=1", "CSAI_GUARD_TEST_PID="+pidPath)
 	if err := owner.Start(); err != nil {
 		t.Fatal(err)
 	}
@@ -96,16 +90,15 @@ func TestGuardianReapsAfterOwnerSIGKILL(t *testing.T) {
 	_ = owner.Wait()
 	waitGone(t, pid)
 }
-
 func TestGuardianOwnerHelper(t *testing.T) {
-	if os.Getenv("KESTREL_GUARD_TEST_OWNER") != "1" {
+	if os.Getenv("CSAI_GUARD_TEST_OWNER") != "1" {
 		t.Skip("subprocess helper")
 	}
 	g, err := NewWithOptions(testID(), testOptions())
 	if err != nil {
 		t.Fatal(err)
 	}
-	command := fmt.Sprintf("echo $$ > %q; exec sleep 300", os.Getenv("KESTREL_GUARD_TEST_PID"))
+	command := fmt.Sprintf("echo $$ > %q; exec sleep 300", os.Getenv("CSAI_GUARD_TEST_PID"))
 	cmd, err := startTestCommand(g, command)
 	if err != nil {
 		t.Fatal(err)
@@ -113,7 +106,6 @@ func TestGuardianOwnerHelper(t *testing.T) {
 	go cmd.Wait()
 	select {}
 }
-
 func TestGroupCloseAndAdmission(t *testing.T) {
 	g, err := NewWithOptions(testID(), testOptions())
 	if err != nil {
@@ -133,7 +125,6 @@ func TestGroupCloseAndAdmission(t *testing.T) {
 		t.Fatal("closed containment accepted a command")
 	}
 }
-
 func TestLaunchGateOwnerDisappearsBeforeCommit(t *testing.T) {
 	if runtime.GOOS == "linux" && testOptions().CgroupRoot != "" {
 		t.Skip("cgroup assignment is atomic without a gate")
@@ -153,13 +144,12 @@ func TestLaunchGateOwnerDisappearsBeforeCommit(t *testing.T) {
 	if err = cmd.Start(); err != nil {
 		t.Fatal(err)
 	}
-	launch.Dispose()
+	launch.Dispose() // simulate owner crashing before watchdog registration
 	_ = cmd.Wait()
 	if _, err = os.Stat(file); !os.IsNotExist(err) {
 		t.Fatal("unregistered child executed user code")
 	}
 }
-
 func TestRequiredIsolationFailsClosed(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Windows has Job Objects")

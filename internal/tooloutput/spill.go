@@ -1,5 +1,6 @@
-// Package tooloutput provides disk spilling and truncation for oversized tool execution outputs.
-// It keeps LLM context and WebSocket payloads within bounded memory limits.
+﻿// Package tooloutput spills oversized tool stdout/results to local files under
+// the reduction cache tree (tmp/reduction/...), so agents can read_file the
+// full text after context truncation.
 package tooloutput
 
 import (
@@ -18,16 +19,16 @@ const (
 	readFileHint   = "read_file"
 )
 
-// SpillOpts scopes where an execution output is written.
+// SpillOpts scopes where a trunc file is written (mirrors reduction RootDir layout).
 type SpillOpts struct {
-	RootDir        string
+	RootDir        string // reduction_root_dir or empty → tmp/reduction
 	ProjectID      string
-	SessionID      string
-	ExecutionID    string
+	ConversationID string
+	ExecutionID    string // preferred file name; empty → uuid
 }
 
-// SessionRoot returns the session/project-scoped reduction cache root.
-func SessionRoot(configuredBase, projectID, sessionID string) string {
+// SessionRoot returns the conversation/project-scoped reduction cache root.
+func SessionRoot(configuredBase, projectID, conversationID string) string {
 	base := strings.TrimSpace(configuredBase)
 	if base == "" {
 		base = defaultRootDir
@@ -35,16 +36,17 @@ func SessionRoot(configuredBase, projectID, sessionID string) string {
 	if pid := strings.TrimSpace(projectID); pid != "" {
 		return filepath.Join(base, "projects", sanitizeSegment(pid))
 	}
-	sess := strings.TrimSpace(sessionID)
-	if sess == "" {
-		sess = "default"
+	conv := strings.TrimSpace(conversationID)
+	if conv == "" {
+		conv = "default"
 	}
-	return filepath.Join(base, "sessions", sanitizeSegment(sess))
+	return filepath.Join(base, "conversations", sanitizeSegment(conv))
 }
 
-// WriteTruncFile writes full content under {sessionRoot}/trunc/{id} and returns an absolute path.
+// WriteTruncFile writes full content under {sessionRoot}/trunc/{id} and returns
+// an absolute path suitable for read_file.
 func WriteTruncFile(opts SpillOpts, content string) (string, error) {
-	session := SessionRoot(opts.RootDir, opts.ProjectID, opts.SessionID)
+	session := SessionRoot(opts.RootDir, opts.ProjectID, opts.ConversationID)
 	id := strings.TrimSpace(opts.ExecutionID)
 	if id == "" {
 		id = uuid.NewString()
@@ -64,7 +66,9 @@ func WriteTruncFile(opts SpillOpts, content string) (string, error) {
 	return path, nil
 }
 
-// BoundWithSpill truncates full text into a <persisted-output> block after spilling the original to disk.
+// BoundWithSpill truncates full text into a <persisted-output> notice after
+// spilling the original to disk. The returned string is always ≤ maxBytes when
+// maxBytes > 0. On spill failure it falls back to a prefix + marker (no path).
 func BoundWithSpill(full string, maxBytes int, opts SpillOpts) string {
 	if maxBytes <= 0 || len(full) <= maxBytes {
 		return full
@@ -76,14 +80,32 @@ func BoundWithSpill(full string, maxBytes int, opts SpillOpts) string {
 	return FormatPersistedOutput(full, path, maxBytes)
 }
 
-// FormatPersistedOutput builds a notice with head/tail previews that fits in maxBytes.
+// FormatPersistedOutput builds a reduction-compatible notice with head/tail
+// previews that fits in maxBytes.
 func FormatPersistedOutput(full, filePath string, maxBytes int) string {
+	return formatPersisted(len(full), filePath, full, maxBytes)
+}
+
+// FormatPersistedFromFile builds the notice using previews read from an already
+// spilled file (streaming collectors that never kept the full string in memory).
+func FormatPersistedFromFile(filePath string, originalSize, maxBytes int) string {
+	previewSrc := ""
+	if data, err := os.ReadFile(filePath); err == nil {
+		previewSrc = string(data)
+		if originalSize <= 0 {
+			originalSize = len(data)
+		}
+	}
+	return formatPersisted(originalSize, filePath, previewSrc, maxBytes)
+}
+
+func formatPersisted(originalSize int, filePath, previewSrc string, maxBytes int) string {
 	if maxBytes <= 0 {
 		maxBytes = 12000
 	}
-	originalSize := len(full)
+	// Always keep the absolute path readable for read_file, even under tight budgets.
 	minimal := fmt.Sprintf(
-		"<persisted-output>\nOutput too large (%d bytes). Full output saved to: %s\nUse %s to read.\n</persisted-output>",
+		"<persisted-output>\nOutput too large (%d). Full output saved to: %s\nUse %s to read.\n</persisted-output>",
 		originalSize, filePath, readFileHint,
 	)
 	if len(minimal) > maxBytes {
@@ -91,6 +113,7 @@ func FormatPersistedOutput(full, filePath string, maxBytes int) string {
 		if len(core) <= maxBytes {
 			return core
 		}
+		// Path longer than budget: keep as much of the path as possible after a short prefix.
 		prefix := "<persisted-output>Full output saved to: "
 		suffix := "</persisted-output>"
 		room := maxBytes - len(prefix) - len(suffix)
@@ -100,7 +123,7 @@ func FormatPersistedOutput(full, filePath string, maxBytes int) string {
 		return prefix + clampSuffix(filePath, room) + suffix
 	}
 
-	previewBudget := maxBytes - len(minimal) + 32
+	previewBudget := maxBytes - len(minimal) + 32 // approximate room beyond minimal shell
 	if previewBudget > 4000 {
 		previewBudget = 4000
 	}
@@ -109,11 +132,11 @@ func FormatPersistedOutput(full, filePath string, maxBytes int) string {
 	}
 	for previewBudget >= 0 {
 		half := previewBudget / 2
-		head := clampPrefix(full, half)
-		tail := clampSuffix(full, previewBudget-half)
+		head := clampPrefix(previewSrc, half)
+		tail := clampSuffix(previewSrc, previewBudget-half)
 		notice := fmt.Sprintf(
-			"<persisted-output>\nOutput too large (%d bytes). Full output saved to: %s\nUse %s with offset/limit to read parts of the file.\nPreview (head):\n%s\n\nPreview (tail):\n%s\n</persisted-output>",
-			originalSize, filePath, readFileHint, head, tail,
+			"<persisted-output>\nOutput too large (%d). Full output saved to: %s\nUse %s with offset/limit to read parts of the file.\nPreview (first %d):\n%s\n\nPreview (last %d):\n%s\n\n</persisted-output>",
+			originalSize, filePath, readFileHint, len(head), head, len(tail), tail,
 		)
 		if len(notice) <= maxBytes {
 			return notice
@@ -170,6 +193,7 @@ func sanitizeSegment(s string) string {
 	if s == "" {
 		return "default"
 	}
+	s = strings.ReplaceAll(s, string(filepath.Separator), "-")
 	s = strings.ReplaceAll(s, "/", "-")
 	s = strings.ReplaceAll(s, "\\", "-")
 	s = strings.ReplaceAll(s, "..", "__")
@@ -179,7 +203,8 @@ func sanitizeSegment(s string) string {
 	return s
 }
 
-// Tee writes every byte to a trunc file while callers keep only a bounded in-memory prefix.
+// Tee writes every byte to a trunc file while callers keep only a bounded
+// in-memory prefix. Safe for concurrent stdout/stderr writers.
 type Tee struct {
 	mu   sync.Mutex
 	opts SpillOpts
@@ -189,12 +214,12 @@ type Tee struct {
 	open bool
 }
 
-// NewTee prepares a lazy spill file.
+// NewTee prepares a lazy spill file (created on first Write).
 func NewTee(opts SpillOpts) *Tee {
 	return &Tee{opts: opts}
 }
 
-// Write appends to the spill file.
+// Write appends to the spill file, creating it on first use.
 func (t *Tee) Write(p []byte) (int, error) {
 	if t == nil {
 		return len(p), nil
@@ -202,7 +227,7 @@ func (t *Tee) Write(p []byte) (int, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	if err := t.ensureOpenLocked(); err != nil {
-		return len(p), nil
+		return len(p), nil // best-effort: never fail the tool pipe
 	}
 	if t.file == nil {
 		return len(p), nil
@@ -216,7 +241,7 @@ func (t *Tee) ensureOpenLocked() error {
 		return t.err
 	}
 	t.open = true
-	session := SessionRoot(t.opts.RootDir, t.opts.ProjectID, t.opts.SessionID)
+	session := SessionRoot(t.opts.RootDir, t.opts.ProjectID, t.opts.ConversationID)
 	id := strings.TrimSpace(t.opts.ExecutionID)
 	if id == "" {
 		id = uuid.NewString()
@@ -241,7 +266,7 @@ func (t *Tee) ensureOpenLocked() error {
 	return nil
 }
 
-// Path returns the absolute spill path.
+// Path returns the absolute spill path after any Write (may be empty if unused/failed).
 func (t *Tee) Path() string {
 	if t == nil {
 		return ""

@@ -1,4 +1,4 @@
-package termout
+﻿package termout
 
 import (
 	"regexp"
@@ -24,6 +24,7 @@ func runeDisplayWidth(r rune) int {
 	if r == utf8.RuneError {
 		return 0
 	}
+	// Most emoji / symbols render as double-width in modern terminals.
 	if isEmojiLikeRune(r) {
 		return 2
 	}
@@ -37,11 +38,11 @@ func runeDisplayWidth(r rune) int {
 
 func isEmojiLikeRune(r rune) bool {
 	switch {
-	case r >= 0x1F300 && r <= 0x1FAFF:
+	case r >= 0x1F300 && r <= 0x1FAFF: // pictographs / emoji
 		return true
-	case r >= 0x2600 && r <= 0x27BF:
+	case r >= 0x2600 && r <= 0x27BF: // misc symbols
 		return true
-	case r >= 0x2300 && r <= 0x23FF:
+	case r >= 0x2300 && r <= 0x23FF: // misc technical (⌚ etc.)
 		return true
 	case r >= 0x2B50 && r <= 0x2B55:
 		return true
@@ -59,4 +60,14 @@ func padRightDisplay(text string, target int) string {
 		return text
 	}
 	return text + strings.Repeat(" ", gap)
+}
+
+func maxDisplayWidth(rows ...string) int {
+	max := 0
+	for _, row := range rows {
+		if w := displayWidth(row); w > max {
+			max = w
+		}
+	}
+	return max
 }

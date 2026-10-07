@@ -1,4 +1,4 @@
-//go:build !windows
+﻿//go:build !windows
 
 package processguard
 
@@ -39,7 +39,6 @@ func newUnixGroup() (*unixGroup, error) {
 	g.watcher = w
 	return g, nil
 }
-
 func (g *unixGroup) Name() string     { return "process_group_watchdog" }
 func configureGuardian(cmd *exec.Cmd) { cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true} }
 
@@ -54,6 +53,7 @@ func (g *unixGroup) Prepare(cmd *exec.Cmd) (*Launch, error) {
 	if g.closed {
 		return nil, fmt.Errorf("process group is closed")
 	}
+	// A dead guardian rejects subsequent launches before user code is executed.
 	if _, err := g.watcher.send(watchRequest{Op: "ping"}); err != nil {
 		return nil, err
 	}
@@ -64,15 +64,15 @@ func (g *unixGroup) Prepare(cmd *exec.Cmd) (*Launch, error) {
 	spec, _ := json.Marshal(childSpec{Path: cmd.Path, Args: cmd.Args})
 	exe, err := os.Executable()
 	if err != nil {
-		_ = read.Close()
-		_ = write.Close()
+		read.Close()
+		write.Close()
 		return nil, err
 	}
 	fd := 3 + len(cmd.ExtraFiles)
 	cmd.ExtraFiles = append(cmd.ExtraFiles, read)
 	cmd.Path = exe
 	cmd.Args = []string{exe, childArg, strconv.Itoa(fd), base64.RawStdEncoding.EncodeToString(spec)}
-	return &Launch{Dispose: func() { _ = read.Close(); _ = write.Close() }, Commit: func() error {
+	return &Launch{Dispose: func() { read.Close(); write.Close() }, Commit: func() error {
 		g.mu.Lock()
 		defer g.mu.Unlock()
 		if g.closed {
@@ -87,7 +87,6 @@ func (g *unixGroup) Prepare(cmd *exec.Cmd) (*Launch, error) {
 		return err
 	}}, nil
 }
-
 func (g *unixGroup) Release(pid int) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -106,7 +105,6 @@ func (g *unixGroup) Release(pid int) error {
 	delete(g.pids, pid)
 	return nil
 }
-
 func (g *unixGroup) Close(ctx context.Context) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -130,7 +128,6 @@ func (g *unixGroup) Close(ctx context.Context) error {
 		}
 	}
 }
-
 func gatedChildMain(args []string) error {
 	if len(args) != 2 {
 		return fmt.Errorf("invalid internal launch")
@@ -144,7 +141,7 @@ func gatedChildMain(args []string) error {
 	if _, err = io.ReadFull(gate, token[:]); err != nil {
 		return fmt.Errorf("owner exited before launch: %w", err)
 	}
-	_ = gate.Close()
+	gate.Close()
 	if token[0] != 1 {
 		return fmt.Errorf("invalid launch token")
 	}
@@ -158,7 +155,6 @@ func gatedChildMain(args []string) error {
 	}
 	return syscall.Exec(spec.Path, spec.Args, os.Environ())
 }
-
 func groupGuardian(dec *json.Decoder, enc *json.Encoder) error {
 	pids := make(map[int]struct{})
 	return serveGuardian(dec, enc, func(req watchRequest) error {

@@ -1,4 +1,4 @@
-package audit
+﻿package audit
 
 import (
 	"encoding/json"
@@ -7,7 +7,7 @@ import (
 
 var sensitiveKeySubstrings = []string{
 	"password", "api_key", "apikey", "secret", "token", "authorization",
-	"credential", "private_key", "access_key", "auth_token", "jwt",
+	"credential", "private_key", "access_key",
 }
 
 // SanitizeDetail redacts sensitive keys and truncates serialized size.
@@ -20,8 +20,8 @@ func SanitizeDetail(detail map[string]interface{}, maxBytes int) map[string]inte
 	}
 	out := sanitizeValue("", detail)
 	if m, ok := out.(map[string]interface{}); ok {
-		b, err := json.Marshal(m)
-		if err == nil && len(b) > maxBytes {
+		b, _ := json.Marshal(m)
+		if len(b) > maxBytes {
 			return map[string]interface{}{
 				"_truncated": true,
 				"_preview":   string(b[:maxBytes]),
@@ -30,31 +30,6 @@ func SanitizeDetail(detail map[string]interface{}, maxBytes int) map[string]inte
 		return m
 	}
 	return map[string]interface{}{"value": out}
-}
-
-// SanitizeJSON parses arbitrary JSON, scrubs sensitive keys, and returns clean JSON string.
-func SanitizeJSON(raw []byte, maxBytes int) string {
-	if len(raw) == 0 {
-		return "{}"
-	}
-	var data interface{}
-	if err := json.Unmarshal(raw, &data); err != nil {
-		return "{}"
-	}
-	scrubbed := sanitizeValue("", data)
-	b, err := json.Marshal(scrubbed)
-	if err != nil {
-		return "{}"
-	}
-	if maxBytes > 0 && len(b) > maxBytes {
-		truncMap := map[string]interface{}{
-			"_truncated": true,
-			"_preview":   string(b[:maxBytes]),
-		}
-		tb, _ := json.Marshal(truncMap)
-		return string(tb)
-	}
-	return string(b)
 }
 
 func sanitizeValue(key string, v interface{}) interface{} {

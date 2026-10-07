@@ -1,4 +1,4 @@
-package audit
+﻿package audit
 
 import (
 	"crypto/sha256"
@@ -6,150 +6,141 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
+	"kestrel/internal/config"
 	"kestrel/internal/database"
-	"kestrel/internal/middleware"
+	"kestrel/internal/security"
+
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"go.uber.org/zap"
 )
 
-// Service persists platform audit logs with security sanitization and throttling.
+// Service persists platform audit logs.
 type Service struct {
 	db           *database.DB
+	cfg          *config.Config
 	logger       *zap.Logger
 	failThrottle *failureThrottle
-	cooldownSec  int
-	maxDetail    int
 }
 
 // NewService creates an audit service.
-func NewService(db *database.DB, logger *zap.Logger) *Service {
+func NewService(db *database.DB, cfg *config.Config, logger *zap.Logger) *Service {
 	return &Service{
 		db:           db,
+		cfg:          cfg,
 		logger:       logger,
 		failThrottle: newFailureThrottle(),
-		cooldownSec:  5,
-		maxDetail:    8192,
 	}
 }
 
-// SetCooldown sets failure throttle cooldown in seconds.
-func (s *Service) SetCooldown(sec int) {
-	if sec > 0 {
-		s.cooldownSec = sec
+// Enabled reports whether audit persistence is on.
+func (s *Service) Enabled() bool {
+	if s == nil || s.cfg == nil {
+		return false
 	}
+	return s.cfg.Audit.EnabledEffective()
 }
 
-// SetMaxDetailBytes sets the maximum serialized byte length for audit detail before truncation.
-func (s *Service) SetMaxDetailBytes(n int) {
-	if n > 0 {
-		s.maxDetail = n
-	}
-}
-
-// Record writes an audit log entry from a Gin request context.
+// Record writes one audit row from a Gin request context.
 func (s *Service) Record(c *gin.Context, e Entry) {
-	if s == nil || s.db == nil {
+	if s == nil || !s.Enabled() || s.db == nil {
 		return
 	}
 	if strings.TrimSpace(e.Category) == "" || strings.TrimSpace(e.Action) == "" {
 		return
 	}
-	if e.Result == ResultFailure && !s.allowFailure(c, e) {
+	if e.Result == "failure" && !s.allowFailureAudit(c, e) {
 		return
 	}
 	if strings.TrimSpace(e.Result) == "" {
-		e.Result = ResultSuccess
+		e.Result = "success"
 	}
 	if strings.TrimSpace(e.Level) == "" {
-		if e.Result == ResultFailure || e.Result == ResultBlocked {
+		if e.Result == "failure" {
 			e.Level = "warn"
 		} else {
 			e.Level = "info"
 		}
 	}
-
-	actorID := e.ActorID
-	actorName := e.ActorName
-	if c != nil {
-		if actorID == "" {
-			if id, ok := c.Get(middleware.CtxUserID); ok {
-				actorID, _ = id.(string)
-			}
+	if strings.TrimSpace(e.Actor) == "" {
+		if c != nil {
+			e.Actor = strings.TrimSpace(c.GetString(security.ContextUsernameKey))
 		}
-		if actorName == "" {
-			if name, ok := c.Get(middleware.CtxUsername); ok {
-				actorName, _ = name.(string)
-			}
+		if e.Actor == "" {
+			e.Actor = "admin"
 		}
 	}
-	if actorName == "" {
-		actorName = "system"
-	}
+	maxDetail := s.cfg.Audit.MaxDetailBytesEffective()
+	detail := SanitizeDetail(e.Detail, maxDetail)
 
-	clientIP := e.ClientIP
-	userAgent := e.UserAgent
-	if c != nil {
-		if clientIP == "" {
-			clientIP = c.ClientIP()
-		}
-		if userAgent == "" {
-			ua := c.GetHeader("User-Agent")
-			if len(ua) > 512 {
-				ua = ua[:512]
-			}
-			userAgent = ua
+	sessionHintVal := e.SessionHint
+	if sessionHintVal == "" && c != nil {
+		if token := c.GetString(security.ContextAuthTokenKey); token != "" {
+			sessionHintVal = sessionHint(token)
 		}
 	}
+	clientIPVal := e.ClientIP
+	if clientIPVal == "" {
+		clientIPVal = clientIP(c)
+	}
 
-	sanitizedDetail := SanitizeDetail(e.Detail, s.maxDetail)
-
-	err := s.db.WriteAuditLog(database.AuditParams{
-		ActorID:      actorID,
-		ActorName:    actorName,
-		Action:       e.Action,
+	row := &database.AuditLog{
+		ID:           "audit_" + strings.ReplaceAll(uuid.New().String(), "-", ""),
+		CreatedAt:    time.Now(),
+		Level:        e.Level,
 		Category:     e.Category,
+		Action:       e.Action,
 		Result:       e.Result,
+		Actor:        e.Actor,
+		SessionHint:  sessionHintVal,
+		ClientIP:     clientIPVal,
+		UserAgent:    userAgent(c),
 		ResourceType: e.ResourceType,
 		ResourceID:   e.ResourceID,
-		ClientIP:     clientIP,
-		UserAgent:    userAgent,
 		Message:      e.Message,
-		Detail:       sanitizedDetail,
-	})
-	if err != nil && s.logger != nil {
-		s.logger.Warn("Failed to persist audit log",
-			zap.String("category", e.Category),
+		Detail:       detail,
+	}
+	if err := s.db.AppendAuditLog(row); err != nil && s.logger != nil {
+		s.logger.Warn("写入审计日志失败",
 			zap.String("action", e.Action),
 			zap.Error(err),
 		)
 	}
 }
 
-// RecordSystem writes an audit record without HTTP context.
+// RecordSystem writes an audit row without HTTP context (e.g. retention cleanup).
 func (s *Service) RecordSystem(e Entry) {
 	s.Record(nil, e)
 }
 
-// PurgeExpired deletes audit rows older than retentionDays.
-func (s *Service) PurgeExpired(retentionDays int) (int64, error) {
-	if s == nil || s.db == nil || retentionDays <= 0 {
-		return 0, nil
+// PurgeExpired deletes rows older than retention_days when configured.
+func (s *Service) PurgeExpired() {
+	if s == nil || s.db == nil || s.cfg == nil {
+		return
 	}
-	deleted, err := s.db.PurgeOldAuditLogs(retentionDays)
+	days := s.cfg.Audit.RetentionDaysEffective()
+	if days <= 0 {
+		return
+	}
+	cutoff := time.Now().AddDate(0, 0, -days)
+	n, err := s.db.DeleteAuditLogsBefore(cutoff)
 	if err != nil {
 		if s.logger != nil {
-			s.logger.Warn("Failed to purge expired audit logs", zap.Error(err))
+			s.logger.Warn("清理过期审计日志失败", zap.Error(err))
 		}
-		return 0, err
+		return
 	}
-	if deleted > 0 && s.logger != nil {
-		s.logger.Info("Purged expired audit logs", zap.Int64("deleted", deleted))
+	if n > 0 && s.logger != nil {
+		s.logger.Info("已清理过期审计日志", zap.Int64("deleted", n))
 	}
-	return deleted, nil
 }
 
-// HintFromToken returns a 8-character hex SHA-256 prefix for session tokens.
+// HintFromToken returns a short stable hash prefix for a session token.
 func HintFromToken(token string) string {
+	return sessionHint(token)
+}
+
+func sessionHint(token string) string {
 	token = strings.TrimSpace(token)
 	if token == "" {
 		return ""
@@ -158,14 +149,29 @@ func HintFromToken(token string) string {
 	return hex.EncodeToString(sum[:4])
 }
 
-func (s *Service) allowFailure(c *gin.Context, e Entry) bool {
-	if !IsAuthFailureThrottled(e.Category, e.Action) {
+func (s *Service) allowFailureAudit(c *gin.Context, e Entry) bool {
+	if !isAuthFailureThrottled(e.Category, e.Action) {
 		return true
 	}
-	ip := e.ClientIP
-	if c != nil {
-		ip = c.ClientIP()
+	cooldown := time.Duration(s.cfg.Audit.AuthFailureCooldownEffective()) * time.Second
+	key := authFailureThrottleKey(e.Category, e.Action, clientIP(c))
+	return s.failThrottle.allow(key, cooldown)
+}
+
+func clientIP(c *gin.Context) string {
+	if c == nil {
+		return ""
 	}
-	key := AuthFailureThrottleKey(e.Category, e.Action, ip)
-	return s.failThrottle.allow(key, time.Duration(s.cooldownSec)*time.Second)
+	return c.ClientIP()
+}
+
+func userAgent(c *gin.Context) string {
+	if c == nil {
+		return ""
+	}
+	ua := c.GetHeader("User-Agent")
+	if len(ua) > 512 {
+		return ua[:512]
+	}
+	return ua
 }
