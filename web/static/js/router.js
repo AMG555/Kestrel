@@ -125,7 +125,7 @@ function initRouter() {
 
 // Switch  page
 function switchPage( pageId) {
-    const targetPage = document.getElementById(` page-${ pageId}`);
+    const targetPage = document.getElementById(`page-${ pageId}`);
     if (!targetPage) return;
     if ( pageId !== 'chat') {
         setChatConversationRestorePending('', false);
@@ -148,7 +148,7 @@ function switchPage( pageId) {
         void window.syncC2NavOnceFromServer();
     }
     // Hide all  pages
-    document.querySelectorAll('. page').forEach( page => {
+    document.querySelectorAll('.page').forEach( page => {
          page.classList.remove('active');
     });
     
