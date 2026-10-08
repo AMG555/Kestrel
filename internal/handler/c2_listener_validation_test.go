@@ -72,7 +72,7 @@ func TestC2OnelinerRejectsInvalidCallbackAndUsesListenerScheme(t *testing.T) {
 	})
 	r.POST("/oneliner", h.PayloadOneliner)
 	for _, host := range []string{"bad host/abc", "https://example.com", "example.com:8443", "example.com", "::1"} {
-		req := httptest.NewRequest(http.MethodPost, "/oneliner", bytes.NewBufferString(fmt.Sprintf(`{"listener_id":"https","kind":"curl_beacon","host":%q}`, host)))
+		req := httptest.NewRequest(http.MethodPost, "/oneliner", bytes.NewBufferString(fmt.Sprintf(`{"listener_id":"https","kind":"curl","host":%q}`, host)))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
@@ -82,7 +82,7 @@ func TestC2OnelinerRejectsInvalidCallbackAndUsesListenerScheme(t *testing.T) {
 		}
 		if valid {
 			if w.Code != 200 {
-				t.Fatalf("valid callback status: %d", w.Code)
+				t.Fatalf("valid callback status: %d body: %s", w.Code, w.Body.String())
 			}
 			expected := "https://example.com:8443"
 			if host == "::1" {

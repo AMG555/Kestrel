@@ -161,8 +161,9 @@ SELECT msg.id, msg.conversation_id,
        ), msg.updated_at, msg.created_at) AS interrupted_at
 FROM messages msg
 WHERE msg.role = 'assistant'
-  -- '处理中...' is the legacy Chinese "Processing..." message; both variants are matched for backward compatibility with existing database records.
-  AND TRIM(msg.content) IN ('处理中...', 'Processing...')
+  -- '处理中...' is the legacy Chinese "Processing..." placeholder; 'processing...' (lowercase) is the current production value;
+  -- 'Processing...' is retained for backward compatibility with existing database records.
+  AND TRIM(msg.content) IN ('处理中...', 'processing...', 'Processing...')
   AND (
       EXISTS (
           SELECT 1 FROM hitl_interrupts hi
@@ -251,7 +252,7 @@ WHERE msg.role = 'assistant'
 		result, err := tx.Exec(`
 UPDATE messages
 SET content = ?, updated_at = ?
-WHERE id = ? AND TRIM(content) IN ('处理中...', 'Processing...')`,
+WHERE id = ? AND TRIM(content) IN ('处理中...', 'processing...', 'Processing...')`,
 			notice, item.interruptedAt, item.messageID)
 		if err != nil {
 			return err

