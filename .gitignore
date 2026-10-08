@@ -36,3 +36,22 @@ config.yaml
 Thumbs.db
 .idea/
 .vscode/settings.json
+
+# -- Temporary helper / scratch scripts -----------------------
+_translate_*.py
+_translate_*.ps1
+_scan_*.py
+_fix_*.py
+_fix_*.js
+_check_*.py
+_check_*.js
+_show_*.py
+_extract_*.py
+_restore_*.py
+_analyze_*.py
+_analyze_*.js
+_test_all_*.js
+_reword_*.sh
+_*_chinese.txt
+_*_hits.txt
+_remaining_lines.json
