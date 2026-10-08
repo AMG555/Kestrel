@@ -1,4 +1,4 @@
-// Disk-space usage stats and garbage cleanup (Settings -> Storage cleanup)
+﻿// Disk-space usage stats and garbage cleanup (Settings -> Storage cleanup)
 //
 // Data sources:
 //   GET  /api/storage/meta    Cleanup policy and category metadata
@@ -120,9 +120,9 @@
             : '');
 
         setText('storage-total-bytes', fmtBytes(totals.bytes));
-        setText('storage-total-units', (totals.units || 0) + ' ' + st('settingsStorage. itemsUnit', ' items'));
+        setText('storage-total-units', (totals.units || 0) + ' ' + st('settingsStorage.itemsUnit', ' items'));
         setText('storage-reclaimable-bytes', fmtBytes(totals.reclaimable_bytes));
-        setText('storage-reclaimable-units', (totals.reclaimable_units || 0) + ' ' + st('settingsStorage. itemsUnit', ' items'));
+        setText('storage-reclaimable-units', (totals.reclaimable_units || 0) + ' ' + st('settingsStorage.itemsUnit', ' items'));
 
         if (fs.available && fs.inodes_total > 0) {
             var usedInodes = Math.max(0, fs.inodes_total - fs.inodes_free);
@@ -151,7 +151,7 @@
             var missing = !!s.missing;
             var reclaimParts = [];
             if (!missing) {
-                reclaimParts.push((s.reclaimable_units || 0) + ' ' + st('settingsStorage. itemsUnit', ' items'));
+                reclaimParts.push((s.reclaimable_units || 0) + ' ' + st('settingsStorage.itemsUnit', ' items'));
                 if (s.orphan_units) {
                     reclaimParts.push(st('settingsStorage.orphanSuffix', 'incl. orphans') + ' ' + s.orphan_units);
                 }
@@ -223,8 +223,8 @@
             ? st('settingsStorage.previewTitle', 'Preview results (no files deleted)')
             : st('settingsStorage.cleanDone', 'Cleanup complete');
         var summary = isPreview
-            ? fmtBytes(totals.reclaimable_bytes) + ' / ' + (totals.reclaimable_units || 0) + ' ' + st('settingsStorage. itemsUnit', ' items')
-            : fmtBytes(totals.freed_bytes) + ' / ' + (totals.removed_units || 0) + ' ' + st('settingsStorage. itemsUnit', ' items');
+            ? fmtBytes(totals.reclaimable_bytes) + ' / ' + (totals.reclaimable_units || 0) + ' ' + st('settingsStorage.itemsUnit', ' items')
+            : fmtBytes(totals.freed_bytes) + ' / ' + (totals.removed_units || 0) + ' ' + st('settingsStorage.itemsUnit', ' items');
 
         var rows = ((rep && rep.categories) || [])
             .filter(function (c) {
@@ -232,8 +232,8 @@
             })
             .map(function (c) {
                 var main = isPreview
-                    ? fmtBytes(c.reclaimable_bytes) + ' / ' + (c.reclaimable_units || 0) + ' ' + st('settingsStorage. itemsUnit', ' items')
-                    : fmtBytes(c.freed_bytes) + ' / ' + (c.removed_units || 0) + ' ' + st('settingsStorage. itemsUnit', ' items');
+                    ? fmtBytes(c.reclaimable_bytes) + ' / ' + (c.reclaimable_units || 0) + ' ' + st('settingsStorage.itemsUnit', ' items')
+                    : fmtBytes(c.freed_bytes) + ' / ' + (c.removed_units || 0) + ' ' + st('settingsStorage.itemsUnit', ' items');
                 var errs = (c.errors || []).slice(0, 3).map(esc).join('<br>');
                 return '<li><span>' + esc(catLabel(c)) + '</span><span>' + esc(main)
                     + (errs ? '<br><span class="storage-error-text">' + errs + '</span>' : '')
@@ -246,7 +246,7 @@
             : '<p class="storage-muted">' + esc(st('settingsStorage.nothingToClean', 'No items currently eligible for cleanup.')) + '</p>';
         if (totals.skipped_active) {
             html += '<p class="storage-muted">' + esc(st('settingsStorage.skippedActiveNote', 'Skipped recently active sessions: ')
-                + totals.skipped_active + ' ' + st('settingsStorage. itemsUnit', ' items')) + '</p>';
+                + totals.skipped_active + ' ' + st('settingsStorage.itemsUnit', ' items')) + '</p>';
         }
         el.className = 'storage-result';
         el.innerHTML = html;

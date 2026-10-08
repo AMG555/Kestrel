@@ -1670,7 +1670,7 @@ function renderToolsPagination() {
     const paginationT = (key, opts) => {
         if (typeof window.t === 'function') return window.t(key, opts);
         if (key === 'MCP.pagination INFO' && opts) return `Showing ${opts.start}-${opts.end} / Total ${opts.total} tools`;
-        if (key === 'MCP. page INFO' && opts) return `Round ${opts. page} / ${opts.total}  page`;
+        if (key === 'MCP.pageInfo' && opts) return `Round ${opts. page} / ${opts.total}  page`;
         return key;
     };
     pagination.innerHTML = `
@@ -1689,7 +1689,7 @@ function renderToolsPagination() {
         <div class="pagination-controls">
             <button class="btn-secondary" onclick="loadToolsList(1, ${settingsEscapeJsStringAttr(toolssearchKeyword)})" ${ page === 1 ? 'disabled' : ''}>${t('MCP.firstPage')}</button>
             <button class="btn-secondary" onclick="loadToolsList(${ page - 1}, ${settingsEscapeJsStringAttr(toolssearchKeyword)})" ${ page === 1 ? 'disabled' : ''}>${t('MCP.prevPage')}</button>
-            <span class="pagination-page">${paginationT('MCP. page INFO', {  page:  page, total: totalPages })}</span>
+            <span class="pagination-page">${paginationT('MCP.pageInfo', { page: page, total: totalPages })}</span>
             <button class="btn-secondary" onclick="loadToolsList(${ page + 1}, ${settingsEscapeJsStringAttr(toolssearchKeyword)})" ${ page === totalPages ? 'disabled' : ''}>${t('MCP.nextPage')}</button>
             <button class="btn-secondary" onclick="loadToolsList(${totalPages}, ${settingsEscapeJsStringAttr(toolssearchKeyword)})" ${ page === totalPages ? 'disabled' : ''}>${t('MCP.lastPage')}</button>
         </div>

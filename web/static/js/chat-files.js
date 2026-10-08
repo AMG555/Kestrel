@@ -1,4 +1,4 @@
-// Chat Attachments (chat_uploads) Files
+﻿// Chat Attachments (chat_uploads) Files
 
 let chatFilesCache = [];
 /** Relative directory paths returned by the backend GET /api/chat-uploads (including empty folders), merged with files into a tree */
@@ -523,7 +523,7 @@ function renderChatFilesPagination() {
     const  pageText = (typeof window.t === 'function')
         ? window.t('chatFilesPage.paginationPage', {  page: chatFilesPage, totalPages: totalPages })
         : ('Round ' + chatFilesPage + ' / ' + totalPages + '  page');
-    const  pageSizeLabel = (typeof window.t === 'function') ? window.t('chatFilesPage. pageSize') : 'Per page';
+    const  pageSizeLabel = (typeof window.t === 'function') ? window.t('chatFilesPage.pageSize') : 'Per page';
     const prevLabel = (typeof window.t === 'function') ? window.t('chatFilesPage.prevPage') : 'Previous';
     const nextLabel = (typeof window.t === 'function') ? window.t('chatFilesPage.nextPage') : 'Next';
     const sizes = [10, 20, 50, 100].map(function (n) {

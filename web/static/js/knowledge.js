@@ -1437,7 +1437,7 @@ function renderRetrievalLogs(logs) {
                         </div>
                     </div>
                     <div class="retrieval-log-result-badge ${hasResults ? 'success' : 'empty'}">
-                        ${hasResults ? (itemCount > 0 ? itemCount + ' ' + _t('retrievalLogs. itemsUnit') : _t('retrievalLogs.hasResults')) : _t('retrievalLogs.noResults')}
+                        ${hasResults ? (itemCount > 0 ? itemCount + ' ' + _t('retrievalLogs.itemsUnit') : _t('retrievalLogs.hasResults')) : _t('retrievalLogs.noResults')}
                     </div>
                 </div>
                 <div class="retrieval-log-card-body">
@@ -1907,7 +1907,7 @@ function showRetrievalLogDetailsModal(log, retrievedItems) {
                     </div>
                     <div style="padding: 12px; background: var(--bg-secondary); border-radius: 6px;">
                         <div style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 4px;">${_t('retrievalLogs.retrievalResult')}</div>
-                        <div style="font-weight: 500; color: var(--text-primary);">${_t('retrievalLogs. itemsCount', { count: retrievedItems.length })}</div>
+                        <div style="font-weight: 500; color: var(--text-primary);">${_t('retrievalLogs.itemsCount', { count: retrievedItems.length })}</div>
                     </div>
                 </div>
             </div>

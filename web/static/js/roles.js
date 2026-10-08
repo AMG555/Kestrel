@@ -1025,7 +1025,7 @@ function renderRoleToolsPagination() {
         <div class="pagination-controls">
             <button class="btn-secondary" onclick="loadRoleTools(1, ${escapeJsStringAttr(roleToolssearchKeyword)})" ${ page === 1 || navDisabled ? 'disabled' : ''}>${_t('roleModal.firstPage')}</button>
             <button class="btn-secondary" onclick="loadRoleTools(${ page - 1}, ${escapeJsStringAttr(roleToolssearchKeyword)})" ${ page === 1 || navDisabled ? 'disabled' : ''}>${_t('roleModal.prevPage')}</button>
-            <span class="pagination-page">${_t('roleModal. pageOf', {  page:  page, total: totalPages })}</span>
+            <span class="pagination-page">${_t('roleModal.pageOf', {  page:  page, total: totalPages })}</span>
             <button class="btn-secondary" onclick="loadRoleTools(${ page + 1}, ${escapeJsStringAttr(roleToolssearchKeyword)})" ${ page === totalPages || navDisabled ? 'disabled' : ''}>${_t('roleModal.nextPage')}</button>
             <button class="btn-secondary" onclick="loadRoleTools(${totalPages}, ${escapeJsStringAttr(roleToolssearchKeyword)})" ${ page === totalPages || navDisabled ? 'disabled' : ''}>${_t('roleModal.lastPage')}</button>
         </div>

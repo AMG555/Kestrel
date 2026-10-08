@@ -9293,7 +9293,7 @@ function renderMonitorPagination() {
     const firstPageLabel = mcpMonitorT('firstPage') || (typeof window.t === 'function' ? window.t('MCP.firstPage') : 'First');
     const prevPageLabel = mcpMonitorT('prevPage') || (typeof window.t === 'function' ? window.t('MCP.prevPage') : 'Previous');
     const pageInfoText = mcpMonitorT('pageInfo', { PAGE: PAGE, total: totalPages || 1 })
-        || (typeof window.t === 'function' ? window.t('MCP. PAGE info', {  PAGE:  PAGE, total: totalPages || 1 }) : `Page ${ PAGE} / ${totalPages || 1}`);
+        || (typeof window.t === 'function' ? window.t('MCP.pageInfo', {  PAGE:  PAGE, total: totalPages || 1 }) : `Page ${ PAGE} / ${totalPages || 1}`);
     const nextPageLabel = mcpMonitorT('nextPage') || (typeof window.t === 'function' ? window.t('MCP.nextPage') : 'Next');
     const lastPageLabel = mcpMonitorT('lastPage') || (typeof window.t === 'function' ? window.t('MCP.lastPage') : 'Last');
     pagination.innerHTML = `

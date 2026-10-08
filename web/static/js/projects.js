@@ -1130,7 +1130,7 @@ function renderProjectAssetsPagination() {
         <div class="pagination-controls">
             <button type="button" class="btn-secondary" onclick="loadProjectAssets(1)" ${atFirst ? 'disabled' : ''}>${escapeHtml(tpFmt('skillsPage.firstPage', 'First  page'))}</button>
             <button type="button" class="btn-secondary" onclick="loadProjectAssets(${Math.max(1,  page - 1)})" ${atFirst ? 'disabled' : ''}>${escapeHtml(tpFmt('projects.paginationPrev', 'Previous'))}</button>
-            <span class="pagination-page">${escapeHtml(tpFmt('skillsPage. pageOf', `Round ${ page} / ${totalPages}  page`, { current:  page, total: totalPages }))}</span>
+            <span class="pagination-page">${escapeHtml(tpFmt('skillsPage.pageOf', `Round ${ page} / ${totalPages}  page`, { current:  page, total: totalPages }))}</span>
             <button type="button" class="btn-secondary" onclick="loadProjectAssets(${Math.min(totalPages,  page + 1)})" ${atLast ? 'disabled' : ''}>${escapeHtml(tpFmt('projects.paginationNext', 'Next'))}</button>
             <button type="button" class="btn-secondary" onclick="loadProjectAssets(${totalPages})" ${atLast ? 'disabled' : ''}>${escapeHtml(tpFmt('skillsPage.lastPage', 'Last page'))}</button>
         </div>

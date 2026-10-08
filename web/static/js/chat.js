@@ -574,7 +574,7 @@ async function onHitlReviewerChanged(reviewer) {
         } else if (typeof window.putHitlDefaultReviewer === 'function') {
             await window.putHitlDefaultReviewer(cfg.reviewer);
         }
-        const ok = typeof window.t === 'function' ? window.t('HITL. pageReviewersaved') : 'Reviewer saved.';
+        const ok = typeof window.t === 'function' ? window.t('HITL.pageReviewerSaved') : 'Reviewer saved.';
         showChatToast(ok, 'success');
     } catch (e) {
         console.warn('onHitlReviewerChanged', e);
