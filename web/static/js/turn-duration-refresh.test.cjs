@@ -177,7 +177,7 @@ test('Process details hide Eino internal diagnostics but retain real tool calls'
             data: {
                 toolName: 'task',
                 argumentsObj: {
-                    _cyberstrike_model_output_recovery: {
+                    _kestrel_model_output_recovery: {
                         reason: 'invalid_tool_arguments_json',
                         repair_attempt: 1,
                     },

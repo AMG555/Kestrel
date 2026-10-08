@@ -76,7 +76,7 @@ web/
 
 - **Go**: `gofmt`, `go vet`, standard library preferred over heavy deps
 - **Commits**: conventional commits — `feat:`, `fix:`, `chore:`, `docs:`, `test:`
-- **API changes**: update `web/src/api.js` and document in `CHANGELOG.md`
+- **API changes**: update `web/src/api.js` (React SPA) or `web/static/js/` (legacy assets) and document in `CHANGELOG.md`
 - **New DB tables**: add DDL in `internal/database/schema.go`, CRUD in a matching `<domain>.go` file
 - **Tests**: each new package should have at minimum a smoke test
 - **No audit-log mutation**: the `audit_logs` table is append-only — never add UPDATE/DELETE paths for it

@@ -3,7 +3,7 @@
 <div align="center">
 
 ![Status](https://img.shields.io/badge/status-under%20development-orange)
-![Go](https://img.shields.io/badge/Go-1.22%2B-00ADD8?logo=go)
+![Go](https://img.shields.io/badge/Go-1.26%2B-00ADD8?logo=go)
 ![License](https://img.shields.io/badge/license-Apache%202.0-blue)
 ![CI](https://github.com/AMG555/Kestrel/actions/workflows/ci.yml/badge.svg)
 
@@ -40,7 +40,7 @@
 ## Quick Start
 
 ```bash
-# 1. Install Go 1.22+ and Node 18+
+# 1. Install Go 1.26+ and Node 22+
 
 # 2. Clone
 git clone https://github.com/AMG555/Kestrel.git
@@ -113,13 +113,15 @@ Kestrel/
 │   ├── report/             Markdown / JSON / CSV report generator
 │   └── workflow/           Graph-based workflow engine
 └── web/
-    └── src/
-        ├── pages/          16 pages: Dashboard, Agent, Projects, AttackChain,
-        │                              BatchTasks, Workflows, HITL, Conversations,
-        │                              Assets, Vulns, Knowledge, Audit,
-        │                              Users, Roles, ChangePassword
-        ├── App.jsx         Router + Auth context + Sidebar layout
-        └── api.js          60+ typed fetch helpers + WebSocket
+    ├── src/                React 18 SPA source (compiled to web/dist/, embedded in Go binary)
+    │   ├── pages/          16 pages: Dashboard, Agent, Projects, AttackChain,
+    │   │                              BatchTasks, Workflows, HITL, Conversations,
+    │   │                              Assets, Vulns, Knowledge, Audit,
+    │   │                              Users, Roles, ChangePassword
+    │   ├── App.jsx         Router + Auth context + Sidebar layout
+    │   └── api.js          60+ typed fetch helpers + WebSocket
+    ├── static/             Go-embedded legacy JS/CSS assets
+    └── templates/          Go-embedded HTML templates
 ```
 
 ---

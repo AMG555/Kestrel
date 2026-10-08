@@ -5922,7 +5922,7 @@ function isToolGuardBlockedResult(value, depth, allowLegacy) {
     if (typeof value !== 'object') return false;
     if (Array.isArray(value)) return value.some(function (part) { return isToolGuardBlockedResult(part, depth + 1, allowLegacy); });
     if (value.blocked === true || value.status === 'blocked' || value.displayStatus === 'blocked') return true;
-    if (value._meta && (value._meta['kestrel.ai/blocked'] === true || value._meta['cyberstrike.ai/blocked'] === true)) return true;
+    if (value._meta && value._meta['kestrel.ai/blocked'] === true) return true;
     if (value.success === true || value.isError === false || value.status === 'completed') allowLegacy = false;
     return ['result', 'error', 'content', 'text', 'resultPreview'].some(function (key) {
         return isToolGuardBlockedResult(value[key], depth + 1, allowLegacy);

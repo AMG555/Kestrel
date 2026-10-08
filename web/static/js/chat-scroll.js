@@ -853,8 +853,6 @@
         refreshReturnLatest: updateReturnLatestButton,
         refreshTurnRail: function () { scheduleTurnRailRefresh(true); },
     };
-    window.CyberStrikeChatScroll = window.KestrelChatScroll;
-
     window.isChatMessagesPinnedToBottom = isChatMessagesPinnedToBottom;
     window.captureScrollPinState = captureScrollPinState;
     window.scrollChatMessagesToBottomIfPinned = scrollChatMessagesToBottomIfPinned;

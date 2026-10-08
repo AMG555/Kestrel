@@ -66,7 +66,7 @@ test('structured block markers have priority over generic failure and running st
         { blocked: true, success: false, isError: true },
         { status: 'blocked', isError: true },
         { success: false, result: { blocked: true, isError: true, content: [] } },
-        { success: false, result: JSON.stringify({ _meta: { 'cyberstrike.ai/blocked': true }, isError: true, content: [] }) },
+        { success: false, result: JSON.stringify({ _meta: { 'kestrel.ai/blocked': true }, isError: true, content: [] }) },
         { blocked: true, displayStatus: 'background_running', success: true },
     ]) {
         const state = ctx.getToolResultDisplayState(payload);

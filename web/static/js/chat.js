@@ -3900,14 +3900,14 @@ function hasModelOutputRecoveryMarker(value) {
     let obj = value;
     if (typeof obj === 'string') {
         const text = obj.trim();
-        if (!text || (text.indexOf('_kestrel_model_output_recovery') === -1 && text.indexOf('_cyberstrike_model_output_recovery') === -1)) return false;
+        if (!text || text.indexOf('_kestrel_model_output_recovery') === -1) return false;
         try {
             obj = JSON.parse(text);
         } catch (e) {
             return false;
         }
     }
-    return !!(obj && typeof obj === 'object' && (obj._kestrel_model_output_recovery || obj._cyberstrike_model_output_recovery));
+    return !!(obj && typeof obj === 'object' && obj._kestrel_model_output_recovery);
 }
 
 function isModelOutputRecoveryToolCallDetail(detail) {
