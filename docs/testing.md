@@ -1,7 +1,33 @@
 # Testing Guide
 
-
 Testing Kestrel means more than running Go tests. Agent, MCP, HITL, C2, WebShell, and frontend streaming all have different failure modes.
+
+## Prerequisites
+
+### CGO / SQLite (required for database tests)
+
+The database layer uses `go-sqlite3`, which requires a C compiler. Tests that touch SQLite will fail with:
+
+```
+Binary was compiled with 'CGO_ENABLED=0', go-sqlite3 requires cgo to work. This is a stub
+```
+
+**Linux / macOS**: `gcc` or `clang` is usually pre-installed — tests run normally.
+
+**Windows**: Install [TDM-GCC](https://jmeubank.github.io/tdm-gcc/) or [MSYS2](https://www.msys2.org/) and ensure `gcc` is on `%PATH%`, then run:
+
+```powershell
+$env:CGO_ENABLED = "1"
+go test ./...
+```
+
+CI runs with `CGO_ENABLED=1` on Linux and the full suite passes green.
+
+### Shell tests (`internal/security`)
+
+Tests in `internal/security` spawn `/bin/sh` or `sh` — they are Linux/macOS-only by design and are **expected to fail on Windows**. This is not a bug; these tests cover the Unix shell execution boundary that the production deployment uses.
+
+---
 
 ## Commands
 

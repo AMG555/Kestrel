@@ -241,7 +241,7 @@ GET                /api/workflows/runs/:run_id
 ## Development
 
 ```bash
-make test         # Run all tests
+make test         # Run all tests (CGO_ENABLED=1, requires gcc)
 make test-short   # Skip network-dependent tests
 make vet          # go vet
 make fmt          # go fmt
@@ -249,6 +249,8 @@ make dev          # air hot-reload backend
 make web-dev      # Vite dev server (HMR)
 make clean        # Remove build artifacts
 ```
+
+> **Windows note:** Database tests require CGO. Install [TDM-GCC](https://jmeubank.github.io/tdm-gcc/) and run `$env:CGO_ENABLED=1; go test ./...`. Shell tests in `internal/security` are Linux-only and expected to fail on Windows.
 
 ---
 

@@ -25,6 +25,12 @@ If you need higher-risk tool classes for a specific authorised deployment, that 
 ```bash
 # Backend
 go build ./...
+
+# Full test suite (requires CGO + a C compiler for SQLite tests)
+CGO_ENABLED=1 go test ./...
+
+# Without CGO — database-backed and Unix-shell tests will fail;
+# all other logic tests still run
 go test ./...
 
 # Frontend
@@ -87,6 +93,7 @@ web/
 
 - [ ] `go build ./...` passes with no warnings
 - [ ] `go vet ./...` passes clean
+- [ ] `CGO_ENABLED=1 go test ./...` passes (requires gcc; CI enforces this on Linux)
 - [ ] `npm run build` (in `web/`) produces no errors
 - [ ] No new dependencies added without justification in the PR description
 - [ ] `CHANGELOG.md` updated under `[Unreleased]`

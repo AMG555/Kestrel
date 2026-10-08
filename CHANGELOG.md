@@ -14,6 +14,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `TestEinoTransientRunRetryHandlerPreparesRetry` — corrected argument order in `emitEinoRunRetryProgress` format string; message now reads `retry <attempt>/<max> in <seconds>` as intended
 - `TestDiagnosticFiltering` / `TestDiagnosticWriteFailureKeepsPrimaryOutput` — added `Logger.Close()` method that flushes and closes the underlying file descriptor; tests now call `Close()` so the primary log file handle is released before `t.TempDir` cleanup on Windows
 
+### Documentation
+- `docs/testing.md` — added Prerequisites section explaining CGO/SQLite requirement and Windows shell-test limitations
+- `CONTRIBUTING.md` — updated `go test` instructions to show `CGO_ENABLED=1` variant; added CGO check to PR checklist
+- `README.md` — added Windows developer note to the Development section
+
 ---
 
 ## [2.0.0] — 2026-10-08
