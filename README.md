@@ -17,18 +17,6 @@
 
 ---
 
-## Screenshots
-
-| Dashboard | Agent Chat |
-|:---------:|:----------:|
-| ![Dashboard](docs/screenshots/dashboard.svg) | ![Agent](docs/screenshots/agent-chat.svg) |
-
-| Attack Chain | Audit Log |
-|:------------:|:---------:|
-| ![Attack Chain](docs/screenshots/attack-chain.svg) | ![Audit](docs/screenshots/audit-log.svg) |
-
----
-
 ## Why Kestrel?
 
 Most security tooling is either a CLI script or a heavyweight SaaS. Kestrel sits in the middle:
