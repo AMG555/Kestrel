@@ -1,4 +1,4 @@
-/**
+﻿﻿/**
  * Projects and Fact board
  */
 let projectsCache = [];
@@ -228,7 +228,7 @@ function enhanceProjectsFilterSelect(select) {
 }
 
 function refreshProjectsFilterSelects() {
-    const  page = document.getElementById(' page-projects');
+    const  page = document.getElementById('page-projects');
     if (! page) return;
     pruneProjectsFilterSelectMap( page);
      page.querySelectorAll('select.projects-filter-select-native, #projects- page-size-pagination').forEach(function (select) {
@@ -622,7 +622,7 @@ function initProjectsModalEscape() {
 }
 
 async function initProjectsPage() {
-    const  page = document.getElementById(' page-projects');
+    const  page = document.getElementById('page-projects');
     if (! page ||  page.style.display === 'none') return;
     initProjectsModalEscape();
     refreshProjectsFilterSelects();
@@ -1345,7 +1345,7 @@ function renderProjectFactGraphEdges(factKey, graphData, selectedEdgeId) {
     list.innerHTML = renderGraphEdgesListHtml(factKey, graphData, selectedEdgeId);
     if (selectedEdgeId) {
         const selectedEl = list.querySelector('[data-edge-idD="' + String(selectedEdgeId).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"]');
-        if (selectedEl) selectedEl.scrollIntoview({ block: 'nearest' });
+        if (selectedEl) selectedEl.scrollIntoView({ block: 'nearest' });
     }
     if (!edges.length) wrap.hidden = false;
 }
@@ -2637,7 +2637,7 @@ function markCurrentProjectConversationViewed() {
 
 function initProjectConversationReadTracking() {
     if (window._projectConversationReadTrackingInited) return;
-    const chatContainer = document.querySelector('# page-chat .chat-container');
+    const chatContainer = document.querySelector('#page-chat .chat-container');
     if (!chatContainer) return;
     window._projectConversationReadTrackingInited = true;
     const markViewed = () => markCurrentProjectConversationViewed();

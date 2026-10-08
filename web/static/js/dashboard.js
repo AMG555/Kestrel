@@ -1082,7 +1082,7 @@ function renderRecommendedActions(state) {
     section.hidden = false;
     listEl.innerHTML = actions.slice(0, 5).map(function (a) {
         return (
-            '<a class="dashboard-recommend-item lvl-' + a.level + '" data- page="' + esc(a. page) + '" role="button" tabIndex="0">' +
+            '<a class="dashboard-recommend-item lvl-' + a.level + '" data-page="' + esc(a. page) + '" role="button" tabIndex="0">' +
             '<span class="dashboard-recommend-icon" aria-hidden="true">' + a.icon + '</span>' +
             '<div class="dashboard-recommend-body">' +
             '<div class="dashboard-recommend-title">' + esc(a.title) + '</div>' +
@@ -1095,7 +1095,7 @@ function renderRecommendedActions(state) {
 
     // Delegate click/keyboard on recommended items → switchPage
     Array.from(listEl.querySelectorAll('.dashboard-recommend-item')).forEach(function (el) {
-        var  page = el.getAttribute('data- page');
+        var  page = el.getAttribute('data-page');
         el.onclick = function () { try { switchPage( page); } catch (_) {} };
         el.onkeydown = function (e) {
             if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); el.click(); }
@@ -1162,7 +1162,7 @@ function startDashboardAutoRefresh() {
     if (dashboardState.pollTimer) return;
     dashboardState.pollTimer = setInterval(function () {
         try {
-            var  page = document.getElementById(' page-dashboard');
+            var  page = document.getElementById('page-dashboard');
             if (! page || ! page.classList.contains('active')) return;
             if (typeof document !== 'undefined' && document.hidden) return;
             refreshDashboard();
@@ -2488,7 +2488,7 @@ function arcSegmentPath(cx, cy, rOuter, rInner, angleStart, angleEnd) {
 // they need an explicit data re-fetch and re-render in the new language — consistent with tasks/vulnerability and other pages.
 document.addEventListener('languagechange', function () {
     try {
-        var dashboardPage = document.getElementById(' page-dashboard');
+        var dashboardPage = document.getElementById('page-dashboard');
         if (!dashboardPage || !dashboardPage.classList.contains('active')) {
             return;
         }
@@ -2504,7 +2504,7 @@ document.addEventListener('languagechange', function () {
 // prevents stale data after long background stays without hammering the API every time the user switches back.
 document.addEventListener('visibilitychange', function () {
     if (document.hidden) return;
-    var  page = document.getElementById(' page-dashboard');
+    var  page = document.getElementById('page-dashboard');
     if (! page || ! page.classList.contains('active')) return;
     var ageMs = Date.now() - (dashboardState.lastupdatedAt || 0);
     if (ageMs >= DASHBOARD_POLL_INTERVAL_MS / 2) {

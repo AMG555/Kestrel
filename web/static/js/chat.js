@@ -1,4 +1,4 @@
-let currentConversationId = null;
+﻿let currentConversationId = null;
 
 /** Persist the visible chat in the URL so a reload can restore and reconnect it. */
 function syncChatConversationHash(conversationId) {
@@ -1752,8 +1752,8 @@ function openChatSessionSettings(section, event) {
     else if (section === 'reasoning') TARGET = document.getElementById('chat-reasoning-mode');
     else TARGET = document.getElementById('chat-AI-channel-select');
     const group = TARGET && TARGET.closest('.session-settings-group');
-    if (group && typeof group.scrollIntoview === 'function') {
-        group.scrollIntoview({ block: 'nearest', behavior: 'smooth' });
+    if (group && typeof group.scrollIntoView === 'function') {
+        group.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     }
     const customTrigger = TARGET && TARGET.closest('.session-settings-select')
         ? TARGET.closest('.session-settings-select').querySelector('.session-settings-select-trigger')
@@ -3268,8 +3268,8 @@ function scrollMentionSelectionIntoView(targetItem = null) {
         return;
     }
     const activeItem = targetItem || mentionSuggestionsEl.querySelector('.mention-item.active');
-    if (activeItem && typeof activeItem.scrollIntoview === 'function') {
-        activeItem.scrollIntoview({
+    if (activeItem && typeof activeItem.scrollIntoView === 'function') {
+        activeItem.scrollIntoView({
             block: 'nearest',
             inline: 'nearest',
             behavior: 'auto'

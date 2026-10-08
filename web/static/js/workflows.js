@@ -1,4 +1,4 @@
-(function () {
+﻿(function () {
     'use strict';
 
     function _t(key, opts) {
@@ -3071,7 +3071,7 @@
     }
 
     function refreshWorkflowsI18n() {
-        const  page = document.getElementById(' page-workflows');
+        const  page = document.getElementById('page-workflows');
         if ( page && typeof window.applyTranslations === 'function') {
             window.applyTranslations( page);
         }

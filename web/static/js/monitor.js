@@ -2629,7 +2629,7 @@ function toggleProcessDetails(progressId, assistantMessageId) {
             if (window.KestrelChatScroll && typeof window.KestrelChatScroll.scrollIntoviewIfFollowing === 'function') {
                 window.KestrelChatScroll.scrollIntoviewIfFollowing(detailsContainer, { behavior: 'smooth', block: 'nearest' });
             } else if (typeof window.captureScrollPinState === 'function' ? window.captureScrollPinState() : true) {
-                detailsContainer.scrollIntoview({ behavior: 'smooth', block: 'nearest' });
+                detailsContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }
         }, 100);
     }
@@ -5331,7 +5331,7 @@ function expandProcessDetailsTimeline(assistantMessageId) {
         if (window.KestrelChatScroll && typeof window.KestrelChatScroll.scrollIntoviewIfFollowing === 'function') {
             window.KestrelChatScroll.scrollIntoviewIfFollowing(detailsContainer, { behavior: 'smooth', block: 'nearest' });
         } else if (typeof window.captureScrollPinState === 'function' ? window.captureScrollPinState() : true) {
-            detailsContainer.scrollIntoview({ behavior: 'smooth', block: 'nearest' });
+            detailsContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
     }, 100);
 }
@@ -7291,7 +7291,7 @@ function scheduleMonitorPoll(generation) {
     monitorPollTimer = setTimeout(async function pollMonitor() {
         monitorPollTimer = null;
         if (generation !== monitorPollGeneration) return;
-        const  PAGE = document.getElementById(' PAGE-mcp-monitor');
+        const  PAGE = document.getElementById('page-mcp-monitor');
         if (! PAGE || ! PAGE.classList.contains('active')) {
             return;
         }
@@ -7304,7 +7304,7 @@ function scheduleMonitorPoll(generation) {
         } catch (error) {
             // refreshMonitorPanel already handles displaying errors; polling should continue.
         } finally {
-            const activePage = document.getElementById(' PAGE-mcp-monitor');
+            const activePage = document.getElementById('page-mcp-monitor');
             if (generation === monitorPollGeneration && activePage && activePage.classList.contains('active')) {
                 scheduleMonitorPoll(generation);
             }
@@ -8628,8 +8628,8 @@ function filterMonitorByTool(toolName) {
     toolFilter.classList.add('is-filter-active');
     applyMonitorFilters();
     const execSection = document.querySelector('.monitor-executions');
-    if (execSection && typeof execSection.scrollIntoview === 'function') {
-        execSection.scrollIntoview({ behavior: 'smooth', block: 'nearest' });
+    if (execSection && typeof execSection.scrollIntoView === 'function') {
+        execSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 }
 

@@ -278,7 +278,7 @@ function enhanceSettingsSelect(SELECT) {
 }
 
 function initSettingsCustomSelects(root) {
-    const scope = root || document.getElementById(' page-settings');
+    const scope = root || document.getElementById('page-settings');
     if (!scope) return;
     scope.querySelectorAll('SELECT').forEach(enhanceSettingsSelect);
     if (!settingsCustomSelectsDocBound) {
@@ -363,7 +363,7 @@ function openRobotEditor(type) {
     refreshRobotManager();
     const panel = document.querySelector(`[data-robot-editor="${type}"]`);
     if (panel) {
-        panel.scrollIntoview({ behavior: 'smooth', block: 'start' });
+        panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
     loadRobotAuthPolicyEditor(type);
 }
@@ -1546,7 +1546,7 @@ function scrollToExternalMCP(mcpName, event) {
     const items = document.querySelectorAll('.external-mcp-item');
     for (const item of  items) {
         if (item.dataset.mcpName === mcpName) {
-            item.scrollIntoview({ behavior: 'smooth', block: 'center' });
+            item.scrollIntoView({ behavior: 'smooth', block: 'center' });
             item.classList.add('highlight');
             setTimeout(() => item.classList.remove('highlight'), 2000);
             return;
@@ -1594,7 +1594,7 @@ function highlightExternalMcpTools(mcpName) {
         return;
     }
 
-    matchingTools[0].scrollIntoview({ behavior: 'smooth', block: 'start' });
+    matchingTools[0].scrollIntoView({ behavior: 'smooth', block: 'start' });
     matchingTools.forEach(el => {
         el.classList.add('highlight');
         setTimeout(() => el.classList.remove('highlight'), 2000);
@@ -3006,7 +3006,7 @@ async function persistAIChannelsToServer(successMessage, options = {}) {
         const updateResponse = await apiFetch('/api/config', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify( currentConfig.ai })
+            body: JSON.stringify({ ai: currentConfig.ai })
         });
         if (!updateResponse.ok) {
             const error = await updateResponse.json().catch(() => ({}));
@@ -3037,7 +3037,7 @@ async function persistAIConfigOnlyToServer(successMessage) {
         const updateResponse = await apiFetch('/api/config', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify( currentConfig.ai })
+            body: JSON.stringify({ ai: currentConfig.ai })
         });
         if (!updateResponse.ok) {
             const error = await updateResponse.json().catch(() => ({}));
@@ -4210,7 +4210,7 @@ function renderExternalMCPData(data, forceRender = false) {
 function startExternalMcpPoll() {
     stopExternalMcpPoll();
     externalMcpPollTimer = setInterval(function () {
-        const mcpPage = document.getElementById(' page-mcp-management');
+        const mcpPage = document.getElementById('page-mcp-management');
         if (!mcpPage || !mcpPage.classList.contains('active')) {
             stopExternalMcpPoll();
             return;
@@ -4844,12 +4844,12 @@ openSettings = async function() {
 // After a language switch, re-render MCP management page sections written by JS (innerHTML is not auto-updated by data-i18n)
 document.addEventListener('languagechange', function () {
     try {
-        const settingsPage = document.getElementById(' page-settings');
+        const settingsPage = document.getElementById('page-settings');
         if (settingsPage) {
             initSettingsCustomSelects(settingsPage);
             refreshSettingsCustomSelects();
         }
-        const mcpPage = document.getElementById(' page-mcp-management');
+        const mcpPage = document.getElementById('page-mcp-management');
         if (mcpPage && mcpPage.classList.contains('active')) {
             if (typeof loadExternalMCPs === 'function') {
                 loadExternalMCPs({ forceRender: true }).catch(function () { /* ignore */ });

@@ -1,4 +1,4 @@
-﻿function knowledgeIndexErrorAdvice(error) {
+﻿﻿function knowledgeIndexErrorAdvice(error) {
     const text = String(error || '');
     if (/\b401\b|incorrect API key|invalid API key|unauthorized/i.test(text)) return 'Embedding service rejected authentication. Check the API key and service address in the knowledge base embedding configuration, then retry.';
     if (/\b403\b|forbidden/i.test(text)) return 'Embedding service rejected access. Check account permissions and access rights for the selected embedding model.';
@@ -2284,7 +2284,7 @@ function switchToSettings() {
                     setTimeout(() => {
                         const knowledgeenabledCheckbox = document.getElementById('knowledge-enabled');
                         if (knowledgeenabledCheckbox) {
-                            knowledgeenabledCheckbox.scrollIntoview({ behavior: 'smooth', block: 'center' });
+                            knowledgeenabledCheckbox.scrollIntoView({ behavior: 'smooth', block: 'center' });
                             // Highlight
                             knowledgeenabledCheckbox.parentElement.style.transition = 'background-color 0.3s';
                             knowledgeenabledCheckbox.parentElement.style.backgroundColor = '#e3f2fd';

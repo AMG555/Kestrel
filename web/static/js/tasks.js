@@ -1,4 +1,4 @@
-﻿// Tasks  page functionality
+﻿﻿﻿// Tasks  page functionality
 function _t(key, opts) {
     return typeof window.t === 'function' ? window.t(key, opts) : key;
 }
@@ -1738,7 +1738,7 @@ function goBatchQueuesPage( page) {
     // Scroll to top of list
     const list = document.getElementById('batch-queues-list');
     if (list) {
-        list.scrollIntoview({ behavior: 'smooth', block: 'start' });
+        list.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 }
 
@@ -2939,7 +2939,7 @@ document.addEventListener('languagechange', function () {
     try {
         syncAllBatchQueuesFilterSelects();
         syncAllBatchImportFormSelects();
-        const tasksPage = document.getElementById(' page-tasks');
+        const tasksPage = document.getElementById('page-tasks');
         if (!tasksPage || !tasksPage.classList.contains('active')) {
             return;
         }

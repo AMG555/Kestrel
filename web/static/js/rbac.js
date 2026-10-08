@@ -1,4 +1,4 @@
-﻿let rbacState = {
+﻿﻿let rbacState = {
     users: [],
     roles: [],
     permissions: {},
@@ -832,7 +832,7 @@ function focusRbacRoleAssignment() {
         const list = document.getElementById('rbac-roles-list');
         const section = panel?.querySelector('.rbac-section-toolbar') || list;
         if (panel) panel.scrollTop = 0;
-        if (section) section.scrollIntoview({ behavior: 'smooth', block: 'nearest' });
+        if (section) section.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         const highlight = list || panel;
         if (highlight) {
             highlight.classList.remove('rbac-focus-pulse');

@@ -1,4 +1,4 @@
-﻿// Page router management
+// Page router management
 let currentPage = null;
 
 /** chat and vulnerabilities  pages retain the currentHash query string (e.g. ?conversation= / ?conversation_id=) on switch */
@@ -313,11 +313,11 @@ function toggleSubmenu(menuId) {
     navItem.classList.toggle('expanded');
     if (willExpand) {
         requestAnimationFrame(() => {
-            navItem.scrollIntoview({ block: 'nearest', behavior: 'smooth' });
+            navItem.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
             const items = getNavSubmenuItems(navItem);
             const last =  items[ items.length - 1];
             if (last) {
-                last.scrollIntoview({ block: 'nearest', behavior: 'smooth' });
+                last.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
             }
         });
     }
