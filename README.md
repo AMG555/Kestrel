@@ -17,7 +17,8 @@
 
 ## Screenshots
 
-> UI screenshots coming soon — contributions welcome. See [`docs/screenshots/`](docs/) for the naming convention.
+> UI screenshots coming soon — contributions welcome.
+> See [`docs/screenshots/README.md`](docs/screenshots/README.md) for the naming convention and how to add them.
 
 ---
 

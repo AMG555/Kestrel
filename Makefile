@@ -7,7 +7,7 @@ WEB_DIR     := web
 GO_CMD      := go
 NPM_CMD     := npm
 
-.PHONY: all build build-web test vet lint clean run dev help
+.PHONY: all build build-web test test-js test-all test-short vet lint clean run dev web-dev help
 
 ## all: Build backend binary + frontend (default target)
 all: build-web build
@@ -34,6 +34,13 @@ run-https: build-web
 ## test: Run all Go unit tests (CGO_ENABLED=1 required for SQLite-backed tests)
 test:
 	CGO_ENABLED=1 $(GO_CMD) test ./... -v -count=1 -timeout 60s
+
+## test-js: Run all frontend unit tests (run from project root)
+test-js:
+	node --test web/static/js/*.test.cjs
+
+## test-all: Run Go tests + frontend tests
+test-all: test test-js
 
 ## test-short: Run tests without network calls
 test-short:

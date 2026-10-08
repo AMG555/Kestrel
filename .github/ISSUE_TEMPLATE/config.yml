@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/AMG555/Kestrel/security/advisories/new
+    about: Do NOT open a public issue for security vulnerabilities. Use GitHub's private security advisory instead.
+  - name: Documentation
+    url: https://github.com/AMG555/Kestrel/tree/main/docs
+    about: Browse the full docs directory before opening an issue.

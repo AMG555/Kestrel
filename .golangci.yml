@@ -1,0 +1,78 @@
+# golangci-lint configuration for Kestrel
+# Run: golangci-lint run ./...
+# Install: https://golangci-lint.run/usage/install/
+
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  enable:
+    - errcheck        # check that errors are handled
+    - gosimple        # simplify code
+    - govet           # go vet equivalent
+    - ineffassign     # detect unused assignments
+    - staticcheck     # staticcheck suite
+    - unused          # detect unused code
+    - gofmt           # formatting
+    - goimports       # import ordering
+    - misspell        # common spelling mistakes
+    - godot           # comment punctuation
+    - noctx           # http.NewRequest without context
+    - bodyclose       # http response body close check
+    - exportloopref   # capture loop variables correctly (pre-1.22)
+    - gocritic        # opinionated suggestions
+    - revive          # fast, configurable linter
+
+linters-settings:
+  errcheck:
+    # Don't require error checks on fmt.Print* calls
+    exclude-functions:
+      - fmt.Print
+      - fmt.Println
+      - fmt.Printf
+
+  govet:
+    enable-all: true
+    disable:
+      - fieldalignment  # struct field alignment: useful but noisy
+
+  misspell:
+    locale: US
+
+  godot:
+    # Require period at end of comments (package-level and exported)
+    scope: toplevel
+    exclude:
+      - "^TODO"
+      - "^FIXME"
+      - "^nolint"
+
+  revive:
+    rules:
+      - name: exported
+        arguments:
+          - "checkPrivateReceivers"
+          - "sayRepetitiveInsteadOfStutters"
+
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - style
+    disabled-checks:
+      - hugeParam        # not relevant for this codebase size
+      - rangeValCopy     # too noisy
+
+issues:
+  # Don't report issues in test files for some style checks
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - godot
+        - gocritic
+    # CGO/SQLite stubs produce errors we can't fix
+    - path: internal/database/
+      linters:
+        - gocritic
+  max-issues-per-linter: 50
+  max-same-issues: 10

@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+message: "If you use Kestrel in research or publications, please cite it as:"
+type: software
+title: Kestrel
+abstract: >
+  Kestrel is an AI-native security operations platform that combines
+  LLM-driven agent orchestration, MCP-based recon-tool automation,
+  human-in-the-loop approval workflows, RBAC, append-only audit logging,
+  and a graph-based workflow engine into a single self-contained Go binary.
+authors:
+  - family-names: "Kestrel Contributors"
+repository-code: "https://github.com/AMG555/Kestrel"
+url: "https://github.com/AMG555/Kestrel"
+license: Apache-2.0
+version: "0.1.0"
+keywords:
+  - security operations
+  - AI agent
+  - MCP
+  - LLM
+  - penetration testing
+  - RBAC
+  - audit logging
+  - workflow engine
+  - Go

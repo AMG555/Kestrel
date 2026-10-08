@@ -94,6 +94,7 @@ web/
 - [ ] `go build ./...` passes with no warnings
 - [ ] `go vet ./...` passes clean
 - [ ] `CGO_ENABLED=1 go test ./...` passes (requires gcc; CI enforces this on Linux)
+- [ ] `node --test web/static/js/*.test.cjs` passes (run from project root; or `make test-js`)
 - [ ] `npm run build` (in `web/`) produces no errors
 - [ ] No new dependencies added without justification in the PR description
 - [ ] `CHANGELOG.md` updated under `[Unreleased]`

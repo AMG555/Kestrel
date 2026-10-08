@@ -5,33 +5,41 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [Unreleased] — under development
+## [Unreleased]
 
-### Fixed (second pass — deep audit)
-- Fixed ~60 concatenated-word log messages and error strings across 30+ files where words were accidentally fused (e.g. `"resetqueuefailed"` → `"reset queue failed"`, `"create conversationfailed"` → `"create conversation failed"`, `"updateuserpasswordfailed"` → `"update user password failed"`, etc.) — affects `internal/handler/`, `internal/database/`, `internal/app/`, `internal/config/`, `internal/c2/`, `internal/knowledge/`, `internal/mcp/`, `internal/workflow/`
-- Fixed WeCom proactive API log messages: `"WeCom token responseparsing failed"` → `"WeCom token response parsing failed"`, `"WeCommessageserialization failed"` → `"WeCom message serialization failed"`
+---
+
+## [0.1.0] — 2026-10-08
 
 ### Fixed
-- `TestBuildToolFailureMessageAuthorizationDenied` — test assertion corrected from `"errordetails:"` to `"error details:"` to match the actual output format of `buildToolFailureMessage`
-- `TestEnrichSpecWithI18nKeysForAssetImport` — added `"Asset count or field validation failed"` alias to the i18n response-description map so the 400 response is correctly keyed to `assetImportValidationFailed`
-- `TestToolGuardSavePersistsAndAppliesWithoutChangingHITL` — permission check now skips the Unix mode comparison on Windows, where `Chmod` is a no-op
-- `TestEinoTransientRunRetryHandlerPreparesRetry` — corrected argument order in `emitEinoRunRetryProgress` format string; message now reads `retry <attempt>/<max> in <seconds>` as intended
-- `TestDiagnosticFiltering` / `TestDiagnosticWriteFailureKeepsPrimaryOutput` — added `Logger.Close()` method that flushes and closes the underlying file descriptor; tests now call `Close()` so the primary log file handle is released before `t.TempDir` cleanup on Windows
+- ~60 concatenated-word log messages and error strings across 30+ files — e.g. `"resetqueuefailed"` → `"reset queue failed"` — affecting `internal/handler/`, `internal/database/`, `internal/app/`, `internal/config/`, `internal/c2/`, `internal/knowledge/`, `internal/mcp/`, `internal/workflow/`
+- WeCom proactive API log messages: `"WeCom token responseparsing failed"` → `"WeCom token response parsing failed"`
+- `TestBuildToolFailureMessageAuthorizationDenied` — corrected assertion from `"errordetails:"` to `"error details:"`
+- `TestEnrichSpecWithI18nKeysForAssetImport` — added `"Asset count or field validation failed"` alias to i18n map
+- `TestToolGuardSavePersistsAndAppliesWithoutChangingHITL` — skip Unix mode comparison on Windows
+- `TestEinoTransientRunRetryHandlerPreparesRetry` — corrected argument order in format string
+- `TestDiagnosticFiltering` / `TestDiagnosticWriteFailureKeepsPrimaryOutput` — added `Logger.Close()` to release file handle before `t.TempDir` cleanup on Windows
 
 ### Added
-- `internal/audit/audit_test.go` — 17 unit tests covering `SanitizeDetail` (redaction, truncation, nil safety), `HintFromToken` (determinism, length, empty input), `failureThrottle` (cooldown, concurrent safety, nil map), and `isAuthFailureThrottled` (category gating, composite key)
-- `internal/security/password_test.go` — 8 unit tests for `GenerateStrongPassword`: default/negative length clamping, exact output length, URL-safe alphabet enforcement, uniqueness across 20 draws, no standard base64 padding characters, and entropy-length verification
+- `internal/audit/audit_test.go` — 17 unit tests: `SanitizeDetail`, `HintFromToken`, `failureThrottle`, `isAuthFailureThrottled`
+- `internal/security/password_test.go` — 8 unit tests for `GenerateStrongPassword`
+- `// Package` doc comments added to all 27 `internal/` packages
+- GitHub issue templates (Bug Report, Feature Request) and PR template
+- golangci-lint config (`.golangci.yml`)
+- `CITATION.cff` for academic attribution
+- `docs/screenshots/README.md` — naming convention and instructions for UI screenshots
+- `make test-js` and `make test-all` targets
 
 ### Changed
-- Removed two stale commented-out `fmt.Println` debug lines from `internal/attackchain/builder.go` and `internal/handler/agent.go`
-- CI: added `go vet ./...` step and explicit `CGO_ENABLED=1` on the test step
-- `Makefile`: corrected Go/Node version requirement comment (1.22→1.26, 18→22); `make test` now sets `CGO_ENABLED=1`
-- Added `// Package` doc comments to all 27 `internal/` packages that were missing them
+- CI: `go vet ./...` step added; `CGO_ENABLED=1` on test step; frontend unit tests (`node --test`) added as CI step
+- Dockerfile: `node:20` → `node:22`, `golang:1.22` → `golang:1.26`
+- Makefile: Go/Node version comment corrected (1.22→1.26, 18→22); `make test` sets `CGO_ENABLED=1`
+- Removed stale commented-out debug `fmt.Println` lines from `internal/attackchain/builder.go` and `internal/handler/agent.go`
 
 ### Documentation
-- `docs/testing.md` — added Prerequisites section explaining CGO/SQLite requirement and Windows shell-test limitations
-- `CONTRIBUTING.md` — updated `go test` instructions to show `CGO_ENABLED=1` variant; added CGO check to PR checklist
-- `README.md` — added Windows developer note to the Development section
+- `docs/testing.md` — Prerequisites section: CGO/SQLite requirement and Windows shell-test limitations
+- `CONTRIBUTING.md` — `CGO_ENABLED=1` test instructions; CGO + frontend test steps in PR checklist
+- `README.md` — Windows developer note; Screenshots section placeholder
 
 ---
 
