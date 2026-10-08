@@ -778,7 +778,7 @@ func (m *Manager) IngestTaskResult(report TaskResultReport) error {
 	msg := fmt.Sprintf("task completed: %s", t.TaskType)
 	if !report.Success {
 		level = "warn"
-		msg = fmt.Sprintf("taskfailed: %s (%s)", t.TaskType, report.Error)
+		msg = fmt.Sprintf("task failed: %s (%s)", t.TaskType, report.Error)
 	}
 	m.publishEvent(level, "task", t.SessionID, t.ID, msg, map[string]interface{}{
 		"task_id":   t.ID,

@@ -904,7 +904,7 @@ func (h *MonitorHandler) DeleteExecution(c *gin.Context) {
 
 		if exec.ToolName != "" {
 			if err := h.db.DecreaseToolStats(exec.ToolName, totalCalls, successCalls, failedCalls); err != nil {
-				h.logger.Warn("updateStatistics infofailed", zap.Error(err), zap.String("toolName", exec.ToolName))
+				h.logger.Warn("update statistics info failed", zap.Error(err), zap.String("toolName", exec.ToolName))
 				// Do not return an error; the record was already successfully deleted
 			}
 		}
@@ -990,7 +990,7 @@ func (h *MonitorHandler) DeleteExecutions(c *gin.Context) {
 		// Update statistics (decrement the corresponding counts)
 		for toolName, stats := range toolStats {
 			if err := h.db.DecreaseToolStats(toolName, stats.totalCalls, stats.successCalls, stats.failedCalls); err != nil {
-				h.logger.Warn("updateStatistics infofailed", zap.Error(err), zap.String("toolName", toolName))
+				h.logger.Warn("update statistics info failed", zap.Error(err), zap.String("toolName", toolName))
 				// Do not return an error; the records were already successfully deleted
 			}
 		}

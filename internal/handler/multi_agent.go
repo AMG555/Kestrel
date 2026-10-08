@@ -1,4 +1,4 @@
-﻿package handler
+package handler
 
 import (
 	"context"
@@ -663,9 +663,9 @@ func multiAgentHTTPErrorStatus(err error) (int, string) {
 		return http.StatusBadRequest, msg
 	case strings.Contains(msg, "too many attachments"), strings.Contains(msg, "attachments"):
 		return http.StatusBadRequest, msg
-	case strings.Contains(msg, "saveuser messagefailed"), strings.Contains(msg, "create conversationfailed"):
+	case strings.Contains(msg, "save user message failed"), strings.Contains(msg, "create conversation failed"):
 		return http.StatusInternalServerError, msg
-	case strings.Contains(msg, "saveupload filefailed"):
+	case strings.Contains(msg, "save upload file failed"):
 		return http.StatusInternalServerError, msg
 	default:
 		return http.StatusBadRequest, msg

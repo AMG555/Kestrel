@@ -39,7 +39,7 @@ func (db *DB) SaveSkillStats(skillName string, stats *SkillStats) error {
 	)
 
 	if err != nil {
-		db.logger.Error("saveSkillsStatistics infofailed", zap.Error(err), zap.String("skillName", skillName))
+		db.logger.Error("save skills statistics info failed", zap.Error(err), zap.String("skillName", skillName))
 		return err
 	}
 
@@ -110,7 +110,7 @@ func (db *DB) UpdateSkillStats(skillName string, totalCalls, successCalls, faile
 	)
 
 	if err != nil {
-		db.logger.Error("updateSkillsStatistics infofailed", zap.Error(err), zap.String("skillName", skillName))
+		db.logger.Error("update skills statistics info failed", zap.Error(err), zap.String("skillName", skillName))
 		return err
 	}
 

@@ -1755,7 +1755,7 @@ func EnsureLocalConfig(path string) (EnsureLocalConfigResult, error) {
 
 	if dir := filepath.Dir(path); dir != "." && dir != "" {
 		if err := os.MkdirAll(dir, 0700); err != nil {
-			return EnsureLocalConfigResult{}, fmt.Errorf("createconfigdirectoryfailed: %w", err)
+			return EnsureLocalConfigResult{}, fmt.Errorf("create config directory failed: %w", err)
 		}
 	}
 	if err := os.WriteFile(path, data, fs.FileMode(0600)); err != nil {

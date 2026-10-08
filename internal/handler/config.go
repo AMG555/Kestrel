@@ -1248,8 +1248,8 @@ func (h *ConfigHandler) UpdateConfig(c *gin.Context) {
 
 	// save config to file
 	if err := h.saveConfig(); err != nil {
-		h.logger.Error("saveconfigfailed", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "saveconfigfailed: " + err.Error()})
+		h.logger.Error("save config failed", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "save config failed: " + err.Error()})
 		return
 	}
 
@@ -1984,7 +1984,7 @@ func (h *ConfigHandler) saveConfig() error {
 			setBoolInMap(toolDoc.Content[0], "enabled", tool.Enabled)
 
 			if err := writeYAMLDocument(toolFile, toolDoc); err != nil {
-				h.logger.Warn("savetoolconfiguration filefailed", zap.String("tool", tool.Name), zap.Error(err))
+				h.logger.Warn("save tool configuration file failed", zap.String("tool", tool.Name), zap.Error(err))
 				continue
 			}
 

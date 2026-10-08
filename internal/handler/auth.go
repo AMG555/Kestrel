@@ -181,9 +181,9 @@ func (h *AuthHandler) ChangePassword(c *gin.Context) {
 	}
 	if err := h.manager.UpdateUserPassword(session.UserID, newPassword); err != nil {
 		if h.logger != nil {
-			h.logger.Error("updateuserpasswordfailed", zap.Error(err))
+			h.logger.Error("update user password failed", zap.Error(err))
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "updateuserpasswordfailed"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "update user password failed"})
 		return
 	}
 

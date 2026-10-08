@@ -85,7 +85,7 @@ func (db *DB) CreateProject(p *Project) (*Project, error) {
 		p.ID, p.Name, p.Description, p.ScopeJSON, p.Status, boolToInt(p.Pinned), p.CreatedAt, p.UpdatedAt,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("create projectfailed: %w", err)
+		return nil, fmt.Errorf("create project failed: %w", err)
 	}
 	return p, nil
 }

@@ -1,4 +1,4 @@
-﻿package handler
+package handler
 
 import (
 	"encoding/json"
@@ -92,7 +92,7 @@ func (h *ConversationHandler) CreateConversation(c *gin.Context) {
 	}
 	conv, err := h.db.CreateConversation(title, meta)
 	if err != nil {
-		h.logger.Error("create conversationfailed", zap.Error(err))
+		h.logger.Error("create conversation failed", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -171,7 +171,7 @@ func (h *ConversationHandler) ListConversations(c *gin.Context) {
 		total, err = h.db.CountConversationsForAccess(search, projectID, session.UserID, session.Scope)
 	}
 	if err != nil {
-		h.logger.Error("get conversation listfailed", zap.Error(err))
+		h.logger.Error("get conversation list failed", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -554,7 +554,7 @@ func (h *ConversationHandler) UpdateConversation(c *gin.Context) {
 	}
 
 	if err := h.db.UpdateConversationTitle(id, req.Title); err != nil {
-		h.logger.Error("updateconversationfailed", zap.Error(err))
+		h.logger.Error("update conversation failed", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -579,7 +579,7 @@ func (h *ConversationHandler) DeleteConversation(c *gin.Context) {
 	}
 
 	if err := h.db.DeleteConversation(id); err != nil {
-		h.logger.Error("delete conversationfailed", zap.Error(err))
+		h.logger.Error("delete conversation failed", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

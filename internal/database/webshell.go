@@ -53,7 +53,7 @@ func (db *DB) UpsertWebshellConnectionState(connectionID, stateJSON string) erro
 			updated_at = excluded.updated_at
 	`
 	if _, err := db.Exec(query, connectionID, stateJSON, time.Now()); err != nil {
-		db.logger.Error("save WebShell connection statusfailed", zap.Error(err), zap.String("connectionID", connectionID))
+		db.logger.Error("save WebShell connection status failed", zap.Error(err), zap.String("connectionID", connectionID))
 		return err
 	}
 	return nil

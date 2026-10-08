@@ -1,4 +1,4 @@
-﻿package database
+package database
 
 import (
 	"database/sql"
@@ -857,7 +857,7 @@ func (db *DB) CreateC2Task(t *C2Task) error {
 		t.CreatedAt, t.SentAt, t.StartedAt, t.CompletedAt, t.DurationMS,
 	)
 	if err != nil {
-		db.logger.Error("create C2 taskfailed", zap.Error(err), zap.String("id", t.ID))
+		db.logger.Error("create C2 task failed", zap.Error(err), zap.String("id", t.ID))
 		return err
 	}
 	return nil

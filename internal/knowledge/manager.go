@@ -604,7 +604,7 @@ func (m *Manager) CreateItem(category, title, content string) (*KnowledgeItem, e
 
 	// ensure directory exists
 	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
-		return nil, fmt.Errorf("createdirectoryfailed: %w", err)
+		return nil, fmt.Errorf("create directory failed: %w", err)
 	}
 
 	// write file
@@ -701,7 +701,7 @@ func (m *Manager) DeleteItem(id string) error {
 
 	// delete file
 	if err := os.Remove(filePath); err != nil && !os.IsNotExist(err) {
-		m.logger.Warn("delete filefailed", zap.String("path", filePath), zap.Error(err))
+		m.logger.Warn("delete file failed", zap.String("path", filePath), zap.Error(err))
 	}
 
 	// delete database record (cascades to delete vectors)

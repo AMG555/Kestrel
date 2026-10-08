@@ -636,7 +636,7 @@ func (h *RobotHandler) cmdNewProject(platform, userID, name string) string {
 	p := &database.Project{Name: name, Status: "active"}
 	created, err := h.db.CreateProject(p)
 	if err != nil {
-		return "create projectfailed: " + err.Error()
+		return "create project failed: " + err.Error()
 	}
 	_ = h.db.SetResourceOwner("project", created.ID, access.User.ID)
 	convID, _ := h.getOrCreateConversation(platform, userID, name, access)
@@ -692,7 +692,7 @@ func (h *RobotHandler) cmdList(platform, userID string) string {
 	}
 	convs, err := h.db.ListConversationsForAccess(50, 0, "", "", "", access.User.ID, robotPrincipal(access).ScopeFor("chat:read"))
 	if err != nil {
-		return "get conversation listfailed: " + err.Error()
+		return "get conversation list failed: " + err.Error()
 	}
 	if len(convs) == 0 {
 		return "no conversations yet. Send any message to create a new conversation."
@@ -1782,7 +1782,7 @@ func (h *RobotHandler) CreateRobotBindingCode(c *gin.Context) {
 	}
 	random := make([]byte, 5)
 	if _, err := rand.Read(random); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "generate a bind codefailed"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "generate a bind code failed"})
 		return
 	}
 	raw := base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(random)
@@ -1790,7 +1790,7 @@ func (h *RobotHandler) CreateRobotBindingCode(c *gin.Context) {
 	expiresAt := time.Now().Add(robotBindingCodeTTL)
 	if err := h.db.CreateRobotBindingCode(session.UserID, hashRobotBindingCode(code), expiresAt); err != nil {
 		h.logger.Warn("create robot binding code failed", zap.String("user_id", session.UserID), zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "generate a bind codefailed"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "generate a bind code failed"})
 		return
 	}
 	if h.audit != nil {
@@ -1896,7 +1896,7 @@ func (h *RobotHandler) sendWecomMessageViaAPI(toUser, toParty, content string) {
 		ErrMsg      string `json:"errmsg"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
-		h.logger.Warn("WeCom token responseparsing failed", zap.Error(err))
+		h.logger.Warn("WeCom token response parsing failed", zap.Error(err))
 		return
 	}
 	if tokenResp.ErrCode != 0 {
@@ -1916,7 +1916,7 @@ func (h *RobotHandler) sendWecomMessageViaAPI(toUser, toParty, content string) {
 
 	msgBody, err := json.Marshal(msgReq)
 	if err != nil {
-		h.logger.Warn("WeCommessageserialization failed", zap.Error(err))
+		h.logger.Warn("WeCom message serialization failed", zap.Error(err))
 		return
 	}
 

@@ -1,4 +1,4 @@
-﻿package handler
+package handler
 
 import (
 	"fmt"
@@ -201,8 +201,8 @@ func (h *ExternalMCPHandler) AddOrUpdateExternalMCP(c *gin.Context) {
 
 	// save to configuration file
 	if err := h.saveConfig(); err != nil {
-		h.logger.Error("saveconfigfailed", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "saveconfigfailed: " + err.Error()})
+		h.logger.Error("save config failed", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "save config failed: " + err.Error()})
 		return
 	}
 
@@ -240,8 +240,8 @@ func (h *ExternalMCPHandler) DeleteExternalMCP(c *gin.Context) {
 
 	// save to configuration file
 	if err := h.saveConfig(); err != nil {
-		h.logger.Error("saveconfigfailed", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "saveconfigfailed: " + err.Error()})
+		h.logger.Error("save config failed", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "save config failed: " + err.Error()})
 		return
 	}
 
@@ -276,8 +276,8 @@ func (h *ExternalMCPHandler) StartExternalMCP(c *gin.Context) {
 
 	// save to configuration file
 	if err := h.saveConfig(); err != nil {
-		h.logger.Error("saveconfigfailed", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "saveconfigfailed: " + err.Error()})
+		h.logger.Error("save config failed", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "save config failed: " + err.Error()})
 		return
 	}
 
@@ -330,8 +330,8 @@ func (h *ExternalMCPHandler) StopExternalMCP(c *gin.Context) {
 
 	// save to configuration file
 	if err := h.saveConfig(); err != nil {
-		h.logger.Error("saveconfigfailed", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "saveconfigfailed: " + err.Error()})
+		h.logger.Error("save config failed", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "save config failed: " + err.Error()})
 		return
 	}
 

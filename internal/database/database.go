@@ -1,4 +1,4 @@
-﻿package database
+package database
 
 import (
 	"database/sql"
@@ -125,7 +125,7 @@ func (db *DB) runPassiveCheckpoint(trigger string) {
 func NewDB(dbPath string, logger *zap.Logger) (*DB, error) {
 	db, err := sql.Open("sqlite3", dbPath+"?_journal_mode=WAL&_foreign_keys=1&_busy_timeout=5000&_synchronous=NORMAL")
 	if err != nil {
-		return nil, fmt.Errorf("opendatabasefailed: %w", err)
+		return nil, fmt.Errorf("open database failed: %w", err)
 	}
 
 	configureDBPool(db)
@@ -148,7 +148,7 @@ func NewDB(dbPath string, logger *zap.Logger) (*DB, error) {
 	if mkErr := os.MkdirAll(baseDir, 0o755); mkErr == nil {
 		database.conversationArtifactsDir = baseDir
 	} else if logger != nil {
-		logger.Warn("create conversation artifacts directoryfailed", zap.String("dir", baseDir), zap.Error(mkErr))
+		logger.Warn("create conversation artifacts directory failed", zap.String("dir", baseDir), zap.Error(mkErr))
 	}
 
 	// initialise tables
@@ -993,7 +993,7 @@ func (db *DB) initTables() error {
 	}
 
 	if _, err := db.Exec(createIndexes); err != nil {
-		return fmt.Errorf("createindexfailed: %w", err)
+		return fmt.Errorf("create index failed: %w", err)
 	}
 
 	if err := db.BackfillModelTokenUsageFromProcessDetails(); err != nil {
@@ -1745,7 +1745,7 @@ func (db *DB) initKnowledgeTables() error {
 	}
 
 	if _, err := db.Exec(createIndexes); err != nil {
-		return fmt.Errorf("createindexfailed: %w", err)
+		return fmt.Errorf("create index failed: %w", err)
 	}
 
 	if err := db.migrateKnowledgeEmbeddingsColumns(); err != nil {

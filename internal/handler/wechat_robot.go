@@ -1,4 +1,4 @@
-﻿package handler
+package handler
 
 import (
 	"context"
@@ -235,7 +235,7 @@ func (h *WechatRobotHandler) HandleWechatQRCodeStatus(c *gin.Context) {
 		if h.configSaver != nil {
 			if err := h.configSaver.ApplyWechatRobotBinding(wc); err != nil {
 				h.logger.Warn("failed to save WeChat robot configuration", zap.Error(err))
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "saveconfigfailed: " + err.Error()})
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "save config failed: " + err.Error()})
 				return
 			}
 		} else {

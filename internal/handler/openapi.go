@@ -1,4 +1,4 @@
-﻿package handler
+package handler
 
 import (
 	"net/http"
@@ -6481,7 +6481,7 @@ func (h *OpenAPIHandler) GetConversationResults(c *gin.Context) {
 	// get vulnerability list
 	vulnList, err := h.db.ListVulnerabilities(1000, 0, database.VulnerabilityListFilter{ConversationID: conversationID})
 	if err != nil {
-		h.logger.Warn("get vulnerability listfailed", zap.Error(err))
+		h.logger.Warn("get vulnerability list failed", zap.Error(err))
 		vulnList = []*database.Vulnerability{}
 	}
 	vulnerabilities := make([]database.Vulnerability, len(vulnList))

@@ -7,6 +7,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased] — under development
 
+### Fixed (second pass — deep audit)
+- Fixed ~60 concatenated-word log messages and error strings across 30+ files where words were accidentally fused (e.g. `"resetqueuefailed"` → `"reset queue failed"`, `"create conversationfailed"` → `"create conversation failed"`, `"updateuserpasswordfailed"` → `"update user password failed"`, etc.) — affects `internal/handler/`, `internal/database/`, `internal/app/`, `internal/config/`, `internal/c2/`, `internal/knowledge/`, `internal/mcp/`, `internal/workflow/`
+- Fixed WeCom proactive API log messages: `"WeCom token responseparsing failed"` → `"WeCom token response parsing failed"`, `"WeCommessageserialization failed"` → `"WeCom message serialization failed"`
+
 ### Fixed
 - `TestBuildToolFailureMessageAuthorizationDenied` — test assertion corrected from `"errordetails:"` to `"error details:"` to match the actual output format of `buildToolFailureMessage`
 - `TestEnrichSpecWithI18nKeysForAssetImport` — added `"Asset count or field validation failed"` alias to the i18n response-description map so the 400 response is correctly keyed to `assetImportValidationFailed`

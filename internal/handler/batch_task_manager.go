@@ -267,7 +267,7 @@ func (m *BatchTaskManager) CreateBatchQueue(
 			dbTasks,
 			policy,
 		); err != nil {
-			return nil, fmt.Errorf("savetaskqueuefailed: %w", err)
+			return nil, fmt.Errorf("save task queue failed: %w", err)
 		}
 	}
 
@@ -801,7 +801,7 @@ func (m *BatchTaskManager) UpdateQueueMetadata(queueID, title, role, agentMode s
 
 	if m.db != nil {
 		if err := m.db.UpdateBatchQueueMetadata(queueID, title, role, agentMode, nextConcurrency, policy); err != nil {
-			return fmt.Errorf("savetaskqueuefailed: %w", err)
+			return fmt.Errorf("save task queue failed: %w", err)
 		}
 	}
 	queue.Title = title
@@ -938,7 +938,7 @@ func (m *BatchTaskManager) UpdateTaskMessage(queueID, taskID, message string) er
 			// sync to database
 			if m.db != nil {
 				if err := m.db.UpdateBatchTaskMessage(queueID, taskID, message); err != nil {
-					return fmt.Errorf("updatetaskmessagefailed: %w", err)
+					return fmt.Errorf("update task message failed: %w", err)
 				}
 			}
 			return nil
@@ -1153,7 +1153,7 @@ func (m *BatchTaskManager) DeleteTask(queueID, taskID string) error {
 	// DB first: delete from database first, then remove from memory on success
 	if m.db != nil {
 		if err := m.db.DeleteBatchTask(queueID, taskID); err != nil {
-			return fmt.Errorf("deletetaskfailed: %w", err)
+			return fmt.Errorf("delete task failed: %w", err)
 		}
 	}
 

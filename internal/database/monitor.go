@@ -106,7 +106,7 @@ func (db *DB) UpdateToolExecutionResult(id string, result *mcp.ToolResult) error
 	}
 	_, err = db.Exec(`UPDATE tool_executions SET result = ? WHERE id = ?`, string(resultBytes), id)
 	if err != nil {
-		db.logger.Warn("updatetool execution resultfailed", zap.Error(err), zap.String("executionId", id))
+		db.logger.Warn("update tool execution result failed", zap.Error(err), zap.String("executionId", id))
 	}
 	return err
 }
@@ -922,7 +922,7 @@ func (db *DB) SaveToolStats(toolName string, stats *mcp.ToolStats) error {
 	)
 
 	if err != nil {
-		db.logger.Error("savetool statisticsinfofailed", zap.Error(err), zap.String("toolName", toolName))
+		db.logger.Error("save tool statistics info failed", zap.Error(err), zap.String("toolName", toolName))
 		return err
 	}
 
@@ -997,7 +997,7 @@ func (db *DB) UpdateToolStats(toolName string, totalCalls, successCalls, failedC
 	)
 
 	if err != nil {
-		db.logger.Error("updatetool statisticsinfofailed", zap.Error(err), zap.String("toolName", toolName))
+		db.logger.Error("update tool statistics info failed", zap.Error(err), zap.String("toolName", toolName))
 		return err
 	}
 

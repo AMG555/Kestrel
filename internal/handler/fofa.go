@@ -1,4 +1,4 @@
-﻿package handler
+package handler
 
 import (
 	"bytes"
@@ -646,7 +646,7 @@ func (h *FofaHandler) Search(c *gin.Context) {
 
 	httpReq, err := http.NewRequestWithContext(c.Request.Context(), http.MethodGet, u.String(), nil)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "createrequestfailed: " + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "create request failed: " + err.Error()})
 		return
 	}
 	httpReq.Header.Set("User-Agent", "Kestrel/1.7.4")
@@ -1061,7 +1061,7 @@ func (h *FofaHandler) doJSONRequest(c *gin.Context, method, endpoint, apiKey, he
 	if body != nil {
 		b, err := json.Marshal(body)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "createrequestfailed: " + err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "create request failed: " + err.Error()})
 			return false
 		}
 		reqBody = strings.NewReader(string(b))
@@ -1070,7 +1070,7 @@ func (h *FofaHandler) doJSONRequest(c *gin.Context, method, endpoint, apiKey, he
 	}
 	httpReq, err := http.NewRequestWithContext(c.Request.Context(), method, endpoint, reqBody)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "createrequestfailed: " + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "create request failed: " + err.Error()})
 		return false
 	}
 	httpReq.Header.Set("User-Agent", "Kestrel/1.7.4")

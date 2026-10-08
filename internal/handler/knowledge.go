@@ -1,4 +1,4 @@
-﻿package handler
+package handler
 
 import (
 	"context"
@@ -529,7 +529,7 @@ func (h *KnowledgeHandler) Search(c *gin.Context) {
 	// Retriever.Search goes through Eino VectorEinoRetriever, consistent with the MCP tool chain.
 	results, err := h.retriever.Search(c.Request.Context(), &req)
 	if err != nil {
-		h.logger.Error("search knowledge basefailed", zap.Error(err))
+		h.logger.Error("search knowledge base failed", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

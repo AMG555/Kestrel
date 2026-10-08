@@ -1,4 +1,4 @@
-﻿package handler
+package handler
 
 import (
 	"fmt"
@@ -94,7 +94,7 @@ func (h *AgentHandler) prepareMultiAgentSession(req *ChatRequest, c *gin.Context
 		h.logger.Warn("failed to update conversation role", zap.String("conversationId", conversationID), zap.String("role", req.Role), zap.Error(err))
 	}
 	if err := h.db.SetConversationAgentMode(conversationID, chatRequestAgentMode(req, source)); err != nil {
-		h.logger.Warn("updateconversationpatternfailed", zap.String("conversationId", conversationID), zap.String("source", source), zap.String("orchestration", req.Orchestration), zap.Error(err))
+		h.logger.Warn("update conversation pattern failed", zap.String("conversationId", conversationID), zap.String("source", source), zap.String("orchestration", req.Orchestration), zap.Error(err))
 	}
 
 	agentHistoryMessages, err := h.loadHistoryFromAgentTrace(conversationID)
@@ -158,7 +158,7 @@ func (h *AgentHandler) prepareMultiAgentSession(req *ChatRequest, c *gin.Context
 		var aerr error
 		savedPaths, aerr = saveAttachmentsToDateAndConversationDir(req.Attachments, conversationID, h.logger)
 		if aerr != nil {
-			return nil, fmt.Errorf("saveupload filefailed: %w", aerr)
+			return nil, fmt.Errorf("save upload file failed: %w", aerr)
 		}
 	}
 	finalMessage = appendAttachmentsToMessage(finalMessage, req.Attachments, savedPaths)
@@ -166,7 +166,7 @@ func (h *AgentHandler) prepareMultiAgentSession(req *ChatRequest, c *gin.Context
 	userContent := userMessageContentForStorage(req.Message, req.Attachments, savedPaths)
 	userMsgRow, uerr := h.db.AddMessage(conversationID, "user", userContent, nil)
 	if uerr != nil {
-		h.logger.Error("saveuser messagefailed", zap.Error(uerr))
+		h.logger.Error("save user message failed", zap.Error(uerr))
 		return nil, fmt.Errorf("failed to save user message: %w", uerr)
 	}
 	userMessageID := ""

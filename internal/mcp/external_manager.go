@@ -1411,7 +1411,7 @@ func (m *ExternalMCPManager) refreshToolCache(name string, client ExternalMCPCli
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	if _, err := m.listToolsDeduped(ctx, name, client); err != nil {
-		m.logger.Debug("refreshtool listcachefailed",
+		m.logger.Debug("refresh tool list cache failed",
 			zap.String("name", name),
 			zap.Error(err),
 		)

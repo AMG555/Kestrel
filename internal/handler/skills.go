@@ -355,8 +355,8 @@ func (h *SkillsHandler) CreateSkill(c *gin.Context) {
 
 	skillDir := filepath.Join(h.skillsRootAbs(), req.Name)
 	if err := os.MkdirAll(skillDir, 0755); err != nil {
-		h.logger.Error("createskilldirectoryfailed", zap.String("skill", req.Name), zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "createskilldirectoryfailed: " + err.Error()})
+		h.logger.Error("create skill directory failed", zap.String("skill", req.Name), zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "create skill directory failed: " + err.Error()})
 		return
 	}
 
@@ -461,8 +461,8 @@ func (h *SkillsHandler) DeleteSkill(c *gin.Context) {
 
 	skillDir := filepath.Join(h.skillsRootAbs(), skillName)
 	if err := os.RemoveAll(skillDir); err != nil {
-		h.logger.Error("deleteskillfailed", zap.String("skill", skillName), zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "deleteskillfailed: " + err.Error()})
+		h.logger.Error("delete skill failed", zap.String("skill", skillName), zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "delete skill failed: " + err.Error()})
 		return
 	}
 	responseMsg := "skilldeleted"

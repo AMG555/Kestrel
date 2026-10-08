@@ -1,4 +1,4 @@
-﻿package handler
+package handler
 
 import (
 	"fmt"
@@ -67,7 +67,7 @@ func (h *ProjectHandler) CreateProject(c *gin.Context) {
 	}
 	created, err := h.db.CreateProject(p)
 	if err != nil {
-		h.logger.Error("create projectfailed", zap.Error(err))
+		h.logger.Error("create project failed", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

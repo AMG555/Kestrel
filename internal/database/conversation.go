@@ -633,7 +633,7 @@ func scanConversationRows(rows *sql.Rows) ([]*Conversation, error) {
 		var roleName sql.NullString
 		var agentMode sql.NullString
 		if err := rows.Scan(&conv.ID, &conv.Title, &pinned, &createdAt, &updatedAt, &projectID, &roleName, &agentMode); err != nil {
-			return nil, fmt.Errorf("scanconversationfailed: %w", err)
+			return nil, fmt.Errorf("scan conversation failed: %w", err)
 		}
 		if projectID.Valid {
 			conv.ProjectID = strings.TrimSpace(projectID.String)
@@ -741,7 +741,7 @@ func (db *DB) DeleteConversation(id string) error {
 	// Explicitly delete knowledge retrieval logs (even though the foreign key uses SET NULL, we manually delete for a clean purge)
 	_, err = db.Exec("DELETE FROM knowledge_retrieval_logs WHERE conversation_id = ?", id)
 	if err != nil {
-		db.logger.Warn("deleteKnowledge retrievallogfailed", zap.String("conversationId", id), zap.Error(err))
+		db.logger.Warn("delete knowledge retrieval log failed", zap.String("conversationId", id), zap.Error(err))
 		// do not return error, continue deleting conversation
 	}
 
@@ -750,7 +750,7 @@ func (db *DB) DeleteConversation(id string) error {
 	// delete conversation (CASCADE foreign key will automatically delete other related data)
 	_, err = db.Exec("DELETE FROM conversations WHERE id = ?", id)
 	if err != nil {
-		return fmt.Errorf("delete conversationfailed: %w", err)
+		return fmt.Errorf("delete conversation failed: %w", err)
 	}
 	db.removeConversationScopedDirs(id, projectID)
 
@@ -1014,7 +1014,7 @@ func (db *DB) GetMessages(conversationID string) ([]Message, error) {
 		var updatedAt sql.NullString
 
 		if err := rows.Scan(&msg.ID, &msg.ConversationID, &msg.Role, &msg.Content, &reasoning, &mcpIDsJSON, &createdAt, &updatedAt); err != nil {
-			return nil, fmt.Errorf("scanmessagefailed: %w", err)
+			return nil, fmt.Errorf("scan message failed: %w", err)
 		}
 		if reasoning.Valid {
 			msg.ReasoningContent = reasoning.String
@@ -1076,7 +1076,7 @@ func (db *DB) GetMessagesLite(conversationID string) ([]Message, error) {
 		var updatedAt sql.NullString
 
 		if err := rows.Scan(&msg.ID, &msg.ConversationID, &msg.Role, &msg.Content, &mcpIDsJSON, &createdAt, &updatedAt); err != nil {
-			return nil, fmt.Errorf("scanmessagefailed: %w", err)
+			return nil, fmt.Errorf("scan message failed: %w", err)
 		}
 
 		var err error

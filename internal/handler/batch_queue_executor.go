@@ -1,4 +1,4 @@
-﻿package handler
+package handler
 
 import (
 	"context"
@@ -122,8 +122,8 @@ func (h *AgentHandler) executeOneBatchSubTask(queueID string, queue *BatchTaskQu
 	batchMeta := batchSubTaskConversationMeta(h.config, queue)
 	conv, err := h.db.CreateConversation(title, batchMeta)
 	if err != nil {
-		h.logger.Error("create conversationfailed", zap.String("queueId", queueID), zap.String("taskId", task.ID), zap.Error(err))
-		h.batchTaskManager.UpdateTaskStatus(queueID, task.ID, BatchTaskStatusFailed, "", "create conversationfailed: "+err.Error())
+		h.logger.Error("create conversation failed", zap.String("queueId", queueID), zap.String("taskId", task.ID), zap.Error(err))
+		h.batchTaskManager.UpdateTaskStatus(queueID, task.ID, BatchTaskStatusFailed, "", "create conversation failed: "+err.Error())
 		return
 	}
 	conversationID := conv.ID
@@ -150,12 +150,12 @@ func (h *AgentHandler) executeOneBatchSubTask(queueID string, queue *BatchTaskQu
 	}
 
 	if _, err = h.db.AddMessage(conversationID, "user", task.Message, nil); err != nil {
-		h.logger.Error("saveuser messagefailed", zap.String("queueId", queueID), zap.String("taskId", task.ID), zap.String("conversationId", conversationID), zap.Error(err))
+		h.logger.Error("save user message failed", zap.String("queueId", queueID), zap.String("taskId", task.ID), zap.String("conversationId", conversationID), zap.Error(err))
 	}
 
 	assistantMsg, err := h.db.AddMessage(conversationID, "assistant", "processing...", nil)
 	if err != nil {
-		h.logger.Error("createassistant messagefailed", zap.String("queueId", queueID), zap.String("taskId", task.ID), zap.String("conversationId", conversationID), zap.Error(err))
+		h.logger.Error("create assistant message failed", zap.String("queueId", queueID), zap.String("taskId", task.ID), zap.String("conversationId", conversationID), zap.Error(err))
 		assistantMsg = nil
 	}
 
@@ -332,7 +332,7 @@ func (h *AgentHandler) executeOneBatchSubTask(queueID string, queue *BatchTaskQu
 		err = nil
 	}
 	if err != nil {
-		h.logger.Error("saveassistant messagefailed", zap.String("queueId", queueID), zap.String("taskId", task.ID), zap.String("conversationId", conversationID), zap.Error(err))
+		h.logger.Error("save assistant message failed", zap.String("queueId", queueID), zap.String("taskId", task.ID), zap.String("conversationId", conversationID), zap.Error(err))
 	}
 
 	if lastIn != "" || lastOut != "" {
@@ -406,10 +406,10 @@ func (h *AgentHandler) handleBatchSubTaskRunError(
 				h.logger.Warn("failed to update assistant message after cancellation", zap.String("queueId", queueID), zap.String("taskId", task.ID), zap.Error(updateErr))
 			}
 			if err := h.db.AddProcessDetail(assistantMessageID, conversationID, "cancelled", cancelMsg, nil); err != nil {
-				h.logger.Warn("savecancelleddetailsfailed", zap.String("queueId", queueID), zap.String("taskId", task.ID), zap.Error(err))
+				h.logger.Warn("save cancelled details failed", zap.String("queueId", queueID), zap.String("taskId", task.ID), zap.Error(err))
 			}
 		} else if _, errMsg := h.db.AddMessage(conversationID, "assistant", cancelMsg, nil); errMsg != nil {
-			h.logger.Warn("savecancelledmessagefailed", zap.String("queueId", queueID), zap.String("taskId", task.ID), zap.Error(errMsg))
+			h.logger.Warn("save cancelled message failed", zap.String("queueId", queueID), zap.String("taskId", task.ID), zap.Error(errMsg))
 		}
 		h.batchTaskManager.UpdateTaskStatusWithConversationID(queueID, task.ID, BatchTaskStatusCancelled, cancelMsg, "", conversationID)
 		return
@@ -427,7 +427,7 @@ func (h *AgentHandler) handleBatchSubTaskRunError(
 			h.logger.Warn("failed to update assistant message after failure", zap.String("queueId", queueID), zap.String("taskId", task.ID), zap.Error(updateErr))
 		}
 		if err := h.db.AddProcessDetail(assistantMessageID, conversationID, "error", errorMsg, nil); err != nil {
-			h.logger.Warn("saveerrordetailsfailed", zap.String("queueId", queueID), zap.String("taskId", task.ID), zap.Error(err))
+			h.logger.Warn("save error details failed", zap.String("queueId", queueID), zap.String("taskId", task.ID), zap.Error(err))
 		}
 	}
 	h.batchTaskManager.UpdateTaskStatus(queueID, task.ID, BatchTaskStatusFailed, "", clientErr)

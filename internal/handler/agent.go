@@ -574,7 +574,7 @@ func saveAttachmentsToDateAndConversationDir(attachments []ChatAttachment, conve
 	}
 	targetDir := filepath.Join(dateDir, convDirName)
 	if err = os.MkdirAll(targetDir, 0755); err != nil {
-		return nil, fmt.Errorf("createuploaddirectoryfailed: %w", err)
+		return nil, fmt.Errorf("create upload directory failed: %w", err)
 	}
 	savedPaths = make([]string, 0, len(attachments))
 	for i, a := range attachments {
@@ -1343,7 +1343,7 @@ func (h *AgentHandler) createProgressCallback(runCtx context.Context, cancelRun 
 							"toolName": toolName,
 						}
 						if err := h.db.AddProcessDetail(assistantMessageID, conversationID, "knowledge_retrieval", fmt.Sprintf("knowledge retrieval: %s", query), retrievalData); err != nil {
-							h.logger.Warn("saveKnowledge retrievaldetailsfailed", zap.Error(err))
+							h.logger.Warn("save knowledge retrieval details failed", zap.Error(err))
 						}
 					}
 				}
@@ -1719,7 +1719,7 @@ func (h *AgentHandler) CancelAgentLoop(c *gin.Context) {
 	h.tasks.AbortActiveEinoExecute(req.ConversationID, "")
 	ok, err := h.tasks.CancelTask(req.ConversationID, cause)
 	if err != nil {
-		h.logger.Error("cancelledtaskfailed", zap.Error(err))
+		h.logger.Error("cancelled task failed", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -2097,7 +2097,7 @@ func (h *AgentHandler) RerunBatchQueue(c *gin.Context) {
 		return
 	}
 	if !h.batchTaskManager.ResetQueueForRerun(queueID) {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "resetqueuefailed"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "reset queue failed"})
 		return
 	}
 	h.batchTaskManager.ClearSingleRunTask(queueID)
@@ -2426,7 +2426,7 @@ func (h *AgentHandler) startBatchQueueExecution(queueID string, scheduled bool) 
 		}
 		if !h.batchTaskManager.ResetQueueForRerun(queueID) {
 			h.batchTaskManager.UnmarkQueueExecutor(queueID)
-			err := fmt.Errorf("resetqueuefailed")
+			err := fmt.Errorf("reset queue failed")
 			h.batchTaskManager.SetLastScheduleError(queueID, err.Error())
 			return true, err
 		}

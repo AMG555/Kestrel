@@ -1,4 +1,4 @@
-﻿package handler
+package handler
 
 import (
 	"fmt"
@@ -189,8 +189,8 @@ func (h *RoleHandler) UpdateRole(c *gin.Context) {
 
 	// save config to file
 	if err := h.saveConfig(); err != nil {
-		h.logger.Error("saveconfigfailed", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "saveconfigfailed: " + err.Error()})
+		h.logger.Error("save config failed", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "save config failed: " + err.Error()})
 		return
 	}
 
@@ -237,8 +237,8 @@ func (h *RoleHandler) CreateRole(c *gin.Context) {
 
 	// save config to file
 	if err := h.saveConfig(); err != nil {
-		h.logger.Error("saveconfigfailed", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "saveconfigfailed: " + err.Error()})
+		h.logger.Error("save config failed", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "save config failed: " + err.Error()})
 		return
 	}
 
@@ -298,7 +298,7 @@ func (h *RoleHandler) DeleteRole(c *gin.Context) {
 	// delete .yaml file (if it exists)
 	if _, err := os.Stat(roleFileYaml); err == nil {
 		if err := os.Remove(roleFileYaml); err != nil {
-			h.logger.Warn("delete roleconfiguration filefailed", zap.String("file", roleFileYaml), zap.Error(err))
+			h.logger.Warn("delete role configuration file failed", zap.String("file", roleFileYaml), zap.Error(err))
 		} else {
 			h.logger.Info("deleted role configuration file", zap.String("file", roleFileYaml))
 		}
@@ -307,7 +307,7 @@ func (h *RoleHandler) DeleteRole(c *gin.Context) {
 	// delete .yml file (if it exists)
 	if _, err := os.Stat(roleFileYml); err == nil {
 		if err := os.Remove(roleFileYml); err != nil {
-			h.logger.Warn("delete roleconfiguration filefailed", zap.String("file", roleFileYml), zap.Error(err))
+			h.logger.Warn("delete role configuration file failed", zap.String("file", roleFileYml), zap.Error(err))
 		} else {
 			h.logger.Info("deleted role configuration file", zap.String("file", roleFileYml))
 		}

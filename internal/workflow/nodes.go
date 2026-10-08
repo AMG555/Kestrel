@@ -110,7 +110,7 @@ func runToolNode(ctx context.Context, args RunArgs, node graphNode, state *Workf
 	if isError {
 		errText := strings.TrimSpace(output)
 		if errText == "" {
-			errText = "toolbackerror"
+			errText = "tool back error"
 		}
 		return out, false, "failed", errText
 	}

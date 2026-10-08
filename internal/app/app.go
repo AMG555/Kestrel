@@ -101,7 +101,7 @@ func New(cfg *config.Config, log *logger.Logger, configPath string) (*App, error
 
 	// ensure directory exists
 	if err := os.MkdirAll(filepath.Dir(dbPath), 0755); err != nil {
-		return nil, fmt.Errorf("createdatabasedirectoryfailed: %w", err)
+		return nil, fmt.Errorf("create database directory failed: %w", err)
 	}
 
 	db, err := database.NewDB(dbPath, log.Logger)
@@ -289,7 +289,7 @@ func New(cfg *config.Config, log *logger.Logger, configPath string) (*App, error
 			// check whether index already exists
 			hasIndex, err := knowledgeIndexer.HasIndex()
 			if err != nil {
-				log.Logger.Warn("checkindexstatusfailed", zap.Error(err))
+				log.Logger.Warn("check index status failed", zap.Error(err))
 				return
 			}
 
@@ -421,7 +421,7 @@ func New(cfg *config.Config, log *logger.Logger, configPath string) (*App, error
 		agentsDir = filepath.Join(configDir, agentsDir)
 	}
 	if err := os.MkdirAll(agentsDir, 0755); err != nil {
-		log.Logger.Warn("create agents directoryfailed", zap.String("path", agentsDir), zap.Error(err))
+		log.Logger.Warn("create agents directory failed", zap.String("path", agentsDir), zap.Error(err))
 	}
 	markdownAgentsHandler := handler.NewMarkdownAgentsHandler(agentsDir)
 	markdownAgentsHandler.SetAudit(auditSvc)
@@ -2172,7 +2172,7 @@ func initializeKnowledge(
 		// check whether index already exists
 		hasIndex, err := knowledgeIndexer.HasIndex()
 		if err != nil {
-			logger.Warn("checkindexstatusfailed", zap.Error(err))
+			logger.Warn("check index status failed", zap.Error(err))
 			return
 		}
 

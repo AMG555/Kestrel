@@ -1,4 +1,4 @@
-﻿package handler
+package handler
 
 // apiDocI18n provides x-i18n-* extension keys for OpenAPI documentation, used by the frontend for API doc internationalization.
 // The frontend translates via apiDocs.tags.* / apiDocs.summary.* / apiDocs.response.*.
@@ -54,7 +54,7 @@ var apiDocI18nSummaryToKey = map[string]string{
 	"execute terminal command":         "terminalRun", "streaming terminal command execution": "terminalRunStream", "WebSocket terminal": "terminalWS",
 	"list WebShell connections": "listWebshellConnections", "create WebShell connection": "createWebshellConnection",
 	"update WebShell connection": "updateWebshellConnection", "delete WebShell connection": "deleteWebshellConnection",
-	"get connection status": "getWebshellConnectionState", "saveconnection status": "saveWebshellConnectionState",
+	"get connection status": "getWebshellConnectionState", "save connection status": "saveWebshellConnectionState",
 	"get AI conversation history": "getWebshellAIHistory", "list AI conversations": "listWebshellAIConversations",
 	"execute WebShell command": "webshellExec", "WebShell file operations": "webshellFileOp",
 	"list attachments": "listChatUploads", "export attachment": "exportChatUploads", "upload attachment": "uploadChatFile", "delete attachment": "deleteChatUpload",
@@ -98,7 +98,7 @@ var apiDocI18nResponseDescToKey = map[string]string{
 	"Execution completed": "executionDone", "SSE event stream": "sseEventStream", "WebSocket connection established": "wsEstablished",
 	"file download": "fileDownload", "file not found": "fileNotFound", "Write successful": "writeSuccess",
 	"renamed successfully": "renameSuccess", "Validation successful, returns decrypted echostr": "wecomVerifySuccess",
-	"Processing successful": "processSuccess", "Agent not found": "agentNotFound", "savesuccessful": "saveSuccess",
+	"Processing successful": "processSuccess", "Agent not found": "agentNotFound", "save successful": "saveSuccess",
 	"Operation result": "operationResult", "execution result": "executionResult", "Connection not found": "connectionNotFound",
 	"projectlist": "projectList", "projectdetails": "projectDetail",
 	"fact list or single item (may include link_counts / outgoing_links)": "projectFactList",

@@ -1,4 +1,4 @@
-﻿package handler
+package handler
 
 import (
 	"crypto/sha256"
@@ -33,7 +33,7 @@ type workflowPackageImportRequest struct {
 func (h *WorkflowHandler) ExportPackage(c *gin.Context) {
 	wf, err := h.db.GetWorkflowDefinition(c.Param("id"))
 	if err != nil {
-		writeWorkflowPackageError(c, http.StatusInternalServerError, "WFPKG_EXPORT_FAILED", "exportworkflow packagefailed", nil)
+		writeWorkflowPackageError(c, http.StatusInternalServerError, "WFPKG_EXPORT_FAILED", "export workflow package failed", nil)
 		return
 	}
 	if wf == nil {
@@ -42,7 +42,7 @@ func (h *WorkflowHandler) ExportPackage(c *gin.Context) {
 	}
 	pkg, meta, err := workflowpkg.Export(workflowPackageDocument(wf))
 	if err != nil {
-		writeWorkflowPackageError(c, http.StatusInternalServerError, "WFPKG_EXPORT_FAILED", "exportworkflow packagefailed", nil)
+		writeWorkflowPackageError(c, http.StatusInternalServerError, "WFPKG_EXPORT_FAILED", "export workflow package failed", nil)
 		return
 	}
 	c.Header("Content-Type", "application/zip")
@@ -262,7 +262,7 @@ func (h *WorkflowHandler) writeWorkflowPackageImportError(c *gin.Context, inspec
 	if h.audit != nil {
 		h.audit.RecordFail(c, "workflow_package", "import", "workflow package import failed", map[string]interface{}{"code": "WFPKG_IMPORT_FAILED", "inspection_id": inspectionID})
 	}
-	writeWorkflowPackageError(c, http.StatusInternalServerError, "WFPKG_IMPORT_FAILED", "importworkflow packagefailed", nil)
+	writeWorkflowPackageError(c, http.StatusInternalServerError, "WFPKG_IMPORT_FAILED", "import workflow package failed", nil)
 }
 func writeWorkflowPackageError(c *gin.Context, status int, code, message string, details map[string]any) {
 	body := gin.H{"code": code, "message": message}
