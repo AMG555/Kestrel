@@ -18,6 +18,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `TestEinoTransientRunRetryHandlerPreparesRetry` — corrected argument order in `emitEinoRunRetryProgress` format string; message now reads `retry <attempt>/<max> in <seconds>` as intended
 - `TestDiagnosticFiltering` / `TestDiagnosticWriteFailureKeepsPrimaryOutput` — added `Logger.Close()` method that flushes and closes the underlying file descriptor; tests now call `Close()` so the primary log file handle is released before `t.TempDir` cleanup on Windows
 
+### Added
+- `internal/audit/audit_test.go` — 17 unit tests covering `SanitizeDetail` (redaction, truncation, nil safety), `HintFromToken` (determinism, length, empty input), `failureThrottle` (cooldown, concurrent safety, nil map), and `isAuthFailureThrottled` (category gating, composite key)
+- `internal/security/password_test.go` — 8 unit tests for `GenerateStrongPassword`: default/negative length clamping, exact output length, URL-safe alphabet enforcement, uniqueness across 20 draws, no standard base64 padding characters, and entropy-length verification
+
 ### Changed
 - Removed two stale commented-out `fmt.Println` debug lines from `internal/attackchain/builder.go` and `internal/handler/agent.go`
 - CI: added `go vet ./...` step and explicit `CGO_ENABLED=1` on the test step
