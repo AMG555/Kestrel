@@ -7,8 +7,21 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+// Logger wraps zap.Logger and optionally holds the primary output file so it
+// can be explicitly closed when the process is done with the logger.
 type Logger struct {
 	*zap.Logger
+	closeable *os.File
+}
+
+// Close syncs any buffered writes and closes the underlying primary log file
+// (if it was opened from a path). Idempotent — safe to call multiple times.
+func (l *Logger) Close() error {
+	_ = l.Logger.Sync()
+	if l.closeable != nil {
+		return l.closeable.Close()
+	}
+	return nil
 }
 
 func New(level, output string, diagnostics ...DiagnosticOptions) *Logger {
@@ -32,6 +45,7 @@ func New(level, output string, diagnostics ...DiagnosticOptions) *Logger {
 	config.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 
 	var writeSyncer zapcore.WriteSyncer
+	var closeable *os.File
 	if output == "stdout" {
 		writeSyncer = zapcore.AddSync(os.Stdout)
 	} else if output == "stderr" {
@@ -42,6 +56,7 @@ func New(level, output string, diagnostics ...DiagnosticOptions) *Logger {
 			writeSyncer = zapcore.AddSync(os.Stdout)
 		} else {
 			writeSyncer = zapcore.AddSync(file)
+			closeable = file
 		}
 	}
 
@@ -65,7 +80,7 @@ func New(level, output string, diagnostics ...DiagnosticOptions) *Logger {
 
 	logger := zap.New(core, zap.AddCaller(), zap.AddStacktrace(zapcore.ErrorLevel))
 
-	return &Logger{Logger: logger}
+	return &Logger{Logger: logger, closeable: closeable}
 }
 
 func (l *Logger) Fatal(msg string, fields ...interface{}) {

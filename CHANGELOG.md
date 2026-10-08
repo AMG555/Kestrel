@@ -7,6 +7,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased] — under development
 
+### Fixed
+- `TestBuildToolFailureMessageAuthorizationDenied` — test assertion corrected from `"errordetails:"` to `"error details:"` to match the actual output format of `buildToolFailureMessage`
+- `TestEnrichSpecWithI18nKeysForAssetImport` — added `"Asset count or field validation failed"` alias to the i18n response-description map so the 400 response is correctly keyed to `assetImportValidationFailed`
+- `TestToolGuardSavePersistsAndAppliesWithoutChangingHITL` — permission check now skips the Unix mode comparison on Windows, where `Chmod` is a no-op
+- `TestEinoTransientRunRetryHandlerPreparesRetry` — corrected argument order in `emitEinoRunRetryProgress` format string; message now reads `retry <attempt>/<max> in <seconds>` as intended
+- `TestDiagnosticFiltering` / `TestDiagnosticWriteFailureKeepsPrimaryOutput` — added `Logger.Close()` method that flushes and closes the underlying file descriptor; tests now call `Close()` so the primary log file handle is released before `t.TempDir` cleanup on Windows
+
 ---
 
 ## [2.0.0] — 2026-10-08

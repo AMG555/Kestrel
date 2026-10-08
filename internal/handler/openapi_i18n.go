@@ -105,7 +105,9 @@ var apiDocI18nResponseDescToKey = map[string]string{
 	"successful": "success", "nodes + edges": "factGraphNodesEdges",
 	"edge list": "edgeList", "edge created": "edgeCreated",
 	"sedimentation result (facts/edges/graph)": "promoteAttackChainResult",
-	"Import completed":                    "assetImportCompleted", "Quantity or asset field validation failed": "assetImportValidationFailed",
+	"Import completed":                    "assetImportCompleted",
+	"Quantity or asset field validation failed": "assetImportValidationFailed",
+	"Asset count or field validation failed":    "assetImportValidationFailed",
 	"Missing asset:write permission or access denied for specified project": "assetImportForbidden",
 	"Import transaction failed": "assetImportTransactionFailed",
 }

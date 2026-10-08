@@ -133,7 +133,7 @@ func emitEinoRunRetryProgress(
 		"maxAttempts":    maxAttempts,
 		"backoffSec":     int(backoff.Seconds()),
 	}
-	progress("eino_run_retry", fmt.Sprintf("Encountered transient error, retry %d/%d in %d seconds. Reason: %s", int(backoff.Seconds()), attemptNo, maxAttempts, errorSummary), data)
+	progress("eino_run_retry", fmt.Sprintf("Encountered transient error, retry %d/%d in %d seconds. Reason: %s", attemptNo, maxAttempts, int(backoff.Seconds()), errorSummary), data)
 	restartedData := make(map[string]interface{}, len(data)+1)
 	for k, v := range data {
 		restartedData[k] = v

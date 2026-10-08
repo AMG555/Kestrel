@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -68,7 +69,9 @@ func TestToolGuardSavePersistsAndAppliesWithoutChangingHITL(t *testing.T) {
 	}
 	info, _ := os.Stat(h.configPath)
 	data, _ := os.ReadFile(h.configPath)
-	if info.Mode().Perm() != 0600 || !strings.Contains(string(data), "# keep this comment") {
+	// Windows does not honour Unix-style permission bits; only check on non-Windows.
+	permOK := runtime.GOOS == "windows" || info.Mode().Perm() == 0600
+	if !permOK || !strings.Contains(string(data), "# keep this comment") {
 		t.Fatal("file permissions or comments were lost")
 	}
 	match := h.toolGuard.Check("scan", map[string]interface{}{"target": "agency.gov.cn"})

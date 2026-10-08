@@ -80,7 +80,7 @@ func TestBuildToolFailureMessageAuthorizationDenied(t *testing.T) {
 	)
 	for _, want := range []string{
 		"tool name: list_project_facts",
-		"errordetails: tool authorization denied: no access to project",
+		"error details: tool authorization denied: no access to project",
 	} {
 		if !strings.Contains(msg, want) {
 			t.Fatalf("message missing %q:\n%s", want, msg)

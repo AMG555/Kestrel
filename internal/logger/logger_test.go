@@ -27,6 +27,10 @@ func TestDiagnosticFiltering(t *testing.T) {
 			child := log.With(zap.String("conversation_id", "test-id"))
 			child.Warn("retry", zap.Int("attempt", 2))
 			child.Error("failed", zap.Error(fmt.Errorf("test failure")))
+			// Close flushes buffered writes and releases the primary log file
+			// descriptor before t.TempDir cleanup runs — required on Windows
+			// where an open handle prevents directory removal.
+			_ = log.Close()
 			files, _ := filepath.Glob(filepath.Join(dir, "*.log"))
 			if len(files) != 1 {
 				t.Fatalf("files: %v", files)
@@ -113,6 +117,9 @@ func TestDiagnosticWriteFailureKeepsPrimaryOutput(t *testing.T) {
 	primary := filepath.Join(root, "primary.log")
 	log := New("info", primary, DiagnosticOptions{Dir: filepath.Join(primary, "invalid")})
 	log.Error("still visible")
+	// Close flushes buffered writes and releases the primary log file descriptor
+	// before t.TempDir cleanup (required on Windows to avoid "file in use" errors).
+	_ = log.Close()
 	data, err := os.ReadFile(primary)
 	if err != nil || !strings.Contains(string(data), "still visible") {
 		t.Fatalf("primary output lost: %s, %v", data, err)
