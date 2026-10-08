@@ -2,12 +2,14 @@
 
 <div align="center">
 
-![Status](https://img.shields.io/badge/status-under%20development-orange)
+![Status](https://img.shields.io/badge/status-stable-brightgreen)
 ![Go](https://img.shields.io/badge/Go-1.26%2B-00ADD8?logo=go)
+![Node](https://img.shields.io/badge/Node-22%2B-339933?logo=node.js)
 ![License](https://img.shields.io/badge/license-Apache%202.0-blue)
 ![CI](https://github.com/AMG555/Kestrel/actions/workflows/ci.yml/badge.svg)
+[![Go Report Card](https://goreportcard.com/badge/github.com/AMG555/Kestrel)](https://goreportcard.com/report/github.com/AMG555/Kestrel)
 
-**A production-grade, Go-based security operations platform covering task orchestration, RBAC, audit/evidence tracking, asset management, multi-provider LLM integration, and recon-tool automation via MCP.**
+**Kestrel is a self-hosted, Go-powered security operations platform that puts an LLM agent at the center of your recon and triage workflow — with full RBAC, append-only audit logging, human-in-the-loop approvals, and a graph-based workflow engine, all in a single binary.**
 
 > ⚠ **AUTHORIZED USE ONLY** — Use Kestrel only on systems you own or are explicitly authorized to test. All tool executions are logged.
 
@@ -22,25 +24,39 @@
 
 ---
 
+## Why Kestrel?
+
+Most security tooling is either a CLI script or a heavyweight SaaS. Kestrel sits in the middle:
+
+- **No cloud dependency** — runs fully on-premise, single binary + SQLite
+- **LLM-agnostic** — swap between OpenAI, Anthropic, Ollama, or the built-in rule-based stub with one config line
+- **Operator-first** — every agent action can require a human sign-off before it runs
+- **Auditable by design** — the audit log is append-only and cannot be modified or deleted through any API
+- **Extensible** — connect any MCP-compatible tool server; bring your own recon tooling
+
+---
+
 ## Features
 
 | Domain | Capability |
 |--------|-----------|
 | 🤖 **AI Orchestration** | Single / Plan-Execute / Supervisor agent modes; real LLM integration (OpenAI, Anthropic, Ollama) with rule-based fallback |
-| 🔧 **MCP Tool Registry** | 7 built-in read-only recon tools; worker pool; output caps; per-role allowlists |
+| 🔧 **MCP Tool Registry** | 7 built-in read-only recon tools + external MCP server federation; worker pool; output caps; per-role allowlists |
 | ✋ **Human-in-the-Loop** | DB-backed approval queue; agents block on `require_approval` mode until operator decides |
 | 🔐 **RBAC & Auth** | JWT HS256, bcrypt cost=12, forced password change, session revocation, 4 built-in system roles |
-| 📋 **Audit Logging** | Append-only audit table; never modifiable or deletable |
+| 📋 **Audit Logging** | Append-only audit table — never modifiable or deletable via any API path |
 | 📁 **Projects** | Scoped work items with facts, attack chains, stats, and linked vulnerabilities |
-| 🕸 **Attack Chain** | Per-project DAG visualizer (SVG, layered layout, risk scoring) |
-| ⚙ **Batch Tasks** | Multi-intent sequential agent execution with live progress |
+| 🕸 **Attack Chain** | Per-project DAG visualizer (SVG, layered layout, risk scoring, PNG/SVG export) |
+| ⚙ **Batch Tasks** | Multi-intent sequential agent execution with live progress streaming |
 | 🔀 **Workflows** | Graph-based automation engine (agent / tool / condition / approval / output node types) |
-| 💬 **Conversations** | Full message archive with role-colored replay |
-| 📦 **Assets** | Dedup/normalize on ingest; CSV export |
+| 💬 **Conversations** | Full message archive with role-coloured replay |
+| 📦 **Assets** | Dedup/normalize on ingest; bilingual CSV/XLSX import; CSV export |
 | 🛡 **Vulnerabilities** | Severity lifecycle, asset linking, filtering |
 | 📚 **Knowledge Base** | RAG pipeline (chunk/ingest/keyword search; vector slot ready for embedding model) |
 | 📊 **Reports** | Markdown, JSON, and CSV project report export |
 | 🔒 **TLS** | Self-signed cert for local dev; configurable cert/key paths for production |
+| 📡 **C2 Emulation** | Listener/session/payload management for authorized adversary emulation |
+| 🌐 **i18n** | English, Simplified Chinese, and Russian UI with live language switching |
 
 ---
 
@@ -53,7 +69,7 @@
 git clone https://github.com/AMG555/Kestrel.git
 cd Kestrel
 
-# 3. Build everything
+# 3. Build everything (frontend SPA + Go binary)
 make all
 
 # 4. Configure
@@ -65,13 +81,18 @@ cp config.example.yaml config.yaml
 ./build/kestrel --https  # HTTPS with self-signed cert on :8443
 ```
 
-Or use `go run` directly:
+Or with `go run`:
 ```bash
 cd web && npm install && npm run build && cd ..
 go run ./cmd/server
 ```
 
-On first startup the admin credentials are printed to the console. Sign in and change the password immediately.
+Or with Docker:
+```bash
+docker compose up
+```
+
+On first startup the admin credentials are printed to the console. **Change them immediately.**
 
 ---
 
@@ -107,27 +128,42 @@ Kestrel/
 ├── cmd/server/             Entry point (consent gate, config, graceful shutdown)
 ├── internal/
 │   ├── agent/              ReAct loop — LLM-driven or rule-based fallback
+│   ├── agentfinalizer/     Post-run cleanup and summary emission
 │   ├── app/                Gin router, TLS, system role seeding
-│   ├── auth/               JWT + bcrypt + session management
+│   ├── attackchain/        DAG builder — nodes, edges, risk scoring, SVG render
+│   ├── audit/              Append-only audit service, failure throttle, sanitization
+│   ├── authctx/            Request-scoped auth context helpers
 │   ├── config/             YAML loader with ${ENV_VAR} expansion
 │   ├── database/           SQLite (WAL) — all domain CRUD
-│   ├── handler/            HTTP handlers per domain
+│   ├── einomcp/            Eino ADK MCP bridge
+│   ├── handler/            HTTP handlers per domain (30+ route groups)
+│   ├── hitl/               Human-in-the-loop approval queue and audit agent
 │   ├── knowledge/          RAG pipeline (ingest, chunk, keyword/vector search)
 │   ├── llm/                Multi-provider LLM client (OpenAI, Anthropic, Ollama, stub)
-│   ├── logger/             Structured zap logger
-│   ├── mcp/                Tool registry + 7 built-in recon tools
-│   ├── middleware/         Auth, audit context, forced-change guard
+│   ├── logger/             Structured zap logger with diagnostic file support
+│   ├── mcp/                Tool registry + 7 built-in recon tools + external federation
+│   ├── middleware/         Auth, audit context, security headers, rate-limit
+│   ├── monitor/            Run monitor, telemetry, task progress tracking
+│   ├── multiagent/         Plan-Execute / Supervisor orchestration via Eino ADK
+│   ├── openai/             OpenAI-compatible streaming client
+│   ├── project/            Project-scoped context injection
 │   ├── report/             Markdown / JSON / CSV report generator
+│   ├── robot/              Alert bot integrations (WeChat, WeCom, DingTalk, Lark, Telegram, Slack)
+│   ├── security/           RBAC middleware, password generation, shell executor
+│   ├── termout/            Terminal output formatting and streaming
+│   ├── typesafe/           Generic type-safe helpers
+│   ├── vision/             Vision model client (image preprocessing, multi-provider)
 │   └── workflow/           Graph-based workflow engine
 └── web/
-    ├── src/                React 18 SPA source (compiled to web/dist/, embedded in Go binary)
-    │   ├── pages/          16 pages: Dashboard, Agent, Projects, AttackChain,
+    ├── src/                React 18 SPA (compiled → web/dist/, embedded in binary)
+    │   ├── pages/          29 pages: Dashboard, Agent, Projects, AttackChain,
     │   │                              BatchTasks, Workflows, HITL, Conversations,
-    │   │                              Assets, Vulns, Knowledge, Audit,
-    │   │                              Users, Roles, ChangePassword
+    │   │                              Assets, Vulns, Knowledge, Audit, Users, Roles,
+    │   │                              Sessions, Tools, Skills, Monitor, C2, OSINT,
+    │   │                              Webshell, Terminal, Robots, Settings, and more
     │   ├── App.jsx         Router + Auth context + Sidebar layout
-    │   └── api.js          60+ typed fetch helpers + WebSocket
-    ├── static/             Go-embedded legacy JS/CSS assets
+    │   └── api.js          Typed fetch helpers + WebSocket
+    ├── static/             Go-embedded legacy JS/CSS assets (legacy template UI)
     └── templates/          Go-embedded HTML templates
 ```
 
@@ -138,14 +174,14 @@ Kestrel/
 | Tool | Description |
 |------|-------------|
 | `subdomain_enum` | Passive subdomain enumeration via crt.sh CT logs |
-| `http_probe` | HTTP/HTTPS service probing (status, server header, redirect) |
+| `http_probe` | HTTP/HTTPS service probing (status, server header, redirect chain) |
 | `dns_lookup` | DNS record lookup (A, AAAA, MX, TXT, NS, CNAME) |
 | `whois_lookup` | RDAP/WHOIS lookup for domains and IP addresses |
 | `ssl_cert_check` | TLS certificate inspection (expiry, SANs, issuer, chain) |
 | `tech_fingerprint` | Passive technology detection from HTTP headers + HTML |
 | `port_scan` | TCP connect scan across common ports (up to 200 ports, 50 concurrent) |
 
-> Exploitation, credential-dumping, and remote-shell tool classes are **deliberately excluded** from the default tool set.
+> Exploitation, credential-dumping, and remote-shell tool classes are **deliberately excluded** from the default tool set. Additional tools can be registered via external MCP servers.
 
 ---
 
@@ -248,10 +284,13 @@ GET                /api/workflows/runs/:run_id
 ## Development
 
 ```bash
-make test         # Run all tests (CGO_ENABLED=1, requires gcc)
+make test         # Run all Go tests (CGO_ENABLED=1, requires gcc)
+make test-js      # Run all 217 frontend unit tests
+make test-all     # Go tests + frontend tests
 make test-short   # Skip network-dependent tests
 make vet          # go vet
 make fmt          # go fmt
+make lint         # golangci-lint (install separately)
 make dev          # air hot-reload backend
 make web-dev      # Vite dev server (HMR)
 make clean        # Remove build artifacts
@@ -293,6 +332,14 @@ knowledge:
   chunk_overlap: 64
   top_k: 5
 ```
+
+Full reference: [`config.example.yaml`](config.example.yaml)
+
+---
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). All PRs are welcome — bug fixes, new MCP tools (read-only recon only), documentation, and test coverage improvements.
 
 ---
 
