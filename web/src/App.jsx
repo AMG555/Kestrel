@@ -130,7 +130,7 @@ function Sidebar() {
     }}>
       <div style={{ padding: '20px 16px 12px', borderBottom: '1px solid var(--border)' }}>
         <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--accent)' }}>⚔ Kestrel</div>
-        <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>Under Development</div>
+        <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>Security Operations Platform</div>
       </div>
       <nav style={{ flex: 1, padding: '8px 0', overflowY: 'auto' }}>
         {NAV.map(({ to, label }) => (

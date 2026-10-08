@@ -37,7 +37,7 @@ export default function LoginPage() {
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
           <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--accent)' }}>⚔ Kestrel</div>
           <div style={{ color: 'var(--muted)', fontSize: 12, marginTop: 4 }}>
-            AI-native Security Operations Platform<br/>
+            Orchestrate. Investigate. Operate.<br/>
             <span style={{ color: 'var(--warn)', fontWeight: 600 }}>AUTHORIZED USE ONLY</span>
           </div>
         </div>

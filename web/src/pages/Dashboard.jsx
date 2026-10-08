@@ -51,12 +51,6 @@ export default function Dashboard() {
     <div>
       <div className="flex items-center justify-between mb-16">
         <h1 style={{ fontSize: 20, fontWeight: 700 }}>Dashboard</h1>
-        <span style={{
-          fontSize: 11, padding: '3px 10px', borderRadius: 12,
-          background: '#d2992222', color: 'var(--warn)', fontWeight: 600,
-        }}>
-          ⚠ Under Development
-        </span>
       </div>
 
       {error && <div className="error-msg mb-16">{error}</div>}
