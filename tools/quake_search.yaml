@@ -96,7 +96,7 @@ args:
                 "status": "error",
                 "message": "Missing Quake config: api_key (Quake API Token)",
                 "required_config": ["api_key"],
-                "note": "Set your API token in the YAML file or via the QUAKE_API_KEY environment variable。"
+                "note": "Set your API token in the YAML file or via the QUAKE_API_KEY environment variable."
             }
             print(json.dumps(error_result, ensure_ascii=False, indent=2))
             sys.exit(1)

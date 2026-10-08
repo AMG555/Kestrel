@@ -887,7 +887,7 @@ async function deleteSkill(skillName) {
     // Build confirmation message
     let confirmMessage = _t('skills.deleteConfirm', { name: skillName });
     if (boundRoles.length > 0) {
-        const rolesList = boundRoles.join('、');
+        const rolesList = boundRoles.join(', ');
         confirmMessage = _t('skills.deleteConfirmWithRoles', { name: skillName, count: boundRoles.length, roles: rolesList });
     }
 
@@ -908,7 +908,7 @@ async function deleteSkill(skillName) {
         const data = await response.json();
         let successMessage = _t('skills.deleteSuccess');
         if (data.affected_roles && data.affected_roles.length > 0) {
-            const rolesList = data.affected_roles.join('、');
+            const rolesList = data.affected_roles.join(', ');
             successMessage = _t('skills.deleteSuccessWithRoles', { count: data.affected_roles.length, roles: rolesList });
         }
         showNotification(successMessage, 'success');

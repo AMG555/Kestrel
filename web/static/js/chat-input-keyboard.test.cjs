@@ -30,7 +30,7 @@ function createKeydownHarness() {
     return context;
 }
 
-test('聊天输入框按 Enter 发送并阻止原生换行', () => {
+test('Chat input: Enter sends and prevents native newline', () => {
     const context = createKeydownHarness();
     let prevented = false;
 
@@ -48,7 +48,7 @@ test('聊天输入框按 Enter 发送并阻止原生换行', () => {
     assert.equal(context.sendCount, 1);
 });
 
-test('聊天输入框按 Shift+Enter 只换行且不发送', () => {
+test('Chat input: Shift+Enter inserts newline only, does not send', () => {
     const context = createKeydownHarness();
     let prevented = false;
 
@@ -66,7 +66,7 @@ test('聊天输入框按 Shift+Enter 只换行且不发送', () => {
     assert.equal(context.sendCount, 0);
 });
 
-test('输入法Confirm候选词时按 Enter 不会发送', () => {
+test('Chat input: Enter during IME candidate confirmation does not send', () => {
     const context = createKeydownHarness();
 
     context.handleChatInputKeydown({

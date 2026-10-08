@@ -9,7 +9,7 @@ const template = fs.readFileSync(path.join(root, 'web/templates/index.html'), 'u
 const zh = JSON.parse(fs.readFileSync(path.join(root, 'web/static/i18n/zh-CN.json'), 'utf8'));
 const en = JSON.parse(fs.readFileSync(path.join(root, 'web/static/i18n/en-US.json'), 'utf8'));
 
-test('Eino Model retry/failover 设置页读写链路完整', () => {
+test('Eino model retry/failover settings page read/write pipeline is complete', () => {
     [
         'eino-model-retry-max-retries',
         'eino-model-retry-max-backoff-sec',
@@ -29,11 +29,10 @@ test('Eino Model retry/failover 设置页读写链路完整', () => {
         assert.match(settings, new RegExp(`${key}`));
     });
 
-    assert.match(settings, /failoverChannelsRaw\.split\(\s*\/\[\\n,，\]\//);
-    assert.match(settings, /Array\.from\(new Set\(/);
+    assert.match(settings, /failoverChannelsRaw\.split\(\s*\/\[\\n,，\]\//);    assert.match(settings, /Array\.from\(new Set\(/);
 });
 
-test('Eino Model retry/failover 设置项有中英文文案', () => {
+test('Eino model retry/failover settings have Chinese and English copy', () => {
     [
         'einoModelRetryMaxRetries',
         'einoModelRetryMaxRetriesHint',
@@ -52,7 +51,7 @@ test('Eino Model retry/failover 设置项有中英文文案', () => {
     });
 });
 
-test('AI channelSave前会自动识别 DeepSeek 官方线路', () => {
+test('AI channel auto-detects DeepSeek official route before save', () => {
     assert.match(settings, /function\s+isOfficialDeepSeekBaseURL/);
     assert.match(settings, /api\.deepseek\.com/);
     assert.match(settings, /profile:\s*'deepseek'/);
@@ -61,7 +60,7 @@ test('AI channelSave前会自动识别 DeepSeek 官方线路', () => {
     assert.match(template, /<option value="deepseek">deepseek<\/option>/);
 });
 
-test('切换或Add AI channel时会Refresh推理线路下拉显示', () => {
+test('Switching or adding AI channel refreshes the reasoning route dropdown', () => {
     assert.match(settings, /const profileEl = document\.getElementById\('openai-reasoning-profile'\);/);
     assert.match(settings, /syncSettingsCustomSelect\(profileEl\);/);
     assert.match(settings, /reasoning:\s*\{\s*mode:\s*'auto',\s*effort:\s*'',\s*profile:\s*'auto'/);

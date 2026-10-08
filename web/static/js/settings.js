@@ -3245,7 +3245,7 @@ async function deleteCheckedAIChannels() {
         alert('At least one AI channel must be kept');
         return;
     }
-    const names = deletable.map((id) => currentConfig.ai.channels[id]?.name || id).join('、');
+    const names = deletable.map((id) => currentConfig.ai.channels[id]?.name || id).join(', ');
     if (!confirm(`Are you sure you want to delete ${deletable.length} AI channel(s)?\n${names}`)) {
         return;
     }

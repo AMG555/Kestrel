@@ -2,13 +2,13 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const client = require('./workflow-package-client.js');
 
-test('id 冲突Default仅允许保留、本地覆盖或另存', () => {
+test('ID conflict default only allows keep, local override, or save-as', () => {
     assert.deepEqual(client.allowedActions('id_conflict'), ['keep_existing', 'overwrite', 'rename']);
     assert.deepEqual(client.allowedActions('identical'), ['keep_existing']);
     assert.deepEqual(client.allowedActions('none'), ['create']);
 });
 
-test('覆盖Import请求必须带Confirm和空的新 ID', () => {
+test('Override import request must include confirm and empty new ID', () => {
     assert.deepEqual(client.buildImportRequest({
         inspectionId: 'wpi_1',
         action: 'overwrite',
@@ -21,7 +21,7 @@ test('覆盖Import请求必须带Confirm和空的新 ID', () => {
     });
 });
 
-test('预检以 multipart file 请求并保留 API Back体', async () => {
+test('Pre-check sends multipart file request and preserves API response body', async () => {
     let observed;
     const apiFetch = async (url, options) => {
         observed = { url, options };
@@ -34,7 +34,7 @@ test('预检以 multipart file 请求并保留 API Back体', async () => {
     assert.equal(data.inspection.id, 'wpi_1');
 });
 
-test('Import以稳定幂等键发送规范请求体', async () => {
+test('Import sends canonical request body with stable idempotency key', async () => {
     let observed;
     const apiFetch = async (url, options) => {
         observed = { url, options };

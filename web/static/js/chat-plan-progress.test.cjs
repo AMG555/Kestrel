@@ -4,11 +4,11 @@ const fs = require('node:fs');
 
 const { deriveProgress, applyTaskUpdate } = require('./chat-plan-progress.js');
 
-test('任务进度优先定位进行中步骤并保留Complete项', () => {
+test('Task progress: prioritise in-progress step and retain completed items', () => {
     const progress = deriveProgress([
-        { id: '1', subject: '梳理需求', status: 'completed' },
-        { id: '2', subject: '实现组件', activeForm: '正在实现组件', status: 'in_progress' },
-        { id: '3', subject: '浏览器验证', status: 'pending' }
+        { id: '1', subject: 'Gather requirements', status: 'completed' },
+        { id: '2', subject: 'Implement component', activeForm: 'Implementing component', status: 'in_progress' },
+        { id: '3', subject: 'Browser verification', status: 'pending' }
     ]);
     assert.equal(progress.activeStep, 2);
     assert.equal(progress.completed, 1);
@@ -16,10 +16,10 @@ test('任务进度优先定位进行中步骤并保留Complete项', () => {
     assert.equal(progress.allCompleted, false);
 });
 
-test('TaskUpdate 成功后即时勾选，最终步骤显示AllComplete', () => {
+test('TaskUpdate: tick immediately on success, final step shows AllComplete', () => {
     const initial = [
-        { id: '1', subject: '接口', status: 'completed' },
-        { id: '2', subject: '界面', status: 'in_progress' }
+        { id: '1', subject: 'API', status: 'completed' },
+        { id: '2', subject: 'UI', status: 'in_progress' }
     ];
     const updated = applyTaskUpdate(initial, { taskId: '2', status: 'completed' });
     const progress = deriveProgress(updated);
@@ -28,15 +28,15 @@ test('TaskUpdate 成功后即时勾选，最终步骤显示AllComplete', () => {
     assert.equal(progress.allCompleted, true);
 });
 
-test('Delete任务不会出现在悬浮清单中', () => {
+test('Deleted tasks do not appear in the floating task list', () => {
     const tasks = applyTaskUpdate([
-        { id: '1', subject: '保留', status: 'pending' },
+        { id: '1', subject: 'Keep', status: 'pending' },
         { id: '2', subject: 'Delete', status: 'pending' }
     ], { taskId: '2', status: 'deleted' });
     assert.deepEqual(tasks.map((task) => task.id), ['1']);
 });
 
-test('任务进度样式Follow system主题变量而非固定深色', () => {
+test('Task progress style follows system theme variables instead of hardcoded dark', () => {
     const css = fs.readFileSync('web/static/css/chat-plan-progress.css', 'utf8');
     assert.match(css, /--agent-plan-surface:\s*var\(--card-bg\)/);
     assert.match(css, /background:\s*var\(--agent-plan-surface\)/);
@@ -44,7 +44,7 @@ test('任务进度样式Follow system主题变量而非固定深色', () => {
     assert.doesNotMatch(css, /background:\s*#(?:292929|2b2b2b|303030)/i);
 });
 
-test('回到最新按钮与任务进度同时显示时采用上下避让布局', () => {
+test('Back-to-latest button and task progress use stacked avoidance layout when both visible', () => {
     const css = fs.readFileSync('web/static/css/chat-plan-progress.css', 'utf8');
     const template = fs.readFileSync('web/templates/index.html', 'utf8');
     assert.match(css, /\.chat-return-latest:not\(\[hidden\]\)\s*\+\s*\.agent-plan-progress:not\(\[hidden\]\)/);
@@ -55,7 +55,7 @@ test('回到最新按钮与任务进度同时显示时采用上下避让布局',
     assert.match(template, /<button[^>]+id="chat-return-latest"[\s\S]*?<\/button>\s*<div id="agent-plan-progress"/);
 });
 
-test('计划Details只在真实鼠标移动或主动操作后Expand', () => {
+test('Plan details only expand after a real mouse move or explicit user action', () => {
     const css = fs.readFileSync('web/static/css/chat-plan-progress.css', 'utf8');
     const source = fs.readFileSync('web/static/js/chat-plan-progress.js', 'utf8');
     assert.doesNotMatch(css, /\.agent-plan-progress:hover\s+\.agent-plan-progress-panel/);
@@ -67,7 +67,7 @@ test('计划Details只在真实鼠标移动或主动操作后Expand', () => {
     assert.match(source, /host\.classList\.remove\('is-hover-active'\)/);
 });
 
-test('服务端判定任务Stop后立即Clear旧任务卡片', () => {
+test('Server-determined task stop immediately clears stale task cards', () => {
     const source = fs.readFileSync('web/static/js/chat-plan-progress.js', 'utf8');
     assert.match(source, /payload && payload\.running === false/);
     assert.match(source, /state\.tasks = \[\][\s\S]{0,160}state\.expanded = false/);

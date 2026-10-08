@@ -13,7 +13,7 @@ function functionSource(source, name, nextName) {
     return source.slice(start, end);
 }
 
-test('已有会话缺少本地配置时不会继承其他会话的最近审批设置', () => {
+test('Existing session with missing local config does not inherit recent approval settings from other sessions', () => {
     const source = functionSource(chat, 'getHitlConfigForConversation', 'setHitlReviewerUI');
     const existingConversationBranch = source.slice(source.indexOf('const key = getHitlStorageKeyByConversation(cid)'));
 
@@ -22,14 +22,14 @@ test('已有会话缺少本地配置时不会继承其他会话的最近审批�
     assert.match(existingConversationBranch, /catch \(e\) \{\s*return fallback;/);
 });
 
-test('服务端Default审批人只更新Default值，不覆盖最近会话选择', () => {
+test('Server default approver only updates the default value, does not overwrite recent session selection', () => {
     const source = functionSource(hitl, 'applyHitlDefaultReviewerFromServer', 'fetchHitlDefaultReviewer');
 
     assert.match(source, /window\.csaiHitlDefaultReviewer = (?:reviewer|v)/);
     assert.doesNotMatch(source, /saveHitlLastGlobalConfig/);
 });
 
-test('Resume会话审批配置时保留该会话自己的审批人', () => {
+test('Resuming session approval config preserves that session own approver', () => {
     const source = functionSource(hitl, 'syncHitlConfigFromServer', 'syncHitlConfigToServerByCurrentConversation');
 
     assert.match(source, /const localReviewer = hitlReviewerNormalize\(local && local\.reviewer\)/);
@@ -38,7 +38,7 @@ test('Resume会话审批配置时保留该会话自己的审批人', () => {
     assert.doesNotMatch(source, /getHitlLastGlobalConfig/);
 });
 
-test('异步同步只能Refresh仍处于Current会话的审批界面', () => {
+test('Async sync can only refresh the approval UI for sessions still in the current session', () => {
     const source = functionSource(hitl, 'syncHitlConfigFromServer', 'syncHitlConfigToServerByCurrentConversation');
 
     assert.match(source, /getCurrentConversationIdForHitl\(\) === conversationId[\s\S]*?window\.applyHitlConfigToUI\(normalizedCfg\)/);

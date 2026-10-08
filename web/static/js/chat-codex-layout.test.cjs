@@ -9,14 +9,14 @@ const styles = fs.readFileSync('web/static/css/style.css', 'utf8');
 const zh = JSON.parse(fs.readFileSync('web/static/i18n/zh-CN.json', 'utf8'));
 const en = JSON.parse(fs.readFileSync('web/static/i18n/en-US.json', 'utf8'));
 
-test('主Chat时间线不再创建用户或助手头像', () => {
+test('Main chat timeline no longer creates user or assistant avatars', () => {
     assert.doesNotMatch(chat, /createMessageAvatar/);
     assert.doesNotMatch(monitor, /createMessageAvatar/);
     assert.doesNotMatch(chat, /message-avatar/);
     assert.doesNotMatch(styles, /\.message-avatar/);
 });
 
-test('新Chat使用无图标的项目欢迎空状态', () => {
+test('New chat uses icon-free project welcome empty state', () => {
     assert.match(chat, /function renderChatWelcomeEmptyState\(\)/);
     assert.match(chat, /chat-welcome-empty-state-title/);
     assert.match(chat, /chat-welcome-empty-state-subtitle/);
@@ -40,7 +40,7 @@ test('Welcome message updates with project and unassigned project state', () => 
     assert.equal(typeof en.chat.projectWelcomeMessage, 'string');
 });
 
-test('会话设置打开时提升整个输入区层级并遮住轮次导航', () => {
+test('Session settings open: raise entire input area z-index and cover turn navigation', () => {
     assert.match(chat, /function syncChatSessionSettingsLayerState\(\)/);
     assert.match(chat, /inputBar\.classList\.toggle\('is-session-settings-open', open\)/);
     assert.match(styles, /\.chat-input-container\.is-session-settings-open\s*\{[\s\S]*?z-index:\s*121/);

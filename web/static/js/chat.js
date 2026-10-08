@@ -129,7 +129,7 @@ function isInterruptContinueInjectChatMessage(content) {
 let chatAttachments = [];
 let chatAttachmentSeq = 0;
 
-// Chat mode: EINO_SINGLE = Eino ADK single-agent (/api/eino-agent/stream); deep / plan_execute / supervisor = Eino multi-agent（/api/multi-agent/stream，请求体 orchestration）
+// Chat mode: EINO_SINGLE = Eino ADK single-agent (/api/eino-agent/stream); deep / plan_execute / supervisor = Eino multi-agent(/api/multi-agent/stream, request body: orchestration)
 const AGENT_MODE_STORAGE_KEY = 'kestrel-chat-agent-mode';
 const AGENT_MODE_CONVERSATION_STORAGE_PREFIX = 'kestrel-chat-agent-mode:conversation';
 const AI_CHANNEL_STORAGE_KEY = 'kestrel-chat-AI-channel';
@@ -2265,7 +2265,7 @@ async function sendMessage() {
     if (String(currentConversationId || '').trim() !== hitlConversationAtSendStart) return;
 
     // Enter will directly call sendMessage; when a task is already running in the same session in another tab,
-    // 必须在渲染用户气泡和发起 POST 前做一次权威status同步，避免Generate一轮“a task is already executing”伪Chat。
+    // Synchronise task status before rendering the user bubble and sending POST, to avoid a spurious "a task is already executing" round-trip.
     if (currentConversationId && typeof loadActiveTasks === 'function') {
         await loadActiveTasks();
     }
@@ -3605,7 +3605,7 @@ function addMessage(role, content, mcpExecutionIds = null, progressId = null, cr
 
     bubble.innerHTML = formattedContent;
 
-    // refreshrestorerunning会话时，后端正文可能仍Yes持久化占位值“Processing...”。
+    // When refreshing/restoring a running session, the backend body may still be the persisted placeholder "Processing...".
     // Keep the message NODE for reuse in iteration details and final reply, but do not display the placeholder as the assistant body.
     if (role === 'assistant' && options && options.hideAssistantPlaceholder) {
         messageDiv.classList.add('assistant-placeholder-content');
@@ -4141,13 +4141,13 @@ function renderProcessDetails(messageId, processDetails, options) {
         window.ensureProcessDetailsReturnLatestControl(timeline);
     }
 
-    // processDetails === null 表示“尚未加载（懒加载）”; messages.reasoningContent 可先展示
+    // processDetails === null means "not yet loaded (lazy)"; messages.reasoningContent can be shown first
     const isLazyNotLoaded = isLazyRequest;
     if (isLazyNotLoaded && !reasoningFromMessage) {
         detailsContainer.dataset.lazyNotLoaded = '1';
         detailsContainer.dataset.loaded = '0';
         const expandLabel = typeof window.t === 'function' ? window.t('chat.expandDetail') : 'expandDetails';
-        let lazyHint = expandLabel + '（Click to load iteration details）';
+        let lazyHint = expandLabel + ' (click to load iteration details)';
         timeline.innerHTML = '<div class="progress-timeline-empty">' + lazyHint + '</div>';
         bindProcessDetailsLazyHint(timeline, messageId);
         timeline.classList.remove('expanded');
@@ -4184,10 +4184,10 @@ function renderProcessDetails(messageId, processDetails, options) {
         processDetails = window.coalesceProcessDetailsToolPairs(processDetails);
     }
     processDetails = compactWorkflowProcessDetails(processDetails);
-    // if没有processDetails或为empty，显示emptystatus
+    // if processDetails is absent or empty, show empty state
     if (!processDetails || processDetails.length === 0) {
         if (!appendMode && !prependMode) {
-            timeline.innerHTML = '<div class="progress-timeline-empty">' + (typeof window.t === 'function' ? window.t('chat.noProcessDetail') : 'No 过程Details（可能execute过快或未触发详细事件）') + '</div>';
+            timeline.innerHTML = '<div class="progress-timeline-empty">' + (typeof window.t === 'function' ? window.t('chat.noProcessDetail') : 'No process details (task may have run too fast or no detail events were fired)') + '</div>';
             if (!isProcessDetailsUserExpanded(messageId)) {
                 timeline.classList.remove('expanded');
             }
@@ -4249,7 +4249,7 @@ function renderProcessDetails(messageId, processDetails, options) {
         const attempt = Number(d.attempt || 0);
         const maxAttempts = Number(d.maxAttempts || 0);
         if (Number.isFinite(attempt) && attempt > 0 && Number.isFinite(maxAttempts) && maxAttempts > 0) {
-            return base + '（' + attempt + '/' + maxAttempts + '）';
+            return base + ' (' + attempt + '/' + maxAttempts + ')';
         }
         return base;
     }
@@ -4317,7 +4317,7 @@ function renderProcessDetails(messageId, processDetails, options) {
                 itemTitle = (matched ? '✅' : '🔀') + ' condition check' + (label ? (' · ' + label) : '') + ' → ' + (matched ? 'Yes' : 'No');
             } else {
                 const icon = status === 'failed' ? '❌' : (status === 'skipped' ? '⏭️' : '✅');
-                itemTitle = icon + ' NODE complete' + (label ? (' · ' + label) : '') + (status ? ('（' + status + '）') : '');
+                itemTitle = icon + ' NODE complete' + (label ? (' · ' + label) : '') + (status ? (' (' + status + ')') : '');
             }
         } else if (eventType === 'workflow_branch_taken' || eventType === 'workflow_branch_skipped') {
             const branch = data.branchLabel || '';
@@ -4367,18 +4367,18 @@ function renderProcessDetails(messageId, processDetails, options) {
                 itemTitle = agPx + '📝 ' + (typeof window.t === 'function' ? window.t('chat.planning') : 'Planning');
             }
         } else if (eventType === 'tool_calls_detected') {
-            itemTitle = agPx + '🔧 ' + (typeof window.t === 'function' ? window.t('chat.toolCallsDetected', { count: data.count || 0 }) : 'Detected ' + (data.count || 0) + ' tool调用');
+            itemTitle = agPx + '🔧 ' + (typeof window.t === 'function' ? window.t('chat.toolCallsDetected', { count: data.count || 0 }) : 'Detected ' + (data.count || 0) + ' tool calls');
         } else if (eventType === 'tool_call') {
             const toolName = data.toolName || (typeof window.t === 'function' ? window.t('chat.unknownTool') : 'unknown tool');
             const index = data.index || 0;
             const total = data.total || 0;
             const callTitle = typeof window.formatToolCallTimelineTitle === 'function'
                 ? window.formatToolCallTimelineTitle(toolName, index, total)
-                : (typeof window.t === 'function' ? window.t('chat.callTool', { name: escapeHtml(toolName), index: index, total: total }) : '调用tool: ' + escapeHtml(toolName) + ' (' + index + '/' + total + ')');
+                : (typeof window.t === 'function' ? window.t('chat.callTool', { name: escapeHtml(toolName), index: index, total: total }) : 'Call tool: ' + escapeHtml(toolName) + ' (' + index + '/' + total + ')');
             itemTitle = agPx + '🔧 ' + callTitle;
         } else if (eventType === 'tool_result') {
             const toolName = data.toolName || (typeof window.t === 'function' ? window.t('chat.unknownTool') : 'unknown tool');
-            const noResultText = typeof window.t === 'function' ? window.t('timeline.noResult') : 'no 结果';
+            const noResultText = typeof window.t === 'function' ? window.t('timeline.noResult') : 'no result';
             const result = data.result != null ? data.result : (data.error != null ? data.error : (data.resultPreview != null ? data.resultPreview : noResultText));
             const resultStr = typeof result === 'string' ? result : JSON.stringify(result);
             const displayState = typeof window.getToolResultDisplayState === 'function'
@@ -4390,7 +4390,7 @@ function renderProcessDetails(messageId, processDetails, options) {
             const execText = displayState.kind === 'blocked'
                 ? (typeof window.t === 'function' ? window.t('chat.toolExecBlocked', { name: escapeHtml(toolName) }) : 'Tool ' + escapeHtml(toolName) + ' Blocked')
                 : backgroundRunning
-                ? ((typeof window.getBackgroundRunningToolLabel === 'function' ? window.getBackgroundRunningToolLabel() : '后台Executing') + ': ' + escapeHtml(toolName))
+                ? ((typeof window.getBackgroundRunningToolLabel === 'function' ? window.getBackgroundRunningToolLabel() : 'Background executing') + ': ' + escapeHtml(toolName))
                 : (success ? (typeof window.t === 'function' ? window.t('chat.toolExecComplete', { name: escapeHtml(toolName) }) : 'Tool ' + escapeHtml(toolName) + ' executecomplete') : (typeof window.t === 'function' ? window.t('chat.toolExecFailed', { name: escapeHtml(toolName) }) : 'Tool ' + escapeHtml(toolName) + ' executeFailed'));
             let execLine = statusIcon + ' ' + execText;
             if (toolName === BuiltinTools.SEARCH_KNOWLEDGE_BASE && success) {
@@ -4418,7 +4418,7 @@ function renderProcessDetails(messageId, processDetails, options) {
         } else if (eventType === 'hitl_audit_agent_started') {
             itemTitle = agPx + 'Audit Agent is reviewing';
         } else if (eventType === 'hitl_audit_agent') {
-            itemTitle = agPx + 'Audit Agent completed审查';
+            itemTitle = agPx + 'Audit Agent completed review';
         } else if (eventType === 'hitl_resumed') {
             itemTitle = agPx + 'approvalapproved';
         } else if (eventType === 'hitl_rejected') {
@@ -4537,7 +4537,7 @@ function finishProcessDetailsRender(messageElement, processDetails, isLazyNotLoa
         const lazyHint = document.createElement('div');
         lazyHint.className = 'progress-timeline-empty progress-timeline-lazy-hint';
         lazyHint.textContent = (typeof window.t === 'function' ? window.t('chat.expandDetail') : 'expandDetails') +
-            '（点击后加载完整过程Details）';
+            ' (click to load full process details)';
         timeline.appendChild(lazyHint);
         bindProcessDetailsLazyHint(lazyHint, messageElement.id);
     }
@@ -4569,7 +4569,7 @@ function finishProcessDetailsRender(messageElement, processDetails, isLazyNotLoa
     }
 }
 
-/** 懒加载collapse态: 后台拉摘要，hint迭代规模而不加载全量Details */
+/** Lazy-load collapsed state: fetch summary in background, hint iteration size without loading full details */
 function prefetchProcessDetailsSummaryHint(messageId, messageElement) {
     if (!messageElement || !messageElement.dataset || !messageElement.dataset.backendMessageId) return;
     const backendId = String(messageElement.dataset.backendMessageId).trim();
@@ -4609,11 +4609,11 @@ function prefetchProcessDetailsSummaryHint(messageId, messageElement) {
             const timeline = detailsContainer.querySelector('.progress-timeline');
             if (!timeline || detailsContainer.dataset.loaded === '1') return;
             const expandLabel = typeof window.t === 'function' ? window.t('chat.expandDetail') : 'expandDetails';
-            let hint = expandLabel + '（Click to load iteration details）';
+            let hint = expandLabel + ' (click to load iteration details)';
             if (s.maxIteration > 0) {
-                hint = expandLabel + '（Total ' + s.maxIteration + ' iteration，' + (s.total || 0) + '  recordsDetails）';
+                hint = expandLabel + ' (total ' + s.maxIteration + ' iterations, ' + (s.total || 0) + ' records)';
             } else if (s.total > 0) {
-                hint = expandLabel + '（Total ' + (s.total || 0) + '  recordsDetails）';
+                hint = expandLabel + ' (total ' + (s.total || 0) + ' records)';
             }
             const empty = timeline.querySelector('.progress-timeline-empty');
             if (empty) {
@@ -4624,7 +4624,7 @@ function prefetchProcessDetailsSummaryHint(messageId, messageElement) {
         .catch(() => {});
 }
 
-// remove消息
+// remove message
 function removeMessage(ID) {
     const messageDiv = document.getElementById(ID);
     if (messageDiv) {
@@ -4632,14 +4632,14 @@ function removeMessage(ID) {
     }
 }
 
-// 输入框事件绑定（Enter send、Shift+Enter 换行 / @提及）
+// Input box event binding (Enter sends, Shift+Enter inserts newline, @ mentions)
 const chatInput = document.getElementById('chat-input');
 if (chatInput) {
     chatInput.addEventListener('keydown', handleChatInputKeydown);
     chatInput.addEventListener('input', handleChatInputInput);
     chatInput.addEventListener('click', handleChatInputClick);
     chatInput.addEventListener('focus', handleChatInputClick);
-    // IME输入法事件监听，用于跟踪输入法status
+    // IME event listener, used to track IME composition state
     chatInput.addEventListener('compositionstart', () => {
         if (compositionEndTimer) {
             clearTimeout(compositionEndTimer);
@@ -4662,18 +4662,18 @@ if (chatInput) {
                 deactivateMentionState();
             }
         }, 120);
-        // 失焦时立即save草稿（不等待防抖）
+        // Save draft immediately on blur (do not wait for debounce)
         if (chatInput.value) {
             saveChatDraft(chatInput.value);
         }
     });
 }
 
-//   page卸载时立即save草稿
+//   Save draft immediately on page unload
 window.addEventListener('beforeunload', () => {
     const chatInput = document.getElementById('chat-input');
     if (chatInput && chatInput.value) {
-        // 立即save，不使用防抖
+        // Save immediately, no debounce
         saveChatDraft(chatInput.value);
     }
 });
@@ -4906,7 +4906,7 @@ function formatMcpToolsToggleLabel(count, expanded) {
         const s = window.t('chat.toolExecutionsCount', { n: count });
         if (s && s !== 'chat.toolExecutionsCount') return s;
     }
-    return count + '次Tool execution';
+    return count + ' tool executions';
 }
 
 function formatAssistantTurnDuration(durationMs) {
@@ -5113,8 +5113,8 @@ function setAssistantTurnTiming(messageElementOrId, timing) {
     if (value.status) messageElement.dataset.turnStatus = String(value.status);
     const status = String(messageElement.dataset.turnStatus || 'completed');
     if (status === 'running') {
-        // 摘要接口对runningtaskreturn durationMs=0。refresh  page时不能把这个快照
-        // 当作固定耗时save，otherwise后续渲染会一直显示“Processed 0  sec”。
+        // The summary API returns durationMs=0 for running tasks. On page refresh, do not treat this snapshot
+        // as a fixed elapsed time, otherwise subsequent renders will always show "Processed 0 sec".
         delete messageElement.dataset.turnDurationMs;
         delete messageElement.dataset.turnCompletedAt;
     } else {
@@ -5165,13 +5165,13 @@ function syncAssistantTurnSummary(messageElementOrId) {
     if (status === 'running') {
         text = typeof window.t === 'function' ? window.t('chat.turnElapsedRunning', { duration: duration }) : 'Processed ' + duration;
     } else if (status === 'cancelled') {
-        text = typeof window.t === 'function' ? window.t('chat.turnElapsedCancelled', { duration: duration }) : '已中断 · 耗时 ' + duration;
+        text = typeof window.t === 'function' ? window.t('chat.turnElapsedCancelled', { duration: duration }) : 'Cancelled · ' + duration;
     } else if (status === 'timeout') {
-        text = typeof window.t === 'function' ? window.t('chat.turnElapsedTimeout', { duration: duration }) : 'Timed out · 耗时 ' + duration;
+        text = typeof window.t === 'function' ? window.t('chat.turnElapsedTimeout', { duration: duration }) : 'Timed out · ' + duration;
     } else if (status === 'failed') {
-        text = typeof window.t === 'function' ? window.t('chat.turnElapsedFailed', { duration: duration }) : 'executeFailed · 耗时 ' + duration;
+        text = typeof window.t === 'function' ? window.t('chat.turnElapsedFailed', { duration: duration }) : 'Failed · ' + duration;
     } else {
-        text = typeof window.t === 'function' ? window.t('chat.turnElapsedComplete', { duration: duration }) : '耗时 ' + duration;
+        text = typeof window.t === 'function' ? window.t('chat.turnElapsedComplete', { duration: duration }) : 'Completed in ' + duration;
     }
     label.innerHTML = `
         <span class="turn-process-leading">
@@ -5185,7 +5185,7 @@ function syncAssistantTurnSummary(messageElementOrId) {
     label.setAttribute('aria-expanded', expanded ? 'true' : 'false');
     label.setAttribute('aria-label', typeof window.t === 'function'
         ? window.t('chat.turnProcessAria', { state: text })
-        : text + '，expand或collapseexecute过程');
+        : text + ', click to expand or collapse execution details');
 }
 
 window.setAssistantTurnTiming = setAssistantTurnTiming;
@@ -5194,7 +5194,7 @@ window.syncAssistantTurnSummary = syncAssistantTurnSummary;
 window.formatAssistantTurnDuration = formatAssistantTurnDuration;
 window.extractAssistantTurnTokenUsage = extractAssistantTurnTokenUsage;
 
-/** 渗透Test区: tool栏（expandDetails | N次Tool execution）+ 独立Tool list + 迭代时间线 */
+/** Pen-test section: tool bar (expand details | N tool executions) + standalone tool list + iteration timeline */
 function ensureMcpCallSectionChrome(messageElement, messageId) {
     const contentWrapper = messageElement && messageElement.querySelector('.message-content');
     if (!contentWrapper) return null;
@@ -5327,9 +5327,9 @@ async function openTaskToolExecutionDetail(messageElement, item, index) {
 }
 
 /**
- * 声明式渲染tool调用列表。
- * toolDetails只以 executionId 作为stable入口; 缺少 executionId 的历史摘要不渲染为toolDetails入口。
- * 每次update整体替换列表，避免增量追加产生双重status。
+ * Declarative render of the tool call list.
+ * Tool details use executionId as the stable key; historical summaries without executionId are not rendered as detail entries.
+ * Replace the entire list on each update to avoid double-status from incremental appends.
  */
 function renderMcpCallButtons(messageElement) {
     if (!messageElement) return;
@@ -5361,7 +5361,7 @@ function renderMcpCallButtons(messageElement) {
         } else {
             btn.innerHTML = '<span>' + (typeof window.t === 'function'
                 ? window.t('chat.callNumber', { n: index + 1 })
-                : '调用 #' + (index + 1)) + '</span>';
+                : 'Call #' + (index + 1)) + '</span>';
         }
         fragment.appendChild(btn);
     });
@@ -5385,7 +5385,7 @@ function setMcpCallSummaries(messageElement, summaries) {
     renderMcpCallButtons(messageElement);
 }
 
-/** 懒加载: 用户expandTool list时Submit待渲染的数据Model。 */
+/** Lazy-load: submit the data model to render when the user expands the tool list. */
 function renderPendingMcpCallButtons(messageElement) {
     if (!messageElement || !messageElement.dataset) {
         return;
@@ -5463,7 +5463,7 @@ function getToolExecutionStatusLabel(status) {
         running: 'running',
         cancelled: 'Cancelled',
         pending: 'waiting',
-        result_missing: '结果记录缺失'
+        result_missing: 'Result record missing'
     };
     return fallback[normalized] || '';
 }
@@ -5484,7 +5484,7 @@ function renderToolExecutionButtonContent(btn, displayToolName, index, status) {
     btn.title = statusText;
 }
 
-// 批量获取tool摘要并update按钮（消除 N 次单独 API 请求，合并为 1 次）
+// Batch-fetch tool summaries and update buttons (eliminate N individual API requests, merge into 1)
 async function batchUpdateButtonToolNames(buttonsContainer, executionIds, renderVersion) {
     if (!executionIds || executionIds.length === 0) return;
     try {
@@ -5494,10 +5494,10 @@ async function batchUpdateButtonToolNames(buttonsContainer, executionIds, render
             body: JSON.stringify({ IDs: executionIds }),
         });
         if (!response.ok) return;
-        const nameMap = await response.json(); // { execId: toolName } 或 { execId: { toolName, status } }
-        // 等待请求期间if摘要触发了新一轮渲染，旧响应不得覆盖新status。
+        const nameMap = await response.json(); // { execId: toolName } or { execId: { toolName, status } }
+        // If a new render is triggered while waiting, the old response must not overwrite the new state.
         if (renderVersion && buttonsContainer.dataset.renderVersion !== renderVersion) return;
-        // update对应按钮的文本
+        // Update the corresponding button text
         const buttons = buttonsContainer.querySelectorAll('.mcp-detail-btn[data-exec-idD]');
         buttons.forEach(btn => {
             const execId = btn.dataset.execId;
@@ -5510,7 +5510,7 @@ async function batchUpdateButtonToolNames(buttonsContainer, executionIds, render
             }
         });
     } catch (error) {
-        console.error('批量获取Tool namefailed:', error);
+        console.error('Batch tool name fetch failed:', error);
     }
 }
 
@@ -5633,12 +5633,12 @@ function renderMCPDetailModal(exec) {
     if (resultTabLabel) {
         const key = blocked ? 'mcpDetailModal.blockReason' : 'mcpDetailModal.correct info';
         resultTabLabel.dataset.i18n = key;
-        resultTabLabel.textContent = typeof window.t === 'function' ? window.t(key) : (blocked ? 'Block原因' : '正确 info');
+        resultTabLabel.textContent = typeof window.t === 'function' ? window.t(key) : (blocked ? 'Block reason' : 'Correct info');
     }
 
     if (exec.result) {
         const agentVisibleText = formatMCPDetailText(extractMCPResultText(exec.result));
-        const emptyText = typeof window.t === 'function' ? window.t('mcpDetailModal.execSuccessNoContent') : 'executesuccess，未return可展示的文本内容。';
+        const emptyText = typeof window.t === 'function' ? window.t('mcpDetailModal.execSuccessNoContent') : 'Executed successfully, no displayable text content returned.';
 
         if (blocked) {
             responseElement.className = 'code-block blocked';
@@ -5669,9 +5669,9 @@ function renderMCPDetailModal(exec) {
         }
     } else {
         if (normalizedStatus === 'running' || normalizedStatus === 'background_running') {
-            responseElement.textContent = typeof window.t === 'function' ? window.t('mcpDetailModal.runningNoResponseYet') : '尚no return，tool可能仍在execute。若长时间no 响应，可在下方终止本次调用。';
+            responseElement.textContent = typeof window.t === 'function' ? window.t('mcpDetailModal.runningNoResponseYet') : 'No response yet; the tool may still be running. If unresponsive for a long time, you can abort below.';
         } else {
-            responseElement.textContent = typeof window.t === 'function' ? window.t('chat.noResponseData') : 'No 响应数据';
+            responseElement.textContent = typeof window.t === 'function' ? window.t('chat.noResponseData') : 'No response data';
         }
         setMCPResultDetailTabs('raw', false);
     }
@@ -5682,7 +5682,7 @@ function renderMCPDetailModal(exec) {
         if ((normalizedStatus === 'running' || normalizedStatus === 'background_running') && exec.id) {
             abortSection.style.display = 'block';
             abortBtn.dataset.execId = exec.id || '';
-            abortBtn.textContent = typeof window.t === 'function' ? window.t('mcpDetailModal.abortBtn') : '终止tool';
+            abortBtn.textContent = typeof window.t === 'function' ? window.t('mcpDetailModal.abortBtn') : 'Abort tool';
         } else {
             abortSection.style.display = 'none';
             delete abortBtn.dataset.execId;
@@ -5698,7 +5698,7 @@ async function showMCPDetail(executionId) {
 
         if (!response.ok) {
             closeMCPDetail();
-            alert((typeof window.t === 'function' ? window.t('mcpDetailModal.getDetailFailed') : '获取Detailsfailed') + ': ' + (exec.error || (typeof window.t === 'function' ? window.t('mcpDetailModal.unknown') : 'Unknown error')));
+            alert((typeof window.t === 'function' ? window.t('mcpDetailModal.getDetailFailed') : 'Failed to get details') + ': ' + (exec.error || (typeof window.t === 'function' ? window.t('mcpDetailModal.unknown') : 'Unknown error')));
             return;
         }
 
@@ -5707,16 +5707,16 @@ async function showMCPDetail(executionId) {
         });
     } catch (error) {
         closeMCPDetail();
-        alert((typeof window.t === 'function' ? window.t('mcpDetailModal.getDetailFailed') : '获取Detailsfailed') + ': ' + error.message);
+        alert((typeof window.t === 'function' ? window.t('mcpDetailModal.getDetailFailed') : 'Failed to get details') + ': ' + error.message);
     }
 }
 
-// CloseMCPDetails模态框
+// Close MCP details modal
 function closeMCPDetail() {
     closeAppModal('mcp-detail-modal');
 }
 
-/** 从Details模态框触发: Cancelcurrent In progress的 MCP tool调用 */
+/** Triggered from the details modal: cancel the currently in-progress MCP tool call */
 async function abortMCPToolExecutionFromDetail() {
     const btn = document.getElementById('detail-abort-btn');
     const ID = btn && btn.dataset.execId;
@@ -5727,7 +5727,7 @@ async function abortMCPToolExecutionFromDetail() {
 }
 
 /**
- * 打开 MCP tool终止弹窗（说明会经service端加上「用户终止说明」title块后与tooloutput合并给Model）
+ * Open the MCP tool abort dialog (the note will be prepended as a "user abort note" block by the server before being merged with tool output for the model)
  * @param {string} executionId
  * @param {{ refreshDetail?: boolean }} [options]
  */
@@ -5759,7 +5759,7 @@ async function submitMcpToolAbortModal() {
 }
 
 /**
- * Submit终止请求（body: { note }）
+ * Submit the abort request (body: { note })
  * @param {string} executionId
  * @param {string} userNote
  * @param {{ refreshDetail?: boolean }} [options]
@@ -5789,7 +5789,7 @@ async function cancelMCPToolExecutionSubmit(executionId, userNote, options = {})
                 throw new Error(body.error || body.message || res.statusText);
             }
         }
-        const okMsg = typeof window.t === 'function' ? window.t('mcpDetailModal.abortSuccess') : '已send终止请求';
+        const okMsg = typeof window.t === 'function' ? window.t('mcpDetailModal.abortSuccess') : 'Abort request sent';
         alert(okMsg);
         if (options.refreshDetail && typeof showMCPDetail === 'function') {
             await showMCPDetail(executionId);
@@ -5799,13 +5799,13 @@ async function cancelMCPToolExecutionSubmit(executionId, userNote, options = {})
             await refreshMonitorPanel( page);
         }
     } catch (e) {
-        const failMsg = typeof window.t === 'function' ? window.t('mcpDetailModal.abortFailed') : '终止failed';
+        const failMsg = typeof window.t === 'function' ? window.t('mcpDetailModal.abortFailed') : 'Abort failed';
         alert(failMsg + ': ' + (e && e.message ? e.message : String(e)));
     }
 }
 
 /**
- * Cancel单次 MCP Tool execution（监控 page「终止」）。有 conversationId 时复用Chat page「中断并继续」弹窗与 API。
+ * Cancel a single MCP tool execution (monitor page abort). When conversationId is present, reuse the chat page interrupt-and-continue dialog and API.
  * @param {string} executionId
  * @param {{ refreshDetail?: boolean }} [options]
  */
@@ -5828,7 +5828,7 @@ async function cancelMCPToolExecution(executionId, options = {}) {
     openMcpToolAbortModal(executionId, options);
 }
 
-// copyDetails面板中的内容
+// Copy the contents of the details panel
 function copyDetailBlock(elementId, triggerBtn = null) {
     const TARGET = document.getElementById(elementId);
     if (!TARGET) {
@@ -5893,12 +5893,12 @@ function copyDetailBlock(elementId, triggerBtn = null) {
                 triggerBtn.disabled = false;
                 triggerBtn.textContent = triggerBtn.dataset.originalLabel || originalLabel || 'copy';
             }
-            alert('copy failed，请手动选择文本copy。');
+            alert('Copy failed; please select the text manually.');
         });
 }
 
 
-// start新Chat
+// Start a new chat
 async function startNewConversation(options = {}) {
     const hasExplicitProjectId = !!options
         && Object.prototype.hasOwnProperty.call(options, 'projectId');
@@ -5928,7 +5928,7 @@ async function startNewConversation(options = {}) {
     } catch (e) { /* ignore */ }
     window.dispatchEvent(new CustomEvent('conversation-changed', { detail: { conversationId: '' } }));
     updateChatPrimaryActionState();
-    // 顶部“新task”继承current 文件夹; 文件夹内的“+”仍可显式指定（包括No project）。
+    // The top "new task" inherits the current folder; the "+" inside a folder can still specify explicitly (including no-project).
     if (typeof setActiveProjectId === 'function') setActiveProjectId(requestedProjectId);
     if (typeof refreshChatProjectSelector === 'function') {
         await refreshChatProjectSelector();
@@ -5938,16 +5938,16 @@ async function startNewConversation(options = {}) {
     renderChatWelcomeEmptyState();
     addAttackChainButton(null);
     updateActiveConversation();
-    // refreshChat列表，确保显示latest的历史Chat
+    // Refresh the chat list to show the latest history
     loadConversations();
-    // 清除防抖定时器，防止restore草稿时触发save
+    // Clear the debounce timer to prevent triggering a save when restoring a draft
     if (draftsaveTimer) {
         clearTimeout(draftsaveTimer);
         draftsaveTimer = null;
     }
-    // 清除草稿，新Chat不应该restore之前的草稿
+    // Clear the draft; a new chat should not restore a previous draft
     clearChatDraft();
-    // clear输入框
+    // Clear the input box
     const chatInput = document.getElementById('chat-input');
     if (chatInput) {
         chatInput.value = '';
@@ -5971,7 +5971,7 @@ function createConversationListItem(conversation) {
     title.className = 'conversation-title';
     const titleText = conversation.title || 'UntitledChat';
     title.textContent = safeTruncateText(titleText, 60);
-    title.title = titleText; // 设置完整title以便悬停view
+    title.title = titleText; // Set the full title for tooltip on hover
     contentWrapper.appendChild(title);
 
     if (!getConversationProjectFilter()) {
@@ -6017,12 +6017,12 @@ function createConversationListItem(conversation) {
     return item;
 }
 
-// 处理历史记录search
+// Handle history search
 let conversationsearchTimer = null;
 function handleConversationSearch(query) {
     commitConversationsPage(1, { bumpNavigateGen: true });
     conversationssearchQuery = query || '';
-    // 防抖处理，避免频繁请求
+    // Debounce to avoid excessive requests
     if (conversationsearchTimer) {
         clearTimeout(conversationsearchTimer);
     }
@@ -6040,10 +6040,10 @@ function handleConversationSearch(query) {
 
     conversationsearchTimer = setTimeout(() => {
         loadConversations(query);
-    }, 300); // 300ms防抖延迟
+    }, 300); // 300ms debounce delay
 }
 
-// 清除search
+// Clear search
 function clearConversationSearch() {
     const searchInput = document.getElementById('conversation-search-input');
     const clearBtn = document.getElementById('conversation-search-clear');
@@ -6069,8 +6069,8 @@ function conversationSidebarText(key, fallback) {
 }
 
 /**
- * Go 进程会嵌入 index.HTML。开发时即使进程尚未重启，也approve新版静态 JS
- * 将旧侧栏升级为Project文件夹结构; 新模板已包含结构时该函数保持幂等。
+ * The Go process embeds index.html. During development, even if the process has not restarted, the new static JS is served
+ * Upgrades the old sidebar to the project folder structure; idempotent when the new template already contains the structure.
  */
 function ensureProjectSidebarStructure() {
     const sidebar = document.getElementById('conversation-sidebar');
@@ -6080,7 +6080,7 @@ function ensureProjectSidebarStructure() {
     const newTaskLabel = sidebar.querySelector('.new-chat-btn span:last-child');
     if (newTaskLabel) {
         newTaskLabel.setAttribute('data-i18n', 'chat.newTask');
-        newTaskLabel.textContent = conversationSidebarText('chat.newTask', '新task');
+        newTaskLabel.textContent = conversationSidebarText('chat.newTask', 'New task');
     }
 
     const searchInput = document.getElementById('conversation-search-input');
@@ -6173,11 +6173,11 @@ function ensureProjectSidebarStructure() {
             toggle.setAttribute('data-i18n', 'chat.toggleRecentConversations');
             toggle.setAttribute('data-i18n-attr', 'title,aria-label');
             toggle.setAttribute('data-i18n-skip-text', 'true');
-            toggle.title = conversationSidebarText('chat.toggleRecentConversations', 'expand/collapse最近Chat');
+            toggle.title = conversationSidebarText('chat.toggleRecentConversations', 'Expand/collapse recent chats');
             toggle.setAttribute('aria-label', toggle.title);
             toggle.addEventListener('click', toggleRecentConversations);
             if (title) toggle.appendChild(title);
-            else toggle.innerHTML = '<span class="section-title" data-i18n="chat.recentConversations">最近Chat</span>';
+            else toggle.innerHTML = '<span class="section-title" data-i18n="chat.recentConversations">Recent chats</span>';
 
             const meta = document.createElement('span');
             meta.className = 'recent-conversations-toggle-meta';
@@ -6251,7 +6251,7 @@ function formatConversationTimestamp(dateObj, todayStart, yesterdayStart) {
     if (!(dateObj instanceof Date) || isNaN(dateObj.getTime())) {
         return '';
     }
-    // if没有传入 todayStart，使用current 日期作为参考
+    // If todayStart is not provided, use the current date as the reference
     const now = new Date();
     const referenceToday = todayStart || new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const referenceYesterday = yesterdayStart || new Date(referenceToday.getTime() - 24 * 60 * 60 * 1000);
@@ -6300,8 +6300,8 @@ function getConversationGroup(dateObj, todayStart, sevenDaysCutoff, yesterdaySta
     return 'earlier';
 }
 
-// 加载Chat
-/** 轻量加载会话后，仅对「处理中…」占位回复拉取过程Details（机器人等非 SSE 场景）; completed会话不预取全量 */
+// Load chat
+/** After lightweight session load, only fetch process details for the "Processing..." placeholder reply (bot/non-SSE scenarios); completed sessions do not pre-fetch all details */
 async function prefetchLastAssistantProcessDetails() {
     const nodes = document.querySelectorAll('#chat-messages .message.assistant');
     if (!nodes.length) return;
@@ -6381,9 +6381,9 @@ async function loadConversation(conversationId) {
     const previousConversationId = currentConversationId;
     cancelPendingConversationLoad();
     detachLiveChatStreamForNavigation(conversationId);
-    // 用户单击即代表新的可见会话。必须在任何网络等待之前Submit该选择，
-    // otherwise每 2  sec的activetaskrefresh仍会把旧会话识别为可见，并排队重载旧补流，
-    // 反过来Cancel这次切换。
+    // A user click represents a new visible session. The selection must be committed before any network wait,
+    // otherwise the 2-second active-task refresh will still identify the old session as visible and queue a reload of the old stream,
+    // effectively cancelling this switch.
     currentConversationId = conversationId;
     try {
         window.currentConversationId = conversationId;
@@ -6412,7 +6412,7 @@ async function loadConversation(conversationId) {
         } catch (fetchError) {
             if (fetchError && fetchError.name === 'Aborterror') return;
             if (!cachedConversation) throw fetchError;
-            console.warn('加载latestChatfailed，使用本地缓存:', fetchError);
+            console.warn('Loading latest chat failed, using local cache:', fetchError);
             conversation = cachedConversation;
         }
         if (seq !== loadConversationRequestSeq) {
@@ -6427,7 +6427,7 @@ async function loadConversation(conversationId) {
                 if (previousConversationId) syncChatConversationHash(previousConversationId);
                 else clearChatConversationHash();
             }
-            showChatToast('加载Chatfailed: ' + (conversation.error || 'Unknown error'), 'error');
+            showChatToast('Loading chat failed: ' + (conversation.error || 'Unknown error'), 'error');
             return;
         }
         if (response && response.ok) {
@@ -6469,7 +6469,7 @@ async function loadConversation(conversationId) {
         }
         updateActiveConversation();
 
-        // ifAttack chain模态框打开且显示的不Yescurrent Chat，Close它
+        // If the attack chain modal is open and showing a different chat, close it
         const attackChainModal = document.getElementById('attack-chain-modal');
         if (attackChainModal && isAppModalOpen('attack-chain-modal')) {
             if (currentAttackChainConversationId !== conversationId) {
@@ -6477,29 +6477,29 @@ async function loadConversation(conversationId) {
             }
         }
 
-        // clear消息区域
+        // Clear the message area
         const messagesDiv = document.getElementById('chat-messages');
         if (seq !== loadConversationRequestSeq) {
             return;
         }
         messagesDiv.innerHTML = '';
 
-        // 检查Chat中whether 有最近的消息，if有，清除草稿（避免restore已send的消息）
+        // Check whether the chat has recent messages; if so, clear the draft (avoid restoring an already-sent message)
         let hasRecentUserMessage = false;
         if (conversation.messages && conversation.messages.length > 0) {
             const lastMessage = conversation.messages[conversation.messages.length - 1];
             if (lastMessage && lastMessage.role === 'user') {
-                // 检查消息时间，ifYes最近30 sec内的，清除草稿
+                // Check message timestamp; if within the last 30 seconds, clear the draft
                 const messageTime = new Date(lastMessage.createdAt);
                 const now = new Date();
                 const timeDiff = now.getTime() - messageTime.getTime();
-                if (timeDiff < 30000) { // 30 sec内
+                if (timeDiff < 30000) { // within 30 seconds
                     hasRecentUserMessage = true;
                 }
             }
         }
         if (hasRecentUserMessage) {
-            // if有最近send的User message，清除草稿
+            // If there is a recently sent user message, clear the draft
             clearChatDraft();
             const chatInput = document.getElementById('chat-input');
             if (chatInput) {
@@ -6508,12 +6508,12 @@ async function loadConversation(conversationId) {
             }
         }
 
-        // 加载消息 — 分批渲染避免长时间阻塞主线程
+        // Load messages — render in batches to avoid blocking the main thread
         if (conversation.messages && conversation.messages.length > 0) {
-            const FIRST_BATCH = 20;  // 首批同步渲染（用户可见区域）
-            const BATCH_SIZE = 10;   // 后续每批 records数
+            const FIRST_BATCH = 20;  // first batch rendered synchronously (user-visible area)
+            const BATCH_SIZE = 10;   // records per subsequent batch
 
-            // 渲染单 records消息的辅助函数
+            // Helper function to render a single message record
             const renderOneMessage = (msg) => {
                 if (msg.role === 'user' && isInterruptContinueInjectChatMessage(msg.content)) {
                     return;
@@ -6528,9 +6528,9 @@ async function loadConversation(conversationId) {
                     displayContent = terminalState.detail.message || msg.content;
                 }
 
-                // 消息时间口径: 
-                // - user: createdAt 即可（send后不会再update）
-                // - assistant: if后端提供 updatedAt（taskcomplete时写回），优先用它，避免占位消息“taskstart time”误导
+                // Message timestamp convention: 
+                // - user: createdAt suffices (never updated after send)
+                // - assistant: prefer updatedAt if the backend provides it (written back on task completion), to avoid the placeholder "task start time" being misleading
                 const msgTime = (msg && msg.role === 'assistant' && msg.updatedAt) ? msg.updatedAt : (msg ? msg.createdAt : null);
                 const mcpIds = (msg.mcpExecutionIds && Array.isArray(msg.mcpExecutionIds)) ? msg.mcpExecutionIds : [];
                 const isAssistantPlaceholder = msg.role === 'assistant' && (
@@ -6589,10 +6589,10 @@ async function loadConversation(conversationId) {
 
             let pendingMessageBatches = Promise.resolve();
 
-            // 首批同步渲染
+            // Render the first batch synchronously
             firstBatch.forEach(renderOneMessage);
 
-            // 剩余消息approve requestAnimationFrame 分批渲染，避免阻塞 UI
+            // Render remaining messages in batches via requestAnimationFrame to avoid blocking the UI
             if (rest.length > 0) {
                 const savedConvId = conversationId;
                 const savedSeq = seq;
@@ -6661,7 +6661,7 @@ async function loadConversation(conversationId) {
             }
         }
 
-        //   pagerefresh后主流式连接会中断; 若该会话仍在后端run，Auto挂载 task-events 补流继续update前端迭代进度。
+        //   After a page refresh the main stream connection is interrupted; if the session is still running on the backend, auto-attach task-events to resume streaming and update frontend progress.
         const skipReplay = typeof window.shouldSkipTaskEventReplayAttach === 'function'
             && window.shouldSkipTaskEventReplayAttach(conversationId);
         if (
@@ -6676,7 +6676,7 @@ async function loadConversation(conversationId) {
                     console.warn('attachRunningTaskEventStream on loadConversation failed', e);
                 });
         } else if (seq === loadConversationRequestSeq && currentConversationId === conversationId) {
-            // 机器人等非 Web 流式Source: 会话已end或未注册task时，按需拉取最后一 recordsAssistant message的过程Details
+            // Non-web streaming source (bots etc.): when the session has ended or no task is registered, fetch process details for the last assistant message on demand
             prefetchLastAssistantProcessDetails().catch((e) => {
                 console.warn('prefetchLastAssistantProcessDetails failed', e);
             });
@@ -6694,8 +6694,8 @@ async function loadConversation(conversationId) {
                 window.selectChatProjectConversationItem(previousConversationId);
             }
         }
-        console.error('加载Chatfailed:', error);
-        showChatToast('加载Chatfailed: ' + (error && error.message ? error.message : String(error)), 'error');
+        console.error('Load chat failed:', error);
+        showChatToast('Load chat failed: ' + (error && error.message ? error.message : String(error)), 'error');
     } finally {
         if (seq === loadConversationRequestSeq && typeof window.finishChatConversationRestore === 'function') {
             window.finishChatConversationRestore(conversationId);
@@ -6709,7 +6709,7 @@ async function loadConversation(conversationId) {
     }
 }
 
-/** 「delete本轮」: 与时间戳同一行（message-meta-footer），风格与copy按钮区区分 */
+/** "Delete this turn": on the same line as the timestamp (message-meta-footer), distinct from the copy button area */
 function attachDeleteTurnButton(messageEl) {
     if (!messageEl || !messageEl.dataset.backendMessageId) return;
     if (messageEl.querySelector('.message-delete-turn-btn')) return;
@@ -6718,7 +6718,7 @@ function attachDeleteTurnButton(messageEl) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'message-delete-turn-btn';
-    const title = typeof window.t === 'function' ? window.t('chat.deleteTurnTitle') : 'delete本轮Chat';
+    const title = typeof window.t === 'function' ? window.t('chat.deleteTurnTitle') : 'Delete this turn';
     btn.title = title;
     btn.setAttribute('aria-label', title);
     btn.innerHTML = '<SVG width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="HTTP://www.w3.org/2000/SVG" aria-hidden="true"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14zM10 11v6M14 11v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></SVG>';
@@ -6742,10 +6742,10 @@ function attachDeleteTurnButton(messageEl) {
     }
 }
 
-/** delete锚点所在整轮（后端: 该轮 user 至下一轮 user 之前），并clear ReAct 快照 */
+/** Delete the entire turn at the anchor (backend: from this user message to the next), and clear the ReAct snapshot */
 async function deleteConversationTurnFromUI(anchorbackendMessageId) {
     if (!currentConversationId || !anchorbackendMessageId) return;
-    const confirmMsg = typeof window.t === 'function' ? window.t('chat.deleteTurnConfirm') : 'OKdelete本轮Chat？';
+    const confirmMsg = typeof window.t === 'function' ? window.t('chat.deleteTurnConfirm') : 'Delete this turn?';
     if (!confirm(confirmMsg)) return;
     try {
         const response = await apiFetch(`/api/conversations/${currentConversationId}/delete-turn`, {
@@ -6767,16 +6767,16 @@ async function deleteConversationTurnFromUI(anchorbackendMessageId) {
         }
     } catch (error) {
         console.error('delete turn failed:', error);
-        const failed = typeof window.t === 'function' ? window.t('chat.deleteTurnFailed') : 'delete本轮failed';
+        const failed = typeof window.t === 'function' ? window.t('chat.deleteTurnFailed') : 'Delete turn failed';
         alert(failed + ': ' + (error && error.message ? error.message : error));
     }
 }
 
 // deleteChat
 async function deleteConversation(conversationId, skipConfirm = false) {
-    // confirm deletion（if调用者没有skipconfirm）
+    // Confirm deletion (unless the caller passed skipConfirm)
     if (!skipConfirm) {
-        if (!confirm('OK要delete这个Chat吗？Chat消息将不可restore，但已记录的vulnerability会保留在vulnerability库中。')) {
+        if (!confirm('Delete this conversation? Messages cannot be restored, but any recorded vulnerabilities will be kept in the vulnerability database.')) {
             return;
         }
     }
@@ -6791,7 +6791,7 @@ async function deleteConversation(conversationId, skipConfirm = false) {
             throw new Error(error.error || 'delete failed');
         }
 
-        // ifdelete的Yescurrent Chat，clearChat界面
+        // If the deleted conversation is the current one, clear the chat UI
         if (conversationId === currentConversationId) {
             currentConversationId = null;
             try {
@@ -6804,18 +6804,18 @@ async function deleteConversation(conversationId, skipConfirm = false) {
 
         invalidateConversationLiteCache(conversationId);
 
-        // 先同步所有侧栏的本地status，再execute网络refresh。Project文件夹使用独立的
-        // conversation cache; if只refresh“最近Chat”，delete items会一直残留到整 pagerefresh。
+        // First synchronise local state for all sidebars, then execute a network refresh. Project folders use a separate
+        // conversation cache; refreshing only "Recent chats" would leave deleted items until a full page refresh.
         try {
             document.dispatchEvent(new CustomEvent('conversation-deleted', { detail: { conversationId } }));
         } catch (e) { /* ignore */ }
 
-        // refreshChat列表
+        // Refresh the chat list
         if (typeof loadConversations === 'function') {
             loadConversations();
         }
 
-        // 批量管理弹窗打开时，同步refresh弹窗内列表
+        // If the bulk-management dialog is open, also refresh its list
         const batchModal = document.getElementById('batch-manage-modal');
         if (batchModal && isAppModalOpen('batch-manage-modal')) {
             allConversationsForBatch = allConversationsForBatch.filter(c => c.id !== conversationId);
@@ -6828,7 +6828,7 @@ async function deleteConversation(conversationId, skipConfirm = false) {
     }
 }
 
-// update活动Chat样式
+// Update the active chat style
 function updateActiveConversation() {
     document.querySelectorAll('.conversation-item').forEach(item => {
         item.classList.remove('active');
@@ -6838,10 +6838,10 @@ function updateActiveConversation() {
     });
 }
 
-// ==================== Attack chain visualisation功能 ====================
+// ==================== Attack chain visualisation ====================
 
-// Generate节点图标的 data URL（用于 Cytoscape background-image）
-// return一个精美的渐变色方块 + 白色矢量图标
+// Generate a node icon as a data URL (used for Cytoscape background-image)
+// Returns a gradient square with a white vector icon
 function _acBuildNodeIconDataUrl(iconType, color, colorDark) {
     let iconPath = '';
     if (iconType === 'TARGET') {
@@ -6853,7 +6853,7 @@ function _acBuildNodeIconDataUrl(iconType, color, colorDark) {
     } else {
         iconPath = 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z';
     }
-    // 64x64 的图标方块（渐变 + 圆角 + 白色矢量图标）
+    // 64x64 icon square (gradient + rounded corners + white vector icon)
     const SVG = `<SVG xmlns="HTTP://www.w3.org/2000/SVG" width="64" height="64" viewBox="0 0 64 64">
 <defs>
 <linearGradient ID="g" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -6864,26 +6864,26 @@ function _acBuildNodeIconDataUrl(iconType, color, colorDark) {
 <rect x="0" y="0" width="64" height="64" rx="14" fill="url(#g)"/>
 <g transform="translate(14 14) scale(1.5)"><path d="${iconPath}" fill="#FFFFFF"/></g>
 </SVG>`;
-    // 使用 base64 编码（btoa 在浏览器中原生支持）
+    // Use base64 encoding (btoa is natively supported in browsers)
     try {
         return 'data:image/SVG+XML;base64,' + btoa(unescape(encodeURIComponent(SVG)));
     } catch (e) {
-        // 兜底: URL 编码
+        // Fallback: URL encoding
         return 'data:image/SVG+XML;charset=UTF-8,' + encodeURIComponent(SVG);
     }
 }
 
 let attackChainCytoscape = null;
 let currentAttackChainConversationId = null;
-// 按ChatID管理加载status，实现不同Chat之间的解耦
+// Manage loading state per chat ID to decouple different chats
 const attackChainLoadingMap = new Map(); // Map<conversationId, boolean>
 
-// 检查指定Chatwhether 正在加载
+// Check whether the specified chat is loading
 function isAttackChainLoading(conversationId) {
     return attackChainLoadingMap.get(conversationId) === true;
 }
 
-// 设置指定Chat的加载status
+// Set the loading state for the specified chat
 function setAttackChainLoading(conversationId, loading) {
     if (loading) {
         attackChainLoadingMap.set(conversationId, true);
@@ -6892,10 +6892,10 @@ function setAttackChainLoading(conversationId, loading) {
     }
 }
 
-// 添加Attack chain按钮（已移至菜单，此函数保留以保持兼容性，但不再显示顶部按钮）
+// Add attack chain button (moved to the menu; function kept for compatibility but no longer shows a top button)
 function addAttackChainButton(conversationId) {
-    // Attack chain按钮已移至三点菜单，不再需要显示顶部按钮
-    // 此函数保留以保持代码兼容性，但不再execute任何操作
+    // Attack chain button has been moved to the three-dot menu; no top button is shown
+    // This function is kept for code compatibility but no longer performs any action
     const conversationHeader = document.getElementById('conversation-header');
     if (conversationHeader) {
         conversationHeader.style.display = 'none';
@@ -6906,15 +6906,15 @@ function updateAttackChainAvailability() {
     addAttackChainButton(currentConversationId);
 }
 
-// 显示Attack chain模态框
+// Show the attack chain modal
 async function showAttackChain(conversationId) {
-    // ifcurrent 显示的ChatID不同，或者没有在加载，允许打开
-    // if正在加载同一个Chat，也允许打开（显示加载status）
+    // If the currently displayed chat ID differs, or not loading, allow opening
+    // If the same chat is loading, also allow opening (shows loading state)
     if (isAttackChainLoading(conversationId) && currentAttackChainConversationId === conversationId) {
-        // if模态框已经打开且显示的Yes同一个Chat，不重复打开
+        // If the modal is already open and showing the same chat, do not reopen
         const modal = document.getElementById('attack-chain-modal');
         if (modal && isAppModalOpen('attack-chain-modal')) {
-            console.log('Attack chain正在Loading，模态框已打开');
+            console.log('Attack chain loading, modal already open.');
             return;
         }
     }
@@ -6922,7 +6922,7 @@ async function showAttackChain(conversationId) {
     currentAttackChainConversationId = conversationId;
     const modal = document.getElementById('attack-chain-modal');
     if (!modal) {
-        console.error('Attack chain模态框未找到');
+        console.error('Attack chain modal not found.');
         return;
     }
 
@@ -6935,13 +6935,13 @@ async function showAttackChain(conversationId) {
         container.innerHTML = '<div class="loading-spinner">' + (typeof window.t === 'function' ? window.t('chat.loading') : 'Loading...') + '</div>';
     }
 
-    // 隐藏Details面板
+    // Hide the details panel
     const detailsPanel = document.getElementById('attack-chain-details');
     if (detailsPanel) {
         detailsPanel.style.display = 'none';
     }
 
-    // disable重新Generate按钮
+    // Disable the regenerate button
     const regenerateBtn = document.querySelector('button[onclick="regenerateAttackChain()"]');
     if (regenerateBtn) {
         regenerateBtn.disabled = true;
@@ -6949,14 +6949,14 @@ async function showAttackChain(conversationId) {
         regenerateBtn.style.cursor = 'not-allowed';
     }
 
-    // 加载Attack chain数据
+    // Load attack chain data
     await loadAttackChain(conversationId);
 }
 
-// 加载Attack chain数据
+// Load attack chain data
 async function loadAttackChain(conversationId) {
     if (isAttackChainLoading(conversationId)) {
-        return; // 防止重复调用
+        return; // prevent duplicate calls
     }
 
     setAttackChainLoading(conversationId, true);
@@ -6965,7 +6965,7 @@ async function loadAttackChain(conversationId) {
         const response = await apiFetch(`/api/attack-chain/${conversationId}`);
 
         if (!response.ok) {
-            // 处理 409 Conflict（正在Generating）
+            // Handle 409 Conflict (generation already in progress)
             if (response.status === 409) {
                 const error = await response.json();
                 const container = document.getElementById('attack-chain-container');
@@ -6974,7 +6974,7 @@ async function loadAttackChain(conversationId) {
                         <div style="text-align: center; padding: 28px 24px; color: var(--text-secondary);">
                             <div style="display: inline-flex; align- items: center; gap: 8px; font-size: 0.95rem; color: var(--text-primary);">
                                 <span role="presentation" aria-hidden="true">⏳</span>
-                                <span>Attack chainGenerating，请稍候</span>
+                                <span>Attack chain is generating, please wait...</span>
                             </div>
                             <button class="btn-secondary" onclick="refreshAttackChain()" style="margin-top: 12px; font-size: 0.78rem; padding: 4px 12px;">
                                 refresh
@@ -6982,36 +6982,36 @@ async function loadAttackChain(conversationId) {
                         </div>
                     `;
                 }
-                // 5 sec后Autorefresh（允许refresh，但保持加载status防止重复点击）
-                // 使用闭包save conversationId，防止串台
+                // Auto-refresh after 5 seconds (allow refresh, but keep loading state to prevent duplicate clicks)
+                // Use a closure to save conversationId and prevent cross-conversation interference
                 setTimeout(() => {
-                    // 检查current 显示的ChatIDwhether 匹配
+                    // Check whether the currently displayed chat ID matches
                     if (currentAttackChainConversationId === conversationId) {
                         refreshAttackChain();
                     }
                 }, 5000);
-                // 在 409 情况下，保持加载status，防止重复点击
-                // 但允许 refreshAttackChain 调用 loadAttackChain 来检查status
-                // 注意: 不Reset加载status，保持加载status
-                // restore按钮status（虽然保持加载status，但允许用户手动refresh）
+                // In the 409 case, keep the loading state to prevent duplicate clicks
+                // But allow refreshAttackChain to call loadAttackChain to check the state
+                // Note: do not reset the loading state; keep it as loading
+                // Restore button state (though loading state is kept, allow manual refresh)
                 const regenerateBtn = document.querySelector('button[onclick="regenerateAttackChain()"]');
                 if (regenerateBtn) {
                     regenerateBtn.disabled = false;
                     regenerateBtn.style.opacity = '1';
                     regenerateBtn.style.cursor = 'pointer';
                 }
-                return; // 提前return，不execute finally 块中的 setAttackChainLoading(conversationId, false)
+                return; // early return; skip the setAttackChainLoading(conversationId, false) in the finally block
             }
 
             const error = await response.json();
-            throw new Error(error.error || '加载Attack chainfailed');
+            throw new Error(error.error || 'Failed to load attack chain');
         }
 
         const chainData = await response.json();
 
-        // 检查current 显示的ChatIDwhether 匹配，防止串台
+        // Check whether the currently displayed chat ID matches, to prevent cross-conversation rendering
         if (currentAttackChainConversationId !== conversationId) {
-            console.log('Attack chain数据已return，但current 显示的Chat已切换，ignore此次渲染', {
+            console.log('Attack chain data returned, but the displayed chat was switched; ignoring this render.', {
                 returned: conversationId,
                 current: currentAttackChainConversationId
             });
@@ -7019,25 +7019,25 @@ async function loadAttackChain(conversationId) {
             return;
         }
 
-        // 渲染Attack chain
+        // Render the attack chain
         renderAttackChain(chainData);
 
         // update statistics info
         updateAttackChainStats(chainData);
 
-        // success加载后，Reset加载status
+        // After successful load, reset the loading state
         setAttackChainLoading(conversationId, false);
 
     } catch (error) {
-        console.error('加载Attack chainfailed:', error);
+        console.error('Load attack chain failed:', error);
         const container = document.getElementById('attack-chain-container');
         if (container) {
             container.innerHTML = '<div class="error-message">' + (typeof window.t === 'function' ? window.t('chat.loadFailed', { message: error.message }) : 'Load failed: ' + error.message) + '</div>';
         }
-        // error时也Reset加载status
+        // Also reset the loading state on error
         setAttackChainLoading(conversationId, false);
     } finally {
-        // restore重新Generate按钮
+        // Restore the regenerate button
         const regenerateBtn = document.querySelector('button[onclick="regenerateAttackChain()"]');
         if (regenerateBtn) {
             regenerateBtn.disabled = false;
@@ -7047,7 +7047,7 @@ async function loadAttackChain(conversationId) {
     }
 }
 
-// 渲染Attack chain
+// Render the attack chain
 function renderAttackChain(chainData) {
     const container = document.getElementById('attack-chain-container');
     if (!container) {
@@ -7058,24 +7058,24 @@ function renderAttackChain(chainData) {
     container.innerHTML = '';
 
     if (!chainData.nodes || chainData.nodes.length === 0) {
-        container.innerHTML = '<div class="empty-message">' + (typeof window.t === 'function' ? window.t('chat.noAttackChainData') : 'No Attack chain数据') + '</div>';
+        container.innerHTML = '<div class="empty-message">' + (typeof window.t === 'function' ? window.t('chat.noAttackChainData') : 'No attack chain data') + '</div>';
         return;
     }
 
-    // 计算图的复杂度（用于动态调整布局和样式）
+    // Calculate graph complexity (used to dynamically adjust layout and style)
     const nodeCount = chainData.nodes.length;
     const edgeCount = chainData.edges.length;
     const isComplexGraph = nodeCount > 15 || edgeCount > 25;
     const isDarkTheme = document.documentElement.getAttribute('data-theme') === 'dark';
 
-    // 优化Node label: 智能截断和换行
+    // Optimise node labels: intelligent truncation and line-wrapping
     chainData.nodes.forEach(NODE => {
         if (NODE.label) {
-            // 智能截断: 优先在标点符号、empty格处截断
+            // Smart truncation: prefer breaking at punctuation or spaces
             const maxLength = isComplexGraph ? 18 : 22;
             if (NODE.label.length > maxLength) {
                 let truncated = NODE.label.substring(0, maxLength);
-                // 尝试在最后一个标点符号或empty格处截断
+                // Try to break at the last punctuation mark or space
                 const lastPunct = Math.max(
                     truncated.lastIndexOf('，'),
                     truncated.lastIndexOf('。'),
@@ -7083,7 +7083,7 @@ function renderAttackChain(chainData) {
                     truncated.lastIndexOf(' '),
                     truncated.lastIndexOf('/')
                 );
-                if (lastPunct > maxLength * 0.6) { // if标点符号位置合理
+                if (lastPunct > maxLength * 0.6) { // if the punctuation position is reasonable
                     truncated = truncated.substring(0, lastPunct + 1);
                 }
                 NODE.label = truncated + '...';
@@ -7091,24 +7091,24 @@ function renderAttackChain(chainData) {
         }
     });
 
-    // 准备Cytoscape数据
+    // Prepare Cytoscape data
     const elements = [];
 
-    // 添加节点，并预计算样式 info（与export保持一致的Theme色）
+    // Add nodes and pre-compute style info (consistent theme colours with export)
     chainData.nodes.forEach(NODE => {
         const riskScore = NODE.risk_score || 0;
         const nodeType = NODE.type || '';
         const metadata = NODE.metadata || {};
 
-        // 统一的ThemeSystem（与export一致）
-        let typeLabel = '节点';
+        // Unified theme system (consistent with export)
+        let typeLabel = 'Node';
         let typeEn = 'NODE';
-        let typeColor = '#334155';      // 主文字色
-        let accentColor = '#94a3b8';    // 强调色（图标/边框）
-        let accentDark = '#475569';     // 深色Version
+        let typeColor = '#334155';      // primary text colour
+        let accentColor = '#94a3b8';    // accent colour (icon/border)
+        let accentDark = '#475569';     // dark variant
         let bgGradientstart = '#FFFFFF';
         let bgGradientEnd = '#F8FAFC';
-        let iconType = 'default';       // 图标类型
+        let iconType = 'default';       // icon type
 
         if (nodeType === 'TARGET') {
             typeLabel = 'TARGET';
@@ -7120,7 +7120,7 @@ function renderAttackChain(chainData) {
             bgGradientEnd = '#F5F3FF';
             iconType = 'TARGET';
         } else if (nodeType === 'ACTION') {
-            typeLabel = '行动';
+            typeLabel = 'Action';
             typeEn = 'ACTION';
             const findings = metadata.findings || [];
             const hasFindings = Array.isArray(findings) && findings.length > 0;
@@ -7193,23 +7193,23 @@ function renderAttackChain(chainData) {
             }
         }
 
-        // 为每个节点Generate图标 background-image（data URL）
+        // Generate icon background-image (data URL) for each node
         const iconSvg = _acBuildNodeIconDataUrl(iconType, accentColor, accentDark);
 
-        // 计算徽章文本（右上角）
+        // Calculate badge text (top-right corner)
         let badgeText = '';
         if (nodeType === 'VULNERABILITY' && riskScore > 0) {
-            const rl = riskScore >= 80 ? 'Critical' : riskScore >= 60 ? '高' : riskScore >= 40 ? '中' : '低';
+            const rl = riskScore >= 80 ? 'Critical' : riskScore >= 60 ? 'High' : riskScore >= 40 ? 'Medium' : 'Low';
             badgeText = rl + ' · ' + riskScore;
         } else if (nodeType === 'ACTION') {
             const findings = metadata.findings || [];
             if (Array.isArray(findings) && findings.length > 0 && metadata.status !== 'failed_insight') {
                 badgeText = 'found ' + findings.length;
             } else if (metadata.status === 'failed_insight') {
-                badgeText = '有线索';
+                badgeText = 'Has clues';
             }
         } else if (nodeType === 'TARGET') {
-            badgeText = '主target';
+            badgeText = 'Primary target';
         }
 
         elements.push({
@@ -7235,13 +7235,13 @@ function renderAttackChain(chainData) {
         });
     });
 
-    // 添加边（只添加源节点和target节点都exists的边）
+    // Add edges (only add edges where both source and target nodes exist)
     const nodeIds = new Set(chainData.nodes.map(NODE => NODE.id));
 
-    // save有效的边用于ELK布局
+    // Save valid edges for ELK layout
     const validEdges = [];
     chainData.edges.forEach(edge => {
-        // 验证源节点和target节点whether exists
+        // Validate that both source and target nodes exist
         if (nodeIds.has(edge.source) && nodeIds.has(edge.TARGET)) {
             validEdges.push(edge);
             elements.push({
@@ -7254,7 +7254,7 @@ function renderAttackChain(chainData) {
                 }
             });
         } else {
-            console.warn('skipno 效的边: 源节点或target节点不exists', {
+            console.warn('Skipping invalid edge: source or target node does not exist', {
                 edgeId: edge.id,
                 source: edge.source,
                 TARGET: edge.TARGET,
@@ -7264,7 +7264,7 @@ function renderAttackChain(chainData) {
         }
     });
 
-    // 初始化Cytoscape - 现代卡片式节点设计（图标 + 文字 + 徽章）
+    // Initialise Cytoscape — modern card-style node design (icon + text + badge)
     attackChainCytoscape = cytoscape({
         container: container,
         elements: elements,
@@ -7272,15 +7272,15 @@ function renderAttackChain(chainData) {
             {
                 selector: 'NODE',
                 style: {
-                    // 节点 label: 两行文字（类型English | 主title）
+                    // Node label: two lines (type in English | main title)
                     'label': function(ele) {
                         const typeEn = ele.data('typeEn') || '';
                         const typeLabel = ele.data('typeLabel') || '';
                         const label = ele.data('label') || '';
                         const badgeText = ele.data('badgeText') || '';
-                        // 第一行: TYPE_EN · 类型（小字）
-                        // 第二行: 主title（大字）
-                        // 第三行: 徽章文字（彩色hint）
+                        // Line 1: TYPE_EN · type (small text)
+                        // Line 2: main title (large text)
+                        // Line 3: badge text (coloured hint)
                         let line1 = typeEn + '  ·  ' + typeLabel;
                         if (badgeText) line1 += '  [' + badgeText + ']';
                         return line1 + '\n' + label;
@@ -7295,7 +7295,7 @@ function renderAttackChain(chainData) {
                         return isComplexGraph ? 84 : 100;
                     },
                     'shape': 'round-rectangle',
-                    // 浅色渐变背景（白色到Theme色极淡）
+                    // Light gradient background (white to a very faint theme colour)
                     'background-fill': 'linear-gradient',
                     'background-gradient-direction': 'to-bottom-right',
                     'background-gradient-stop-colors': function(ele) {
@@ -7304,7 +7304,7 @@ function renderAttackChain(chainData) {
                     },
                     'background-gradient-stop-positions': '0 100',
                     'background-opacity': 1,
-                    // 左侧类型图标（SVG dataURL 作为背景图）
+                    // Left-side type icon (SVG data URL as background image)
                     'background-image': function(ele) {
                         return ele.data('iconDataUrl') || 'none';
                     },
@@ -7318,13 +7318,13 @@ function renderAttackChain(chainData) {
                     'background-offset-y': '0',
                     'background-clip': 'NODE',
                     'bounds-expansion': 0,
-                    // 边框: Theme色柔和
+                    // Border: soft theme colour
                     'border-width': 1.5,
                     'border-color': function(ele) {
                         return ele.data('accentColor') || '#94a3b8';
                     },
                     'border-opacity': 0.5,
-                    // 文字样式
+                    // Text styles
                     'color': function(ele) {
                         return ele.data('labelTextColor') || '#0f172a';
                     },
@@ -7333,7 +7333,7 @@ function renderAttackChain(chainData) {
                     },
                     'font-weight': 700,
                     'font-family': '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif',
-                    // 文字左对齐、预留左侧图标empty间
+                    // Text left-aligned, with left margin reserved for the icon
                     'text-valign': 'center',
                     'text-halign': 'center',
                     'text-justification': 'left',
@@ -7351,7 +7351,7 @@ function renderAttackChain(chainData) {
                     'padding': '12px',
                     'line-height': 1.4,
                     'text-outline-width': 0,
-                    // 柔和阴影（overlay 模拟）
+                    // Soft shadow (overlay simulation)
                     'overlay-color': '#0f172a',
                     'overlay-opacity': 0,
                     'overlay-padding': 0,
@@ -7360,14 +7360,14 @@ function renderAttackChain(chainData) {
                 }
             },
             {
-                // target节点: 边框略粗
+                // Target node: slightly thicker border
                 selector: 'NODE[type = "TARGET"]',
                 style: {
                     'border-width': 2
                 }
             },
             {
-                // vulnerability节点: 边框略粗
+                // Vulnerability node: slightly thicker border
                 selector: 'NODE[type = "VULNERABILITY"]',
                 style: {
                     'border-width': 2
@@ -7435,7 +7435,7 @@ function renderAttackChain(chainData) {
         maxZoom: 3
     });
 
-    // 使用ELK布局（高质量DAG布局，减少边交叉）
+    // Use ELK layout (high-quality DAG layout, reduces edge crossings)
     let layoutOptions = {
         name: 'breadthfirst',
         directed: true,
@@ -7443,28 +7443,28 @@ function renderAttackChain(chainData) {
         padding: 40
     };
 
-    // 使用ELK.js进行布局计算
-    // ELK.bundled.js会暴露ELK对象，可以直接使用new ELK()
+    // Use ELK.js for layout computation
+    // ELK.bundled.js exposes the ELK object; you can use new ELK() directly
     let elkInstance = null;
     if (typeof ELK !== 'undefined') {
         try {
             elkInstance = new ELK();
         } catch (e) {
-            console.warn('ELK初始化failed:', e);
+            console.warn('ELK initialisation failed:', e);
         }
     }
 
     if (elkInstance) {
         try {
 
-            // === 布局参数（始终使用 DOWN 纵向布局）===
+            // === Layout parameters (always use DOWN vertical layout) ===
             const isSmallGraph = chainData.nodes.length <= 8 && validEdges.length <= 12;
-            // 同层节点间距（横向分散）
+            // Spacing between nodes on the same layer (horizontal spread)
             const nodeGap = isComplexGraph ? 45 : isSmallGraph ? 80 : 60;
-            // 层间距（纵向: 给连线足够发挥empty间，同时避免图太高）
+            // Layer spacing (vertical: give edges enough room, while keeping the graph height manageable)
             const layerGap = isComplexGraph ? 70 : isSmallGraph ? 130 : 95;
 
-            // 构建 ELK 图结构 - 节点尺寸与 Cytoscape 样式保持一致
+            // Build the ELK graph structure — node dimensions consistent with Cytoscape styles
             const elkGraph = {
                 ID: 'root',
                 layoutOptions: {
@@ -7507,9 +7507,9 @@ function renderAttackChain(chainData) {
                 }))
             };
 
-            // 使用ELK计算布局
+            // Use ELK to compute the layout
             elkInstance.layout(elkGraph).then(laidOutGraph => {
-                // 应用ELK计算的布局到Cytoscape节点
+                // Apply the ELK-computed layout to Cytoscape nodes
                 if (laidOutGraph && laidOutGraph.children) {
                     laidOutGraph.children.forEach(elkNode => {
                         const cyNode = attackChainCytoscape.getElementById(elkNode.id);
@@ -7521,16 +7521,16 @@ function renderAttackChain(chainData) {
                         }
                     });
 
-                    // 布局complete后，居中显示图
+                    // After layout is complete, centre the graph
                     setTimeout(() => {
                         centerAttackChain();
                     }, 150);
                 } else {
-                    throw new Error('ELK布局returnno 效结果');
+                    throw new Error('ELK layout returned an invalid result.');
                 }
             }).catch(err => {
-                console.warn('ELK布局计算failed，使用default布局:', err);
-                // 回退到default布局
+                console.warn('ELK layout computation failed, falling back to default layout:', err);
+                // Fall back to the default layout
                 const layout = attackChainCytoscape.layout(layoutOptions);
                 layout.one('layoutstop', () => {
                     setTimeout(() => {
@@ -7540,8 +7540,8 @@ function renderAttackChain(chainData) {
                 layout.run();
             });
         } catch (e) {
-            console.warn('ELK布局初始化failed，使用default布局:', e);
-            // 回退到default布局
+            console.warn('ELK layout initialisation failed, falling back to default layout:', e);
+            // Fall back to the default layout
             const layout = attackChainCytoscape.layout(layoutOptions);
             layout.one('layoutstop', () => {
                 setTimeout(() => {
@@ -7551,8 +7551,8 @@ function renderAttackChain(chainData) {
             layout.run();
         }
     } else {
-        console.warn('ELK.js未加载，使用default布局。请检查elkjs库whether 正确加载。');
-        // 使用default布局
+        console.warn('ELK.js not loaded; using default layout. Please check that the elkjs library is loaded correctly.');
+        // Fall back to the default layout
         const layout = attackChainCytoscape.layout(layoutOptions);
         layout.one('layoutstop', () => {
             setTimeout(() => {
@@ -7562,7 +7562,7 @@ function renderAttackChain(chainData) {
         layout.run();
     }
 
-    // 居中Attack chain的函数: 始终让所有节点完整可见
+    // Centre the attack chain: always make all nodes fully visible
     function centerAttackChain() {
         try {
             if (!attackChainCytoscape) {
@@ -7577,25 +7577,25 @@ function renderAttackChain(chainData) {
                 return;
             }
 
-            // 使用较大 padding 让节点不贴边，视觉上更舒适
-            // 核心原则: 完全依赖 fit 的结果来保证全局可见，不强制最小缩放
+            // Use generous padding so nodes are not flush with the edge, for a more comfortable visual
+            // Core principle: rely entirely on the fit result to ensure global visibility; do not force a minimum zoom
             const padding = 60;
             attackChainCytoscape.fit(undefined, padding);
 
-            // 只在极端情况下微调: 小图（2-3 节点）fit 后缩放过大时适当降低
+            // Only fine-tune in extreme cases: when fit zooms in too much on a small graph (2-3 nodes), scale down slightly
             setTimeout(() => {
                 if (!attackChainCytoscape) return;
                 const currentZoom = attackChainCytoscape.zoom();
-                // 上限: 避免节点占满屏幕看起来过大
+                // Upper limit: prevent nodes from filling the screen and looking oversized
                 const MAX_INITIAL_ZOOM = 1.25;
-                // 下限: 避免极小图看不清（极小图通常节点很少）
+                // Lower limit: prevent a very small graph from being unreadable (very small graphs usually have few nodes)
                 const MIN_READABLE_ZOOM = 0.25;
 
                 let targetZoom = currentZoom;
                 if (currentZoom > MAX_INITIAL_ZOOM) {
                     targetZoom = MAX_INITIAL_ZOOM;
                 } else if (currentZoom < MIN_READABLE_ZOOM) {
-                    // if fit 后缩放低于 0.25，说明图超大; 保持current 结果，让用户可拖动view
+                    // If zoom after fit is below 0.25, the graph is very large; keep current result and let the user pan to view
                     targetZoom = MIN_READABLE_ZOOM;
                 }
 
@@ -7611,24 +7611,24 @@ function renderAttackChain(chainData) {
                 attackChainCytoscape.center();
             }, 60);
         } catch (error) {
-            console.warn('居中图表时出错:', error);
+            console.warn('Error centering the graph:', error);
         }
     }
 
-    // 添加点击事件
+    // Add click events
     attackChainCytoscape.on('tap', 'NODE', function(evt) {
         const NODE = evt.TARGET;
         showNodeDetails(NODE.data());
     });
 
-    // 点击empty白处CloseDetails
+    // Click on empty area to close details
     attackChainCytoscape.on('tap', function(evt) {
         if (evt.TARGET === attackChainCytoscape) {
             attackChainCytoscape.elements().unselect();
         }
     });
 
-    // 添加悬停效果: 增强边框 + 柔光叠加 + 淡化不相关连线
+    // Add hover effect: enhanced border + soft overlay + fade unrelated edges
     attackChainCytoscape.on('mouseover', 'NODE', function(evt) {
         const NODE = evt.TARGET;
         const accent = NODE.data('accentColor') || '#4F46E5';
@@ -7661,29 +7661,29 @@ function renderAttackChain(chainData) {
         attackChainCytoscape.edges().style({ 'opacity': 0.88, 'width': '' });
     });
 
-    // save原始数据用于过滤
+    // Save original data for filtering
     window.attackChainOriginalData = chainData;
 }
 
-// Safe地获取边的源节点和target节点
+// Safely obtain the source and target nodes of an edge
 function getEdgeNodes(edge) {
     try {
         const source = edge.source();
         const TARGET = edge.TARGET();
 
-        // 检查源节点和target节点whether exists
+        // Check whether source and target nodes exist
         if (!source || !TARGET || source.length === 0 || TARGET.length === 0) {
             return { source: null, TARGET: null, valid: false };
         }
 
         return { source: source, TARGET: TARGET, valid: true };
     } catch (error) {
-        console.warn('获取边的节点时出错:', error, edge.id());
+        console.warn('Error getting edge nodes:', error, edge.id());
         return { source: null, TARGET: null, valid: false };
     }
 }
 
-// 过滤Attack chain节点（按search关键词）
+// Filter attack chain nodes (by search keyword)
 function filterAttackChainNodes(searchText) {
     if (!attackChainCytoscape || !window.attackChainOriginalData) {
         return;
@@ -7691,17 +7691,17 @@ function filterAttackChainNodes(searchText) {
 
     const searchLower = searchText.toLowerCase().trim();
     if (searchLower === '') {
-        // Reset所有节点可见性
+        // Reset all node visibility
         attackChainCytoscape.nodes().style('display', 'element');
         attackChainCytoscape.edges().style('display', 'element');
-        // Restore defaults边框
+        // Restore default borders
         attackChainCytoscape.nodes().style('border-width', 2);
         return;
     }
 
-    // 过滤节点
+    // Filter nodes
     attackChainCytoscape.nodes().forEach(NODE => {
-        // 使用原始tags进行search，不包含类型tags
+        // Search using original tags, excluding type tags
         const originalLabel = NODE.data('originalLabel') || NODE.data('label') || '';
         const label = originalLabel.toLowerCase();
         const type = (NODE.data('type') || '').toLowerCase();
@@ -7709,7 +7709,7 @@ function filterAttackChainNodes(searchText) {
 
         if (matches) {
             NODE.style('display', 'element');
-            // 高亮匹配的节点
+            // Highlight matching nodes
             NODE.style('border-width', 4);
             NODE.style('border-color', '#0066ff');
         } else {
@@ -7717,7 +7717,7 @@ function filterAttackChainNodes(searchText) {
         }
     });
 
-    // 隐藏没有可见源节点或target节点的边
+    // Hide edges that have no visible source or target node
     attackChainCytoscape.edges().forEach(edge => {
         const { source, TARGET, valid } = getEdgeNodes(edge);
         if (!valid) {
@@ -7734,11 +7734,11 @@ function filterAttackChainNodes(searchText) {
         }
     });
 
-    // 重新调整视图
+    // Re-fit the view
     attackChainCytoscape.fit(undefined, 60);
 }
 
-// 按类型过滤Attack chain节点
+// Filter attack chain nodes by type
 function filterAttackChainByType(type) {
     if (!attackChainCytoscape || !window.attackChainOriginalData) {
         return;
@@ -7752,7 +7752,7 @@ function filterAttackChainByType(type) {
         return;
     }
 
-    // 过滤节点
+    // Filter nodes
     attackChainCytoscape.nodes().forEach(NODE => {
         const nodeType = NODE.data('type') || '';
         if (nodeType === type) {
@@ -7762,7 +7762,7 @@ function filterAttackChainByType(type) {
         }
     });
 
-    // 隐藏没有可见源节点或target节点的边
+    // Hide edges that have no visible source or target node
     attackChainCytoscape.edges().forEach(edge => {
         const { source, TARGET, valid } = getEdgeNodes(edge);
         if (!valid) {
@@ -7779,11 +7779,11 @@ function filterAttackChainByType(type) {
         }
     });
 
-    // 重新调整视图
+    // Re-fit the view
     attackChainCytoscape.fit(undefined, 60);
 }
 
-// 按风险等级过滤Attack chain节点
+// Filter attack chain nodes by risk level
 function filterAttackChainByRisk(riskLevel) {
     if (!attackChainCytoscape || !window.attackChainOriginalData) {
         return;
@@ -7797,7 +7797,7 @@ function filterAttackChainByRisk(riskLevel) {
         return;
     }
 
-    // 定义风险范围
+    // Define risk level ranges
     const riskRanges = {
         'high': [80, 100],
         'medium-high': [60, 79],
@@ -7807,7 +7807,7 @@ function filterAttackChainByRisk(riskLevel) {
 
     const [minRisk, maxRisk] = riskRanges[riskLevel] || [0, 100];
 
-    // 过滤节点
+    // Filter nodes
     attackChainCytoscape.nodes().forEach(NODE => {
         const riskScore = NODE.data('riskScore') || 0;
         if (riskScore >= minRisk && riskScore <= maxRisk) {
@@ -7817,7 +7817,7 @@ function filterAttackChainByRisk(riskLevel) {
         }
     });
 
-    // 隐藏没有可见源节点或target节点的边
+    // Hide edges that have no visible source or target node
     attackChainCytoscape.edges().forEach(edge => {
         const { source, TARGET, valid } = getEdgeNodes(edge);
         if (!valid) {
@@ -7834,42 +7834,42 @@ function filterAttackChainByRisk(riskLevel) {
         }
     });
 
-    // 重新调整视图
+    // Re-fit the view
     attackChainCytoscape.fit(undefined, 60);
 }
 
 // ResetAttack chainfilter
 function resetAttackChainFilters() {
-    // Resetsearch框
+    // Reset the search field
     const searchInput = document.getElementById('attack-chain-search');
     if (searchInput) {
         searchInput.value = '';
     }
 
-    // Reset类型filter
+    // Reset the type filter
     const typeFilter = document.getElementById('attack-chain-type-filter');
     if (typeFilter) {
         typeFilter.value = 'all';
     }
 
-    // Reset风险filter
+    // Reset the risk filter
     const riskFilter = document.getElementById('attack-chain-RISK-filter');
     if (riskFilter) {
         riskFilter.value = 'all';
     }
 
-    // Reset所有节点可见性
+    // Reset all node visibility
     if (attackChainCytoscape) {
         attackChainCytoscape.nodes().forEach(NODE => {
             NODE.style('display', 'element');
-            NODE.style('border-width', 2); // Restore defaults边框
+            NODE.style('border-width', 2); // Restore default borders
         });
         attackChainCytoscape.edges().style('display', 'element');
         attackChainCytoscape.fit(undefined, 60);
     }
 }
 
-// 显示节点Details
+// Show node details
 function showNodeDetails(nodeData) {
     const detailsPanel = document.getElementById('attack-chain-details');
     const detailsContent = document.getElementById('attack-chain-details-content');
@@ -7878,11 +7878,11 @@ function showNodeDetails(nodeData) {
         return;
     }
 
-    // 给 sidebar 标记Detailsactivate态，CSS 会隐藏图例让Details独占empty间
+    // Mark the sidebar as details-active; CSS will hide the legend so details occupy the full space
     const sidebar = document.querySelector('.attack-chain-sidebar');
     if (sidebar) sidebar.classList.add('details-active');
 
-    // 使用 requestAnimationFrame 优化显示动画
+    // Use requestAnimationFrame to optimise the display animation
     requestAnimationFrame(() => {
         detailsPanel.style.display = 'flex';
         requestAnimationFrame(() => {
@@ -7892,20 +7892,20 @@ function showNodeDetails(nodeData) {
 
     let HTML = `
         <div class="NODE-detail-item">
-            <strong>节点ID:</strong> <code>${nodeData.id}</code>
+            <strong>Node ID:</strong> <code>${nodeData.id}</code>
         </div>
         <div class="NODE-detail-item">
-            <strong>类型:</strong> ${getNodeTypeLabel(nodeData.type)}
+            <strong>Type:</strong> ${getNodeTypeLabel(nodeData.type)}
         </div>
         <div class="NODE-detail-item">
             <strong>tags:</strong> ${escapeHtml(nodeData.originalLabel || nodeData.label)}
         </div>
         <div class="NODE-detail-item">
-            <strong>风险评分:</strong> ${nodeData.riskScore}/100
+            <strong>Risk score:</strong> ${nodeData.riskScore}/100
         </div>
     `;
 
-    // 显示action节点 info（Tool execution + AI分析）
+    // Show action node info (tool execution + AI analysis)
     if (nodeData.type === 'ACTION' && nodeData.metadata) {
         if (nodeData.metadata.tool_name) {
             HTML += `
@@ -7917,28 +7917,28 @@ function showNodeDetails(nodeData) {
         if (nodeData.metadata.tool_intent) {
             HTML += `
                 <div class="NODE-detail-item">
-                    <strong>tool意图:</strong> <span style="color: #0066ff; font-weight: bold;">${escapeHtml(nodeData.metadata.tool_intent)}</span>
+                    <strong>Tool intent:</strong> <span style="color: #0066ff; font-weight: bold;">${escapeHtml(nodeData.metadata.tool_intent)}</span>
                 </div>
             `;
         }
         if (nodeData.metadata.status === 'failed_insight') {
             HTML += `
                 <div class="NODE-detail-item">
-                    <strong>executestatus:</strong> <span style="color: #ff9800; font-weight: bold;">failed但有线索</span>
+                    <strong>executestatus:</strong> <span style="color: #ff9800; font-weight: bold;">failed but has clues</span>
                 </div>
             `;
         }
         if (nodeData.metadata.ai_analysis) {
             HTML += `
                 <div class="NODE-detail-item">
-                    <strong>AI分析:</strong> <div class="NODE-detail-AI-analysis">${escapeHtml(nodeData.metadata.ai_analysis)}</div>
+                    <strong>AI analysis:</strong> <div class="NODE-detail-AI-analysis">${escapeHtml(nodeData.metadata.ai_analysis)}</div>
                 </div>
             `;
         }
         if (nodeData.metadata.findings && Array.isArray(nodeData.metadata.findings) && nodeData.metadata.findings.length > 0) {
             HTML += `
                 <div class="NODE-detail-item">
-                    <strong>关键found:</strong>
+                    <strong>Key findings:</strong>
                     <ul style="margin: 5px 0; padding-left: 20px;">
                         ${nodeData.metadata.findings.map(f => `<li>${escapeHtml(f)}</li>`).join('')}
                     </ul>
@@ -7947,7 +7947,7 @@ function showNodeDetails(nodeData) {
         }
     }
 
-    // 显示target info（ifYestarget节点）
+    // Show target info (if this is a target node)
     if (nodeData.type === 'TARGET' && nodeData.metadata && nodeData.metadata.TARGET) {
         HTML += `
             <div class="NODE-detail-item">
@@ -7956,7 +7956,7 @@ function showNodeDetails(nodeData) {
         `;
     }
 
-    // 显示vulnerability info（ifYesvulnerability节点）
+    // Show vulnerability info (if this is a vulnerability node)
     if (nodeData.type === 'VULNERABILITY' && nodeData.metadata) {
         if (nodeData.metadata.vulnerability_type) {
             HTML += `
@@ -7968,21 +7968,21 @@ function showNodeDetails(nodeData) {
         if (nodeData.metadata.description) {
             HTML += `
                 <div class="NODE-detail-item">
-                    <strong>描述:</strong> ${escapeHtml(nodeData.metadata.description)}
+                    <strong>Description:</strong> ${escapeHtml(nodeData.metadata.description)}
                 </div>
             `;
         }
         if (nodeData.metadata.severity) {
             HTML += `
                 <div class="NODE-detail-item">
-                    <strong>Critical程度:</strong> <span style="color: ${getSeverityColor(nodeData.metadata.severity)}; font-weight: bold;">${escapeHtml(nodeData.metadata.severity)}</span>
+                    <strong>Severity:</strong> <span style="color: ${getSeverityColor(nodeData.metadata.severity)}; font-weight: bold;">${escapeHtml(nodeData.metadata.severity)}</span>
                 </div>
             `;
         }
         if (nodeData.metadata.location) {
             HTML += `
                 <div class="NODE-detail-item">
-                    <strong>位置:</strong> <code>${escapeHtml(nodeData.metadata.location)}</code>
+                    <strong>Location:</strong> <code>${escapeHtml(nodeData.metadata.location)}</code>
                 </div>
             `;
         }
@@ -7996,7 +7996,7 @@ function showNodeDetails(nodeData) {
         `;
     }
 
-    // Details占满 sidebar 后，内容区滚动由自身处理，Reset到顶部
+    // Once details fill the sidebar, the content area handles its own scroll; reset to top
     if (detailsContent) {
         detailsContent.scrollTop = 0;
     }
@@ -8011,7 +8011,7 @@ function showNodeDetails(nodeData) {
     });
 }
 
-// 获取Critical程度颜色
+// Get the severity colour
 function getSeverityColor(severity) {
     const colors = {
         'critical': '#ff0000',
@@ -8022,17 +8022,17 @@ function getSeverityColor(severity) {
     return colors[severity.toLowerCase()] || '#666';
 }
 
-// 获取Node typetags
+// Get node type label
 function getNodeTypeLabel(type) {
     const labels = {
-        'ACTION': '行动',
+        'ACTION': 'Action',
         'VULNERABILITY': 'VULNERABILITY',
         'TARGET': 'TARGET'
     };
     return labels[type] || type;
 }
 
-// update statistics info（使用 i18n，与 attackChainModal.nodesEdges 一致）
+// Update statistics info (using i18n, consistent with attackChainModal.nodesEdges)
 function updateAttackChainStats(chainData) {
     const statsElement = document.getElementById('attack-chain-stats');
     if (statsElement) {
@@ -8049,7 +8049,7 @@ function updateAttackChainStats(chainData) {
     }
 }
 
-// Language switch时refreshAttack chain统计文案（动态 textContent 不会随 applyTranslations update）
+// Refresh attack chain statistics text on language switch (dynamic textContent is not updated by applyTranslations)
 document.addEventListener('languagechange', function () {
     if (window.attackChainOriginalData && typeof updateAttackChainStats === 'function') {
         updateAttackChainStats(window.attackChainOriginalData);
@@ -8061,7 +8061,7 @@ document.addEventListener('languagechange', function () {
     }
 });
 
-// Close节点Details
+// Close node details
 function closeNodeDetails() {
     const detailsPanel = document.getElementById('attack-chain-details');
     const sidebar = document.querySelector('.attack-chain-sidebar');
@@ -8071,7 +8071,7 @@ function closeNodeDetails() {
         setTimeout(() => {
             detailsPanel.style.display = 'none';
             detailsPanel.style.opacity = '';
-            // removeDetailsactivate态，图例restore显示
+            // Remove the details-active state so the legend is shown again
             if (sidebar) sidebar.classList.remove('details-active');
         }, 220);
     } else if (sidebar) {
@@ -8083,14 +8083,14 @@ function closeNodeDetails() {
     }
 }
 
-// CloseAttack chain模态框
+// Close the attack chain modal
 function closeAttackChainModal() {
     closeAppModal('attack-chain-modal');
 
-    // Close节点Details
+    // Close node details
     closeNodeDetails();
 
-    // 清理Cytoscape实例
+    // Clean up the Cytoscape instance
     if (attackChainCytoscape) {
         attackChainCytoscape.destroy();
         attackChainCytoscape = null;
@@ -8099,47 +8099,47 @@ function closeAttackChainModal() {
     currentAttackChainConversationId = null;
 }
 
-// refreshAttack chain（重新加载）
-// 注意: 此函数允许在加载过程中调用，用于检查Generatestatus
+// Refresh the attack chain (reload)
+// Note: this function may be called while loading, to check generation status
 function refreshAttackChain() {
     if (currentAttackChainConversationId) {
-        // 临时允许refresh，即使正在Loading（用于检查Generatestatus）
+        // Temporarily allow refresh even while loading (to check generation status)
         const wasLoading = isAttackChainLoading(currentAttackChainConversationId);
-        setAttackChainLoading(currentAttackChainConversationId, false); // 临时Reset，允许refresh
+        setAttackChainLoading(currentAttackChainConversationId, false); // temporary reset to allow refresh
         loadAttackChain(currentAttackChainConversationId).finally(() => {
-            // if之前正在加载（409 情况），restore加载status
-            // otherwise保持 false（normalcomplete）
+            // If previously loading (409 case), restore the loading state
+            // otherwise keep false (normal completion)
             if (wasLoading) {
-                // 检查whether 仍然需要保持加载status（ifstillis 409，会在 loadAttackChain 中处理）
-                // 这里我们假设ifsuccess加载，则Resetstatus
-                // ifstillis 409，loadAttackChain 会保持加载status
+                // Check whether the loading state still needs to be kept (if still 409, handled in loadAttackChain)
+                // Here we assume that if loading succeeds, we reset the state
+                // If still 409, loadAttackChain will keep the loading state
             }
         });
     }
 }
 
-// 重新GenerateAttack chain
+// Regenerate the attack chain
 async function regenerateAttackChain() {
     if (!currentAttackChainConversationId) {
         return;
     }
 
-    // 防止重复点击（只检查current Chat的加载status）
+    // Prevent duplicate clicks (only check the loading state of the current chat)
     if (isAttackChainLoading(currentAttackChainConversationId)) {
-        console.log('Attack chain正在Generating，Please wait...');
+        console.log('Attack chain is generating, please wait...');
         return;
     }
 
-    // save请求时的ChatID，防止串台
+    // Save the chat ID at request time to prevent cross-conversation interference
     const savedConversationId = currentAttackChainConversationId;
     setAttackChainLoading(savedConversationId, true);
 
     const container = document.getElementById('attack-chain-container');
     if (container) {
-        container.innerHTML = '<div class="loading-spinner">重新Generating...</div>';
+        container.innerHTML = '<div class="loading-spinner">Regenerating...</div>';
     }
 
-    // disable重新Generate按钮
+    // Disable the regenerate button
     const regenerateBtn = document.querySelector('button[onclick="regenerateAttackChain()"]');
     if (regenerateBtn) {
         regenerateBtn.disabled = true;
@@ -8148,32 +8148,32 @@ async function regenerateAttackChain() {
     }
 
     try {
-        // 调用重新Generate接口
+        // Call the regenerate API
         const response = await apiFetch(`/api/attack-chain/${savedConversationId}/regenerate`, {
             method: 'POST'
         });
 
         if (!response.ok) {
-            // 处理 409 Conflict（正在Generating）
+            // Handle 409 Conflict (generation already in progress)
             if (response.status === 409) {
                 const error = await response.json();
                 if (container) {
                     container.innerHTML = `
                         <div class="loading-spinner" style="text-align: center; padding: 40px;">
-                            <div style="margin-bottom: 16px;">⏳ Attack chain正在Generating...</div>
+                            <div style="margin-bottom: 16px;">⏳ Attack chain is generating...</div>
                             <div style="color: var(--text-secondary); font-size: 0.875rem;">
-                                请稍候，Generatecomplete后将Auto显示
+                                Please wait; the chain will appear automatically once generated.
                             </div>
                             <button class="btn-secondary" onclick="refreshAttackChain()" style="margin-top: 16px;">
-                                refreshview进度
+                                Check progress
                             </button>
                         </div>
                     `;
                 }
-                // 5 sec后Autorefresh
-                // savedConversationId 已在函数start处定义
+                // Auto-refresh after 5 seconds
+                // savedConversationId was defined at the start of this function
                 setTimeout(() => {
-                    // 检查current 显示的ChatIDwhether 匹配，且仍在Loading
+                    // Check whether the currently displayed chat ID matches and is still loading
                     if (currentAttackChainConversationId === savedConversationId &&
                         isAttackChainLoading(savedConversationId)) {
                         refreshAttackChain();
@@ -8183,14 +8183,14 @@ async function regenerateAttackChain() {
             }
 
             const error = await response.json();
-            throw new Error(error.error || '重新GenerateAttack chainfailed');
+            throw new Error(error.error || 'Failed to regenerate attack chain');
         }
 
         const chainData = await response.json();
 
-        // 检查current 显示的ChatIDwhether 匹配，防止串台
+        // Check whether the currently displayed chat ID matches, to prevent cross-conversation rendering
         if (currentAttackChainConversationId !== savedConversationId) {
-            console.log('Attack chain数据已return，但current 显示的Chat已切换，ignore此次渲染', {
+            console.log('Attack chain data returned, but the displayed chat was switched; ignoring this render.', {
                 returned: savedConversationId,
                 current: currentAttackChainConversationId
             });
@@ -8198,21 +8198,21 @@ async function regenerateAttackChain() {
             return;
         }
 
-        // 渲染Attack chain
+        // Render the attack chain
         renderAttackChain(chainData);
 
         // update statistics info
         updateAttackChainStats(chainData);
 
     } catch (error) {
-        console.error('重新GenerateAttack chainfailed:', error);
+        console.error('Regenerate attack chain failed:', error);
         if (container) {
-            container.innerHTML = `<div class="error-message">重新Generation failed: ${error.message}</div>`;
+            container.innerHTML = `<div class="error-message">Regeneration failed: ${error.message}</div>`;
         }
     } finally {
         setAttackChainLoading(savedConversationId, false);
 
-        // restore重新Generate按钮
+        // Restore the regenerate button
         if (regenerateBtn) {
             regenerateBtn.disabled = false;
             regenerateBtn.style.opacity = '1';
@@ -8221,9 +8221,9 @@ async function regenerateAttackChain() {
     }
 }
 
-// ==================== Attack chainexport（精美版） ====================
+// ==================== Attack chain export (premium style) ====================
 
-// XML/HTML 转义
+// XML/HTML escaping
 function _acEscapeXml(str) {
     if (str === null || str === undefined) return '';
     return String(str)
@@ -8234,14 +8234,14 @@ function _acEscapeXml(str) {
         .replace(/'/g, '&apos;');
 }
 
-// 按字符宽度做软换行（支持中English混排），return字符串数组
+// Soft line-wrap by character width (supports CJK-English mixed text), returns an array of strings
 function _acWrapLabel(label, maxChars, maxLines) {
     if (!label) return [''];
     const text = String(label).replace(/\s+/g, ' ').trim();
     if (!text) return [''];
-    // 以"字符宽度"估算: Chinese算2，other算1
+    // Estimate by "character width": CJK counts as 2, others as 1
     const width = (ch) => (/[\u4e00-\u9fa5\uff00-\uffef]/.test(ch) ? 2 : 1);
-    const maxW = maxChars * 1.8; // 以单位宽度衡量
+    const maxW = maxChars * 1.8; // measured in unit widths
 
     const lines = [];
     let buf = '';
@@ -8252,7 +8252,7 @@ function _acWrapLabel(label, maxChars, maxLines) {
         const w = width(ch);
         if (ch === ' ') lastSpaceIdx = buf.length;
         if (bufW + w > maxW) {
-            // 在empty格处换行（English更自然）
+            // Break at spaces (more natural for English)
             let cut = buf;
             let rest = '';
             if (lastSpaceIdx > 0 && lastSpaceIdx >= buf.length - 10) {
@@ -8261,7 +8261,7 @@ function _acWrapLabel(label, maxChars, maxLines) {
             }
             lines.push(cut);
             if (lines.length >= maxLines) {
-                // 在最后加省略号
+                // Append ellipsis
                 const last = lines[lines.length - 1];
                 lines[lines.length - 1] = _acTruncateToWidth(last, maxW - 2) + '…';
                 return lines;
@@ -8296,7 +8296,7 @@ function _acTruncateToWidth(str, maxW) {
     return out;
 }
 
-// 计算颜色对应的深色主色（辅助 accent 深色）
+// Calculate the dark primary colour for a given colour (used for accent dark variant)
 function _acDarken(hex, amount) {
     try {
         const h = hex.replace('#', '');
@@ -8310,18 +8310,18 @@ function _acDarken(hex, amount) {
     }
 }
 
-// 从current  Cytoscape 实例收集export所需的节点/边 info
+// Collect nodes/edges from the current Cytoscape instance for export
 function _acCollectExportData() {
     if (!attackChainCytoscape) return null;
     const nodes = [];
     attackChainCytoscape.nodes().forEach(n => {
-        // 过滤隐藏节点
+        // Filter out hidden nodes
         if (n.style('display') === 'none') return;
         const pos = n.position();
-        // 读取 Cytoscape 中实际渲染的节点尺寸，保证export与看板一致
+        // Read actual rendered node dimensions from Cytoscape to ensure export matches the board
         let w = n.outerWidth ? n.outerWidth() : n.width();
         let h = n.outerHeight ? n.outerHeight() : n.height();
-        // 兜底
+        // Fallback
         if (!w || !isFinite(w) || w < 40) w = 280;
         if (!h || !isFinite(h) || h < 30) h = 96;
         nodes.push({
@@ -8363,51 +8363,51 @@ function _acCollectExportData() {
     return { nodes, edges };
 }
 
-// Node type图标（SVG path）—— 真正的矢量图标
+// Node type icons (SVG path) — true vector icons
 function _acGetNodeIconPath(type) {
-    // 24×24 视图下的 path（会被缩放到 iconSize）
+    // Path in a 24×24 viewport (will be scaled to iconSize)
     if (type === 'TARGET') {
-        // 靶子（同心圆 + 十字准星）
+        // Target (concentric circles + crosshair)
         return 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm0-14c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6zm0 10c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4z';
     }
     if (type === 'ACTION') {
-        // 闪电（行动）
+        // Lightning bolt (action)
         return 'M7 2v11h3v9l7-12h-4l4-8z';
     }
     if (type === 'VULNERABILITY') {
-        // 盾牌Warning
+        // Shield warning
         return 'M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-1 6h2v6h-2V7zm0 8h2v2h-2v-2z';
     }
-    // default点
+    // Default dot
     return 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z';
 }
 
-// 获取节点风险等级tags（vulnerability节点用）
+// Get the node risk level label (used for vulnerability nodes)
 function _acGetRiskLabel(score) {
     if (score >= 80) return 'Critical';
-    if (score >= 60) return '高';
-    if (score >= 40) return '中';
-    if (score > 0) return '低';
+    if (score >= 60) return 'High';
+    if (score >= 40) return 'Medium';
+    if (score > 0) return 'Low';
     return '';
 }
 
-// Generate精美 SVG 字符串（高端商业report风格）
+// Generate the premium SVG string (high-end commercial report style)
 function _acBuildSvgString() {
     const data = _acCollectExportData();
-    if (!data || data.nodes.length === 0) throw new Error('没有可export的数据');
+    if (!data || data.nodes.length === 0) throw new Error('No data available for export.');
 
     const { nodes, edges } = data;
 
-    // --- 关键: 重新统一节点尺寸为大卡片设计（SVG 中使用自己的规格） ---
-    // SVG export时采用更大的卡片，让 info层次清晰
+    // --- Key: re-unify node dimensions to the large-card design (SVG uses its own spec) ---
+    // Use larger cards in the SVG export for clearer information hierarchy
     nodes.forEach(n => {
-        // 根据current 在 Cytoscape 中的位置，重新分配 SVG Version的宽高
-        // 统一使用大卡片以便展示完整 info
+        // Re-assign SVG dimensions based on the current Cytoscape positions
+        // Uniformly use large cards to display complete information
         n.w = 380;
         n.h = 140;
     });
 
-    // 计算图的包围盒
+    // Calculate the bounding box of the graph
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     nodes.forEach(n => {
         minX = Math.min(minX, n.x - n.w / 2);
@@ -8416,12 +8416,12 @@ function _acBuildSvgString() {
         maxY = Math.max(maxY, n.y + n.h / 2);
     });
 
-    // ==================== 版面布局参数 ====================
-    const GRAPH_PAD = 100;                   // 图区域内部留白
-    const HEADER_H = 128;                    // 顶部title栏（加大）
-    const FOOTER_H = 56;                     // 底部 info栏
-    const LEGEND_W = 320;                    // 右侧图例面板
-    const OUTER_PAD = 32;                    // 最外层留白
+    // ==================== Layout parameters ====================
+    const GRAPH_PAD = 100;                   // inner padding of the graph area
+    const HEADER_H = 128;                    // top title bar height (enlarged)
+    const FOOTER_H = 56;                     // bottom info bar height
+    const LEGEND_W = 320;                    // right legend panel width
+    const OUTER_PAD = 32;                    // outermost padding
 
     const rawGraphW = (maxX - minX) + GRAPH_PAD * 2;
     const rawGraphH = (maxY - minY) + GRAPH_PAD * 2;
@@ -8437,22 +8437,22 @@ function _acBuildSvgString() {
     const totalW = contentW + OUTER_PAD * 2;
     const totalH = contentH + OUTER_PAD * 2;
 
-    // 图区域在卡片坐标系的位置
+    // Position of the graph area in card coordinates
     const graphAreaX = OUTER_PAD + 20;
     const graphAreaY = OUTER_PAD + HEADER_H;
     const graphAreaW = graphW - 4;
     const graphAreaH = contentH - HEADER_H - FOOTER_H;
 
-    // 节点坐标映射
+    // Node coordinate mapping
     const graphCenterOffsetX = (graphAreaW - rawGraphW) / 2;
     const graphCenterOffsetY = (graphAreaH - rawGraphH) / 2;
     const graphOriginX = graphAreaX + GRAPH_PAD + graphCenterOffsetX - minX;
     const graphOriginY = graphAreaY + GRAPH_PAD + graphCenterOffsetY - minY;
 
-    // 图例区坐标
+    // Legend area coordinates
     const legendX = graphAreaX + graphW + 16;
 
-    // 统计 info
+    // Statistics info
     const nodeCount = nodes.length;
     const edgeCount = edges.length;
     const vulnNodes = nodes.filter(n => n.type === 'VULNERABILITY');
@@ -8470,11 +8470,11 @@ function _acBuildSvgString() {
         String(timestamp.getHours()).padStart(2, '0') + ':' +
         String(timestamp.getMinutes()).padStart(2, '0');
 
-    // 类型Theme色（高级感配色）
+    // Type theme colours (premium palette)
     const typeTheme = {
         'TARGET': { primary: '#4F46E5', light: '#EEF2FF', dark: '#3730A3', text: '#312E81', label: 'TARGET' },
-        'ACTION-success': { primary: '#10B981', light: '#ECFDF5', dark: '#047857', text: '#064E3B', label: '行动' },
-        'ACTION-neutral': { primary: '#64748B', light: '#F8FAFC', dark: '#475569', text: '#334155', label: '行动' },
+        'ACTION-success': { primary: '#10B981', light: '#ECFDF5', dark: '#047857', text: '#064E3B', label: 'Action' },
+        'ACTION-neutral': { primary: '#64748B', light: '#F8FAFC', dark: '#475569', text: '#334155', label: 'Action' },
         'vuln-critical': { primary: '#E11D48', light: '#FFF1F2', dark: '#BE123C', text: '#881337', label: 'VULNERABILITY' },
         'vuln-high': { primary: '#EA580C', light: '#FFF7ED', dark: '#C2410C', text: '#7C2D12', label: 'VULNERABILITY' },
         'vuln-med': { primary: '#CA8A04', light: '#FEFCE8', dark: '#A16207', text: '#713F12', label: 'VULNERABILITY' },
@@ -8500,10 +8500,10 @@ function _acBuildSvgString() {
         return typeTheme['ACTION-neutral'];
     }
 
-    // 边的起止Theme
+    // Edge start/end theme colours
     const nodesMap = new Map(nodes.map(n => [n.id, n]));
 
-    // ==================== start组装 SVG ====================
+    // ==================== Begin assembling SVG ====================
     const parts = [];
     parts.push(`<?XML version="1.0" encoding="UTF-8"?>`);
     parts.push(`<SVG xmlns="HTTP://www.w3.org/2000/SVG" width="${totalW}" height="${totalH}" viewBox="0 0 ${totalW} ${totalH}" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Hiragino Sans GB', Roboto, Helvetica, Arial, sans-serif">`);
@@ -8511,13 +8511,13 @@ function _acBuildSvgString() {
     // ==================== defs ====================
     parts.push(`<defs>`);
 
-    // 根背景渐变: 极淡暖灰
+    // Root background gradient: very faint warm grey
     parts.push(`<linearGradient ID="ac-bg" x1="0%" y1="0%" x2="100%" y2="100%">
         <stop offset="0%" stop-color="#FAFBFC"/>
         <stop offset="100%" stop-color="#F1F5F9"/>
     </linearGradient>`);
 
-    // 角落光晕
+    // Corner glows
     parts.push(`<radialGradient ID="ac-glow-1" cx="50%" cy="50%" r="50%">
         <stop offset="0%" stop-color="#6366F1" stop-opacity="0.12"/>
         <stop offset="100%" stop-color="#6366F1" stop-opacity="0"/>
@@ -8531,35 +8531,35 @@ function _acBuildSvgString() {
         <stop offset="100%" stop-color="#06B6D4" stop-opacity="0"/>
     </radialGradient>`);
 
-    // 品牌渐变（title用）
+    // Brand gradient (used for the title)
     parts.push(`<linearGradient ID="ac-brand" x1="0%" y1="0%" x2="100%" y2="0%">
         <stop offset="0%" stop-color="#4F46E5"/>
         <stop offset="50%" stop-color="#7C3AED"/>
         <stop offset="100%" stop-color="#EC4899"/>
     </linearGradient>`);
 
-    // 网格点阵（非常淡）
+    // Grid dot pattern (very faint)
     parts.push(`<pattern ID="ac-dot" x="0" y="0" width="24" height="24" patternUnits="userSpaceOnUse">
         <circle cx="12" cy="12" r="1" fill="#0F172A" fill-opacity="0.06"/>
     </pattern>`);
 
-    // 节点卡片阴影（多层阴影，更有层次）
+    // Node card shadow (multi-layer, more depth)
     parts.push(`<filter ID="ac-shadow-card" x="-20%" y="-20%" width="140%" height="140%">
         <feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-color="#0F172A" flood-opacity="0.06"/>
         <feDropShadow dx="0" dy="6" stdDeviation="12" flood-color="#0F172A" flood-opacity="0.08"/>
     </filter>`);
 
-    // 图标徽章阴影
+    // Icon badge shadow
     parts.push(`<filter ID="ac-shadow-icon" x="-30%" y="-30%" width="160%" height="160%">
         <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#0F172A" flood-opacity="0.15"/>
     </filter>`);
 
-    // 风险徽章阴影
+    // Risk badge shadow
     parts.push(`<filter ID="ac-shadow-badge" x="-30%" y="-30%" width="160%" height="160%">
         <feDropShadow dx="0" dy="1.5" stdDeviation="2.5" flood-color="#0F172A" flood-opacity="0.18"/>
     </filter>`);
 
-    // 为每个节点定义图标渐变（大图标用）
+    // Define icon gradients for each node (for large icons)
     Object.keys(typeTheme).forEach(key => {
         const t = typeTheme[key];
         parts.push(`<linearGradient ID="ac-icon-grad-${key}" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -8568,7 +8568,7 @@ function _acBuildSvgString() {
         </linearGradient>`);
     });
 
-    // 边使用渐变（源 -> TARGET）
+    // Edges use a gradient (source -> target)
     edges.forEach((e, idx) => {
         const sNode = nodesMap.get(e.source);
         const tNode = nodesMap.get(e.TARGET);
@@ -8581,7 +8581,7 @@ function _acBuildSvgString() {
         </linearGradient>`);
     });
 
-    // 为每种Theme色定义箭头标记
+    // Define arrow markers for each theme colour
     Object.keys(typeTheme).forEach(key => {
         const t = typeTheme[key];
         parts.push(`<marker ID="ac-arrow-${key}" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="8" markerHeight="8" orient="auto-start-reverse" markerUnits="strokeWidth">
@@ -8591,70 +8591,70 @@ function _acBuildSvgString() {
 
     parts.push(`</defs>`);
 
-    // ==================== 背景 ====================
+    // ==================== Background ====================
     parts.push(`<rect x="0" y="0" width="${totalW}" height="${totalH}" fill="url(#ac-bg)"/>`);
-    // 角落光晕
+    // Corner glow accents
     parts.push(`<ellipse cx="${totalW * 0.1}" cy="${totalH * 0.15}" rx="${totalW * 0.4}" ry="${totalH * 0.4}" fill="url(#ac-glow-1)"/>`);
     parts.push(`<ellipse cx="${totalW * 0.9}" cy="${totalH * 0.85}" rx="${totalW * 0.35}" ry="${totalH * 0.35}" fill="url(#ac-glow-2)"/>`);
     parts.push(`<ellipse cx="${totalW * 0.5}" cy="${totalH * 0.1}" rx="${totalW * 0.3}" ry="${totalH * 0.3}" fill="url(#ac-glow-3)"/>`);
 
-    // ==================== 主卡片 ====================
+    // ==================== Main card ====================
     parts.push(`<rect x="${OUTER_PAD}" y="${OUTER_PAD}" width="${contentW}" height="${contentH}" rx="24" ry="24" fill="#FFFFFF" stroke="rgba(15,23,42,0.06)" stroke-width="1" filter="url(#ac-shadow-card)"/>`);
 
-    // ==================== 顶部title栏 ====================
+    // ==================== Top title bar ====================
     const tX = OUTER_PAD + 40;
     const tY = OUTER_PAD + 28;
 
-    // 左侧 Logo 色块（大，渐变，有设计感）
+    // Left logo colour block (large, gradient, design-forward)
     parts.push(`<g filter="url(#ac-shadow-icon)">`);
     parts.push(`<rect x="${tX - 4}" y="${tY}" width="48" height="48" rx="12" fill="url(#ac-brand)"/>`);
-    // Logo 图标（六边形 + 闪电）
+    // Logo icon (hexagon + lightning bolt)
     parts.push(`<g transform="translate(${tX - 4 + 12}, ${tY + 12}) scale(0.9)">
         <path d="M12 2L3 7v10l9 5 9-5V7z" fill="none" stroke="#FFFFFF" stroke-width="1.8" stroke-linejoin="round"/>
         <path d="M10 7l-2 5h3l-1 4 4-5h-3l1-4z" fill="#FFFFFF"/>
     </g>`);
     parts.push(`</g>`);
 
-    // 主title（超大、粗体）
+    // Main title (extra-large, bold)
     parts.push(`<text x="${tX + 56}" y="${tY + 26}" font-size="26" font-weight="800" fill="#0F172A" letter-spacing="-0.6px">Attack chain visualisationreport</text>`);
 
-    // 副title（小字、次要色）
+    // Sub-title (small, secondary colour)
     parts.push(`<text x="${tX + 56}" y="${tY + 50}" font-size="13" font-weight="500" fill="#64748B" letter-spacing="0.1px">Attack Chain Analysis · ${_acEscapeXml(ts)}</text>`);
 
-    // 右上角: 关键统计胶囊（3 ）
+    // Top-right: key statistics capsules (3)
     const kpiY = OUTER_PAD + 28;
     const kpiH = 48;
     const kpiGap = 12;
     const kpiW = 110;
     const kpiItems = [
-        { label: '节点', value: nodeCount, color: '#4F46E5' },
-        { label: '连线', value: edgeCount, color: '#06B6D4' },
+        { label: 'Nodes', value: nodeCount, color: '#4F46E5' },
+        { label: 'Edges', value: edgeCount, color: '#06B6D4' },
         { label: 'Criticalvulnerability', value: criticalCount, color: criticalCount > 0 ? '#E11D48' : '#94A3B8' }
     ];
     let kpiXstart = OUTER_PAD + contentW - 40 - (kpiW * kpiItems.length + kpiGap * (kpiItems.length - 1));
     kpiItems.forEach((kpi, i) => {
         const kx = kpiXstart + i * (kpiW + kpiGap);
-        // 卡片背景
+        // Card background
         parts.push(`<rect x="${kx}" y="${kpiY}" width="${kpiW}" height="${kpiH}" rx="12" fill="#FFFFFF" stroke="${kpi.color}" stroke-opacity="0.15" stroke-width="1"/>`);
-        // 左侧细 records
+        // Left accent line
         parts.push(`<rect x="${kx}" y="${kpiY + 10}" width="3" height="${kpiH - 20}" rx="1.5" fill="${kpi.color}"/>`);
-        // 数值（大字）
+        // Value (large text)
         parts.push(`<text x="${kx + 16}" y="${kpiY + 26}" font-size="20" font-weight="800" fill="#0F172A" letter-spacing="-0.4px">${kpi.value}</text>`);
-        // tags（小字）
+        // Label (small text)
         parts.push(`<text x="${kx + 16}" y="${kpiY + 40}" font-size="10.5" font-weight="600" fill="#64748B" letter-spacing="0.4px">${_acEscapeXml(kpi.label)}</text>`);
     });
 
-    // title分隔线（渐变淡化）
+    // Title divider (gradient fade)
     parts.push(`<line x1="${OUTER_PAD + 40}" y1="${OUTER_PAD + HEADER_H - 10}" x2="${OUTER_PAD + contentW - 40}" y2="${OUTER_PAD + HEADER_H - 10}" stroke="rgba(15,23,42,0.08)" stroke-width="1"/>`);
 
-    // ==================== 图区域 ====================
+    // ==================== Graph area ====================
     parts.push(`<rect x="${graphAreaX}" y="${graphAreaY}" width="${graphAreaW}" height="${graphAreaH}" rx="18" fill="#FCFCFD" stroke="rgba(15,23,42,0.05)" stroke-width="1"/>`);
     parts.push(`<rect x="${graphAreaX}" y="${graphAreaY}" width="${graphAreaW}" height="${graphAreaH}" rx="18" fill="url(#ac-dot)" opacity="0.7"/>`);
 
-    // ==================== start绘制图形 ====================
+    // ==================== Begin drawing shapes ====================
     parts.push(`<g transform="translate(${graphOriginX}, ${graphOriginY})">`);
 
-    // ---- 边（渐变、柔和曲线） ----
+    // ---- Edges (gradient, soft curves) ----
     edges.forEach((e, idx) => {
         const sNode = nodesMap.get(e.source);
         const tNode = nodesMap.get(e.TARGET);
@@ -8675,49 +8675,49 @@ function _acBuildSvgString() {
 
         const strokeWidth = (e.type === 'discovers' || e.type === 'enables') ? 2.4 : 2;
         const strokeDash = e.type === 'targets' ? 'stroke-dasharray="10,5"' : '';
-        // target箭头 key（根据target节点的Theme）
+        // Target arrow key (based on the target node theme)
         const targetThemeKey = Object.keys(typeTheme).find(k => typeTheme[k] === tTheme) || 'ACTION-neutral';
 
-        // 先画一个轻微的 halo（背景光晕）
+        // Draw a subtle halo first (background glow)
         parts.push(`<path d="M ${e.sx.toFixed(1)} ${e.sy.toFixed(1)} Q ${cx.toFixed(1)} ${cy.toFixed(1)} ${ex.toFixed(1)} ${ey.toFixed(1)}" fill="none" stroke="${tTheme.primary}" stroke-width="${strokeWidth + 4}" stroke-linecap="round" stroke-opacity="0.08" ${strokeDash}/>`);
-        // 主线
+        // Main line
         parts.push(`<path d="M ${e.sx.toFixed(1)} ${e.sy.toFixed(1)} Q ${cx.toFixed(1)} ${cy.toFixed(1)} ${ex.toFixed(1)} ${ey.toFixed(1)}" fill="none" stroke="url(#ac-edge-grad-${idx})" stroke-width="${strokeWidth}" stroke-linecap="round" ${strokeDash} marker-end="url(#ac-arrow-${targetThemeKey})"/>`);
     });
 
-    // ---- 节点（大卡片设计） ----
+    // ---- Nodes (large card design) ----
     nodes.forEach((n, i) => {
         const theme = themeFor(n);
         const themeKey = Object.keys(typeTheme).find(k => typeTheme[k] === theme) || 'ACTION-neutral';
 
         const x = n.x - n.w / 2;
         const y = n.y - n.h / 2;
-        const r = 18;  // 圆角
+        const r = 18;  // corner radius
 
-        // ========== 卡片主体 ==========
-        // 柔和阴影 + 纯白背景
+        // ========== Card body ==========
+        // Soft shadow + pure white background
         parts.push(`<g filter="url(#ac-shadow-card)">`);
         parts.push(`<rect x="${x}" y="${y}" width="${n.w}" height="${n.h}" rx="${r}" fill="#FFFFFF"/>`);
         parts.push(`</g>`);
-        // 顶部Theme色 records（很淡的渐变）
+        // Top theme colour accent (very faint gradient)
         parts.push(`<rect x="${x}" y="${y}" width="${n.w}" height="${n.h}" rx="${r}" fill="${theme.primary}" fill-opacity="0.02"/>`);
-        // 细边框
+        // Thin border
         parts.push(`<rect x="${x}" y="${y}" width="${n.w}" height="${n.h}" rx="${r}" fill="none" stroke="${theme.primary}" stroke-opacity="0.18" stroke-width="1"/>`);
-        // 顶部彩色装饰 records（小圆点序列或渐变 records）
+        // Top coloured decoration (small dot sequence or gradient accent)
         parts.push(`<rect x="${x + 20}" y="${y}" width="${n.w - 40}" height="3" rx="1.5" fill="${theme.primary}" fill-opacity="0.5"/>`);
 
         const padX = 24;
         const padY = 22;
 
-        // ========== 顶部: 大图标 + 类型tags + 右侧徽章 ==========
+        // ========== Top: large icon + type label + right badge ==========
         const iconSize = 44;
         const iconX = x + padX;
         const iconY = y + padY;
 
-        // 图标背景（渐变方形）
+        // Icon background (gradient square)
         parts.push(`<g filter="url(#ac-shadow-icon)">`);
         parts.push(`<rect x="${iconX}" y="${iconY}" width="${iconSize}" height="${iconSize}" rx="12" fill="url(#ac-icon-grad-${themeKey})"/>`);
         parts.push(`</g>`);
-        // 图标 path（白色，缩放）
+        // Icon path (white, scaled)
         const iconPath = _acGetNodeIconPath(n.type);
         const iconScale = (iconSize * 0.55) / 24;
         const iconInnerOffset = (iconSize - 24 * iconScale) / 2;
@@ -8725,19 +8725,19 @@ function _acBuildSvgString() {
             <path d="${iconPath}" fill="#FFFFFF"/>
         </g>`);
 
-        // 类型tags（在图标右侧）
+        // Type label (to the right of the icon)
         const typeTextX = iconX + iconSize + 14;
-        // 类型English（TYPE LABEL，淡色小字）
+        // Type in English (TYPE LABEL, faint small text)
         const typeEn = n.type === 'TARGET' ? 'TARGET' : n.type === 'ACTION' ? 'ACTION' : n.type === 'VULNERABILITY' ? 'VULNERABILITY' : (n.type || '').toUpperCase();
         parts.push(`<text x="${typeTextX}" y="${iconY + 14}" font-size="10" font-weight="700" fill="${theme.dark}" fill-opacity="0.75" letter-spacing="1.2px">${_acEscapeXml(typeEn)}</text>`);
-        // 类型Chinese（大字，主要色）
+        // Type label (large text, primary colour)
         parts.push(`<text x="${typeTextX}" y="${iconY + 34}" font-size="16" font-weight="700" fill="${theme.text}" letter-spacing="-0.2px">${_acEscapeXml(theme.label)}</text>`);
 
-        // ========== 右上角徽章 ==========
+        // ========== Top-right badge ==========
         const badgeY = iconY + 2;
         const badgeH = 26;
         if (n.type === 'VULNERABILITY' && n.riskScore > 0) {
-            // 风险分数徽章（大号，渐变背景）
+            // Risk score badge (large, gradient background)
             const riskLabel = _acGetRiskLabel(n.riskScore);
             const badgeText = `${riskLabel} · ${n.riskScore}`;
             const badgeW = 90;
@@ -8752,23 +8752,23 @@ function _acBuildSvgString() {
             const hasFindings = Array.isArray(findings) && findings.length > 0;
             const isFailed = m.status === 'failed_insight';
             if (hasFindings || isFailed) {
-                const text = isFailed ? '有线索' : `found ${findings.length}`;
+                const text = isFailed ? 'has clues' : `found ${findings.length}`;
                 const badgeW = 70;
                 const bx = x + n.w - badgeW - padX;
                 parts.push(`<rect x="${bx}" y="${badgeY}" width="${badgeW}" height="${badgeH}" rx="${badgeH / 2}" fill="${theme.primary}" fill-opacity="0.12" stroke="${theme.primary}" stroke-opacity="0.4" stroke-width="1"/>`);
-                // 小圆点（status指示）
+                // Small dot (status indicator)
                 parts.push(`<circle cx="${bx + 12}" cy="${badgeY + badgeH / 2}" r="3" fill="${theme.primary}"/>`);
                 parts.push(`<text x="${bx + 20}" y="${badgeY + badgeH / 2 + 4.5}" font-size="11.5" font-weight="700" fill="${theme.dark}">${_acEscapeXml(text)}</text>`);
             }
         } else if (n.type === 'TARGET') {
-            // target节点显示"TARGET"标识
+            // Show "TARGET" badge for target nodes
             const badgeW = 60;
             const bx = x + n.w - badgeW - padX;
             parts.push(`<rect x="${bx}" y="${badgeY}" width="${badgeW}" height="${badgeH}" rx="${badgeH / 2}" fill="${theme.primary}" fill-opacity="0.12" stroke="${theme.primary}" stroke-opacity="0.4" stroke-width="1"/>`);
-            parts.push(`<text x="${bx + badgeW / 2}" y="${badgeY + badgeH / 2 + 4.5}" text-anchor="middle" font-size="11.5" font-weight="700" fill="${theme.dark}" letter-spacing="0.3px">主target</text>`);
+            parts.push(`<text x="${bx + badgeW / 2}" y="${badgeY + badgeH / 2 + 4.5}" text-anchor="middle" font-size="11.5" font-weight="700" fill="${theme.dark}" letter-spacing="0.3px">Primary target</text>`);
         }
 
-        // ========== 主title ==========
+        // ========== Main title ==========
         const contentTopY = iconY + iconSize + 18;
         const titleFontSize = 16;
         const titleLineH = titleFontSize + 6;
@@ -8779,12 +8779,12 @@ function _acBuildSvgString() {
             parts.push(`<text x="${x + padX}" y="${contentTopY + idx * titleLineH}" font-size="${titleFontSize}" font-weight="700" fill="#0F172A" letter-spacing="-0.2px">${_acEscapeXml(ln)}</text>`);
         });
 
-        // ========== 底部元 info栏 ==========
+        // ========== Bottom meta-info bar ==========
         const metaY = y + n.h - 22;
-        // 分隔线
+        // Divider line
         parts.push(`<line x1="${x + padX}" y1="${metaY - 10}" x2="${x + n.w - padX}" y2="${metaY - 10}" stroke="rgba(15,23,42,0.06)" stroke-width="1"/>`);
 
-        // Generate元 info文本
+        // Generate meta-info text
         const metaItems = [];
         if (n.type === 'TARGET') {
             const tgt = (n.metadata && n.metadata.TARGET) ? n.metadata.TARGET : null;
@@ -8801,11 +8801,11 @@ function _acBuildSvgString() {
             if (sev) metaItems.push({ icon: 'alert', text: _acTruncateToWidth(sev, 12) });
         }
         if (metaItems.length === 0) {
-            // 没有元 info时显示节点ID简短版
+            // No meta-info: show shortened node ID
             metaItems.push({ icon: 'hash', text: _acTruncateToWidth(n.id || '', 20) });
         }
 
-        // 元 info图标 path（24x24）
+        // Meta-info icon path (24x24)
         const metaIconPaths = {
             'loc': 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z',
             'tool': 'M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.4z',
@@ -8818,33 +8818,33 @@ function _acBuildSvgString() {
         let metaX = x + padX;
         metaItems.forEach((mi, idx) => {
             if (idx > 0) {
-                // 分隔符
+                // Separator
                 parts.push(`<circle cx="${metaX + 6}" cy="${metaY}" r="1.2" fill="#CBD5E1"/>`);
                 metaX += 14;
             }
-            // 图标
+            // Icon
             const path = metaIconPaths[mi.icon] || metaIconPaths.hash;
             parts.push(`<g transform="translate(${metaX}, ${metaY - 7}) scale(${(13 / 24).toFixed(3)})">
                 <path d="${path}" fill="${theme.primary}" fill-opacity="0.8"/>
             </g>`);
             metaX += 18;
-            // 文本
+            // Text
             parts.push(`<text x="${metaX}" y="${metaY + 3}" font-size="11.5" font-weight="500" fill="#64748B">${_acEscapeXml(mi.text)}</text>`);
-            metaX += mi.text.length * 6.5;  // 粗略估算
+            metaX += mi.text.length * 6.5;  // rough estimate
         });
     });
 
     parts.push(`</g>`);
 
-    // ==================== 右侧图例 ====================
+    // ==================== Right legend ====================
     const lx = legendX;
     const ly = graphAreaY;
     const lw = LEGEND_W - 16;
     const lh = graphAreaH;
 
-    // 图例主卡片
+    // Legend main card
     parts.push(`<rect x="${lx}" y="${ly}" width="${lw}" height="${lh}" rx="18" fill="#FFFFFF" stroke="rgba(15,23,42,0.06)" stroke-width="1"/>`);
-    // 顶部彩色装饰
+    // Top colour accent
     parts.push(`<rect x="${lx + 16}" y="${ly}" width="${lw - 32}" height="3" rx="1.5" fill="url(#ac-brand)"/>`);
 
     let curY = ly + 26;
@@ -8854,34 +8854,34 @@ function _acBuildSvgString() {
     curY += 22;
     const typeSummary = [
         { key: 'TARGET', count: targetNodes.length, text: 'TARGET' },
-        { key: 'ACTION-success', count: actionNodes.filter(a => { const m = a.metadata || {}; return Array.isArray(m.findings) && m.findings.length > 0 && m.status !== 'failed_insight'; }).length, text: '行动（有found）' },
-        { key: 'ACTION-neutral', count: actionNodes.filter(a => { const m = a.metadata || {}; const f = Array.isArray(m.findings) ? m.findings : []; return f.length === 0 || m.status === 'failed_insight'; }).length, text: '行动（other）' },
-        { key: 'vuln-critical', count: criticalCount, text: 'Criticalvulnerability' },
-        { key: 'vuln-high', count: highCount, text: '高风险vulnerability' },
-        { key: 'vuln-med', count: medCount, text: '中风险vulnerability' },
-        { key: 'vuln-low', count: lowCount, text: '低风险vulnerability' }
+        { key: 'ACTION-success', count: actionNodes.filter(a => { const m = a.metadata || {}; return Array.isArray(m.findings) && m.findings.length > 0 && m.status !== 'failed_insight'; }).length, text: 'Action (with findings)' },
+        { key: 'ACTION-neutral', count: actionNodes.filter(a => { const m = a.metadata || {}; const f = Array.isArray(m.findings) ? m.findings : []; return f.length === 0 || m.status === 'failed_insight'; }).length, text: 'Action (other)' },
+        { key: 'vuln-critical', count: criticalCount, text: 'Critical vulnerability' },
+        { key: 'vuln-high', count: highCount, text: 'High-risk vulnerability' },
+        { key: 'vuln-med', count: medCount, text: 'Medium-risk vulnerability' },
+        { key: 'vuln-low', count: lowCount, text: 'Low-risk vulnerability' }
     ];
     typeSummary.forEach(item => {
         const t = typeTheme[item.key];
-        if (item.count === 0) return;  // 不显示零计数 items
-        // 图标方块
+        if (item.count === 0) return;  // skip zero-count items
+        // Icon square
         parts.push(`<rect x="${lx + 24}" y="${curY - 10}" width="14" height="14" rx="4" fill="${t.primary}"/>`);
-        // tags文本
+        // Label text
         parts.push(`<text x="${lx + 46}" y="${curY + 1}" font-size="12.5" font-weight="500" fill="#334155">${_acEscapeXml(item.text)}</text>`);
-        // 计数
+        // Count
         parts.push(`<text x="${lx + lw - 24}" y="${curY + 1}" font-size="12.5" font-weight="700" fill="#0F172A" text-anchor="end">${item.count}</text>`);
         curY += 22;
     });
     curY += 10;
 
-    // --- 连线含义 ---
-    parts.push(`<text x="${lx + 24}" y="${curY}" font-size="10.5" font-weight="800" fill="#64748B" letter-spacing="1.5px">CONNECTIONS · 连线含义</text>`);
+    // --- Edge meanings ---
+    parts.push(`<text x="${lx + 24}" y="${curY}" font-size="10.5" font-weight="800" fill="#64748B" letter-spacing="1.5px">CONNECTIONS</text>`);
     curY += 22;
     const lineItems = [
-        { label: '行动foundvulnerability', color: '#4F46E5', dash: '' },
-        { label: '使能 / 促成关系', color: '#E11D48', dash: '' },
-        { label: '逻辑顺序', color: '#64748B', dash: '' },
-        { label: 'target定位', color: '#4F46E5', dash: '6,3' }
+        { label: 'Action found vulnerability', color: '#4F46E5', dash: '' },
+        { label: 'Enables / facilitates', color: '#E11D48', dash: '' },
+        { label: 'Logical sequence', color: '#64748B', dash: '' },
+        { label: 'Target identification', color: '#4F46E5', dash: '6,3' }
     ];
     lineItems.forEach(l => {
         const dashAttr = l.dash ? `stroke-dasharray="${l.dash}"` : '';
@@ -8892,39 +8892,39 @@ function _acBuildSvgString() {
     });
     curY += 10;
 
-    // --- 风险等级 records ---
-    parts.push(`<text x="${lx + 24}" y="${curY}" font-size="10.5" font-weight="800" fill="#64748B" letter-spacing="1.5px">RISK LEVELS · 风险等级</text>`);
+    // --- Risk levels ---
+    parts.push(`<text x="${lx + 24}" y="${curY}" font-size="10.5" font-weight="800" fill="#64748B" letter-spacing="1.5px">RISK LEVELS</text>`);
     curY += 22;
     const riskBar = [
         { label: 'Critical', range: '80-100', color: '#E11D48' },
-        { label: '高', range: '60-79', color: '#EA580C' },
-        { label: '中', range: '40-59', color: '#CA8A04' },
-        { label: '低', range: '0-39', color: '#0D9488' }
+        { label: 'High', range: '60-79', color: '#EA580C' },
+        { label: 'Med', range: '40-59', color: '#CA8A04' },
+        { label: 'Low', range: '0-39', color: '#0D9488' }
     ];
     riskBar.forEach(r => {
-        // 风险等级胶囊
+        // Risk level badge capsule
         parts.push(`<rect x="${lx + 24}" y="${curY - 10}" width="46" height="18" rx="9" fill="${r.color}"/>`);
         parts.push(`<text x="${lx + 47}" y="${curY + 2}" text-anchor="middle" font-size="10.5" font-weight="700" fill="#FFFFFF" letter-spacing="0.3px">${_acEscapeXml(r.label)}</text>`);
-        // 分数范围
-        parts.push(`<text x="${lx + 80}" y="${curY + 1}" font-size="12" font-weight="500" fill="#64748B">分数 ${_acEscapeXml(r.range)}</text>`);
+        // Score range
+        parts.push(`<text x="${lx + 80}" y="${curY + 1}" font-size="12" font-weight="500" fill="#64748B">Score ${_acEscapeXml(r.range)}</text>`);
         curY += 26;
     });
 
-    // ==================== 底部 info栏 ====================
+    // ==================== Bottom info bar ====================
     const fY = OUTER_PAD + contentH - FOOTER_H;
-    // 分隔线
+    // Divider line
     parts.push(`<line x1="${OUTER_PAD + 40}" y1="${fY + 16}" x2="${OUTER_PAD + contentW - 40}" y2="${fY + 16}" stroke="rgba(15,23,42,0.06)" stroke-width="1"/>`);
-    // 左侧品牌
+    // Left brand
     parts.push(`<circle cx="${OUTER_PAD + 44}" cy="${fY + 34}" r="5" fill="url(#ac-brand)"/>`);
     parts.push(`<text x="${OUTER_PAD + 56}" y="${fY + 38}" font-size="11.5" font-weight="600" fill="#64748B">Kestrel <tspan fill="#94A3B8" font-weight="500">· Attack Chain Visualization Report</tspan></text>`);
-    // 右侧时间戳
+    // Right timestamp
     parts.push(`<text x="${OUTER_PAD + contentW - 40}" y="${fY + 38}" font-size="11.5" font-weight="500" fill="#94A3B8" text-anchor="end">${_acEscapeXml(ts)}</text>`);
 
     parts.push(`</SVG>`);
     return parts.join('\n');
 }
 
-// download文本文件
+// Download a text file
 function _acDownloadBlob(blob, fileName) {
     const URL = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -8936,11 +8936,11 @@ function _acDownloadBlob(blob, fileName) {
     setTimeout(() => URL.revokeObjectURL(URL), 150);
 }
 
-// 基于 SVG 字符串Generate高清 PNG
+// Generate a high-resolution PNG from an SVG string
 function _acSvgToPng(svgString, scale) {
     return new Promise((resolve, reject) => {
         try {
-            // 读取 SVG 尺寸
+            // Read SVG dimensions
             const m = svgString.match(/<SVG[^>]*width="(\d+(?:\.\d+)?)"[^>]*height="(\d+(?:\.\d+)?)"/i);
             const w = m ? parseFloat(m[1]) : 1600;
             const h = m ? parseFloat(m[2]) : 900;
@@ -8981,14 +8981,14 @@ function _acSvgToPng(svgString, scale) {
     });
 }
 
-// exportAttack chain（美化版）
+// Export attack chain (premium style)
 function exportAttackChain(format) {
     if (!attackChainCytoscape) {
-        alert(typeof window.t === 'function' ? window.t('chat.pleaseLoadAttackChainFirst', {}, '请先加载Attack chain') : '请先加载Attack chain');
+        alert(typeof window.t === 'function' ? window.t('chat.pleaseLoadAttackChainFirst', {}, 'Please load the attack chain first') : 'Please load the attack chain first');
         return;
     }
 
-    // 延时确保渲染complete
+    // Delay to ensure rendering is complete
     setTimeout(() => {
         try {
             const svgString = _acBuildSvgString();
@@ -9002,8 +9002,8 @@ function exportAttackChain(format) {
                 _acSvgToPng(svgString, 2)
                     .then(pngBlob => _acDownloadBlob(pngBlob, `attack-chain-${convId}-${tsName}.PNG`))
                     .catch(err => {
-                        console.error('export PNG failed，回退到 Cytoscape 原生export:', err);
-                        // 回退方案: 使用 Cytoscape 自带export
+                        console.error('Export PNG failed, falling back to native Cytoscape export:', err);
+                        // Fallback: use Cytoscape built-in export
                         try {
                             const p = attackChainCytoscape.PNG({ output: 'blob', bg: '#FFFFFF', full: true, scale: 2 });
                             if (p && typeof p.then === 'function') {
@@ -9019,7 +9019,7 @@ function exportAttackChain(format) {
                         }
                     });
             } else {
-                alert('不支持的export格式: ' + format);
+                alert('Unsupported export format: ' + format);
             }
         } catch (error) {
             console.error('export failed:', error);
@@ -9029,13 +9029,13 @@ function exportAttackChain(format) {
 }
 
 // ============================================
-// Chat批量管理功能
+// Chat bulk management
 // ============================================
 
 let contextMenuConversationId = null;
 let contextMenuConversationTitle = '';
-let conversationsListLoadSeq = 0; // Chat列表加载序号，避免并发请求导致重复渲染
-let conversationsListNavigateGen = 0; // 用户主动翻 page代数，防止后台refresh覆盖翻 page结果
+let conversationsListLoadSeq = 0; // chat list load sequence number, prevents duplicate rendering from concurrent requests
+let conversationsListNavigateGen = 0; // user-initiated page-turn generation, prevents background refresh from overwriting page-turn results
 const CONVERSATIONS_PAGE_SIZE_KEY = 'kestrel.conversations_ page_size';
 const CONVERSATIONS_SORT_KEY = 'kestrel.conversations_sort_by';
 const CONVERSATIONS_PROJECT_FILTER_KEY = 'kestrel.conversations_project_filter';
@@ -9445,7 +9445,7 @@ function setConversationProjectFilter(projectId) {
 function appendProjectFilterPinnedNativeOptions(sel) {
     const tFn = typeof window.t === 'function' ? window.t.bind(window) : null;
     const allLabel = tFn ? tFn('chat.filterAllProjects') : 'allProject';
-    const unboundLabel = tFn ? tFn('chat.filterUnboundProjects') : '未bind project';
+    const unboundLabel = tFn ? tFn('chat.filterUnboundProjects') : 'Unbound project';
     sel.innerHTML = '';
     const allOpt = document.createElement('option');
     allOpt.value = '';
@@ -9521,7 +9521,7 @@ function updateConversationSidebarFilterUI() {
         titleEl.classList.add('section-title--filtered');
         titleEl.removeAttribute('data-i18n');
     } else if (filter === CONVERSATION_PROJECT_FILTER_NONE) {
-        const fullTitle = tFn ? tFn('chat.unboundConversationsTitle') : '未bind project';
+        const fullTitle = tFn ? tFn('chat.unboundConversationsTitle') : 'Unbound project';
         titleEl.textContent = fullTitle;
         titleEl.title = fullTitle;
         titleEl.classList.add('section-title--filtered');
@@ -9649,10 +9649,10 @@ function getConversationsTotalPages() {
 }
 
 /**
- * 分 pagestatus约定: 
- * - conversationsPagination. page 仅在此处（用户操作 / reconcile 钳制 / clamp）写入
- * - loadConversations 只读 page码，用 intentPage 或current   page 计算 offset
- * - isStaleConversationListLoad 丢弃 page码或 navigateGen 已变的在途请求
+ * Pagination state contract:
+ * - conversationsPagination.page is only written here (user action / reconcile clamp)
+ * - loadConversations reads the page number and computes offset from intentPage or the current page
+ * - isStaleConversationListLoad discards in-flight requests when the page or navigateGen has changed
  */
 function commitConversationsPage( page, { bumpNavigateGen = false } = {}) {
     const next = Math.max(1, parseInt( page, 10) || 1);
@@ -9665,11 +9665,11 @@ function commitConversationsPage( page, { bumpNavigateGen = false } = {}) {
 
 function isStaleConversationListLoad(loadSeq, intentPage, navigateGenAtstart, activePage) {
     if (loadSeq !== conversationsListLoadSeq) return true;
-    // 后台refresh期间用户已翻 page（含 2→1、1→2），丢弃过期结果
+    // User turned the page during a background refresh (including 2→1, 1→2); discard stale result
     if (intentPage == null && navigateGenAtstart !== conversationsListNavigateGen) return true;
-    // 用户主动翻 page后，丢弃target page已变化的请求
+    // User actively turned the page; discard requests whose target page has changed
     if (intentPage != null && intentPage !== conversationsPagination. page) return true;
-    // 后台refreshcomplete时 page码已变（如 reconcile 钳制），丢弃过期结果
+    // Page number changed when background refresh completed (e.g. reconcile clamp); discard stale result
     if (intentPage == null && activePage != null && activePage !== conversationsPagination. page) return true;
     return false;
 }
@@ -9685,7 +9685,7 @@ function reconcileConversationsPageAfterTotal(activePage, intentPage, parsed,  p
     const serverTotal = parseListTotalValue(parsed.total, parsed. items.length);
     const hasPageData = parsed. items.length > 0;
     const knownTotal = conversationsPagination.total || 0;
-    // 用户主动翻 page且service端确有该 page数据时，不信过期/偏低的 total（避免 2>1 被钳回Round 1  page）
+    // If the user actively paged and the server has data for that page, do not trust a stale/low total (prevents 2→1 clamp back to page 1)
     if (intentPage != null && (hasPageData || serverTotal > offset || total > offset || knownTotal > offset)) {
         total = Math.max(total, serverTotal, knownTotal, offset + parsed. items.length);
         if (activePage <= totalPages()) {
@@ -9896,7 +9896,7 @@ function changeConversationsPageSize() {
     const sel = document.getElementById('conversations- page-size-pagination');
     const newSize = sel ? parseInt(sel.value, 10) : 50;
     if (![20, 50, 100].includes(newSize)) return;
-    // 重建 DOM 后浏览器可能异步触发 change，值未变时不应Reset page码
+    // After rebuilding the DOM, the browser may fire a change event asynchronously; do not reset the page number if the value hasn't changed
     if (newSize === conversationsPagination. pageSize) return;
     try {
         localStorage.setItem(CONVERSATIONS_PAGE_SIZE_KEY, String(newSize));
@@ -9909,7 +9909,7 @@ function changeConversationsPageSize() {
 window.goConversationsPage = goConversationsPage;
 window.changeConversationsPageSize = changeConversationsPageSize;
 
-// 加载Chat列表（支持置顶）
+// Load the chat list (supports pinning)
 async function loadConversations(searchQuery = '', options = {}) {
     const refreshMeta = options.refreshMeta !== false;
     const scrollToTop = options.scrollToTop === true;
@@ -9950,7 +9950,7 @@ async function loadConversations(searchQuery = '', options = {}) {
         const emptyStateHtml = getConversationListEmptyHtml();
         listContainer.innerHTML = '';
 
-        // if响应不Yes200，显示emptystatus（友好处理，不Show error）
+        // If the response is not 200, show empty state (user-friendly, no error hint)
         if (!response.ok) {
             listContainer.innerHTML = emptyStateHtml;
             if (typeof window.applyTranslations === 'function') window.applyTranslations(listContainer);
@@ -9973,7 +9973,7 @@ async function loadConversations(searchQuery = '', options = {}) {
         conversationsPagination.total =  pageCheck.total;
         if (! pageCheck.ok) {
             if (isStaleConversationListLoad(loadSeq, intentPage, navigateGenAtstart, activePage)) return;
-            // 用户主动翻 page被钳制时仍保留 intent，并 bump navigateGen 使在途后台refresh失效
+            // When a user page-turn is clamped, keep the intent and bump navigateGen to invalidate in-flight background refreshes
             if (intentPage != null) {
                 commitConversationsPage( pageCheck.clampedPage, { bumpNavigateGen: true });
             }
@@ -9990,7 +9990,7 @@ async function loadConversations(searchQuery = '', options = {}) {
             return;
         }
 
-        // 双重保险: 后端或并发情况下若出现重复ID，前端按ID去重
+        // Safety net: if duplicate IDs appear (backend bug or concurrency), de-duplicate client-side by ID
         const uniqueConversations = [];
         const seenConversationIds = new Set();
         parsed. items.forEach(conv => {
@@ -10008,7 +10008,7 @@ async function loadConversations(searchQuery = '', options = {}) {
             return;
         }
 
-        // 分离置顶和普通Chat
+        // Separate pinned and normal chats
         const pinnedConvs = [];
         const normalConvs = [];
 
@@ -10020,7 +10020,7 @@ async function loadConversations(searchQuery = '', options = {}) {
             }
         });
 
-        // 按时间Sort
+        // Sort by time
         const sortByTime = (a, b) => getConversationSortTime(b) - getConversationSortTime(a);
 
         pinnedConvs.sort(sortByTime);
@@ -10037,8 +10037,8 @@ async function loadConversations(searchQuery = '', options = {}) {
         const groupOrder = [
             { key: 'today', label: tFn ? tFn('chat.historyGroupToday') : 'Today' },
             { key: 'yesterday', label: tFn ? tFn('chat.yesterday') : 'Yesterday' },
-            { key: 'last7Days', label: tFn ? tFn('chat.historyGroupLast7Days') : '过去七 days' },
-            { key: 'earlier', label: tFn ? tFn('chat.historyGroupEarlier') : '更早' },
+            { key: 'last7Days', label: tFn ? tFn('chat.historyGroupLast7Days') : 'Last 7 days' },
+            { key: 'earlier', label: tFn ? tFn('chat.historyGroupEarlier') : 'Earlier' },
         ];
 
         const groups = {
@@ -10106,7 +10106,7 @@ async function loadConversations(searchQuery = '', options = {}) {
         updateActiveConversation();
         renderConversationsPagination(visibleCount);
 
-        // 翻 page时回到列表顶部; 后台refresh保留Scroll position
+        // Scroll back to list top on page-turn; background refresh preserves scroll position
         if (sidebarContent) {
             requestAnimationFrame(() => {
                 if (!isStaleConversationListLoad(loadSeq, intentPage, navigateGenAtstart, activePage)) {
@@ -10116,8 +10116,8 @@ async function loadConversations(searchQuery = '', options = {}) {
         }
     } catch (error) {
         if (isStaleConversationListLoad(loadSeq, intentPage, navigateGenAtstart, activePage)) return;
-        console.error('加载Chat列表failed:', error);
-        // error时显示emptystatus，而不Yeserrorhint（更友好的用户体验）
+        console.error('Load chat list failed:', error);
+        // On error, show empty state rather than an error hint (better UX)
         const listContainer = document.getElementById('conversations-list');
         if (listContainer) {
             listContainer.innerHTML = getConversationListEmptyHtml();
@@ -10128,7 +10128,7 @@ async function loadConversations(searchQuery = '', options = {}) {
     }
 }
 
-// 创建带菜单的Chat items
+// Create chat list items with context menu
 function createConversationListItemWithMenu(conversation, isPinned) {
     const item = document.createElement('div');
     item.className = 'conversation-item';
@@ -10149,14 +10149,14 @@ function createConversationListItemWithMenu(conversation, isPinned) {
     title.className = 'conversation-title';
     const titleText = conversation.title || 'UntitledChat';
     title.textContent = safeTruncateText(titleText, 60);
-    title.title = titleText; // 设置完整title以便悬停view
+    title.title = titleText; // Set the full title for tooltip on hover
     titleWrapper.appendChild(title);
 
     if (isPinned) {
         const pinIcon = document.createElement('span');
         pinIcon.className = 'conversation-item-pinned';
         pinIcon.innerHTML = '📌';
-        pinIcon.title = '已置顶';
+        pinIcon.title = 'Pinned';
         titleWrapper.appendChild(pinIcon);
     }
 
@@ -10229,7 +10229,7 @@ function updateConversationContextPinText(isPinned) {
     if (typeof window.t === 'function') {
         pinMenuText.textContent = isPinned ? window.t('contextMenu.unpinConversation') : window.t('contextMenu.pinConversation');
     } else {
-        pinMenuText.textContent = isPinned ? 'Cancel置顶' : '置顶此Chat';
+        pinMenuText.textContent = isPinned ? 'Unpin' : 'Pin this chat';
     }
 }
 
@@ -10244,11 +10244,11 @@ async function refreshConversationContextPinText(convId) {
         const conv = await response.json();
         updateConversationContextPinText(!!conv.pinned);
     } catch (error) {
-        console.error('获取Chat置顶statusfailed:', error);
+        console.error('Failed to get chat pin status:', error);
     }
 }
 
-// 显示Chat上下文菜单
+// Show the chat context menu
 async function showConversationContextMenu(event) {
     const menu = document.getElementById('conversation-context-menu');
     if (!menu) return;
@@ -10257,13 +10257,13 @@ async function showConversationContextMenu(event) {
     if (downloadSubmenu) {
         downloadSubmenu.style.display = 'none';
     }
-    // 清除所有定时器
+    // Clear all timers
     clearDownloadMarkdownSubmenuHideTimeout();
 
     const convId = contextMenuConversationId;
     updateConversationContextPinText(false);
 
-    // updateAttack chain菜单 items的enablestatus
+    // Update the enable state of the attack chain menu items
     const attackChainMenuItem = document.getElementById('attack-chain-menu-item');
     if (attackChainMenuItem) {
         if (convId) {
@@ -10274,30 +10274,30 @@ async function showConversationContextMenu(event) {
                 attackChainMenuItem.style.opacity = '0.5';
                 attackChainMenuItem.style.cursor = 'not-allowed';
                 attackChainMenuItem.onclick = null;
-                attackChainMenuItem.title = 'currentChatExecuting，请稍后再GenerateAttack chain';
+                attackChainMenuItem.title = 'Current chat is running; please wait before generating an attack chain';
             } else {
                 attackChainMenuItem.style.opacity = '1';
                 attackChainMenuItem.style.cursor = 'pointer';
                 attackChainMenuItem.onclick = showAttackChainFromContext;
-                attackChainMenuItem.title = (typeof window.t === 'function' ? window.t('chat.viewAttackChaincurrent Conv') : 'viewcurrent Chat的Attack chain');
+                attackChainMenuItem.title = (typeof window.t === 'function' ? window.t('chat.viewAttackChaincurrent Conv') : 'View attack chain for this chat');
             }
         } else {
             attackChainMenuItem.style.opacity = '0.5';
             attackChainMenuItem.style.cursor = 'not-allowed';
             attackChainMenuItem.onclick = null;
-            attackChainMenuItem.title = (typeof window.t === 'function' ? window.t('chat.viewAttackChainSelectConv') : 'Please select一个Chat以viewAttack chain');
+            attackChainMenuItem.title = (typeof window.t === 'function' ? window.t('chat.viewAttackChainSelectConv') : 'Please select a chat to view its attack chain');
         }
     }
 
-    // 先显示菜单，置顶status随后异步refresh，避免接口慢时点击没有任何反馈。
+    // Show the menu first; pin status is refreshed asynchronously afterwards to avoid a no-feedback click when the API is slow.
     menu.style.display = 'block';
     menu.style.visibility = 'visible';
     menu.style.opacity = '1';
 
-    // 强制重排以获取正确尺寸
+    // Force reflow to get correct dimensions
     void menu.offsetHeight;
 
-    // 计算菜单位置，确保不超出屏幕
+    // Calculate menu position, ensuring it does not exceed the screen
     const menuRect = menu.getBoundingClientRect();
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
@@ -10307,26 +10307,26 @@ async function showConversationContextMenu(event) {
     let left = event.clientX;
     let top = event.clientY;
 
-    // if菜单会超出右边界，调整到左侧
+    // If the menu overflows the right edge, shift it left
     if (left + menuRect.width + submenuWidth > viewportWidth) {
         left = event.clientX - menuRect.width;
-        // if调整后仍然超出，则放在按钮左侧
+        // If still overflowing after adjustment, place to the left of the button
         if (left < 0) {
             left = Math.max(8, event.clientX - menuRect.width - submenuWidth);
         }
     }
 
-    // if菜单会超出下边界，调整到上方
+    // If the menu overflows the bottom edge, shift it upward
     if (top + menuRect.height > viewportHeight) {
         top = Math.max(8, event.clientY - menuRect.height);
     }
 
-    // 确保不超出左边界
+    // Ensure it does not overflow the left edge
     if (left < 0) {
         left = 8;
     }
 
-    // 确保不超出上边界
+    // Ensure it does not overflow the top edge
     if (top < 0) {
         top = 8;
     }
@@ -10334,7 +10334,7 @@ async function showConversationContextMenu(event) {
     menu.style.left = left + 'px';
     menu.style.top = top + 'px';
 
-    // if菜单在右侧，子菜单应该在左侧显示
+    // If the menu is on the right side, the submenu should appear on the left
     if (left < event.clientX) {
         if (downloadSubmenu) {
             downloadSubmenu.style.left = 'auto';
@@ -10351,9 +10351,9 @@ async function showConversationContextMenu(event) {
         }
     }
 
-    // 点击ExternalClose菜单
+    // Click outside to close the menu
     const closeMenu = (e) => {
-        // 检查点击whether 在主菜单或子菜单内
+        // Check whether the click is inside the main menu or submenu
         const downloadMarkdownSubmenuEl = document.getElementById('download-markdown-submenu');
         const clickedInMenu = menu.contains(e.TARGET);
         const clickedIndownloadSubmenu = downloadMarkdownSubmenuEl && downloadMarkdownSubmenuEl.contains(e.TARGET);
@@ -10388,21 +10388,21 @@ function ensureConversationRenameModal() {
             <div class="projects-modal-header">
                 <div class="projects-modal-header-text">
                     <div>
-                        <h3 ID="conversation-rename-title" data-i18n="chat.renameConversationTitle">重命名Chat</h3>
-                        <p class="projects-modal-subtitle" data-i18n="chat.renameConversationSubtitle">修改后会同步updateProject文件夹和最近Chat中的名称</p>
+                        <h3 ID="conversation-rename-title" data-i18n="chat.renameConversationTitle">Rename chat</h3>
+                        <p class="projects-modal-subtitle" data-i18n="chat.renameConversationSubtitle">The new name will sync across the project folder and recent chats.</p>
                     </div>
                 </div>
                 <button type="button" class="projects-modal-close" data-conversation-rename-close aria-label="Close" data-i18n="common.close" data-i18n-attr="aria-label" data-i18n-skip-text="true">&times;</button>
             </div>
             <div class="projects-modal-body">
                 <div class="projects-form-field">
-                    <label for="conversation-rename-input" data-i18n="chat.conversationTitleLabel">Chat名称</label>
-                    <input type="text" ID="conversation-rename-input" class="form-input" maxLength="200" autocomplete="off" data-i18n="chat.conversationTitlePlaceholder" data-i18n-attr="placeholder" placeholder="Please enterChat名称">
+                    <label for="conversation-rename-input" data-i18n="chat.conversationTitleLabel">Chat name</label>
+                    <input type="text" ID="conversation-rename-input" class="form-input" maxLength="200" autocomplete="off" data-i18n="chat.conversationTitlePlaceholder" data-i18n-attr="placeholder" placeholder="Enter chat name">
                 </div>
             </div>
             <div class="projects-modal-footer">
                 <button class="btn-secondary" type="button" data-conversation-rename-close data-i18n="common.cancel">Cancel</button>
-                <button class="btn-primary" type="button" ID="conversation-rename-submit" data-i18n="contextMenu.rename">重命名</button>
+                <button class="btn-primary" type="button" ID="conversation-rename-submit" data-i18n="contextMenu.rename">Rename</button>
             </div>
         </div>`;
     modal.addEventListener('click', (event) => {
@@ -10425,7 +10425,7 @@ function ensureConversationRenameModal() {
     return modal;
 }
 
-// 打开应用内重命名弹窗，避免Built-in浏览器Block window.prompt。
+// Open the in-app rename dialog to avoid the native browser window.prompt being blocked.
 function renameConversation() {
     const convId = contextMenuConversationId;
     if (!convId) return;
@@ -10471,7 +10471,7 @@ async function saveConversationRename() {
             throw new Error(error.error || 'update failed');
         }
 
-        // update前端显示
+        // Update the frontend display
         document.querySelectorAll('[data-conversation-idD]').forEach((item) => {
             if (item.dataset.conversationId !== convId) return;
             item.querySelectorAll('.conversation-title, .project-conversation-title')
@@ -10481,20 +10481,20 @@ async function saveConversationRename() {
                 });
         });
 
-        // 同步update顶栏正在run的Task name
+        // Sync-update the running task name in the top bar
         if (typeof updateActiveTaskConversationTitle === 'function') {
             updateActiveTaskConversationTitle(convId, newTitle.trim());
         }
 
-        // 重新加载Chat列表
+        // Reload the chat list
         await loadConversations();
         if (typeof window.refreshChatProjectFolders === 'function') {
             await window.refreshChatProjectFolders();
         }
         closeConversationRenameModal();
     } catch (error) {
-        console.error('重命名Chatfailed:', error);
-        const failedLabel = typeof window.t === 'function' ? window.t('chat.renameFailed') : '重命名failed';
+        console.error('Rename chat failed:', error);
+        const failedLabel = typeof window.t === 'function' ? window.t('chat.renameFailed') : 'Rename failed';
         const unknownErr = 'Unknown error';
         alert(failedLabel + ': ' + (error.message || unknownErr));
     } finally {
@@ -10665,13 +10665,13 @@ function buildConversationMarkdownFileName(conversation, options = {}) {
     return `${safeTitle}_${idPart}_${modePart}.md`;
 }
 
-// 从上下文菜单downloadChat Markdown
+// Download chat as Markdown from the context menu
 async function downloadConversationMarkdownFromContext(includeToolDetails = false) {
     const convId = contextMenuConversationId;
     if (!convId) return;
 
     try {
-        // download不影响  page性能: 直接从后端一次性拉取全量过程Details
+        // Download does not affect page performance: fetch full process details from the backend in one request
         const response = await apiFetch(`/api/conversations/${convId}?include_process_details=1`);
         let conversation = null;
         try {
@@ -10704,7 +10704,7 @@ async function downloadConversationMarkdownFromContext(includeToolDetails = fals
     closeContextMenu();
 }
 
-// 从上下文菜单Go tovulnerabilities，并按current Chat ID filter
+// Navigate to vulnerabilities from the context menu, filtered by the current chat ID
 function navigateToVulnerabilitiesForContextConversation() {
     const convId = contextMenuConversationId;
     if (!convId) {
@@ -10715,20 +10715,20 @@ function navigateToVulnerabilitiesForContextConversation() {
     window.location.hash = 'vulnerabilities?conversation_id=' + encodeURIComponent(convId);
 }
 
-// 从上下文菜单deleteChat
+// Delete a chat from the context menu
 function deleteConversationFromContext() {
     if (typeof requirePermission === 'function' && !requirePermission('chat:delete')) return;
     const convId = contextMenuConversationId;
     if (!convId) return;
 
-    const confirmMsg = typeof window.t === 'function' ? window.t('chat.deleteConversationConfirm') : 'OK要delete此Chat吗？';
+    const confirmMsg = typeof window.t === 'function' ? window.t('chat.deleteConversationConfirm') : 'Delete this chat?';
     if (confirm(confirmMsg)) {
-        deleteConversation(convId, true); // skip内部confirm，因为这里已经confirm过了
+        deleteConversation(convId, true); // skip internal confirm since we already confirmed here
     }
     closeContextMenu();
 }
 
-// Close上下文菜单
+// Close the context menu
 function closeContextMenu() {
     const menu = document.getElementById('conversation-context-menu');
     if (menu) {
@@ -10738,13 +10738,13 @@ function closeContextMenu() {
     if (downloadSubmenu) {
         downloadSubmenu.style.display = 'none';
     }
-    // 清除所有定时器
+    // Clear all timers
     clearDownloadMarkdownSubmenuHideTimeout();
     contextMenuConversationId = null;
     contextMenuConversationTitle = '';
 }
 
-// 显示批量管理模态框
+// Show the bulk management modal
 let allConversationsForBatch = [];
 
 function getConversationProjectId(conv) {
@@ -10815,7 +10815,7 @@ function applyBatchConversationFilters() {
     renderBatchConversations(filtered);
 }
 
-// update批量管理模态框title（含 records数），支持 i18n; count 为current  records数
+// Update the bulk management modal title (including record count), with i18n support; count is the current record count
 function updateBatchManageTitle(count) {
     const titleEl = document.getElementById('batch-manage-title');
     if (!titleEl || typeof window.t !== 'function') return;
@@ -10843,7 +10843,7 @@ async function showBatchManageModal() {
         applyBatchConversationFilters();
         openAppModal('batch-manage-modal', { focus: false });
     } catch (error) {
-        console.error('加载Chat列表failed:', error);
+        console.error('Load chat list failed:', error);
         initProjectFilterCustomSelect(BATCH_PROJECT_FILTER_SELECT_ID);
         allConversationsForBatch = [];
         await refreshBatchProjectFilter();
@@ -10852,46 +10852,46 @@ async function showBatchManageModal() {
     }
 }
 
-// Safe截断Chinese字符串，避免在汉字中间截断
+// Safely truncate a string (CJK-aware), avoiding truncation in the middle of a character
 function safeTruncateText(text, maxLength = 50) {
     if (!text || typeof text !== 'string') {
         return text || '';
     }
 
-    // 使用 Array.from 将字符串转换为字符数组（正确处理 Unicode Agent对）
+    // Use Array.from to convert to a character array (correctly handles Unicode surrogate pairs)
     const chars = Array.from(text);
 
-    // if文本长度未超过限制，直接return
+    // If the text length is within the limit, return as-is
     if (chars.length <= maxLength) {
         return text;
     }
 
-    // 截断到最大长度（基于字符数，而不Yes代码单元）
+    // Truncate to the maximum length (character-based, not code-unit based)
     let truncatedChars = chars.slice(0, maxLength);
 
-    // 尝试在标点符号或empty格处截断，使截断更自然
-    // 在截断点往前查找合适的断点（不超过20%的长度）
+    // Try to truncate at a punctuation mark or space for a more natural break
+    // Look backwards from the truncation point for a good break (within 20% of the length)
     const searchRange = Math.floor(maxLength * 0.2);
     const breakChars = ['，', '。', '、', ' ', ',', '.', ';', ':', '!', '?', '！', '？', '/', '\\', '-', '_'];
     let bestBreakPos = truncatedChars.length;
 
     for (let i = truncatedChars.length - 1; i >= truncatedChars.length - searchRange && i >= 0; i--) {
         if (breakChars.includes(truncatedChars[i])) {
-            bestBreakPos = i + 1; // 在标点符号后断开
+            bestBreakPos = i + 1; // break after the punctuation mark
             break;
         }
     }
 
-    // if找到合适的断点，使用它; otherwise使用原截断位置
+    // Use the best break position if found; otherwise use the original truncation point
     if (bestBreakPos < truncatedChars.length) {
         truncatedChars = truncatedChars.slice(0, bestBreakPos);
     }
 
-    // 将字符数组转换回字符串，并添加省略号
+    // Convert the character array back to a string and append an ellipsis
     return truncatedChars.join('') + '...';
 }
 
-// 渲染批量管理Chat列表
+// Render the bulk management chat list
 function renderBatchConversations(filtered = null) {
     const list = document.getElementById('batch-conversations-list');
     if (!list) return;
@@ -10954,7 +10954,7 @@ function renderBatchConversations(filtered = null) {
                       stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </SVG>
         `;
-        const deleteLabel = typeof window.t === 'function' ? window.t('contextMenu.deleteConversation') : 'delete此Chat';
+        const deleteLabel = typeof window.t === 'function' ? window.t('contextMenu.deleteConversation') : 'Delete this chat';
         deleteBtn.title = deleteLabel;
         deleteBtn.setAttribute('aria-label', deleteLabel);
         deleteBtn.onclick = (e) => {
@@ -10975,7 +10975,7 @@ function renderBatchConversations(filtered = null) {
     syncSelectAllBatchCheckbox();
 }
 
-// filter批量管理Chat
+// Filter the bulk management chat list
 function filterBatchConversations() {
     applyBatchConversationFilters();
 }
@@ -11013,16 +11013,16 @@ function syncSelectAllBatchCheckbox() {
     }
 }
 
-// delete选中的Chat
+// Delete selected chats
 async function deleteSelectedConversations() {
     if (typeof requirePermission === 'function' && !requirePermission('chat:delete')) return;
     const checkboxes = document.querySelectorAll('.batch-conversation-checkbox:checked');
     if (checkboxes.length === 0) {
-        alert(typeof window.t === 'function' ? window.t('batchManageModal.confirmdeleteno ') : '请先选择要delete的Chat');
+        alert(typeof window.t === 'function' ? window.t('batchManageModal.confirmdeleteno ') : 'Please select chats to delete first');
         return;
     }
 
-    const confirmMsg = typeof window.t === 'function' ? window.t('batchManageModal.confirmDeleteN', { count: checkboxes.length }) : 'OK要delete选中的 ' + checkboxes.length + '  recordsChat吗？';
+    const confirmMsg = typeof window.t === 'function' ? window.t('batchManageModal.confirmDeleteN', { count: checkboxes.length }) : 'Delete ' + checkboxes.length + ' selected chat(s)?';
     if (!confirm(confirmMsg)) {
         return;
     }
@@ -11031,9 +11031,9 @@ async function deleteSelectedConversations() {
 
     try {
         for (const ID of IDs) {
-            await deleteConversation(ID, true); // skip内部confirm，因为批量delete时已经confirm过了
+            await deleteConversation(ID, true); // skip internal confirm since batch delete already confirmed
         }
-        // delete后保持弹窗打开，便于继续管理剩余Chat
+        // Keep the dialog open after deletion so the user can continue managing remaining chats
         const selectAll = document.getElementById('batch-select-all');
         if (selectAll) {
             selectAll.checked = false;
@@ -11047,7 +11047,7 @@ async function deleteSelectedConversations() {
     }
 }
 
-// Close批量管理模态框
+// Close the bulk management modal
 function closeBatchManageModal() {
     closeAllProjectFilterCustomSelects();
     closeAppModal('batch-manage-modal');
@@ -11063,7 +11063,7 @@ function closeBatchManageModal() {
     allConversationsForBatch = [];
 }
 
-// Language switch时refreshcurrent 聊 days page内的时间与动态文案（消息时间、execute流程时间由 monitor 的 refreshProgressAndTimelineI18n 处理）
+// On language switch, refresh timestamps and dynamic text on the current chat page (message times and execution flow times are handled by monitor's refreshProgressAndTimelineI18n)
 function refreshChatPanelI18n() {
     const locale = (typeof window.uiLocale === 'function' ? window.uiLocale() : 'en-US');
     const timeOpts = { hour: '2-digit', minute: '2-digit' };
@@ -11129,7 +11129,7 @@ function refreshChatPanelI18n() {
     }
 }
 
-// Language switch时refresh批量管理模态框title（若current 正在显示）; 并refreshChat列表时间格式与System就绪hint; refreshcurrent  page消息时间与动态文案
+// On language switch, refresh the bulk management modal title (if currently shown); also refresh chat list timestamps and system-ready hints; refresh current page message timestamps and dynamic text
 document.addEventListener('languagechange', function () {
     refreshSystemReadyMessageBubbles();
     refreshChatPanelI18n();
@@ -11144,20 +11144,20 @@ document.addEventListener('languagechange', function () {
             }
         });
     }
-    // 侧边栏最近Chat等列表的时间戳会随Language变化（24h/12h 等），重新拉列表以统一格式
+    // Sidebar timestamps (recent chats etc.) vary with language (24h/12h etc.); reload the list to unify formatting
     if (typeof loadConversations === 'function') {
         loadConversations();
     }
 });
 
-// 初始化时加载Chat列表
+// Load the chat list on initialisation
 document.addEventListener('DOMContentLoaded', async () => {
     ensureProjectSidebarStructure();
     if (window.i18nReady) await window.i18nReady;
     if (typeof window.applyTranslations === 'function') {
         window.applyTranslations(document.getElementById('conversation-sidebar'));
     }
-    // task栏不再暴露Projectfilter，清除旧选择以免隐藏部分task。
+    // The task bar no longer exposes the project filter; clear old selection to avoid hiding some tasks.
     setConversationProjectFilter('');
     restoreRecentConversationsState();
     updateConversationSortMenuUI();
@@ -11166,14 +11166,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     await refreshConversationProjectFilter();
     await loadConversations();
 
-    // 添加  page焦点时AutorefreshChat列表的功能
-    // 这样当approveOpenAPI创建Chat后，切换回  page时能Auto看到新Chat
+    // Auto-refresh the chat list on page focus,
+    // so that chats created via the OpenAPI are visible when the user returns to the page.
     let lastFocusTime = Date.now();
-    const CONVERSATION_REFRESH_INTERVAL = 30000; // 30 sec内最多refresh一次，避免过于频繁
+    const CONVERSATION_REFRESH_INTERVAL = 30000; // refresh at most once per 30 seconds to avoid excessive requests
 
     window.addEventListener('focus', () => {
         const now = Date.now();
-        // if距离上次refresh超过30 sec，才refreshChat列表
+        // Only refresh the chat list if more than 30 seconds have passed since the last refresh
         if (now - lastFocusTime > CONVERSATION_REFRESH_INTERVAL) {
             lastFocusTime = now;
             if (typeof loadConversations === 'function') {
@@ -11182,10 +11182,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    // 监听  page可见性变化（当用户切换tags page回来时）
+    // Listen for page visibility changes (when the user switches back to this tab)
     document.addEventListener('visibilitychange', () => {
         if (!document.hidden) {
-            //   page变为可见时，检查whether 需要refresh
+            // When the page becomes visible, check whether a refresh is needed
             const now = Date.now();
             if (now - lastFocusTime > CONVERSATION_REFRESH_INTERVAL) {
                 lastFocusTime = now;
@@ -11196,11 +11196,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    // 任意入口deleteChat后同步: 若delete的Yescurrent Chat则clear主区，并refresh侧边栏列表（如从 WebShell AI 助手delete）
+    // After a chat is deleted from any entry point: if it was the current chat, clear the main area and refresh the sidebar list (e.g. deleted from the WebShell AI assistant)
     document.addEventListener('conversation-deleted', (e) => {
         const ID = e.detail && e.detail.conversationId;
         if (!ID) return;
-        // API 已confirm deletion后立即remove可见列表 items，网络refresh只负责校准分 page和计数。
+        // Remove visible list items immediately after the API confirms deletion; the network refresh only reconciles pagination and counts.
         document.querySelectorAll('.conversation-item[data-conversation-idD]')
             .forEach((item) => {
                 if (item.dataset.conversationId === ID) item.remove();
@@ -11226,7 +11226,7 @@ async function refreshAllProjectFilterSelects() {
     await refreshBatchProjectFilter();
 }
 
-// 顶层 async function 不会Auto挂到 window，HITL 等脚本依赖 window.loadConversation
+// Top-level async functions are not automatically attached to window; HITL and other scripts depend on window.loadConversation
 if (typeof window !== 'undefined') {
     window.loadConversation = loadConversation;
     window.startNewConversation = startNewConversation;

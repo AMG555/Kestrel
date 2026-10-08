@@ -13,7 +13,7 @@ function functionSource(source, name, nextName) {
     return source.slice(start, end);
 }
 
-test('用户和Assistant message使用同一Copy按钮入口', () => {
+test('User and assistant messages share the same Copy button entry point', () => {
     const helperSource = functionSource(chat, 'appendMessageCopyButton', 'addMessage');
     const addMessageSource = functionSource(chat, 'addMessage', 'copyMessageToClipboard');
 
@@ -26,7 +26,7 @@ test('用户和Assistant message使用同一Copy按钮入口', () => {
     assert.match(addMessageSource, /role === 'assistant' \|\| role === 'user'[\s\S]*appendMessageCopyButton\(messageDiv\)/);
 });
 
-test('刷New messages内容时会保留或补回Copy按钮', () => {
+test('Copy button is preserved or restored when message content is refreshed', () => {
     const refreshSource = functionSource(chat, 'refreshSystemReadyMessageBubbles', 'appendMessageCopyButton');
     const updateSource = functionSource(monitor, 'updateAssistantBubbleContent', 'isConversationTaskRunning');
 

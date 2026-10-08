@@ -28,7 +28,7 @@ function harness() {
     return { context, container };
 }
 
-test('SafeBlock计入总调用量，但不归入失败或终止', () => {
+test('SafeBlock counts toward total calls but is not classified as failure or abort', () => {
     const { context } = harness();
     const totals = context.buildMonitorTotals({ totalCalls: 10, successCalls: 4, failedCalls: 1, blockedCalls: 3 });
     assert.deepEqual({ ...totals }, { total: 10, success: 4, failed: 1, blocked: 3, neutral: 2, lastCallTime: null });
@@ -36,7 +36,7 @@ test('SafeBlock计入总调用量，但不归入失败或终止', () => {
     assert.equal(context.buildMonitorTotals({ totalCalls: 2, successCalls: 1, failedCalls: 1 }).blocked, 0);
 });
 
-test('概览成功率排除SafeBlock，只有Block时不显示失败率或终止标签', () => {
+test('Overview success rate excludes SafeBlock; when only blocked, do not show failure rate or abort label', () => {
     const { context, container } = harness();
     context.renderMonitorStats({ totalCalls: 5, successCalls: 1, failedCalls: 1, blockedCalls: 3 });
     assert.match(container.innerHTML, />50\.0%<\/span>/);
@@ -49,7 +49,7 @@ test('概览成功率排除SafeBlock，只有Block时不显示失败率或终止
     assert.doesNotMatch(container.innerHTML, /is-danger|is-neutral|0\.0%/);
 });
 
-test('工具统计独立展示SafeBlock，Block不降低工具成功率', () => {
+test('Tool stats display SafeBlock independently; block does not lower tool success rate', () => {
     const { context } = harness();
     for (const render of [context.renderMcpStatsToolTable, context.renderMcpStatsToolsPanel]) {
         const blockedOnly = render([{ toolName: 'safe-tool', totalCalls: 4, blockedCalls: 4 }], { total: 4 });
@@ -64,7 +64,7 @@ test('工具统计独立展示SafeBlock，Block不降低工具成功率', () => 
     }
 });
 
-test('趋势图区分SafeBlock和失败，并保留悬停的独立计数', () => {
+test('Trend chart distinguishes SafeBlock from failures and retains independent hover counts', () => {
     const { context } = harness();
     const points = [{ t: '2026-09-07T00:00:00Z', total: 3, failed: 0, blocked: 3 }];
     const html = context.renderMcpStatsTimelineBody({ range: '24h', points, summary: { totalCalls: 3, peak: 3 } });

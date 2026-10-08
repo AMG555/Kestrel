@@ -13,7 +13,7 @@ function functionSource(source, name, nextName) {
     return source.slice(start, end);
 }
 
-test('主代理迭代节点获得可访问的分割线语义', () => {
+test('Main agent iteration node gets accessible divider semantics', () => {
     const source = functionSource(monitor, 'addTimelineItem', 'loadActiveTasks');
 
     assert.match(source, /if \(type === 'iteration'\)/);
@@ -23,7 +23,7 @@ test('主代理迭代节点获得可访问的分割线语义', () => {
     assert.match(source, /setAttribute\('aria-label', String\(options\.title \|\| ''\)\)/);
 });
 
-test('迭代分割线只在主Chat时间线中使用轻量渐变横线', () => {
+test('Iteration divider only uses lightweight gradient horizontal line in main chat timeline', () => {
     assert.match(styles, /\.timeline-item-iteration\.timeline-iteration-divider::after/);
     assert.match(styles, /linear-gradient\(/);
     assert.match(styles, /color-mix\(in srgb, var\(--border-color\) 88%, transparent\)/);

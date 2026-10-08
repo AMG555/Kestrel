@@ -16,7 +16,7 @@ function functionSource(source, name, nextName) {
     return source.slice(start, end);
 }
 
-test('全局置顶检查接口结果并即时通知项目文件夹', () => {
+test('Global pin checks API result and immediately notifies project folder', () => {
     const source = functionSource(chat, 'pinConversation');
 
     assert.match(source, /assertConversationActionResponse\(updateResponse, (?:'更新置顶状态失败'|'Failed to update pinned status')\)/);
@@ -24,7 +24,7 @@ test('全局置顶检查接口结果并即时通知项目文件夹', () => {
     assert.match(source, /loadConversations\(\)/);
 });
 
-test('项目文件夹内置顶Chat优先Sort并显示图钉', () => {
+test('Pinned chats inside a project folder sort first and show the pin icon', () => {
     const sortSource = functionSource(projects, 'sortProjectFolderConversations', 'updateChatProjectConversationPinnedState');
     const itemSource = functionSource(projects, 'appendChatProjectConversationItem', 'selectChatProjectConversationItem');
 
@@ -33,7 +33,7 @@ test('项目文件夹内置顶Chat优先Sort并显示图钉', () => {
     assert.match(itemSource, /project-conversation-pinned/);
 });
 
-test('Delete事件立即移除项目缓存并触发权威Refresh', () => {
+test('Delete event immediately removes project cache and triggers authoritative refresh', () => {
     const removeSource = functionSource(projects, 'removeChatProjectConversation', 'refreshChatProjectFoldersAfterAction');
 
     assert.match(removeSource, /chatProjectFolderContext\.conversations = chatProjectFolderContext\.conversations\.filter/);
@@ -41,14 +41,14 @@ test('Delete事件立即移除项目缓存并触发权威Refresh', () => {
     assert.match(chat, /document\.dispatchEvent\(new CustomEvent\('conversation-deleted'/);
 });
 
-test('较旧的项目文件夹请求不能覆盖较新的操作结果', () => {
+test('Older project folder requests cannot overwrite newer operation results', () => {
     const source = functionSource(projects, 'loadChatProjectFolderContext', 'getProjectConversationSortTime');
 
     assert.match(source, /const loadSeq = \+\+chatProjectFolderContextLoadSeq/);
     assert.match(source, /if \(loadSeq !== chatProjectFolderContextLoadSeq\) return false/);
 });
 
-test('项目文件夹菜单可以置顶并立即更新Sort', () => {
+test('Project folder menu can pin and immediately updates sort', () => {
     const toggleSource = functionSource(projects, 'toggleProjectPinnedFromListMenu', 'initProjectListActionMenu');
     const folderSource = functionSource(projects, 'appendChatProjectFolderItem', 'appendChatProjectConversationItem');
 
@@ -60,12 +60,12 @@ test('项目文件夹菜单可以置顶并立即更新Sort', () => {
     assert.match(projects, /\[\.\.\.pinnedProjects, unassignedProject, \.\.\.regularProjects\]/);
 });
 
-test('Chat侧栏只保留最近Chat区域', () => {
+test('Chat sidebar retains only the recent chats section', () => {
     assert.doesNotMatch(template, /class="conversation-groups-section"/);
     assert.doesNotMatch(template, /id="conversation-groups-list"/);
 });
 
-test('Chat三点菜单仍绑定打开上下文菜单', () => {
+test('Chat three-dot menu still binds to open context menu', () => {
     const itemSource = functionSource(chat, 'createConversationListItemWithMenu', 'openConversationContextMenuForId');
     const menuSource = functionSource(chat, 'showConversationContextMenu', 'ensureConversationRenameModal');
 

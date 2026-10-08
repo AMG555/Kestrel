@@ -24,7 +24,7 @@ function cssBlock(source, selector) {
     return match[0];
 }
 
-test('No project文件夹与普通项目共用悬浮和键盘聚焦Preview', () => {
+test('No-project folder shares hover and keyboard-focus preview with regular projects', () => {
     const source = functionSource(projects, 'appendChatProjectFolderItem', 'appendChatProjectConversationItem');
 
     assert.match(source, /row\.addEventListener\('mouseenter', \(\) => scheduleShowProjectFolderPreview/);
@@ -35,7 +35,7 @@ test('No project文件夹与普通项目共用悬浮和键盘聚焦Preview', () 
     );
 });
 
-test('No projectPreview隐藏Test范围和Edit入口', () => {
+test('No-project preview hides test scope and edit entry', () => {
     const source = functionSource(projects, 'showProjectFolderPreview', 'scheduleShowProjectFolderPreview');
 
     assert.match(source, /preview\.classList\.toggle\('is-unassigned', isUnassigned\)/);
@@ -45,7 +45,7 @@ test('No projectPreview隐藏Test范围和Edit入口', () => {
     assert.match(styles, /\.project-folder-preview\.is-unassigned \.project-folder-preview-details\s*\{\s*border-bottom: 0;/);
 });
 
-test('项目标题提供受权限保护的New project入口', () => {
+test('Project title provides a permission-protected new project entry', () => {
     const source = functionSource(projects, 'showNewProjectModalFromChatSidebar', 'saveProjectModal');
 
     assert.match(html, /class="add-group-btn project-folders-add-btn"[\s\S]*?onclick="showNewProjectModalFromChatSidebar\(\)"/);
@@ -55,7 +55,7 @@ test('项目标题提供受权限保护的New project入口', () => {
     assert.match(rbac, /showNewProjectModalFromChatSidebar: 'project:write'/);
 });
 
-test('Chat项目归属尚未加载时不会误ExpandNo project', () => {
+test('No erroneous expansion of no-project while chat project affiliation is still loading', () => {
     const resolver = functionSource(projects, 'resolveChatProjectFolderSelection', 'renderChatProjectFolders');
     const render = functionSource(projects, 'renderChatProjectFolders', 'refreshChatProjectFolders');
 
@@ -66,7 +66,7 @@ test('Chat项目归属尚未加载时不会误ExpandNo project', () => {
     assert.match(render, /selectedId !== null && chatProjectFolderLastSelectionId !== selectedId/);
 });
 
-test('项目按Expand状态切换 Codex 风格的打开和Close文件夹', () => {
+test('Projects toggle open/close folder in Codex style based on expand state', () => {
     const icon = functionSource(projects, 'projectFolderIconMarkup', 'clampProjectPreviewText');
     const folder = functionSource(projects, 'appendChatProjectFolderItem', 'appendChatProjectConversationItem');
 
@@ -77,7 +77,7 @@ test('项目按Expand状态切换 Codex 风格的打开和Close文件夹', () =>
     assert.match(folder, /icon\.innerHTML = projectFolderIconMarkup\(isExpanded\);/);
 });
 
-test('项目名仅在界面按 12  Unicode 字符省略并保留完整悬浮信息', () => {
+test('Project name is truncated to 12 Unicode characters in the UI and full title is preserved for tooltip', () => {
     const formatterSource = functionSource(chat, 'formatProjectNameForDisplay', 'applyProjectNameDisplay');
     const formatter = new Function(
         'PROJECT_NAME_DISPLAY_MAX_CHARACTERS',
@@ -99,7 +99,7 @@ test('项目名仅在界面按 12  Unicode 字符省略并保留完整悬浮信�
     assert.match(styles, /\.project-selector-wrapper \.role-selector-text\s*\{[\s\S]*?max-width: 13em/);
 });
 
-test('项目文件夹首批显示 6 并ApproveLoad more按批追加', () => {
+test('Project folder shows first 6 and allows loading more in batches', () => {
     const loadMore = functionSource(projects, 'loadMoreChatProjectFolders', 'renderChatProjectFolders');
     const render = functionSource(projects, 'renderChatProjectFolders', 'refreshChatProjectFolders');
     const search = functionSource(projects, 'handleProjectFolderSearch', 'clearProjectFolderSearch');
@@ -115,7 +115,7 @@ test('项目文件夹首批显示 6 并ApproveLoad more按批追加', () => {
     assert.match(en, /"projectFoldersLoadMoreRemaining": "Load more, \{\{count\}\} projects remaining"/);
 });
 
-test('Chat悬浮Preview显示本地年月日时分', () => {
+test('Chat hover preview displays localised year-month-day hour:minute', () => {
     const age = functionSource(projects, 'formatProjectConversationPreviewAge', 'getProjectConversationModeLabel');
 
     assert.match(age, /date\.getFullYear\(\)/);
@@ -129,7 +129,7 @@ test('Chat悬浮Preview显示本地年月日时分', () => {
     assert.match(en, /"conversationPreviewDateTime": "\{\{year\}\}-\{\{month\}\}-\{\{day\}\} \{\{hour\}\}:\{\{minute\}\}"/);
 });
 
-test('Chat悬浮Preview标题与时间分行显示并保留More标题内容', () => {
+test('Chat hover preview shows title and time on separate lines and preserves more-title content', () => {
     const titleStyles = cssBlock(styles, '.project-conversation-preview-title');
 
     assert.match(styles, /\.conversation-sidebar\s*\{[\s\S]*?width: 320px;/);
@@ -139,7 +139,7 @@ test('Chat悬浮Preview标题与时间分行显示并保留More标题内容', ()
     assert.doesNotMatch(titleStyles, /white-space: nowrap;/);
 });
 
-test('项目Preview任务统计使用闭合圆环，避免Refresh箭头在小尺寸下变成毛刺', () => {
+test('Project preview task stats use closed rings to avoid refresh arrows becoming jagged at small sizes', () => {
     const source = functionSource(projects, 'ensureProjectFolderPreview', 'positionProjectFolderPreview');
 
     assert.match(source, /class="project-folder-preview-stats"/);
@@ -148,7 +148,7 @@ test('项目Preview任务统计使用闭合圆环，避免Refresh箭头在小尺
     assert.match(styles, /\.project-folder-preview-stats svg \{\s*width: 16px;\s*height: 16px;\s*overflow: visible;/);
 });
 
-test('Chat悬浮Preview使用美化后的代理模式徽标', () => {
+test('Chat hover preview uses styled agent mode badge', () => {
     const projects = fs.readFileSync('web/static/js/projects.js', 'utf8');
 
     assert.match(projects, /function getProjectConversationModeIconClass\(conversation\)/);
