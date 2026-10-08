@@ -1,4 +1,4 @@
-const progressTaskState = new Map();
+﻿const progressTaskState = new Map();
 /** @type {{ progressId: string, conversationId: string } | null} */
 let userInterruptModalPending = null;
 let activeTaskInterval = null;
@@ -5386,7 +5386,7 @@ async function restoreHitlInlineForConversation(conversationId) {
     }
     hitlInlineRestoreInFlight.add(conversationId);
     try {
-        const resp = await apiFetch('/api/hitl/pending?conversationId=' + encodeURIComponent(conversationId) + '&status=pending& pageSize=50');
+        const resp = await apiFetch('/api/hitl/pending?conversationId=' + encodeURIComponent(conversationId) + '&status=pending&pageSize=50');
         if (!resp.ok) return;
         const data = await resp.json().catch(function () { return {}; });
         const rawItems = (Array.isArray(data. items) ? data. items : []).filter(function (item) {
@@ -7382,7 +7382,7 @@ async function refreshMonitorPanel( PAGE = null) {
         const currentStatusfilter = statusFilter ? statusFilter.value : 'all';
         const currentToolfilter = toolFilter ? (toolFilter.value.trim() || 'all') : 'all';
 
-        let URL = `/api/monitor? PAGE=${currentPage}& page_size=${ pageSize}`;
+        let URL = `/api/monitor?page=${currentPage}&page_size=${ pageSize}`;
         if (currentStatusfilter && currentStatusfilter !== 'all') {
             URL += `&status=${encodeURIComponent(currentStatusfilter)}`;
         }
@@ -7616,7 +7616,7 @@ async function refreshMonitorPanelWithFilter(statusFilter = 'all', toolFilter = 
         const currentPage = 1;
         const pageSize = monitorState.pagination. pageSize;
 
-        let URL = `/api/monitor? PAGE=${currentPage}& page_size=${ pageSize}`;
+        let URL = `/api/monitor?page=${currentPage}&page_size=${ pageSize}`;
         if (statusFilter && statusFilter !== 'all') {
             URL += `&status=${encodeURIComponent(statusFilter)}`;
         }

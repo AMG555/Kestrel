@@ -1,4 +1,4 @@
-﻿// Dashboard  page: fetch running chats, vulnerability statistics, batch tasks, tools and skills statistics and render.
+﻿﻿// Dashboard  page: fetch running chats, vulnerability statistics, batch tasks, tools and skills statistics and render.
 //
 // Engineering infrastructure: 
 //   - dashboardState centralizes runtime state (in-flight controller / auto-poll timer / last updated time /
@@ -133,11 +133,11 @@ async function refreshDashboard() {
         ] = await Promise.all([
             fetchJson('/api/agent-loop/tasks'),
             fetchJson('/api/vulnerabilities/stats'),
-            fetchJson('/api/batch-tasks?limit=500& page=1'),
+            fetchJson('/api/batch-tasks?limit=500&page=1'),
             fetchJson('/api/monitor/stats?top=30'),
             fetchJson('/api/knowledge/stats'),
             fetchJson('/api/skills/stats'),
-            fetchJson('/api/vulnerabilities?limit=10& page=1'),
+            fetchJson('/api/vulnerabilities?limit=10&page=1'),
             fetchJson('/api/roles'),
             fetchJson('/api/multi-agent/markdown-agents'),
             openVulnQuery('critical'),
@@ -147,7 +147,7 @@ async function refreshDashboard() {
             openVulnQuery('low'),
             // Fetch MCP tool 'total configured count' for 'capability overview' (distinct from monitor/stats 'has call records').
             // Only fetch the total field,  page_size=1 to reduce transfer; total covers internal + external MCP + directly registered tools.
-            fetchJson('/api/config/tools? page=1& page_size=1&include_external=false'),
+            fetchJson('/api/config/tools?page=1&page_size=1&include_external=false'),
             // HITL pending approvals: used for 'needs immediate action' alert bar + recommended actions
             fetchJson('/api/hitl/pending'),
             // notification summary: since=0 gets the latest batch, limit controls size; used for 'recent events' inline display
@@ -159,7 +159,7 @@ async function refreshDashboard() {
             // C2 dashboard bar: listeners / sessions / open tasks (task API includes pending_queued_count)
             fetchJson(dashboardProjectScopedUrl('/api/c2/listeners')),
             fetchJson(dashboardProjectScopedUrl('/api/c2/sessions?limit=500')),
-            fetchJson(dashboardProjectScopedUrl('/api/c2/tasks? page=1& page_size=1')),
+            fetchJson(dashboardProjectScopedUrl('/api/c2/tasks?page=1&page_size=1')),
             fetchJson('/api/projects/dashboard-summary?fact_limit=10'),
             selectedSeverityStatus ? fetchJson('/api/vulnerabilities/stats?status=' + encodeURIComponent(selectedSeverityStatus)) : Promise.resolve(null),
             fetchJson(dashboardProjectScopedUrl('/api/usage/tokens?days=7&limit=5'))

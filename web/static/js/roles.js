@@ -1,4 +1,4 @@
-// Roles-related functionality
+﻿// Roles-related functionality
 function _t(key, opts) {
     if (typeof window.t === 'function') {
         try {
@@ -781,7 +781,7 @@ async function fetchAllRoleToolsIntoCache(searchKeyword) {
     const all = [];
     let totalPages = 1;
     do {
-        let url = `/api/config/tools? page=${ page}& page_size=${ pageSize}`;
+        let url = `/api/config/tools?page=${ page}&page_size=${ pageSize}`;
         if (searchKeyword) {
             url += `&search=${encodeURIComponent(searchKeyword)}`;
         }
@@ -862,7 +862,7 @@ async function loadRoleTools( page = 1, searchKeyword = '') {
             roleToolsListCacheFull = [];
             roleToolsListCachesearch = '';
 
-            let url = `/api/config/tools? page=${ page}& page_size=${ pageSize}`;
+            let url = `/api/config/tools?page=${ page}&page_size=${ pageSize}`;
             if (searchKeyword) {
                 url += `&search=${encodeURIComponent(searchKeyword)}`;
             }
@@ -1585,7 +1585,7 @@ async function loadAllToolsToStateMap() {
         
         // Iterate through all pages to get all tools
         while (hasMore) {
-            const url = `/api/config/tools? page=${ page}& page_size=${ pageSize}`;
+            const url = `/api/config/tools?page=${ page}&page_size=${ pageSize}`;
             const response = await apiFetch(url);
             if (!response.ok) {
                 throw new Error('Failed to get tool list');

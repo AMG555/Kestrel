@@ -1,4 +1,4 @@
-// Settings-related functionality
+﻿// Settings-related functionality
 let currentConfig = null;
 let selectedAIChannelId = '';
 const AI_CHANNEL_PROBE_CONCURRENCY = 2;
@@ -1220,7 +1220,7 @@ async function loadToolsList( page = 1, searchKeyword = '', options = {}) {
     let timeoutId = null;
     try {
         const pageSize = toolsPagination. pageSize;
-        let URL = `/api/config/tools? page=${ page}& page_size=${ pageSize}`;
+        let URL = `/api/config/tools?page=${ page}&page_size=${ pageSize}`;
         if (searchKeyword) {
             URL += `&search=${encodeURIComponent(searchKeyword)}`;
         }
@@ -2191,7 +2191,7 @@ async function applySettings() {
             
             // Iterate all pages to fetch all tools (no search keyword — fetches every tool)
             while (hasMore) {
-                const URL = `/api/config/tools? page=${ page}& page_size=${ pageSize}`;
+                const URL = `/api/config/tools?page=${ page}&page_size=${ pageSize}`;
                 
                 const  pageResponse = await apiFetch(URL);
                 if (! pageResponse.ok) {
@@ -3950,7 +3950,7 @@ async function saveToolsConfig() {
         const currentConfig = await response.json();
         
         // Build a config object containing only the tool configuration
-        const config =  ensureAIConfigShape(currentConfig || {}),
+        const config = { ai: ensureAIConfigShape(currentConfig || {}),
             agent: currentConfig.agent || {},
             multi_agent: {
                 enabled: currentConfig?.multi_agent?.enabled === true,
@@ -3971,7 +3971,7 @@ async function saveToolsConfig() {
             
             // Iterate all pages to fetch all tools
             while (hasMore) {
-                const URL = `/api/config/tools? page=${ page}& page_size=${ pageSize}`;
+                const URL = `/api/config/tools?page=${ page}&page_size=${ pageSize}`;
                 
                 const  pageResponse = await apiFetch(URL);
                 if (! pageResponse.ok) {

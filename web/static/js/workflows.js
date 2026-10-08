@@ -1,4 +1,4 @@
-﻿(function () {
+﻿﻿(function () {
     'use strict';
 
     function _t(key, opts) {
@@ -388,7 +388,7 @@
         let  page = 1;
         let totalPages = 1;
         while ( page <= totalPages &&  page <= 20) {
-            const response = await apiFetch(`/api/config/tools? page=${ page}& page_size=100`);
+            const response = await apiFetch(`/api/config/tools?page=${ page}&page_size=100`);
             if (!response.ok) break;
             const data = await response.json();
             totalPages = data.total_pages || 1;

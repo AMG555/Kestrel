@@ -1,4 +1,4 @@
-﻿let currentConversationId = null;
+﻿﻿let currentConversationId = null;
 
 /** Persist the visible chat in the URL so a reload can restore and reconnect it. */
 function syncChatConversationHash(conversationId) {
@@ -2874,7 +2874,7 @@ async function fetchMentionTools() {
 
         while ( page <= totalPages &&  page <= 20) {
             // Build API URL; if a role is specified, add the role query parameter
-            let URL = `/api/config/tools? page=${ page}& page_size=${ pageSize}`;
+            let URL = `/api/config/tools?page=${ page}&page_size=${ pageSize}`;
             if (roleName && roleName !== 'default') {
                 URL += `&role=${encodeURIComponent(roleName)}`;
             }
