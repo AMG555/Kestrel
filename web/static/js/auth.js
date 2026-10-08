@@ -547,14 +547,14 @@ function installPermissionClickGuard() {
 
 function applyRBACToUI(root) {
     installPermissionClickGuard();
-    document.querySelectorAll('[data- page]').forEach((el) => {
+    document.querySelectorAll('[data-page]').forEach((el) => {
         // Navigation permissions must also be refreshed during scoped renders.
         // Explicit rules take precedence over the fallback  page permission map.
         if (el.hasAttribute('data-require-permission') || el.hasAttribute('data-require-permission-any')) {
             applyPermissionElement(el);
             return;
         }
-        const  page = el.getAttribute('data- page');
+        const  page = el.getAttribute('data-page');
         const permission = PAGE_PERMISSION_MAP[ page];
         if (!permission) return;
         const allowed = hasPermission(permission);

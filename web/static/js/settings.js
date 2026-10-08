@@ -2010,7 +2010,7 @@ async function applySettings() {
             : function (s) {
                 return String(s || '').split(/[\n,，]/).map(v => v.trim()).filter(Boolean);
             };
-        const config =  normalizeAIConfigProviderProfiles(currentConfig.ai),
+        const config = { ai: normalizeAIConfigProviderProfiles(currentConfig.ai),
             vision: visionPayload,
             fofa: {
                 API_KEY: document.getElementById('fofa-API-key')?.value.trim() || '',

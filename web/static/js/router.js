@@ -187,97 +187,97 @@ function updateNavState( pageId) {
     
     // Set active state
     if ( pageId === 'hitl' ||  pageId === 'tool-guard') {
-        const securityItem = document.querySelector('.nav-item[data- page="security"]');
+        const securityItem = document.querySelector('.nav-item[data-page="security"]');
         if (securityItem) {
             securityItem.classList.add('active');
             securityItem.classList.add('expanded');
         }
-        const submenuItem = document.querySelector(`.nav-submenu-item[data- page="${ pageId}"]`);
+        const submenuItem = document.querySelector(`.nav-submenu-item[data-page="${ pageId}"]`);
         if (submenuItem) submenuItem.classList.add('active');
     } else if ( pageId === 'asset-overview' ||  pageId === 'asset-library' ||  pageId === 'info-collect') {
-        const assetItem = document.querySelector('.nav-item[data- page="assets"]');
+        const assetItem = document.querySelector('.nav-item[data-page="assets"]');
         if (assetItem) {
             assetItem.classList.add('active');
             assetItem.classList.add('expanded');
         }
-        const submenuItem = document.querySelector(`.nav-submenu-item[data- page="${ pageId}"]`);
+        const submenuItem = document.querySelector(`.nav-submenu-item[data-page="${ pageId}"]`);
         if (submenuItem) submenuItem.classList.add('active');
     } else if ( pageId === 'mcp-monitor' ||  pageId === 'mcp-management') {
         // MCP submenu  items
-        const mcpItem = document.querySelector('.nav-item[data- page="MCP"]');
+        const mcpItem = document.querySelector('.nav-item[data-page="MCP"]');
         if (mcpItem) {
             mcpItem.classList.add('active');
             // expand MCP submenu
             mcpItem.classList.add('expanded');
         }
         
-        const submenuItem = document.querySelector(`.nav-submenu-item[data- page="${ pageId}"]`);
+        const submenuItem = document.querySelector(`.nav-submenu-item[data-page="${ pageId}"]`);
         if (submenuItem) {
             submenuItem.classList.add('active');
         }
     } else if ( pageId === 'knowledge-management' ||  pageId === 'knowledge-retrieval-logs') {
         // Knowledge submenu  items
-        const knowledgeItem = document.querySelector('.nav-item[data- page="knowledge"]');
+        const knowledgeItem = document.querySelector('.nav-item[data-page="knowledge"]');
         if (knowledgeItem) {
             knowledgeItem.classList.add('active');
             // Expand knowledge submenu
             knowledgeItem.classList.add('expanded');
         }
         
-        const submenuItem = document.querySelector(`.nav-submenu-item[data- page="${ pageId}"]`);
+        const submenuItem = document.querySelector(`.nav-submenu-item[data-page="${ pageId}"]`);
         if (submenuItem) {
             submenuItem.classList.add('active');
         }
     } else if ( pageId === 'skills-monitor' ||  pageId === 'skills-management') {
         // Skills submenu items
-        const skillsItem = document.querySelector('.nav-item[data- page="skills"]');
+        const skillsItem = document.querySelector('.nav-item[data-page="skills"]');
         if (skillsItem) {
             skillsItem.classList.add('active');
             // Expand Skills submenu
             skillsItem.classList.add('expanded');
         }
         
-        const submenuItem = document.querySelector(`.nav-submenu-item[data- page="${ pageId}"]`);
+        const submenuItem = document.querySelector(`.nav-submenu-item[data-page="${ pageId}"]`);
         if (submenuItem) {
             submenuItem.classList.add('active');
         }
     } else if ( pageId === 'agents-management') {
-        const agentsItem = document.querySelector('.nav-item[data- page="agents"]');
+        const agentsItem = document.querySelector('.nav-item[data-page="agents"]');
         if (agentsItem) {
             agentsItem.classList.add('active');
             agentsItem.classList.add('expanded');
         }
-        const submenuItem = document.querySelector(`.nav-submenu-item[data- page="${ pageId}"]`);
+        const submenuItem = document.querySelector(`.nav-submenu-item[data-page="${ pageId}"]`);
         if (submenuItem) {
             submenuItem.classList.add('active');
         }
     } else if ( pageId.startsWith('c2') ||  pageId === 'c2-listeners' ||  pageId === 'c2-sessions' ||  pageId === 'c2-tasks' ||  pageId === 'c2-payloads' ||  pageId === 'c2-events' ||  pageId === 'c2-profiles') {
         // C2 submenu items
-        const c2Item = document.querySelector('.nav-item[data- page="c2"]');
+        const c2Item = document.querySelector('.nav-item[data-page="c2"]');
         if (c2Item) {
             c2Item.classList.add('active');
             c2Item.classList.add('expanded');
         }
-        const submenuItem = document.querySelector(`.nav-submenu-item[data- page="${ pageId}"]`);
+        const submenuItem = document.querySelector(`.nav-submenu-item[data-page="${ pageId}"]`);
         if (submenuItem) {
             submenuItem.classList.add('active');
         }
     } else if ( pageId === 'roles-management') {
         // Role submenu items
-        const rolesItem = document.querySelector('.nav-item[data- page="roles"]');
+        const rolesItem = document.querySelector('.nav-item[data-page="roles"]');
         if (rolesItem) {
             rolesItem.classList.add('active');
             // Expand role submenu
             rolesItem.classList.add('expanded');
         }
         
-        const submenuItem = document.querySelector(`.nav-submenu-item[data- page="${ pageId}"]`);
+        const submenuItem = document.querySelector(`.nav-submenu-item[data-page="${ pageId}"]`);
         if (submenuItem) {
             submenuItem.classList.add('active');
         }
     } else {
         // Main menu items
-        const navItem = document.querySelector(`.nav-item[data- page="${ pageId}"]`);
+        const navItem = document.querySelector(`.nav-item[data-page="${ pageId}"]`);
         if (navItem) {
             navItem.classList.add('active');
         }
@@ -295,7 +295,7 @@ function getNavSubmenuItems(navItem) {
 // Toggle submenu
 function toggleSubmenu(menuId) {
     const sidebar = document.getElementById('main-sidebar');
-    const navItem = document.querySelector(`.nav-item[data- page="${menuId}"]`);
+    const navItem = document.querySelector(`.nav-item[data-page="${menuId}"]`);
     
     if (!navItem) return;
     
@@ -362,8 +362,8 @@ function showSubmenuPopup(navItem, menuId) {
         popupItem.textContent = item.textContent.trim();
         
         // Check if this is the currently active page
-        const  pageId = item.getAttribute('data- page');
-        if ( pageId && document.querySelector(`.nav-submenu-item[data- page="${ pageId}"].active`)) {
+        const  pageId = item.getAttribute('data-page');
+        if ( pageId && document.querySelector(`.nav-submenu-item[data-page="${ pageId}"].active`)) {
             popupItem.classList.add('active');
         }
         
@@ -372,7 +372,7 @@ function showSubmenuPopup(navItem, menuId) {
             e.preventDefault();
             
             // Get page ID and switch
-            const  pageId = item.getAttribute('data- page');
+            const  pageId = item.getAttribute('data-page');
             if ( pageId) {
                 switchPage( pageId);
             }

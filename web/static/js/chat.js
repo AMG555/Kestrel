@@ -1127,7 +1127,7 @@ function chatSystemModelConfigState(cfg, preferredChannelId) {
         };
     }
     if (!defaultChannelId) defaultChannelId = channelId;
-    return  { ...sourceAI, default_channel: defaultChannelId, channels: channels },
+    return  { ...sourceAI, default_channel: defaultChannelId, channels: channels,
         channelId: channelId,
         channel: channels[channelId]
     };

@@ -2789,7 +2789,7 @@ function createProjectTaskStatus(kind, details, options) {
         ? pickerMessage(tp, 'hitl.waitingApprovalShort', 'Waiting for approval')
         : (kind === 'running'
             ? pickerMessage(tp, 'tasks.statusRunning', 'running')
-            : pickerMessage(tp, 'chat.completedUnread', 'Completed, unread'));
+            : pickerMessage(tp, 'chat.completedUnread', 'Completed, unread')));
     if (kind === 'approval') {
         const timing = getProjectApprovalTiming(details);
         status.innerHTML = '<span class="project-approval-label"></span>' +
