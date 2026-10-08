@@ -14,6 +14,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `TestEinoTransientRunRetryHandlerPreparesRetry` — corrected argument order in `emitEinoRunRetryProgress` format string; message now reads `retry <attempt>/<max> in <seconds>` as intended
 - `TestDiagnosticFiltering` / `TestDiagnosticWriteFailureKeepsPrimaryOutput` — added `Logger.Close()` method that flushes and closes the underlying file descriptor; tests now call `Close()` so the primary log file handle is released before `t.TempDir` cleanup on Windows
 
+### Changed
+- Removed two stale commented-out `fmt.Println` debug lines from `internal/attackchain/builder.go` and `internal/handler/agent.go`
+- CI: added `go vet ./...` step and explicit `CGO_ENABLED=1` on the test step
+- `Makefile`: corrected Go/Node version requirement comment (1.22→1.26, 18→22); `make test` now sets `CGO_ENABLED=1`
+- Added `// Package` doc comments to all 27 `internal/` packages that were missing them
+
 ### Documentation
 - `docs/testing.md` — added Prerequisites section explaining CGO/SQLite requirement and Windows shell-test limitations
 - `CONTRIBUTING.md` — updated `go test` instructions to show `CGO_ENABLED=1` variant; added CGO check to PR checklist

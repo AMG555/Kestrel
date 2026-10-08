@@ -1,5 +1,5 @@
 # Kestrel — Development Makefile
-# Requires: Go 1.22+, Node 18+, npm
+# Requires: Go 1.26+, Node 22+, npm
 
 BINARY      := kestrel
 BUILD_DIR   := build
@@ -31,9 +31,9 @@ run: build-web
 run-https: build-web
 	$(GO_CMD) run ./cmd/server --https
 
-## test: Run all Go unit tests
+## test: Run all Go unit tests (CGO_ENABLED=1 required for SQLite-backed tests)
 test:
-	$(GO_CMD) test ./... -v -count=1 -timeout 60s
+	CGO_ENABLED=1 $(GO_CMD) test ./... -v -count=1 -timeout 60s
 
 ## test-short: Run tests without network calls
 test-short:

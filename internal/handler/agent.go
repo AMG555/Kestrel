@@ -2518,7 +2518,6 @@ func (h *AgentHandler) loadHistoryFromAgentTrace(conversationID string) ([]agent
 		zap.Int("messageCount", messageCount),
 		zap.Int("assistantOutSize", len(assistantOut)),
 	)
-	// fmt.Println("messagesArray:", messagesArray)//debug
 
 	// convert to Agent message format
 	agentMessages := make([]agent.ChatMessage, 0, len(messagesArray))

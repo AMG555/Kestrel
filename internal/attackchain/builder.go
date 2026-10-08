@@ -253,7 +253,6 @@ func (b *Builder) BuildChainFromConversation(ctx context.Context, conversationID
 		promptAssistantOut = ""
 	}
 	prompt := b.buildSimplePrompt(reactInputFinal, promptAssistantOut)
-	// fmt.Println(prompt)
 	// 6. call AI to generate attack chain (one-shot, no processing)
 	chainJSON, err := b.callAIForChainGeneration(ctx, prompt)
 	if err != nil {
