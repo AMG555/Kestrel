@@ -100,7 +100,7 @@ test('Completed task still prefers persisted elapsed time', () => {
     });
 
     assert.equal(message.dataset.turnDurationMs, '65000');
-    assert.match(message.label.innerHTML, /(?:耗时 1 分钟 5 秒|耗时 1\s+minutes?\s+5\s+sec|Elapsed 1\s+minutes?\s+5\s+sec)/);
+    assert.match(message.label.innerHTML, /(?:耗时 1 分钟 5 秒|耗时 1\s+minutes?\s+5\s+sec|Elapsed 1\s+minutes?\s+5\s+sec|Completed in 1\s+minutes?\s+5\s+sec)/);
 });
 
 test('Assistant turn summary displays persisted token usage', () => {
@@ -154,7 +154,7 @@ test('Interrupted task uses fixed terminal elapsed time and no longer increases 
     });
 
     assert.equal(message.dataset.turnDurationMs, '265000');
-    assert.match(message.label.innerHTML, /(?:已中断 · 耗时 4 分钟 25 秒|已中断 · 耗时 4\s+minutes?\s+25\s+sec|Interrupted · 4\s+minutes?\s+25\s+sec)/);
+    assert.match(message.label.innerHTML, /(?:已中断 · 耗时 4 分钟 25 秒|已中断 · 耗时 4\s+minutes?\s+25\s+sec|Interrupted · 4\s+minutes?\s+25\s+sec|Cancelled · 4\s+minutes?\s+25\s+sec)/);
     assert.doesNotMatch(message.label.innerHTML, /已处理|Processed/);
 });
 

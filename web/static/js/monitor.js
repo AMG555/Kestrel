@@ -427,9 +427,9 @@ function getToolCallMapping(progressId, toolCallId) {
 
 function progressDoneOutcome(data) {
     const status = String(data && (data.status || data.workflowStatus) || '').toLowerCase();
-    if (status === 'Cancelled' || status === 'Canceled') return { key: 'chat.taskCancelled', fallback: 'Task cancelled', icon: '⛔', toolStatus: 'Cancelled' };
+    if (status === 'cancelled' || status === 'canceled') return { key: 'chat.taskCancelled', fallback: 'Task cancelled', icon: '⛔', toolStatus: 'cancelled' };
     if (['failed', 'timeout', 'cleanup_failed', 'cleanup_unconfirmed'].includes(status)) return { key: status === 'timeout' ? 'tasks.statusTimeout' : 'tasks.statusFailed', fallback: status === 'timeout' ? 'Task timed out' : 'Task execution failed', icon: '❌', toolStatus: 'failed' };
-    return { key: 'chat.penetrationTestComplete', fallback: 'Penetration test complete', icon: '✅', toolStatus: 'failed' };
+    return { key: 'chat.penetrationTestComplete', fallback: 'Penetration test complete', icon: '✅', toolStatus: 'completed' };
 }
 
 function finalizeOutstandingToolCallsForProgress(progressId, finalStatus) {
