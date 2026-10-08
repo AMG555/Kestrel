@@ -2098,7 +2098,7 @@
                             <div id="asset-scan-targets" class="asset-scan-targets"></div>
                             <label class="asset-scan-prompt-label" for="asset-scan-prompt" data-i18n="assets.userPrompt">User prompt</label>
                             <textarea id="asset-scan-prompt" class="asset-scan-prompt" rows="7"></textarea>
-                            <p id="asset-scan-hint" class="form-hint" data-i18n="assets.promptHint">Use {{asset_id}}, {{target}}, {{host}}, {{ip}}, {{domain}}, or {{port}} placeholders. Task mode creates one task per asset.</p>
+                            <p id="asset-scan-hint" class="form-hint" data-i18n="assets.promptHint">Use {{"{{"}}asset_id{{"}}"}}, {{"{{"}}target{{"}}"}}, {{"{{"}}host{{"}}"}}, {{"{{"}}ip{{"}}"}}, {{"{{"}}domain{{"}}"}}, or {{"{{"}}port{{"}}"}} placeholders. Task mode creates one task per asset.</p>
                             <label id="asset-scan-execute-wrap" class="checkbox-label"><input id="asset-scan-execute-now" type="checkbox" checked><span data-i18n="assets.executeNow">Run immediately after creation</span></label>
                         </div>
                         <div class="modal-footer"><button class="btn-secondary" onclick="closeAssetScanModal()" data-i18n="common.cancel">Cancel</button><button id="asset-scan-submit" class="btn-primary" onclick="submitAssetScan()" data-i18n="assets.confirmSend">Send</button></div>
