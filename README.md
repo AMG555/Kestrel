@@ -19,8 +19,13 @@
 
 ## Screenshots
 
-> UI screenshots coming soon — contributions welcome.
-> See [`docs/screenshots/README.md`](docs/screenshots/README.md) for the naming convention and how to add them.
+| Dashboard | Agent Chat |
+|:---------:|:----------:|
+| ![Dashboard](docs/screenshots/dashboard.svg) | ![Agent](docs/screenshots/agent-chat.svg) |
+
+| Attack Chain | Audit Log |
+|:------------:|:---------:|
+| ![Attack Chain](docs/screenshots/attack-chain.svg) | ![Audit](docs/screenshots/audit-log.svg) |
 
 ---
 
