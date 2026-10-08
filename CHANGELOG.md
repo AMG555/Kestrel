@@ -7,24 +7,45 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased] — under development
 
+---
+
+## [2.0.0] — 2026-10-08
+
 ### Added
 - **Projects** — create, update, delete projects with scope tracking and pinning
 - **Project Facts** — structured key/value evidence store per project with confidence levels
-- **Attack Chain** — graph-based finding visualizer per project (nodes + edges, SVG render, risk scoring)
+- **Attack Chain** — graph-based finding visualizer per project (nodes + edges, SVG render, risk scoring, PNG/SVG export)
 - **Batch Task Queues** — multi-intent sequential agent execution with real-time progress tracking
 - **Human-in-the-Loop (HITL) Approvals** — operator sign-off queue with approve/reject decisions; auto-polls every 8 s
-- **Conversations** — conversation archive with message replay and role-colored message history
+- **Conversations** — conversation archive with message replay and role-coloured message history
 - **Workflows** — graph-based workflow engine (agent/tool/condition/approval/output node types) with run history
 - **MCP Server Management** — register/delete external MCP servers; circuit-breaker reset endpoint
-- **Workflow HTTP handler** — full CRUD + async run + run-status polling
-- **Database: `workflows.go`** — `CreateWorkflowDefinition`, `GetWorkflowDefinition`, `UpdateWorkflowDefinition`, `DeleteWorkflowDefinition`
-- **App wiring** — all new handlers registered in Gin router; orphaned-execution reconciliation on startup
-- **Frontend navigation** — 6 new pages added to sidebar and React Router: Projects, Conversations, Batch Tasks, Workflows, Approvals
-- **`api.js`** — 30+ new typed API call helpers covering all new endpoints
+- **C2 Framework** — listeners, sessions, payloads, task dispatch, event bus, Malleable profile management
+- **Multi-agent orchestration** — deep / plan-execute / supervisor modes via Eino ADK
+- **WebShell terminal** — browser-based shell with cross-locale Windows directory output support
+- **Knowledge base (RAG)** — document ingest, chunking, keyword + vector retrieval
+- **Asset management** — bilingual CSV/Excel import with flexible column header matching
+- **Vulnerability tracking** — full CRUD with severity, location, and attack-chain linkage
+- **HITL audit agent** — autonomous review agent with approve/reject decision recording
+- **Token usage tracking** — per-turn token counts and cost estimation
+- **Tool guard** — regex-based tool call blocking with atomic policy management
+- **Security headers** — CORS, CSP, rate-limit, login brute-force protection
+- **TLS bootstrap** — auto self-signed cert generation on first run
+- **i18n** — English, Simplified Chinese, Russian UI with live language switching
+- **Full CI** — Go 1.26 + Node 22 matrix, per-package tests, CGO-enabled integration tests
 
 ### Changed
-- Sidebar nav expanded from 8 to 13 entries, with `overflowY: auto` to handle tall viewports
-- Knowledge handler field renamed internally (`knowledge` → `kb`) for consistency
+- Complete UI overhaul — dark design system, React 18 SPA with 15+ pages
+- All frontend user-visible strings, comments, and labels fully in English
+- Sidebar nav expanded; project-aware agent chat with folder structure
+- Role filenames normalised for cross-platform compatibility
+- `config.example.yaml` version field bumped to `v2.0.0`
+
+### Fixed
+- CI failures on Go 1.26 — corrected test session/token alignment
+- ELK layout initialisation guard preventing crash on missing library
+- Attack chain cross-tab rendering isolation (chat-switch race condition)
+- `Processing...` placeholder persisting incorrectly across page refreshes
 
 ---
 
