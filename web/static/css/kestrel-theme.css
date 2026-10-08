@@ -1,0 +1,166 @@
+/**
+ * Kestrel visual identity overrides
+ * Loaded after style.css — changes accent palette and surface textures
+ * to give Kestrel a distinctive amber-orange threat-operations aesthetic
+ * distinct from the reference codebase's blue palette.
+ */
+
+/* ── Light mode palette ─────────────────────────────────────────── */
+:root {
+    --accent-color:  #e8630a;          /* amber-orange primary */
+    --accent-hover:  #c94f06;          /* deeper on hover      */
+    --brand-ai-start: #e8630a;
+    --brand-ai-end:   #f59e0b;
+    --brand-gradient: linear-gradient(135deg, #e8630a 0%, #f59e0b 100%);
+
+    /* Sidebar — warm off-white instead of flat white */
+    --sidebar-bg-from: #faf8f5;
+    --sidebar-bg-to:   #f2ede6;
+}
+
+/* ── Dark mode palette ──────────────────────────────────────────── */
+html[data-theme="dark"] {
+    --accent-color:  #fb923c;          /* softer orange on dark bg */
+    --accent-hover:  #fdba74;
+    --brand-ai-start: #fb923c;
+    --brand-ai-end:   #fbbf24;
+    --brand-gradient: linear-gradient(135deg, #fb923c 0%, #fbbf24 100%);
+
+    /* Sidebar — deep charcoal with subtle warm tint */
+    --sidebar-bg-from: #13100e;
+    --sidebar-bg-to:   #0d0b09;
+
+    /* Slightly warmer card/input surfaces */
+    --bg-primary:   #141210;
+    --bg-secondary: #0d0b09;
+    --bg-tertiary:  #1e1a17;
+    --card-bg:      #141210;
+    --input-bg:     #0d0b09;
+    --border-color: #2a221a;
+}
+
+/* ── Sidebar surfaces ───────────────────────────────────────────── */
+.main-sidebar {
+    background: linear-gradient(180deg, var(--sidebar-bg-from, #faf8f5) 0%,
+                                        var(--sidebar-bg-to,   #f2ede6) 100%);
+}
+
+html[data-theme="dark"] .main-sidebar {
+    background: linear-gradient(180deg, var(--sidebar-bg-from, #13100e) 0%,
+                                        var(--sidebar-bg-to,   #0d0b09) 100%);
+    box-shadow: 2px 0 16px rgba(0, 0, 0, 0.5);
+}
+
+/* ── Active nav item uses orange left-border ────────────────────── */
+.nav-item.active > .nav-item-content,
+.nav-item-content.active {
+    border-left-color: var(--accent-color);
+    color: var(--accent-color);
+    background: rgba(232, 99, 10, 0.08);
+}
+
+html[data-theme="dark"] .nav-item.active > .nav-item-content,
+html[data-theme="dark"] .nav-item-content.active {
+    background: rgba(251, 146, 60, 0.10);
+}
+
+/* ── Buttons — primary action ───────────────────────────────────── */
+.btn-primary,
+button.btn-primary {
+    background: var(--accent-color);
+    border-color: var(--accent-color);
+}
+.btn-primary:hover,
+button.btn-primary:hover {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+}
+
+/* ── Top header bar — dark threat-ops aesthetic ─────────────────── */
+.header-bar,
+.main-header {
+    background: #0f0e0c;
+    border-bottom: 1px solid #2a221a;
+}
+
+html[data-theme="dark"] .header-bar,
+html[data-theme="dark"] .main-header {
+    background: #0a0907;
+    border-bottom: 1px solid #2a221a;
+}
+
+/* Header top-bar links/buttons */
+.header-bar a,
+.header-bar button,
+.main-header a,
+.main-header button {
+    color: #d4c4b0;
+}
+.header-bar a:hover,
+.header-bar button:hover,
+.main-header a:hover,
+.main-header button:hover {
+    color: var(--accent-color);
+}
+
+/* ── Logo area — keep brand name readable on dark header ────────── */
+.main-sidebar-header {
+    background: #0f0e0c;
+    border-bottom: 1px solid #2a221a;
+}
+
+html[data-theme="dark"] .main-sidebar-header {
+    background: #0a0907;
+    border-bottom: 1px solid #2a221a;
+}
+
+.main-sidebar-header .brand-wordmark {
+    color: #f5f0ea !important;
+    -webkit-text-fill-color: #f5f0ea !important;
+}
+
+/* ── Version badge ──────────────────────────────────────────────── */
+.version-tag,
+.app-version {
+    background: rgba(232, 99, 10, 0.18);
+    color: var(--accent-color);
+    border: 1px solid rgba(232, 99, 10, 0.28);
+    border-radius: 4px;
+    font-size: 0.6875rem;
+    padding: 2px 6px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+}
+
+/* ── Scrollbar thumb — warm tone ────────────────────────────────── */
+html[data-theme="dark"] .main-sidebar-nav:hover::-webkit-scrollbar-thumb {
+    background: rgba(232, 99, 10, 0.35);
+}
+html[data-theme="dark"] .main-sidebar-nav:hover {
+    scrollbar-color: rgba(232, 99, 10, 0.35) transparent;
+}
+
+/* ── Focus ring — orange ────────────────────────────────────────── */
+:focus-visible {
+    outline: 2px solid var(--accent-color);
+    outline-offset: 2px;
+}
+
+/* ── Chat send button ───────────────────────────────────────────── */
+.chat-send-btn,
+#chat-send-btn,
+.chat-submit-btn {
+    background: var(--accent-color) !important;
+}
+.chat-send-btn:hover,
+#chat-send-btn:hover,
+.chat-submit-btn:hover {
+    background: var(--accent-hover) !important;
+}
+
+/* ── Tab / active indicator ─────────────────────────────────────── */
+.tab.active,
+.tab-item.active {
+    border-bottom-color: var(--accent-color);
+    color: var(--accent-color);
+}
