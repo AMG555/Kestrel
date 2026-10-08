@@ -1,5 +1,5 @@
 # ── Stage 1: Build Frontend SPA ──────────────────────────────────────────────
-FROM node:20-alpine AS frontend-builder
+FROM node:22-alpine AS frontend-builder
 WORKDIR /app/web
 COPY web/package*.json ./
 RUN npm ci --silent
@@ -7,7 +7,7 @@ COPY web/ ./
 RUN npm run build
 
 # ── Stage 2: Build Backend Binary ───────────────────────────────────────────
-FROM golang:1.22-alpine AS backend-builder
+FROM golang:1.26-alpine AS backend-builder
 WORKDIR /app
 RUN apk add --no-cache git gcc musl-dev
 COPY go.mod go.sum ./

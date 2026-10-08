@@ -38,7 +38,7 @@ jobs:
         run: go build -v ./cmd/mcp-stdio
 
   frontend-build:
-    name: Frontend Build (Node.js 22)
+    name: Frontend Build & Tests (Node.js 22)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -58,3 +58,6 @@ jobs:
       - name: Build production SPA
         working-directory: web
         run: npm run build
+
+      - name: Run frontend unit tests
+        run: node --test web/static/js/*.test.cjs

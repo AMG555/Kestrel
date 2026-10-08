@@ -15,6 +15,12 @@
 
 ---
 
+## Screenshots
+
+> UI screenshots coming soon — contributions welcome. See [`docs/screenshots/`](docs/) for the naming convention.
+
+---
+
 ## Features
 
 | Domain | Capability |
