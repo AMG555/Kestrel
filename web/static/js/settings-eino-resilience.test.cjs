@@ -1,4 +1,4 @@
-﻿const test = require('node:test');
+const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -9,7 +9,7 @@ const template = fs.readFileSync(path.join(root, 'web/templates/index.html'), 'u
 const zh = JSON.parse(fs.readFileSync(path.join(root, 'web/static/i18n/zh-CN.json'), 'utf8'));
 const en = JSON.parse(fs.readFileSync(path.join(root, 'web/static/i18n/en-US.json'), 'utf8'));
 
-test('Eino 模型 retry/failover 设置页读写链路完整', () => {
+test('Eino Model retry/failover 设置页读写链路完整', () => {
     [
         'eino-model-retry-max-retries',
         'eino-model-retry-max-backoff-sec',
@@ -33,7 +33,7 @@ test('Eino 模型 retry/failover 设置页读写链路完整', () => {
     assert.match(settings, /Array\.from\(new Set\(/);
 });
 
-test('Eino 模型 retry/failover 设置项有中英文文案', () => {
+test('Eino Model retry/failover 设置项有中英文文案', () => {
     [
         'einoModelRetryMaxRetries',
         'einoModelRetryMaxRetriesHint',
@@ -52,7 +52,7 @@ test('Eino 模型 retry/failover 设置项有中英文文案', () => {
     });
 });
 
-test('AI 通道保存前会自动识别 DeepSeek 官方线路', () => {
+test('AI channelSave前会自动识别 DeepSeek 官方线路', () => {
     assert.match(settings, /function\s+isOfficialDeepSeekBaseURL/);
     assert.match(settings, /api\.deepseek\.com/);
     assert.match(settings, /profile:\s*'deepseek'/);
@@ -61,7 +61,7 @@ test('AI 通道保存前会自动识别 DeepSeek 官方线路', () => {
     assert.match(template, /<option value="deepseek">deepseek<\/option>/);
 });
 
-test('切换或新增 AI 通道时会刷新推理线路下拉显示', () => {
+test('切换或Add AI channel时会Refresh推理线路下拉显示', () => {
     assert.match(settings, /const profileEl = document\.getElementById\('openai-reasoning-profile'\);/);
     assert.match(settings, /syncSettingsCustomSelect\(profileEl\);/);
     assert.match(settings, /reasoning:\s*\{\s*mode:\s*'auto',\s*effort:\s*'',\s*profile:\s*'auto'/);

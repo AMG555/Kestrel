@@ -1,6 +1,7 @@
-﻿/**
- * 项目事实图渲染（Cytoscape + ELK），供项目管理页使用。
- * 节点采用 SVG 卡片背景（左上角图标 + 多行文字），避免 Cytoscape 原生 label 定位问题。
+/**
+ * Target fact-graph rendering (Cytoscape + ELK), used on the Projects page.
+ * Nodes use an SVG card background (top-left icon + multi-line text) to avoid
+ * Cytoscape's native label positioning issues.
  */
 (function (global) {
     'use strict';
@@ -42,81 +43,81 @@
     const CARD_FONT =
         '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif';
     const CARD_KEY_FONT =
-        'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace';
+        'UI-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace';
 
     const NODE_TYPE_STYLES = {
-        target: {
-            typeLabel: '目标',
+        TARGET: {
+            typeLabel: 'TARGET',
             typeEn: 'TARGET',
             accent: { light: '#4F46E5', dark: '#818cf8' },
             bgEnd: { light: '#F5F3FF', dark: '#1e1b4b' },
-            icon: 'target',
+            icon: 'TARGET',
         },
-        finding: {
-            typeLabel: '发现',
+        FINDING: {
+            typeLabel: 'found',
             typeEn: 'FINDING',
             accent: { light: '#E11D48', dark: '#fb7185' },
             bgEnd: { light: '#FFF1F2', dark: '#3f1219' },
-            icon: 'finding',
+            icon: 'FINDING',
         },
-        exploit: {
-            typeLabel: '利用',
+        EXPLOIT: {
+            typeLabel: 'Exploit',
             typeEn: 'EXPLOIT',
             accent: { light: '#B45309', dark: '#fbbf24' },
             bgEnd: { light: '#FFFBEB', dark: '#3b2712' },
             icon: 'vulnerability',
         },
         vulnerability: {
-            typeLabel: '漏洞',
+            typeLabel: 'vulnerability',
             typeEn: 'VULN',
             accent: { light: '#9333EA', dark: '#c084fc' },
             bgEnd: { light: '#F5F3FF', dark: '#2e1065' },
-            icon: 'vuln',
+            icon: 'VULN',
         },
-        auth: {
-            typeLabel: '认证',
+        AUTH: {
+            typeLabel: 'Auth',
             typeEn: 'AUTH',
             accent: { light: '#0D9488', dark: '#2dd4bf' },
             bgEnd: { light: '#F0FDFA', dark: '#0f2926' },
             icon: 'default',
         },
-        infra: {
-            typeLabel: '基础设施',
+        INFRA: {
+            typeLabel: 'Infra',
             typeEn: 'INFRA',
             accent: { light: '#64748B', dark: '#94a3b8' },
             bgEnd: { light: '#F8FAFC', dark: '#1e293b' },
             icon: 'default',
         },
-        chain: {
-            typeLabel: '攻击链',
+        CHAIN: {
+            typeLabel: 'Attack CHAIN',
             typeEn: 'CHAIN',
             accent: { light: '#7C3AED', dark: '#a78bfa' },
             bgEnd: { light: '#F5F3FF', dark: '#2e1065' },
             icon: 'vulnerability',
         },
-        poc: {
+        POC: {
             typeLabel: 'POC',
             typeEn: 'POC',
             accent: { light: '#C2410C', dark: '#fb923c' },
             bgEnd: { light: '#FFEDD5', dark: '#3b2010' },
             icon: 'vulnerability',
         },
-        business: {
-            typeLabel: '业务',
+        BUSINESS: {
+            typeLabel: 'Business',
             typeEn: 'BUSINESS',
             accent: { light: '#0369A1', dark: '#38bdf8' },
             bgEnd: { light: '#F0F9FF', dark: '#0c2540' },
             icon: 'default',
         },
-        missing: {
-            typeLabel: '缺失',
+        MISSING: {
+            typeLabel: 'Missing',
             typeEn: 'MISSING',
             accent: { light: '#CBD5E1', dark: '#64748b' },
             bgEnd: { light: '#F1F5F9', dark: '#1e293b' },
             icon: 'default',
         },
-        note: {
-            typeLabel: '备注',
+        NOTE: {
+            typeLabel: 'Note',
             typeEn: 'NOTE',
             accent: { light: '#94A3B8', dark: '#94a3b8' },
             bgEnd: { light: '#F8FAFC', dark: '#1e293b' },
@@ -134,12 +135,12 @@
             bgStart: dark ? '#1e293b' : '#FFFFFF',
             keyColor: dark ? '#94a3b8' : '#64748b',
             summaryColor: dark ? '#e5e7eb' : '#0f172a',
-            nodeFallbackBg: dark ? '#1e293b' : '#ffffff',
+            nodeFallbackBg: dark ? '#1e293b' : '#FFFFFF',
         };
     }
 
     function nodeTheme(type) {
-        const style = NODE_TYPE_STYLES[type] || NODE_TYPE_STYLES.note;
+        const style = NODE_TYPE_STYLES[type] || NODE_TYPE_STYLES.NOTE;
         const dark = isDarkTheme();
         const palette = cardPalette();
         return {
@@ -170,8 +171,8 @@
 
     function buildStatusBadge(confidence) {
         const conf = (confidence || '').toLowerCase();
-        if (conf === 'tentative') return '待确认';
-        if (conf === 'deprecated') return '已废弃';
+        if (conf === 'tentative') return 'Tentative';
+        if (conf === 'deprecated') return 'Deprecated';
         return '';
     }
 
@@ -186,7 +187,7 @@
         if (code >= 0x3400 && code <= 0x4dbf) return true;
         if (code >= 0xf900 && code <= 0xfaff) return true;
         if (code >= 0xff00 && code <= 0xffef) return true;
-        return /[·：，。；！？【】（）《》、「」]/.test(ch);
+        return /[\u00B7\uFF1A\uFF0C\u3002\uFF1B\uFF01\uFF1F\u3010\u3011\uff08\uff09\u300A\u300B\u3001\u300C\u300D]/.test(ch);
     }
 
     function charWidth(ch, fontSize, bold) {
@@ -238,7 +239,7 @@
     }
 
     function computeNodeLayout(type, summary, statusBadge, theme, factKey) {
-        const width = type === 'target' ? CARD_TARGET_W : CARD_MIN_W;
+        const width = type === 'TARGET' ? CARD_TARGET_W : CARD_MIN_W;
         const textW = cardTextWidth(width);
         const t = theme || nodeTheme(type);
         const headerLines = wrapTextLines(buildHeaderText(t, statusBadge), textW, CARD_HEADER_FS, 2, true);
@@ -273,21 +274,21 @@
 
     function svgIconGroup(kind, color, x, y) {
         const scale = (CARD_ICON / 24).toFixed(3);
-        if (kind === 'target') {
+        if (kind === 'TARGET') {
             return (
                 `<g transform="translate(${x}, ${y}) scale(${scale})">` +
                 `<circle cx="12" cy="12" r="6" fill="none" stroke="${color}" stroke-width="2"/>` +
                 `<circle cx="12" cy="12" r="2.5" fill="${color}"/></g>`
             );
         }
-        if (kind === 'finding') {
+        if (kind === 'FINDING') {
             return (
                 `<g transform="translate(${x}, ${y}) scale(${scale})">` +
                 `<circle cx="10" cy="10" r="6" fill="none" stroke="${color}" stroke-width="2"/>` +
                 `<line x1="14.5" y1="14.5" x2="19" y2="19" stroke="${color}" stroke-width="2" stroke-linecap="round"/></g>`
             );
         }
-        if (kind === 'vuln') {
+        if (kind === 'VULN') {
             return (
                 `<g transform="translate(${x}, ${y}) scale(${scale})">` +
                 `<path d="M12 2.5l7.5 3v6.2c0 4.6-3.1 8.1-7.5 9.3-4.4-1.2-7.5-4.7-7.5-9.3V5.5z" fill="${color}" fill-opacity="0.12" stroke="${color}" stroke-width="2"/>` +
@@ -359,8 +360,8 @@
         const textClipW = width - CARD_TEXT_X - CARD_PAD - 2;
         const textClipH = height - CARD_PAD * 2 + 4;
 
-        const svg =
-            `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">` +
+        const SVG =
+            `<SVG xmlns="http://www.w3.org/2000/SVG" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">` +
             `<defs><linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">` +
             `<stop offset="0%" stop-color="${bgStart}"/><stop offset="100%" stop-color="${bgEnd}"/></linearGradient>` +
             `<clipPath id="textClip"><rect x="${CARD_TEXT_X}" y="${CARD_PAD - 2}" width="${textClipW}" height="${textClipH}"/></clipPath></defs>` +
@@ -368,12 +369,12 @@
             `<rect x="0.75" y="0.75" width="${width - 1.5}" height="${height - 1.5}" rx="12" fill="url(#bg)" ${stroke}/>` +
             svgIconGroup(theme.icon, accent, iconX, iconY) +
             `<g clip-path="url(#textClip)">${headerSvg}${keySvg}${summarySvg}</g>` +
-            `</g></svg>`;
+            `</g></SVG>`;
 
         try {
-            return 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
+            return 'data:image/SVG+xml;base64,' + btoa(unescape(encodeURIComponent(SVG)));
         } catch (e) {
-            return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+            return 'data:image/SVG+xml;charset=utf-8,' + encodeURIComponent(SVG);
         }
     }
 
@@ -388,7 +389,7 @@
         applyNodePalette();
         _cy.nodes().forEach((nodeEle) => {
             const d = nodeEle.data();
-            const visualType = d.type || 'note';
+            const visualType = d.type || 'NOTE';
             const theme = nodeTheme(visualType);
             const statusBadge = d.statusBadge || buildStatusBadge(d.confidence);
             const layout = computeNodeLayout(
@@ -416,7 +417,7 @@
             .selector('edge:selected')
             .style({
                 'line-color': accent,
-                'target-arrow-color': accent,
+                'TARGET-arrow-color': accent,
             })
             .selector('node:selected')
             .style('border-color', accent)
@@ -467,17 +468,17 @@
         }
     }
 
-    // ELK 分层（仅影响节点纵向位置，不修改边的 source/target）
+    // ELK layering (only affects vertical node position; does not modify edge source/TARGET)
     function pathGraphNodeLayer(type, factKey) {
         const key = (factKey || '').toLowerCase();
-        if (key.startsWith('vuln:')) return '4';
+        if (key.startsWith('VULN:')) return '4';
         const t = (type || '').toLowerCase();
-        if (t === 'target') return '0';
-        if (t === 'infra' || t === 'auth' || t === 'business') return '1';
-        if (t === 'exploit' || t === 'poc') return '3';
-        if (t === 'vulnerability' || t === 'vuln') return '3';
-        if (t === 'chain' || t === 'finding') return '2';
-        if (t === 'note') return '2';
+        if (t === 'TARGET') return '0';
+        if (t === 'INFRA' || t === 'AUTH' || t === 'BUSINESS') return '1';
+        if (t === 'EXPLOIT' || t === 'POC') return '3';
+        if (t === 'vulnerability' || t === 'VULN') return '3';
+        if (t === 'CHAIN' || t === 'FINDING') return '2';
+        if (t === 'NOTE') return '2';
         return '2';
     }
 
@@ -500,15 +501,15 @@
         const elkGraph = {
             id: 'root',
             layoutOptions: {
-                'elk.algorithm': 'layered',
-                'elk.direction': 'DOWN',
-                'elk.spacing.nodeNode': String(nodeGap),
-                'elk.layered.spacing.nodeNodeBetweenLayers': String(layerGap),
-                'elk.layered.nodePlacement.strategy': 'BRANDES_KOEPF',
+                'ELK.algorithm': 'layered',
+                'ELK.direction': 'DOWN',
+                'ELK.spacing.nodeNode': String(nodeGap),
+                'ELK.layered.spacing.nodeNodeBetweenLayers': String(layerGap),
+                'ELK.layered.nodePlacement.strategy': 'BRANDES_KOEPF',
             },
             children: (_graphData.nodes || []).map((node) => {
                 const n = _cy ? _cy.getElementById(node.id) : null;
-                const w = n.length ? n.data('nodeWidth') : node.type === 'target' ? CARD_TARGET_W : CARD_MIN_W;
+                const w = n.length ? n.data('nodeWidth') : node.type === 'TARGET' ? CARD_TARGET_W : CARD_MIN_W;
                 const h = n.length ? n.data('nodeHeight') : CARD_MIN_H;
                 const nodeKey = node.fact_key || node.id;
                 return {
@@ -516,14 +517,14 @@
                     width: w,
                     height: h,
                     layoutOptions: {
-                        'org.eclipse.elk.layered.layering.layerId': pathGraphNodeLayer(node.type, nodeKey),
+                        'org.eclipse.ELK.layered.layering.layerId': pathGraphNodeLayer(node.type, nodeKey),
                     },
                 };
             }),
             edges: validEdges.map((edge) => ({
                 id: edge.id,
                 sources: [edge.source],
-                targets: [edge.target],
+                targets: [edge.TARGET],
             })),
         };
         elkInstance
@@ -550,7 +551,7 @@
     function render(container, graphData, options) {
         if (!container || typeof cytoscape === 'undefined') {
             if (container) {
-                container.innerHTML = '<div class="error-message">Cytoscape 未加载</div>';
+                container.innerHTML = '<div class="error-message">Cytoscape not loaded</div>';
             }
             return null;
         }
@@ -563,7 +564,7 @@
         const edges = _graphData.edges || [];
         if (!nodes.length) {
             const title = (options && options.emptyTitle) || '';
-            const hint = (options && options.emptyText) || '暂无事实关系';
+            const hint = (options && options.emptyText) || 'No fact relationships';
             const steps = (options && options.emptySteps) || [];
             const actionLabel = options && options.emptyActionLabel;
             const stepsHtml = steps.length
@@ -572,7 +573,7 @@
                   '</ol>'
                 : '';
             const actionHtml =
-                actionLabel && options.onEmptyAction
+                actionLabel && options.onemptyAction
                     ? '<button type="button" class="btn-primary btn-small project-fact-graph-empty-cta">' +
                       escapeHtml(actionLabel) +
                       '</button>'
@@ -580,8 +581,8 @@
             container.innerHTML =
                 '<div class="project-fact-graph-empty">' +
                 '<div class="project-fact-graph-empty-icon" aria-hidden="true">' +
-                '<svg width="48" height="48" viewBox="0 0 24 24" fill="none"><circle cx="6" cy="6" r="2.5" fill="#4F46E5" opacity="0.9"/><circle cx="18" cy="6" r="2.5" fill="#E11D48" opacity="0.9"/><circle cx="12" cy="18" r="2.5" fill="#0D9488" opacity="0.9"/>' +
-                '<path d="M8 7l4 9M16 7l-4 9M8 7h8" stroke="#CBD5E1" stroke-width="1.5" stroke-linecap="round"/></svg>' +
+                '<SVG width="48" height="48" viewBox="0 0 24 24" fill="none"><circle cx="6" cy="6" r="2.5" fill="#4F46E5" opacity="0.9"/><circle cx="18" cy="6" r="2.5" fill="#E11D48" opacity="0.9"/><circle cx="12" cy="18" r="2.5" fill="#0D9488" opacity="0.9"/>' +
+                '<path d="M8 7l4 9M16 7l-4 9M8 7h8" stroke="#CBD5E1" stroke-width="1.5" stroke-linecap="round"/></SVG>' +
                 '</div>' +
                 (title ? '<h4 class="project-fact-graph-empty-title">' + escapeHtml(title) + '</h4>' : '') +
                 '<p class="project-fact-graph-empty-hint">' + escapeHtml(hint) + '</p>' +
@@ -589,8 +590,8 @@
                 actionHtml +
                 '</div>';
             const cta = container.querySelector('.project-fact-graph-empty-cta');
-            if (cta && typeof options.onEmptyAction === 'function') {
-                cta.addEventListener('click', options.onEmptyAction);
+            if (cta && typeof options.onemptyAction === 'function') {
+                cta.addEventListener('click', options.onemptyAction);
             }
             return null;
         }
@@ -630,14 +631,14 @@
 
         const validEdges = [];
         edges.forEach((edge, idx) => {
-            if (!nodeIds.has(edge.source) || !nodeIds.has(edge.target)) return;
+            if (!nodeIds.has(edge.source) || !nodeIds.has(edge.TARGET)) return;
             const id = edge.id || 'e-' + idx;
             validEdges.push({ ...edge, id });
             elements.push({
                 data: {
                     id,
                     source: edge.source,
-                    target: edge.target,
+                    TARGET: edge.TARGET,
                     type: edge.type || 'leads_to',
                     confidence: edge.confidence || 'confirmed',
                 },
@@ -672,8 +673,8 @@
                     style: {
                         width: 2.2,
                         'line-color': (ele) => EDGE_COLORS[ele.data('type')] || '#CBD5E1',
-                        'target-arrow-color': (ele) => EDGE_COLORS[ele.data('type')] || '#CBD5E1',
-                        'target-arrow-shape': 'triangle',
+                        'TARGET-arrow-color': (ele) => EDGE_COLORS[ele.data('type')] || '#CBD5E1',
+                        'TARGET-arrow-shape': 'triangle',
                         'curve-style': 'bezier',
                         opacity: (ele) => (ele.data('confidence') === 'tentative' ? 0.55 : 0.9),
                         'line-style': (ele) => (ele.data('confidence') === 'tentative' ? 'dashed' : 'solid'),
@@ -685,7 +686,7 @@
                         width: 3.5,
                         opacity: 1,
                         'line-color': isDarkTheme() ? '#60a5fa' : '#4F46E5',
-                        'target-arrow-color': isDarkTheme() ? '#60a5fa' : '#4F46E5',
+                        'TARGET-arrow-color': isDarkTheme() ? '#60a5fa' : '#4F46E5',
                     },
                 },
                 {
@@ -702,7 +703,7 @@
         });
 
         _cy.on('tap', 'node', (evt) => {
-            const d = evt.target.data();
+            const d = evt.TARGET.data();
             const key = d.factKey || d.id;
             if (_connectMode && _connectPick) {
                 _connectPick(key);
@@ -715,14 +716,14 @@
 
         _cy.on('tap', 'edge', (evt) => {
             if (_connectMode && _connectPick) return;
-            const d = evt.target.data();
+            const d = evt.TARGET.data();
             if (typeof _onEdgeSelect === 'function') {
                 _onEdgeSelect(d.id, d);
             }
         });
 
         _cy.on('tap', (evt) => {
-            if (evt.target === _cy) {
+            if (evt.TARGET === _cy) {
                 clearEdgeSelection();
             }
         });
@@ -773,32 +774,32 @@
         _connectMode = !!enabled;
         _connectPick = typeof onPick === 'function' ? onPick : null;
         if (_cy) {
-            _cy.userPanningEnabled(!_connectMode);
+            _cy.userPanningenabled(!_connectMode);
         }
     }
 
-    /** 与后端 GraphNodeType 一致：优先 category，vuln: 合成节点例外；无 category 时回退 type/key。 */
+    /** Matches backend GraphNodeType: category takes priority; VULN: composite nodes are an exception; falls back to type/key when no category. */
     function resolveGraphNodeType(node) {
-        if (!node) return 'note';
+        if (!node) return 'NOTE';
         const key = String(node.fact_key || node.id || '').toLowerCase();
-        if (key.startsWith('vuln:')) return 'vulnerability';
+        if (key.startsWith('VULN:')) return 'vulnerability';
         const cat = String(node.category || '').toLowerCase();
         if (cat) {
-            if (cat === 'vuln') return 'vulnerability';
-            if (cat === 'missing') return 'missing';
+            if (cat === 'VULN') return 'vulnerability';
+            if (cat === 'MISSING') return 'MISSING';
             return cat;
         }
         const t = String(node.type || '').toLowerCase();
-        if (t === 'vuln') return 'vulnerability';
+        if (t === 'VULN') return 'vulnerability';
         if (t) return t;
-        if (key.startsWith('target/')) return 'target';
-        if (key.startsWith('exploit/') || key.startsWith('evidence/')) return 'exploit';
-        if (key.startsWith('poc/')) return 'poc';
-        if (key.startsWith('chain/')) return 'chain';
-        if (key.startsWith('finding/')) return 'finding';
-        if (key.startsWith('auth/')) return 'auth';
-        if (key.startsWith('infra/') || key.startsWith('business/')) return 'infra';
-        return 'note';
+        if (key.startsWith('TARGET/')) return 'TARGET';
+        if (key.startsWith('EXPLOIT/') || key.startsWith('evidence/')) return 'EXPLOIT';
+        if (key.startsWith('POC/')) return 'POC';
+        if (key.startsWith('CHAIN/')) return 'CHAIN';
+        if (key.startsWith('FINDING/')) return 'FINDING';
+        if (key.startsWith('AUTH/')) return 'AUTH';
+        if (key.startsWith('INFRA/') || key.startsWith('BUSINESS/')) return 'INFRA';
+        return 'NOTE';
     }
 
     global.ProjectFactGraph = {

@@ -1,4 +1,4 @@
-﻿const fs = require('node:fs');
+const fs = require('node:fs');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
@@ -13,7 +13,7 @@ function functionSource(source, name, nextName) {
     return source.slice(start, end);
 }
 
-test('用户和助手消息使用同一复制按钮入口', () => {
+test('用户和Assistant message使用同一Copy按钮入口', () => {
     const helperSource = functionSource(chat, 'appendMessageCopyButton', 'addMessage');
     const addMessageSource = functionSource(chat, 'addMessage', 'copyMessageToClipboard');
 
@@ -26,7 +26,7 @@ test('用户和助手消息使用同一复制按钮入口', () => {
     assert.match(addMessageSource, /role === 'assistant' \|\| role === 'user'[\s\S]*appendMessageCopyButton\(messageDiv\)/);
 });
 
-test('刷新消息内容时会保留或补回复制按钮', () => {
+test('刷New messages内容时会保留或补回Copy按钮', () => {
     const refreshSource = functionSource(chat, 'refreshSystemReadyMessageBubbles', 'appendMessageCopyButton');
     const updateSource = functionSource(monitor, 'updateAssistantBubbleContent', 'isConversationTaskRunning');
 

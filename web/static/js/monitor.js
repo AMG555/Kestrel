@@ -1,9 +1,9 @@
-﻿const progressTaskState = new Map();
+const progressTaskState = new Map();
 /** @type {{ progressId: string, conversationId: string } | null} */
 let userInterruptModalPending = null;
 let activeTaskInterval = null;
-const ACTIVE_TASK_REFRESH_INTERVAL = 2000; // 运行态与审批态需要及时自刷新
-const TASK_FINAL_STATUSES = new Set(['failed', 'timeout', 'cancelled', 'completed', 'cleanup_unconfirmed']);
+const ACTIVE_TASK_REFRESH_INTERVAL = 2000; // running and approval states need timely auto-refresh
+const TASK_FINAL_STATUSES = new Set(['failed', 'timeout', 'Cancelled', 'completed', 'cleanup_unconfirmed']);
 const hitlInterruptToolItemMap = new Map();
 let activeTasksLoadPromise = null;
 let activeTasksVisualSignature = '';
@@ -13,8 +13,8 @@ let visibleConversationReplaySyncPromise = null;
 let visibleConversationReplaySyncId = '';
 
 /**
- * 主对话 POST 流仍在读取时，禁止再挂 task-events 补流，否则同一事件会画两遍（与 HITL 是否开启无关）。
- * window.__csAgentLiveStream 由 chat.js sendMessage 在读到 body 后设置，在 finally 中清除。
+ * While the main Chat POST stream is still being read, prohibit attaching task-events supplemental stream, otherwise the same event would be rendered twice (regardless of whether HITL is enabled).
+ * window.__csAgentLiveStream is set by chat.js sendMessage after reading the body, and cleared in finally.
  */
 function syncAgentLiveStreamConversationId(cid) {
     if (!cid) return;
@@ -45,20 +45,20 @@ function shouldSkipTaskEventReplayAttach(conversationId) {
         const live = window.__csAgentLiveStream;
         if (!live || !live.active || !live.progressId) return false;
         if (!document.getElementById(live.progressId)) return false;
-        // 新会话：conversation 事件尚未到达前 conversationId 可能仍为 null，一律不补挂
+        // New session: conversationId may still be null before the conversation event arrives; never attach supplemental stream
         if (live.conversationId == null) return true;
         return live.conversationId === conversationId;
     } catch (e) {
         return false;
     }
 }
-/** 监控页展示：内部 mcp::tool → 模型侧 mcp__tool */
+/** Monitor  PAGE display: internal MCP::tool → model-side mcp__tool */
 function formatMonitorToolName(name) {
     if (!name || typeof name !== 'string') return name || '';
     return name.includes('::') ? name.replace('::', '__') : name;
 }
 
-/** 筛选/API：mcp__tool → 内部 mcp::tool（与库存一致） */
+/** filter/API: mcp__tool → internal MCP::tool (consistent with inventory) */
 function canonicalMonitorToolName(name) {
     if (!name || typeof name !== 'string') return name || '';
     if (name.includes('::')) return name;
@@ -75,46 +75,46 @@ if (typeof window !== 'undefined') {
     window.shouldSkipTaskEventReplayAttach = shouldSkipTaskEventReplayAttach;
 }
 
-// 当前界面语言对应的 BCP 47 标签（与时间格式化一致）
+// BCP 47 tag corresponding to currentUI language (consistent with time formatting)
 function getCurrentTimeLocale() {
     if (typeof window.uiLocale === 'function') return window.uiLocale();
     if (typeof window.__locale === 'string' && window.__locale.length) {
         if (window.__locale.startsWith('zh')) return 'zh-CN';
-        if (window.__locale.startsWith('ru')) return 'ru-RU';
+        if (window.__locale.startsWith('RU')) return 'RU-RU';
         return 'en-US';
     }
     if (typeof i18next !== 'undefined' && i18next.language) {
         const lang = String(i18next.language || '');
         if (lang.startsWith('zh')) return 'zh-CN';
-        if (lang.startsWith('ru')) return 'ru-RU';
+        if (lang.startsWith('RU')) return 'RU-RU';
         return 'en-US';
     }
     return 'zh-CN';
 }
 
-// toLocaleTimeString 选项：中文用 24 小时制，避免仍显示 AM/PM
+// toLocaleTimeString options: use 24-hour format for Chinese, to avoid still showing AM/PM
 function getTimeFormatOptions() {
     const loc = getCurrentTimeLocale();
     const base = { hour: '2-digit', minute: '2-digit', second: '2-digit' };
-    if (loc === 'zh-CN' || loc === 'ru-RU') {
+    if (loc === 'zh-CN' || loc === 'RU-RU') {
         base.hour12 = false;
     }
     return base;
 }
 
-// 将后端下发的进度文案转为当前语言的翻译（中英双向映射，切换语言后能跟上）
-/** Plan-Execute：将 Eino 内部 agent 名本地化为进度条标题用语 */
+// Convert backend-supplied progress text to the currentLanguage translation (bidirectional CN/EN mapping, tracks language switches)
+/** Plan-execute: localize Eino internal agent names for progress bar title display */
 function translatePlanExecuteAgentName(name) {
     const n = String(name || '').trim().toLowerCase();
-    if (n === 'planner') return typeof window.t === 'function' ? window.t('progress.peAgentPlanner') : '规划器';
-    if (n === 'executor') return typeof window.t === 'function' ? window.t('progress.peAgentExecutor') : '执行器';
+    if (n === 'planner') return typeof window.t === 'function' ? window.t('progress.peAgentPlanner') : 'Planner';
+    if (n === 'executor') return typeof window.t === 'function' ? window.t('progress.peAgentExecutor') : 'Executor';
     if (n === 'replanner' || n === 'execute_replan' || n === 'plan_execute_replan') {
-        return typeof window.t === 'function' ? window.t('progress.peAgentReplanning') : '重规划';
+        return typeof window.t === 'function' ? window.t('progress.peAgentReplanning') : 'Replan';
     }
     return String(name || '').trim();
 }
 
-/** 从 Plan-Execute 模型返回的单层 JSON 中取面向用户的字符串（replanner 常用 response）。 */
+/** Extract user-facing string from single-layer JSON returned by Plan-execute model (replanner commonly uses response). */
 function pickPeJSONUserText(o) {
     if (!o || typeof o !== 'object') {
         return '';
@@ -132,7 +132,7 @@ function pickPeJSONUserText(o) {
     return '';
 }
 
-/** 少数模型在 JSON 字符串里仍留下字面量 “\\n”；在已解出正文后再转成换行（不误伤 Windows 盘符时极少命中）。 */
+/** Some models leave literal "\\n" inside JSON strings; convert to newlines after the body is parsed (rarely matches Windows drive letters). */
 function normalizePeInlineEscapes(s) {
     if (!s || s.indexOf('\\n') < 0) {
         return s;
@@ -141,8 +141,8 @@ function normalizePeInlineEscapes(s) {
 }
 
 /**
- * Plan-Execute 时间线正文：planner/replanner 的 {"steps":[...]} 转为列表；{"response":"..."} 解包为纯文本；
- * executor 同样解包。流式片段非法 JSON 时保持原文。
+ * Plan-execute timeline body: planner/replanner {"steps":[...]} converted to list; {"response":"..."} unpacked to plain text;
+ * executor similarly unpacked. Keep original text when streaming fragment is invalid JSON.
  */
 function formatTimelineStreamBody(raw, meta) {
     if (!raw || !meta || meta.orchestration !== 'plan_execute') {
@@ -176,7 +176,7 @@ function formatTimelineStreamBody(raw, meta) {
     return raw;
 }
 
-/** 时间线条目：Plan-Execute 主通道流式阶段标题（替代一律「规划中」） */
+/** Timeline entry: Plan-execute main channel streaming phase title (replaces generic 'Planning') */
 function einoMainStreamPlanningTitle(responseData) {
     const orch = responseData && responseData.orchestration;
     const agent = responseData && responseData.einoAgent != null ? String(responseData.einoAgent).trim() : '';
@@ -187,26 +187,26 @@ function einoMainStreamPlanningTitle(responseData) {
         if (a === 'planner') key = 'chat.planExecuteStreamPlanner';
         else if (a === 'executor') key = 'chat.planExecuteStreamExecutor';
         else if (a === 'replanner' || a === 'execute_replan' || a === 'plan_execute_replan') key = 'chat.planExecuteStreamReplanning';
-        const label = typeof window.t === 'function' ? window.t(key) : '输出';
+        const label = typeof window.t === 'function' ? window.t(key) : 'output';
         return prefix + '📝 ' + label;
     }
-    // eino_single / deep / supervisor：主通道是模型流式输出，不是「规划」；模型偶发复述工具 stdout 时，旧文案易被误认为工具结果标题。
+    // eino_single / deep / supervisor: main channel is model streaming output, not 'planning'; when models occasionally paraphrase tool stdout, the old label is easily mistaken for a tool result title.
     if (orch != null && String(orch).trim() !== '' && orch !== 'plan_execute') {
-        const streamLabel = typeof window.t === 'function' ? window.t('chat.assistantStreamPhase') : '助手输出';
+        const streamLabel = typeof window.t === 'function' ? window.t('chat.assistantStreamPhase') : 'Assistant output';
         return prefix + '📝 ' + streamLabel;
     }
-    const plan = typeof window.t === 'function' ? window.t('chat.planning') : '规划中';
+    const plan = typeof window.t === 'function' ? window.t('chat.planning') : 'Planning';
     return prefix + '📝 ' + plan;
 }
 
 /**
- * Eino 未捕获助手正文占位文案；终态 response 不应覆盖已有流式 buffer。
+ * Eino uncaptured assistant body placeholder; terminal response should not overwrite existing streaming buffer.
  */
 function isEinoEmptyResponsePlaceholder(text) {
     if (text == null) return false;
     const s = String(text);
     return s.indexOf('no assistant text was captured') !== -1
-        || s.indexOf('未捕获到助手文本输出') !== -1;
+        || s.indexOf('No assistant text output captured') !== -1;
 }
 
 function resolveFinalAssistantResponseText(finalMessage, streamState) {
@@ -231,34 +231,34 @@ function hasFinalizationContract(data) {
 }
 
 function finalizationCheckTitle(data) {
-    return isFinalizedResponseData(data) ? '最终回复检查通过' : '最终回复检查未通过';
+    return isFinalizedResponseData(data) ? 'Final reply check passed' : 'Final reply check failed';
 }
 
 function finalizationReasonLabel(reason, status) {
     const key = String(reason || status || '').trim();
     const labels = {
-        pending_tool_executions: '等待工具执行完成',
-        missing_execution_evidence: '缺少完成态证据',
-        awaiting_hitl: '等待人工确认',
-        empty_response: '未捕获到有效回复',
-        missing_finalization_contract: '缺少最终化证明',
-        in_progress: '仍在验证',
-        blocked: '检查未通过',
-        failed: '任务失败',
-        cancelled: '任务已取消',
-        verified: '已验证'
+        pending_tool_executions: 'waiting for tool execution to complete',
+        missing_execution_evidence: 'Missing completion evidence',
+        awaiting_hitl: 'waiting for manual confirmation',
+        empty_response: 'No valid reply captured',
+        missing_finalization_contract: 'Missing finalisation evidence',
+        in_progress: 'still verifying',
+        blocked: 'Check failed',
+        failed: 'Task failed',
+        cancelled: 'Task cancelled',
+        verified: 'Verified'
     };
-    return labels[key] || key || '检查未通过';
+    return labels[key] || key || 'Check failed';
 }
 
 function finalizationMissingCheckLabel(check) {
     const s = String(check || '').trim();
     if (!s) return '';
-    if (s.indexOf('tool execution still queued or running') !== -1) return '仍有工具执行未结束';
-    if (s.indexOf('execution evidence is required but no completed tool execution was recorded') !== -1) return '本轮要求执行证据，但没有 completed 工具记录';
-    if (s.indexOf('workflow is awaiting HITL approval') !== -1) return '工作流正在等待人工确认';
-    if (s.indexOf('assistant final text is empty') !== -1) return '未捕获到有效最终文本';
-    if (s.indexOf('agent run status is ') === 0) return '任务状态仍为 ' + s.replace('agent run status is ', '');
+    if (s.indexOf('tool execution still queued or running') !== -1) return 'Tool execution still in progress';
+    if (s.indexOf('execution evidence is required but no completed tool execution was recorded') !== -1) return 'This round requires execution evidence but no completed tool record was found';
+    if (s.indexOf('workflow is awaiting HITL approval') !== -1) return 'Workflows is awaiting manual confirmation';
+    if (s.indexOf('assistant final text is empty') !== -1) return 'No valid final text captured';
+    if (s.indexOf('agent run status is ') === 0) return 'Task status still: ' + s.replace('agent run status is ', '');
     return s;
 }
 
@@ -266,7 +266,7 @@ function compactStringList(values, limit) {
     const arr = Array.isArray(values) ? values.filter(Boolean).map(String) : [];
     const max = limit || 3;
     if (arr.length <= max) return arr;
-    return arr.slice(0, max).concat('另 ' + (arr.length - max) + ' 项');
+    return arr.slice(0, max).concat('and ' + (arr.length - max) + ' more  items');
 }
 
 function finalizationNoticeMarkdown(responseData, eventMessage) {
@@ -274,10 +274,10 @@ function finalizationNoticeMarkdown(responseData, eventMessage) {
     const reason = hasContract
         ? finalizationReasonLabel(responseData && responseData.completionReason, responseData && responseData.status)
         : finalizationReasonLabel('missing_finalization_contract');
-    const lines = ['**仍在验证，暂不生成最终结论**', '', '状态：' + reason];
+    const lines = ['**still verifying, not generating final conclusion yet**', '', 'Status: ' + reason];
     const pending = compactStringList(responseData && responseData.pendingExecutionIds, 3);
     if (pending.length) {
-        lines.push('待完成工具：`' + pending.join('`, `') + '`');
+        lines.push('Pending completion tools: `' + pending.join('`, `') + '`');
     }
     const rawMissingChecks = responseData && responseData.missingChecks;
     const missingChecks = Array.isArray(rawMissingChecks)
@@ -285,10 +285,10 @@ function finalizationNoticeMarkdown(responseData, eventMessage) {
         : (rawMissingChecks ? [rawMissingChecks] : []);
     const missing = compactStringList(missingChecks.map(finalizationMissingCheckLabel).filter(Boolean), 3);
     if (missing.length) {
-        lines.push('待完成检查：' + missing.join('；'));
+        lines.push('Pending completion checks: ' + missing.join('; '));
     }
     if (!hasContract && eventMessage != null && String(eventMessage).trim() !== '') {
-        lines.push('', '候选输出已移入过程详情，避免误判为最终结论。');
+        lines.push('', 'Candidate output moved to process details to avoid being mistaken for a final conclusion.');
     }
     return lines.join('\n');
 }
@@ -304,8 +304,8 @@ function markAssistantFinalizationState(assistantMessageId, responseData) {
 }
 
 /**
- * 主通道 response 结束时：将流式占位条目固化为 planning（与后端 flushResponsePlan 落库类型一致），
- * 避免 integrateProgressToMCPSection 快照前删除占位导致「助手输出」仅刷新后才出现。
+ * When the main channel response ends: solidify the streaming placeholder entry as planning (consistent with backend flushResponsePlan DB type),
+ * to avoid the placeholder being deleted before integrateProgressToMCPSection snapshot, causing 'Assistant output' to only appear after refresh.
  */
 function finalizeMainResponseStreamItem(streamState, finalMessage, responseData) {
     if (!streamState || !streamState.itemId) return false;
@@ -358,17 +358,17 @@ function translateProgressMessage(message, data) {
     if (typeof window.t !== 'function') return message;
     const trim = message.trim();
     const map = {
-        // 中文
-        '正在调用AI模型...': 'progress.callingAI',
-        '最后一次迭代：正在生成总结和下一步计划...': 'progress.lastIterSummary',
-        '总结生成完成': 'progress.summaryDone',
-        '正在生成最终回复...': 'progress.generatingFinalReply',
-        '达到最大迭代次数，正在生成总结...': 'progress.maxIterSummary',
-        '正在分析您的请求...': 'progress.analyzingRequestShort',
-        '开始分析请求并制定测试策略': 'progress.analyzingRequestPlanning',
-        '正在启动 Eino DeepAgent...': 'progress.startingEinoDeepAgent',
-        '正在启动 Eino 多代理...': 'progress.startingEinoMultiAgent',
-        // 英文（与 en-US.json 一致，避免后端/缓存已是英文时无法随语言切换）
+        // Chinese
+        'Calling AI model...': 'progress.callingAI',
+        'Last iteration: generating summary and next steps...': 'progress.lastIterSummary',
+        'Summary generation complete': 'progress.summaryDone',
+        'Generating final reply...': 'progress.generatingFinalReply',
+        'Reached max iterations, generating summary...': 'progress.maxIterSummary',
+        'Analyzing your request...': 'progress.analyzingRequestShort',
+        'starting request analysis and test strategy planning': 'progress.analyzingRequestPlanning',
+        'starting Eino DeepAgent...': 'progress.startingEinoDeepAgent',
+        'starting Eino multi-agent...': 'progress.startingEinoMultiAgent',
+        // English (consistent with en-US.JSON, to allow language switching when backend/cache is already in English)
         'Calling AI model...': 'progress.callingAI',
         'Last iteration: generating summary and next steps...': 'progress.lastIterSummary',
         'Summary complete': 'progress.summaryDone',
@@ -376,8 +376,8 @@ function translateProgressMessage(message, data) {
         'Max iterations reached, generating summary...': 'progress.maxIterSummary',
         'Analyzing your request...': 'progress.analyzingRequestShort',
         'Analyzing your request and planning test strategy...': 'progress.analyzingRequestPlanning',
-        'Starting Eino DeepAgent...': 'progress.startingEinoDeepAgent',
-        'Starting Eino multi-agent...': 'progress.startingEinoMultiAgent'
+        'starting Eino DeepAgent...': 'progress.startingEinoDeepAgent',
+        'starting Eino multi-agent...': 'progress.startingEinoMultiAgent'
     };
     if (map[trim]) return window.t(map[trim]);
     const einoAgentRe = /^\[Eino\]\s*(.+)$/;
@@ -389,7 +389,7 @@ function translateProgressMessage(message, data) {
         }
         return window.t('progress.einoAgent', { name: disp });
     }
-    const callingToolPrefixCn = '正在调用工具: ';
+    const callingToolPrefixCn = 'Calling tool: ';
     const callingToolPrefixEn = 'Calling tool: ';
     if (trim.indexOf(callingToolPrefixCn) === 0) {
         const name = trim.slice(callingToolPrefixCn.length);
@@ -409,8 +409,8 @@ if (typeof window !== 'undefined') {
     window.formatTimelineStreamBody = formatTimelineStreamBody;
 }
 
-// 存储工具调用ID到DOM元素的映射，用于更新执行状态。
-// 键必须带 progressId 作用域，避免不同任务复用相同 toolCallId 时串线。
+// Store mapping of tool call IDs to DOM elements for updating execution status.
+// Keys must be scoped with progressId to avoid cross-talk when different tasks reuse the same toolCallId.
 const toolCallStatusMap = new Map();
 
 function toolCallMapKey(progressId, toolCallId) {
@@ -421,15 +421,15 @@ function getToolCallMapping(progressId, toolCallId) {
     if (!toolCallId) return null;
     const scoped = toolCallStatusMap.get(toolCallMapKey(progressId, toolCallId));
     if (scoped) return scoped;
-    // 兼容历史遗留：若 map 中还有旧格式 key（仅 toolCallId），兜底读取。
+    // Legacy compatibility: if the map still has old-format keys (toolCallId only), fall back to reading them.
     return toolCallStatusMap.get(String(toolCallId)) || null;
 }
 
 function progressDoneOutcome(data) {
     const status = String(data && (data.status || data.workflowStatus) || '').toLowerCase();
-    if (status === 'cancelled' || status === 'canceled') return { key: 'chat.taskCancelled', fallback: '任务已取消', icon: '⛔', toolStatus: 'cancelled' };
-    if (['failed', 'timeout', 'cleanup_failed', 'cleanup_unconfirmed'].includes(status)) return { key: status === 'timeout' ? 'tasks.statusTimeout' : 'tasks.statusFailed', fallback: status === 'timeout' ? '任务超时' : '任务执行失败', icon: '❌', toolStatus: 'failed' };
-    return { key: 'chat.penetrationTestComplete', fallback: '渗透测试完成', icon: '✅', toolStatus: 'failed' };
+    if (status === 'Cancelled' || status === 'Canceled') return { key: 'chat.taskCancelled', fallback: 'Task cancelled', icon: '⛔', toolStatus: 'Cancelled' };
+    if (['failed', 'timeout', 'cleanup_failed', 'cleanup_unconfirmed'].includes(status)) return { key: status === 'timeout' ? 'tasks.statusTimeout' : 'tasks.statusFailed', fallback: status === 'timeout' ? 'Task timed out' : 'Task execution failed', icon: '❌', toolStatus: 'failed' };
+    return { key: 'chat.penetrationTestComplete', fallback: 'Penetration test complete', icon: '✅', toolStatus: 'failed' };
 }
 
 function finalizeOutstandingToolCallsForProgress(progressId, finalStatus) {
@@ -439,7 +439,7 @@ function finalizeOutstandingToolCallsForProgress(progressId, finalStatus) {
         if (!mapping) continue;
         if (mapping.progressId != null && String(mapping.progressId) !== pid) continue;
         const tcid = mapping.toolCallId || (String(mapKey).includes('::') ? String(mapKey).split('::').slice(1).join('::') : String(mapKey));
-        // 已收到终态结果的调用仅清理索引，不能在任务收尾时被改写成失败。
+        // Calls that have received a terminal result only clean up the index; they must not be rewritten as failed at task end.
         if (!mapping.terminalStatus) {
             updateToolCallStatus(mapping.progressId || progressId, tcid, finalStatus);
         }
@@ -447,12 +447,12 @@ function finalizeOutstandingToolCallsForProgress(progressId, finalStatus) {
     }
 }
 
-// 模型流式输出缓存：progressId -> { assistantId, buffer }
+// Model streaming output cache: progressId -> { assistantId, buffer }
 const responseStreamStateByProgressId = new Map();
-// 主通道当前迭代轮次缓存：progressId -> { iteration, orchestration }
+// Main channel currentIteration round cache: progressId -> { iteration, orchestration }
 const mainIterationStateByProgressId = new Map();
 
-/** 工作流多 Agent 节点切换时清空流式聚合，避免推理/输出条目覆盖上一节点内容 */
+/** clear streaming aggregation when Workflows multi-agent node switches, to prevent reasoning/output entries from overwriting previous node content */
 function clearTimelineStreamStates(progressId) {
     responseStreamStateByProgressId.delete(progressId);
     thinkingStreamStateByProgressId.delete(progressId);
@@ -465,7 +465,7 @@ function clearTimelineStreamStates(progressId) {
     }
 }
 
-/** 同一段主通道流式输出（Eino 可能重复 response_start） */
+/** Same segment of main channel streaming output (Eino may repeat response_start) */
 function sameMainResponseStreamMeta(a, b) {
     if (!a || !b) return false;
     const agentA = String(a.einoAgent != null ? a.einoAgent : '').trim();
@@ -514,7 +514,7 @@ function extractIterationTagFromStreamIdentity(identity) {
     return s.slice(idx + 6);
 }
 
-/** Plan-Execute 多轮 executor/planner 同名代理：仅在同轮次内复用流式条目 */
+/** Plan-execute multi-round executor/planner same-name agents: only reuse streaming entries within the same round */
 function areMainResponseStreamIterationsCompatible(prevIterTag, streamIterTag, orchestration) {
     const orch = String(orchestration != null ? orchestration : '').trim();
     if (orch === 'plan_execute') {
@@ -523,7 +523,7 @@ function areMainResponseStreamIterationsCompatible(prevIterTag, streamIterTag, o
     return !prevIterTag || !streamIterTag || prevIterTag === streamIterTag;
 }
 
-/** 仅合并 Eino 对同一段 MessageStream 重复发出的 response_start */
+/** Only merge duplicate response_start events Eino emits for the same MessageStream */
 function shouldReuseMainResponseStream(progressId, prevStream, responseData, streamOrch) {
     if (!prevStream || !prevStream.itemId) {
         return false;
@@ -546,7 +546,7 @@ function shouldReuseMainResponseStream(progressId, prevStream, responseData, str
     return areMainResponseStreamIterationsCompatible(prevIterTag, streamIterTag, orch);
 }
 
-/** 刷新后从数据库恢复的 planning 行，继续复用为当前 response_stream 容器。 */
+/** Planning rows resumed from the database after refresh continue to be reused as the currentResponse_stream container. */
 function findRestoredMainResponseStreamItem(timeline, responseData) {
     if (!timeline) return null;
     const data = responseData || {};
@@ -554,8 +554,8 @@ function findRestoredMainResponseStreamItem(timeline, responseData) {
     const agent = data.einoAgent != null ? String(data.einoAgent).trim() : '';
     const orchestration = data.orchestration != null ? String(data.orchestration).trim() : '';
     const items = timeline.querySelectorAll('.timeline-item-planning, .timeline-item-thinking');
-    for (let i = items.length - 1; i >= 0; i--) {
-        const item = items[i];
+    for (let i =  items.length - 1; i >= 0; i--) {
+        const item =  items[i];
         const itemStreamId = String(item.dataset.responseStreamId || '').trim();
         if (streamId) {
             if (itemStreamId === streamId) return item;
@@ -583,13 +583,13 @@ function responseStreamStateFromRestoredItem(progressId, item, responseData) {
     };
 }
 
-// AI 思考流式输出：progressId -> Map(streamId -> { itemId, buffer })
+// AI thinking streaming output: progressId -> Map(streamId -> { itemId, buffer })
 const thinkingStreamStateByProgressId = new Map();
 
-// Eino 子代理回复流式：progressId -> Map(streamId -> { itemId, buffer })
+// Eino sub-agent reply streaming: progressId -> Map(streamId -> { itemId, buffer })
 const einoAgentReplyStreamStateByProgressId = new Map();
 
-// 工具输出流式增量：progressId::toolCallId -> { itemId, buffer }
+// Tool output streaming increments: progressId::toolCallId -> { itemId, buffer }
 const toolResultStreamStateByKey = new Map();
 function toolResultStreamKey(progressId, toolCallId) {
     return String(progressId) + '::' + String(toolCallId);
@@ -598,14 +598,14 @@ function toolResultStreamKey(progressId, toolCallId) {
 const LIVE_TIMELINE_MAX_ITEMS = 150;
 const LIVE_TIMELINE_PRUNE_CHUNK = 50;
 
-/** Eino 多代理：时间线标题前加 [agentId]，标明哪一代理产生该工具调用/结果/回复 */
+/** Eino multi-agent: prefix timeline title with [agentId] to indicate which agent produced the tool call/result/reply */
 function timelineAgentBracketPrefix(data) {
     if (!data || data.einoAgent == null) return '';
     const s = String(data.einoAgent).trim();
     return s ? ('[' + s + '] ') : '';
 }
 
-/** 主/子代理视觉区分：左边框与浅底色（与工具黄/绿状态并存时由具体项类型覆盖次要边） */
+/** Primary/sub-agent visual distinction: left border and light background (overridden by item type when coexisting with tool yellow/green status) */
 function applyEinoTimelineRole(item, data) {
     if (!item || !data) return;
     const role = data.einoRole;
@@ -643,7 +643,7 @@ function formatTimelinePlainTextHtml(text) {
     return '<pre class="timeline-plain-text">' + escapeHtml(text == null ? '' : String(text)) + '</pre>';
 }
 
-/** fenced 块占位（BMP 私用区，正文几乎不会出现） */
+/** Fenced block placeholder (BMP private use area, rarely appears in body text) */
 const _MD_FENCE_PRE = '\n\uE000CSAI_FENCE_';
 const _MD_FENCE_SUF = '_\uE000\n';
 
@@ -666,8 +666,8 @@ function _unmaskFencedCodeBlocksAfterMdPreprocess(s, blocks) {
 }
 
 /**
- * 模型/网关偶发把「思考」混进正文，用伪 XML 包裹（如 &lt;redacted_thinking&gt;…&lt;/redacted_thinking&gt;）。
- * 与 Markdown 列表混排时，结束标签常被吞进 &lt;li&gt;，其后 **、` 等行内语法全部无法解析；成对块整段移除。
+ * Models/gateways occasionally mix 'thinking' into the body text, wrapped in pseudo XML (e.g. &lt;redacted_thinking&gt;…&lt;/redacted_thinking&gt;).
+ * When mixed with Markdown lists, closing tags are often swallowed into &lt;li&gt;, causing subsequent ** and ` inline syntax to fail parsing; matched block pairs are removed entirely.
  * @param {string} segment
  * @returns {string}
  */
@@ -683,8 +683,8 @@ function _stripXmlReasoningWrappersForMarkdown(segment) {
 }
 
 /**
- * 解除 LLM 常用的块级 HTML 外壳（`<div>`、`<p>`、`<section>`、`<article>`、`<main>`）。
- * 整段包在块级标签里时，CommonMark 不会在块内再解析 Markdown，导致 **、` 原样显示。
+ * remove common LLM block-level HTML wrappers (`<div>`, `<p>`, `<section>`, `<article>`, `<main>`).
+ * When a whole paragraph is wrapped in a block-level tag, CommonMark will not parse Markdown inside it, causing ** and ` to display literally.
  */
 function _unwrapHtmlBlockWrappersForMarkdown(segment) {
     let s = segment;
@@ -702,7 +702,7 @@ function _unwrapHtmlBlockWrappersForMarkdown(segment) {
 }
 
 /**
- * 将 HTML 列表 / 粘连的 `<li>` 还原为 Markdown 列表行，并去掉外层 `<ul>`，便于 marked 解析行内 **、` `
+ * Convert HTML lists / adjacent `<li>` elements back to Markdown list lines, removing outer `<ul>`, so marked can parse inline ** and `.
  * @param {string} segment
  * @returns {string}
  */
@@ -718,7 +718,7 @@ function _flattenOrphanHtmlLiInMarkdown(segment) {
     return s.replace(/\n{3,}/g, '\n\n');
 }
 
-/** 行首 Unicode 项目符号 → Markdown 列表 `- `（模型常用 • 而非 `-`） */
+/** Leading Unicode bullet symbol → Markdown list `- ` (models commonly use • instead of `-`) */
 function _normalizeUnicodeBulletMarkersToMdDash(segment) {
     return segment
         .replace(/^\s*\u2022\s+/gm, '- ')
@@ -726,10 +726,10 @@ function _normalizeUnicodeBulletMarkersToMdDash(segment) {
 }
 
 /**
- * 修正模型常见的强调语法偏差：
- * 1) 把 `\*\*文本\*\*` 还原为 `**文本**`（常见于多层转义输出）
- * 2) 把 `** 文本 **` 收敛为 `**文本**`（避免分隔符内空格导致不生效）
- * 仅处理单行内容，避免跨段落误匹配。
+ * Fix common model emphasis syntax deviations: 
+ * 1) Restore `\*\*text\*\*` to `**text**` (common in multi-level escaped output)
+ * 2) normalize `** text **` to `**text**` (prevent spaces inside delimiters from breaking emphasis)
+ * Only process single-line content to avoid cross-paragraph false matches.
  */
 function _normalizeEmphasisMarkersForMarkdown(segment) {
     const raw = String(segment);
@@ -765,7 +765,7 @@ function _normalizeEmphasisMarkersForMarkdown(segment) {
     };
     const normalizeLine = (line) => {
         let lineWork = line;
-        // 奇数个 `**` 往往意味着有一个孤立标记；仅清理「空白夹着的 **」这类高置信噪声。
+        // An odd number of `**` usually means an isolated marker; only clean high-confidence noise like '** surrounded by spaces'.
         while (countUnescapedStrongMarkers(lineWork) % 2 === 1) {
             const next = lineWork.replace(/\s\*\*\s/g, ' ');
             if (next === lineWork) break;
@@ -779,7 +779,7 @@ function _normalizeEmphasisMarkersForMarkdown(segment) {
                 out += lineWork.slice(cursor);
                 break;
             }
-            // 允许 `\*\*text\*\*` 先还原，escaped 星号本身不作为强调标记。
+            // allow `\*\*text\*\*` to be restored first; escaped asterisks are not treated as emphasis markers.
             if (open > 0 && lineWork.charAt(open - 1) === '\\') {
                 out += lineWork.slice(cursor, open + 2);
                 cursor = open + 2;
@@ -806,14 +806,14 @@ function _normalizeEmphasisMarkersForMarkdown(segment) {
             const next = lineWork.charAt(close + 2);
             const prevTail = prefix.charAt(prefix.length - 1);
 
-            // 内部为空时不改写，避免把 `****` 等异常输入改坏。
+            // Do not rewrite when inner content is empty, to avoid corrupting abnormal inputs like `****`.
             if (!inner) {
                 out += lineWork.slice(cursor, close + 2);
                 cursor = close + 2;
                 continue;
             }
 
-            // CJK/字母数字与强调标记紧邻时补边界空格，提升解析稳定性。
+            // add boundary spaces when CJK/alphanumeric is adjacent to emphasis markers, to improve parse stability.
             if (isWordLike(prevTail) && !/\s$/.test(prefix)) {
                 prefix += ' ';
             }
@@ -826,7 +826,7 @@ function _normalizeEmphasisMarkersForMarkdown(segment) {
         return out;
     };
 
-    // 先还原常见 escaped strong，再做成对规范化。
+    // First restore common escaped strong markers, then normalize matched pairs.
     let s = raw.replace(/\\\*\*([^\n*][^\n]*?[^\n*])\\\*\*/g, '**$1**');
     const masked = maskInlineCode(s);
     s = masked.masked
@@ -838,9 +838,9 @@ function _normalizeEmphasisMarkersForMarkdown(segment) {
 }
 
 /**
- * 解析前归一化助手 Markdown：去掉零宽字符，NFKC 将全角 * ` _ 等转为 ASCII，
- * 避免 marked 无法识别强调/行内代码而原样显示 **、反引号；
- * 并移除 &lt;redacted_thinking&gt; 等伪 XML 思考块、修正块级 HTML（`<div>`/`<p>`/…、`<ul>`/`<li>`）与 Unicode 项目符号 `•`，避免块级 HTML 吞掉 inline 解析。
+ * normalize assistant Markdown before parsing: remove zero-width characters, NFKC converts full-width * ` _ etc. to ASCII,
+ * to prevent marked from failing to recognize emphasis/inline code and displaying ** and backticks literally;
+ * also remove pseudo-XML thinking blocks like &lt;redacted_thinking&gt;, fix block-level HTML (`<div>`/`<p>`/…, `<ul>`/`<li>`) and Unicode bullet `•`, to prevent block-level HTML from suppressing inline parsing.
  * @param {string|null|undefined} text
  * @returns {string}
  */
@@ -867,8 +867,8 @@ if (typeof window !== 'undefined') {
 }
 
 /**
- * 与 internal/openai.normalizeStreamingDelta 一致：兼容网关/模型返回「累计全文」或整包重发，
- * 避免前端 buffer += chunk 与后端已归一化的增量叠加导致逐段重复（如「响应中显示了响应中显示了」）。
+ * Consistent with internal/openai.normalizeStreamingDelta: compatible with gateway/model returning 'accumulated full text' or resending complete chunks,
+ * to prevent frontend buffer += chunk combined with already-normalized backend deltas from causing repeated segments (e.g. 'response shows response shows').
  * @returns {[string, string]} [nextBuffer, effectiveDelta]
  */
 function normalizeStreamingDeltaJs(current, incoming) {
@@ -894,9 +894,9 @@ if (typeof window !== 'undefined') {
 }
 
 /**
- * SSE data.accumulated：服务端权威流式全文。有则直接用作 buffer，避免双端 normalize 叠字。
+ * SSE data.accumulated: authoritative server-side streaming full text. When present, use directly as buffer to avoid double-normalize duplication.
  * @param {object|null|undefined} data
- * @returns {string|null} 有快照时返回全文；否则 null（回退 delta 归一化）
+ * @returns {string|null} Returns full text when snapshot exists; null otherwise (falls back to delta normalization)
  */
 function streamBufferFromAccumulated(data) {
     if (!data || data.accumulated == null) {
@@ -906,7 +906,7 @@ function streamBufferFromAccumulated(data) {
 }
 
 /**
- * @returns {string} 合并后的 buffer
+ * @returns {string} merged buffer
  */
 function mergeStreamBuffer(current, delta, data) {
     const acc = streamBufferFromAccumulated(data);
@@ -924,9 +924,9 @@ if (typeof window !== 'undefined') {
     window.scheduleStreamPlainTextUpdate = scheduleStreamPlainTextUpdate;
 }
 
-/** 流式纯文本 DOM：按帧合并更新，尽量增量 appendData，避免每条 SSE 全量 textContent 阻塞主线程 */
+/** Streaming plain text DOM: merge updates per frame, use incremental appendData when possible, to avoid each SSE fully replacing textContent and blocking the main thread */
 const streamPlainDomState = new WeakMap();
-/** 跟踪仍有待刷新的流式节点，便于快照时间线前一次性 flush */
+/** Track streaming nodes still awaiting refresh, to allow a one-time flush before snapshot timeline */
 const streamPlainDomPendingElements = new Set();
 
 function applyStreamPlainTextNow(contentEl, text, state) {
@@ -1005,7 +1005,7 @@ function flushAllPendingStreamPlainUpdates() {
     });
 }
 
-/** 流式 delta：纯文本，避免每条全量 marked + DOMPurify */
+/** Streaming delta: plain text, avoiding full marked + DOMPurify on every chunk */
 function setTimelineItemContentStreamPlain(contentEl, text) {
     if (!contentEl) return;
     resetStreamPlainTextState(contentEl);
@@ -1013,7 +1013,7 @@ function setTimelineItemContentStreamPlain(contentEl, text) {
 }
 
 /**
- * 分批处理 SSE data 行并在批间让出主线程，避免单次 read() 内数百条事件连续阻塞 UI。
+ * Process SSE data lines in batches and yield the main thread between batches, to avoid hundreds of consecutive events blocking the UI within a single read().
  * @param {string[]} lines
  * @param {(event: object) => void} onEvent
  * @param {{ yieldEvery?: number }} [options]
@@ -1026,7 +1026,7 @@ async function processSseDataLinesYielding(lines, onEvent, options) {
             try {
                 onEvent(JSON.parse(line.slice(6)));
             } catch (e) {
-                console.error('解析事件数据失败:', e, line);
+                console.error('failed to parse event data:', e, line);
             }
         }
         if ((i + 1) % yieldEvery === 0 && i + 1 < lines.length) {
@@ -1035,12 +1035,12 @@ async function processSseDataLinesYielding(lines, onEvent, options) {
     }
 }
 
-/** 流结束或非流式：富文本（已消毒的 HTML 字符串） */
-function setTimelineItemContentStreamRich(contentEl, html) {
+/** Stream end or non-streaming: rich text (sanitized HTML string) */
+function setTimelineItemContentStreamRich(contentEl, HTML) {
     if (!contentEl) return;
     resetStreamPlainTextState(contentEl);
     contentEl.classList.remove('timeline-stream-plain');
-    contentEl.innerHTML = html;
+    contentEl.innerHTML = HTML;
 }
 
 function formatAssistantMarkdownContent(text) {
@@ -1057,23 +1057,23 @@ function updateAssistantBubbleContent(assistantMessageId, content, renderMarkdow
     const bubble = assistantElement.querySelector('.message-bubble');
     if (!bubble) return;
 
-    // 清理旧版本可能残留在气泡内的复制按钮；新版按钮统一在时间行。
+    // Clean up copy buttons that old versions may have left inside the bubble; new version buttons are unified in the timestamp row.
     const copyBtn = bubble.querySelector('.message-copy-btn');
     if (copyBtn) copyBtn.remove();
 
     const newContent = content == null ? '' : String(content);
     const normalizedContent = newContent.trim();
-    if (normalizedContent !== '处理中...' && normalizedContent !== 'Processing...') {
+    if (normalizedContent !== 'Processing...' && normalizedContent !== 'Processing...') {
         assistantElement.classList.remove('assistant-placeholder-content');
         bubble.hidden = false;
     }
-    const html = renderMarkdown
+    const HTML = renderMarkdown
         ? formatAssistantMarkdownContent(newContent)
         : escapeHtmlLocal(newContent).replace(/\n/g, '<br>');
 
-    bubble.innerHTML = html;
+    bubble.innerHTML = HTML;
 
-    // 更新原始内容（给复制功能用）
+    // Update original content (used by copy function)
     assistantElement.dataset.originalContent = newContent;
 
     if (typeof wrapTablesInBubble === 'function') {
@@ -1108,9 +1108,9 @@ const conversationExecutionTracker = {
         return !!conversationId && this.activeConversations.has(conversationId);
     },
     markRunning(conversationId) {
-        const id = String(conversationId || '').trim();
-        if (!id) return false;
-        this.activeConversations.add(id);
+        const ID = String(conversationId || '').trim();
+        if (!ID) return false;
+        this.activeConversations.add(ID);
         this.ready = true;
         return true;
     }
@@ -1138,13 +1138,13 @@ function initChatTaskSyncChannel() {
     chatTaskSyncChannel.addEventListener('message', function (event) {
         const payload = event && event.data;
         if (!payload || payload.type !== 'task-started') return;
-        const id = String(payload.conversationId || '').trim();
-        if (!id) return;
-        conversationExecutionTracker.markRunning(id);
+        const ID = String(payload.conversationId || '').trim();
+        if (!ID) return;
+        conversationExecutionTracker.markRunning(ID);
         if (typeof window.updateChatPrimaryActionState === 'function') {
             window.updateChatPrimaryActionState();
         }
-        // 服务端任务注册可能比跨标签页通知晚一瞬，稍后由权威任务列表确认并挂载补流。
+        // Server-side task registration may be slightly later than cross-tab  PAGE notification; it will be confirmed and stream-attached later by the authoritative task list.
         setTimeout(function () {
             if (typeof loadActiveTasks === 'function') loadActiveTasks();
         }, 180);
@@ -1157,21 +1157,21 @@ window.notifyConversationTaskStarted = notifyConversationTaskStarted;
 const hitlPendingInterruptTracker = {
     pendingById: new Map(),
     ready: false,
-    update(items = []) {
+    update( items = []) {
         this.pendingById.clear();
-        items.forEach(item => this.add(item));
+         items.forEach(item => this.add(item));
         this.ready = true;
     },
-    replaceConversation(conversationId, items = []) {
-        const id = String(conversationId || '').trim();
-        if (id) {
+    replaceConversation(conversationId,  items = []) {
+        const ID = String(conversationId || '').trim();
+        if (ID) {
             this.pendingById.forEach((item, interruptId) => {
-                if (String(item && item.conversationId || '').trim() === id) {
+                if (String(item && item.conversationId || '').trim() === ID) {
                     this.pendingById.delete(interruptId);
                 }
             });
         }
-        items.forEach(item => this.add(item));
+         items.forEach(item => this.add(item));
         this.ready = true;
     },
     add(item) {
@@ -1193,15 +1193,15 @@ function isConversationTaskRunning(conversationId) {
 window.isConversationTaskRunning = isConversationTaskRunning;
 
 function setHitlApprovalInterruptedVisualState(panel, interrupted) {
-    if (!panel || panel.classList.contains('hitl-inline-done')) return;
+    if (!panel || panel.classList.contains('HITL-inline-done')) return;
     const eyebrow = panel.querySelector('.hitl-approval-eyebrow');
     const countdown = panel.querySelector('.hitl-approval-countdown');
     if (interrupted) {
         stopHitlApprovalCountdown(panel);
-        panel.classList.add('hitl-approval-interrupted');
+        panel.classList.add('HITL-approval-interrupted');
         if (eyebrow && !Object.prototype.hasOwnProperty.call(eyebrow.dataset, 'taskAvailableText')) {
             eyebrow.dataset.taskAvailableText = eyebrow.textContent || '';
-            eyebrow.textContent = hitlApprovalTranslate('hitl.taskInterrupted', '任务已中断');
+            eyebrow.textContent = hitlApprovalTranslate('hitl.taskInterrupted', 'Task interrupted');
         }
         if (countdown && !Object.prototype.hasOwnProperty.call(countdown.dataset, 'taskAvailableHtml')) {
             countdown.dataset.taskAvailableHtml = countdown.innerHTML;
@@ -1210,22 +1210,22 @@ function setHitlApprovalInterruptedVisualState(panel, interrupted) {
             countdown.dataset.taskAvailableTimeout = countdown.dataset.hitlTimeout || '';
             countdown.removeAttribute('data-hitl-expires-at');
             countdown.removeAttribute('data-hitl-timeout');
-            countdown.className = 'hitl-approval-countdown hitl-approval-countdown--interrupted';
-            countdown.innerHTML = '<div class="hitl-codex-state hitl-codex-state--interrupted">' +
-                '<span class="hitl-codex-state-icon" aria-hidden="true">×</span>' +
-                '<strong>' + escapeHtml(hitlApprovalTranslate('hitl.interruptedApprovalCancelled', '任务已中断，审批已取消')) + '</strong>' +
+            countdown.className = 'HITL-approval-countdown HITL-approval-countdown--interrupted';
+            countdown.innerHTML = '<div class="HITL-codex-state HITL-codex-state--interrupted">' +
+                '<span class="HITL-codex-state-icon" aria-hidden="true">×</span>' +
+                '<strong>' + escapeHtml(hitlApprovalTranslate('hitl.interruptedApprovalCancelled', 'Task interrupted, approval cancelled')) + '</strong>' +
                 '</div>';
         }
         return;
     }
-    if (!panel.classList.contains('hitl-approval-interrupted')) return;
-    panel.classList.remove('hitl-approval-interrupted');
+    if (!panel.classList.contains('HITL-approval-interrupted')) return;
+    panel.classList.remove('HITL-approval-interrupted');
     if (eyebrow && Object.prototype.hasOwnProperty.call(eyebrow.dataset, 'taskAvailableText')) {
         eyebrow.textContent = eyebrow.dataset.taskAvailableText;
         delete eyebrow.dataset.taskAvailableText;
     }
     if (countdown && Object.prototype.hasOwnProperty.call(countdown.dataset, 'taskAvailableHtml')) {
-        countdown.className = countdown.dataset.taskAvailableClass || 'hitl-approval-countdown';
+        countdown.className = countdown.dataset.taskAvailableClass || 'HITL-approval-countdown';
         countdown.innerHTML = countdown.dataset.taskAvailableHtml;
         if (countdown.dataset.taskAvailableExpiresAt) {
             countdown.dataset.hitlExpiresAt = countdown.dataset.taskAvailableExpiresAt;
@@ -1245,20 +1245,20 @@ function setHitlApprovalInterruptedVisualState(panel, interrupted) {
 
 function setHitlApprovalTaskAvailability(panel, conversationId) {
     if (!panel) return;
-    const id = String(conversationId || panel.dataset.conversationId || '').trim();
-    if (id) panel.dataset.conversationId = id;
+    const ID = String(conversationId || panel.dataset.conversationId || '').trim();
+    if (ID) panel.dataset.conversationId = ID;
     const interruptId = String(panel.dataset.hitlInterruptId || '').trim();
     const taskClosed = !!id && conversationExecutionTracker.ready && !conversationExecutionTracker.isRunning(id);
-    // 同一对话可能在服务重启后又启动了新任务，不能因此重新激活旧审批。
-    // 具体审批 ID 已不在 pending 列表时，倒计时和按钮必须保持关闭。
+    // The same chat may start a new task after a service restart; this must not re-activate old approvals.
+    // When a specific approval ID is no longer in the pending list, the countdown and buttons must remain closed.
     const interruptClosed = !!interruptId && hitlPendingInterruptTracker.ready &&
         !hitlPendingInterruptTracker.has(interruptId);
     const approvalClosed = taskClosed || interruptClosed;
     const buttons = panel.querySelectorAll(
-        '.hitl-inline-approve, .hitl-inline-reject, .workflow-hitl-inline-approve, .workflow-hitl-inline-reject'
+        '.hitl-inline-approve, .hitl-inline-reject, .workflow-HITL-inline-approve, .workflow-HITL-inline-reject'
     );
-    const status = panel.querySelector('.hitl-inline-status, .workflow-hitl-inline-status');
-    panel.classList.toggle('hitl-approval-task-closed', approvalClosed);
+    const status = panel.querySelector('.hitl-inline-status, .workflow-HITL-inline-status');
+    panel.classList.toggle('HITL-approval-task-closed', approvalClosed);
     setHitlApprovalInterruptedVisualState(panel, approvalClosed);
     buttons.forEach(function (button) {
         if (approvalClosed) {
@@ -1274,7 +1274,7 @@ function setHitlApprovalTaskAvailability(panel, conversationId) {
         if (!Object.prototype.hasOwnProperty.call(status.dataset, 'taskAvailableText')) {
             status.dataset.taskAvailableText = status.textContent || '';
         }
-        status.textContent = hitlApprovalTranslate('hitl.taskClosedApprovalUnavailable', '任务已结束，审批不可用');
+        status.textContent = hitlApprovalTranslate('hitl.taskClosedApprovalUnavailable', 'Task ended, approval unavailable');
     } else if (Object.prototype.hasOwnProperty.call(status.dataset, 'taskAvailableText')) {
         status.textContent = status.dataset.taskAvailableText;
         delete status.dataset.taskAvailableText;
@@ -1282,13 +1282,13 @@ function setHitlApprovalTaskAvailability(panel, conversationId) {
 }
 
 function syncHitlApprovalTaskAvailability() {
-    document.querySelectorAll('.hitl-inline-approval[data-conversation-id], .chat-hitl-approval-dock[data-conversation-id]')
+    document.querySelectorAll('.hitl-inline-approval[data-conversation-idD], .chat-HITL-approval-dock[data-conversation-idD]')
         .forEach(function (panel) {
             setHitlApprovalTaskAvailability(panel, panel.dataset.conversationId);
         });
 }
 
-/** 顶栏「停止任务」与进度条按钮对齐时，用会话 ID 反查当前页的 progress 块 ID（无则弹窗内仍可按会话取消） */
+/** When the top bar 'stop task' aligns with the progress bar button, look up the current  PAGE's progress block ID by session ID (if none, the dialog can still cancel by session) */
 function findProgressIdByConversationId(conversationId) {
     if (!conversationId) {
         return null;
@@ -1341,7 +1341,7 @@ function finalizeProgressTask(progressId, finalLabel) {
         if (finalLabel !== undefined && finalLabel !== '') {
             stopBtn.textContent = finalLabel;
         } else {
-            stopBtn.textContent = typeof window.t === 'function' ? window.t('tasks.statusCompleted') : '已完成';
+            stopBtn.textContent = typeof window.t === 'function' ? window.t('tasks.statusCompleted') : 'completed';
         }
     }
     progressTaskState.delete(progressId);
@@ -1357,12 +1357,12 @@ async function requestCancel(conversationId) {
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) {
-        throw new Error(result.error || (typeof window.t === 'function' ? window.t('tasks.cancelFailed') : '取消失败'));
+        throw new Error(result.error || (typeof window.t === 'function' ? window.t('tasks.cancelFailed') : 'Cancellation failed'));
     }
     return result;
 }
 
-/** 与 MCP 监控一致：仅终止当前进行中的工具调用，工具返回后本轮推理继续（可选 reason 合并进工具结果） */
+/** Consistent with MCP monitoring: only terminate the currently in-progress tool call; reasoning continues after the tool returns (optional reason can be merged into tool result) */
 async function requestCancelWithContinue(conversationId, reason, options = {}) {
     const executionId = options && options.executionId ? String(options.executionId).trim() : '';
     const body = {
@@ -1382,7 +1382,7 @@ async function requestCancelWithContinue(conversationId, reason, options = {}) {
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) {
-        throw new Error(result.error || (typeof window.t === 'function' ? window.t('tasks.cancelFailed') : '取消失败'));
+        throw new Error(result.error || (typeof window.t === 'function' ? window.t('tasks.cancelFailed') : 'Cancellation failed'));
     }
     return result;
 }
@@ -1417,26 +1417,26 @@ async function submitUserInterruptContinue() {
     try {
         if (stopBtn) {
             stopBtn.disabled = true;
-            stopBtn.textContent = typeof window.t === 'function' ? window.t('tasks.interruptSubmitting') : '提交中...';
+            stopBtn.textContent = typeof window.t === 'function' ? window.t('tasks.interruptSubmitting') : 'Submitting...';
         }
         await requestCancelWithContinue(conversationId, reason, {
             executionId: monitorCtx && monitorCtx.executionId ? monitorCtx.executionId : '',
         });
         if (monitorCtx && monitorCtx.executionId && typeof refreshMonitorPanel === 'function') {
-            const page = (typeof monitorState !== 'undefined' && monitorState.pagination && monitorState.pagination.page)
-                ? monitorState.pagination.page
+            const  PAGE = (typeof monitorState !== 'undefined' && monitorState.pagination && monitorState.pagination. PAGE)
+                ? monitorState.pagination. PAGE
                 : 1;
-            await refreshMonitorPanel(page);
+            await refreshMonitorPanel( PAGE);
             window.__monitorInterruptContext = null;
         }
         loadActiveTasks();
     } catch (error) {
-        console.error('中断并继续失败:', error);
-        alert((typeof window.t === 'function' ? window.t('tasks.cancelTaskFailed') : '操作失败') + ': ' + error.message);
+        console.error('Interrupt and continue failed:', error);
+        alert((typeof window.t === 'function' ? window.t('tasks.cancelTaskFailed') : 'Operation failed') + ': ' + error.message);
     } finally {
         if (stopBtn) {
             stopBtn.disabled = false;
-            stopBtn.textContent = typeof window.t === 'function' ? window.t('tasks.stopTask') : '停止任务';
+            stopBtn.textContent = typeof window.t === 'function' ? window.t('tasks.stopTask') : 'stop task';
         }
     }
 }
@@ -1458,12 +1458,12 @@ async function submitUserInterruptHardCancel() {
         await requestCancel(conversationId);
         loadActiveTasks();
     } catch (error) {
-        console.error('取消任务失败:', error);
-        alert((typeof window.t === 'function' ? window.t('tasks.cancelTaskFailed') : '取消任务失败') + ': ' + error.message);
+        console.error('CancelTask failed:', error);
+        alert((typeof window.t === 'function' ? window.t('tasks.cancelTaskFailed') : 'CancelTask failed') + ': ' + error.message);
     }
 }
 
-/** 彻底停止任务（原「停止任务」行为） */
+/** Fully stop task (original 'stop task' behavior) */
 async function performHardCancelProgressTask(progressId, conversationId = '') {
     const state = progressTaskState.get(progressId);
     const stopBtn = document.getElementById(`${progressId}-stop-btn`);
@@ -1476,7 +1476,7 @@ async function performHardCancelProgressTask(progressId, conversationId = '') {
                 stopBtn.disabled = false;
             }, 1500);
         }
-        alert(typeof window.t === 'function' ? window.t('tasks.taskInfoNotSynced') : '任务信息尚未同步，请稍后再试。');
+        alert(typeof window.t === 'function' ? window.t('tasks.taskInfoNotSynced') : 'Task info not yet synced, please try again later.');
         return;
     }
 
@@ -1487,18 +1487,18 @@ async function performHardCancelProgressTask(progressId, conversationId = '') {
     markProgressCancelling(progressId);
     if (stopBtn) {
         stopBtn.disabled = true;
-        stopBtn.textContent = typeof window.t === 'function' ? window.t('tasks.cancelling') : '取消中...';
+        stopBtn.textContent = typeof window.t === 'function' ? window.t('tasks.cancelling') : 'Cancelling...';
     }
 
     try {
         await requestCancel(targetConversationId);
         loadActiveTasks();
     } catch (error) {
-        console.error('取消任务失败:', error);
-        alert((typeof window.t === 'function' ? window.t('tasks.cancelTaskFailed') : '取消任务失败') + ': ' + error.message);
+        console.error('CancelTask failed:', error);
+        alert((typeof window.t === 'function' ? window.t('tasks.cancelTaskFailed') : 'CancelTask failed') + ': ' + error.message);
         if (stopBtn) {
             stopBtn.disabled = false;
-            stopBtn.textContent = typeof window.t === 'function' ? window.t('tasks.stopTask') : '停止任务';
+            stopBtn.textContent = typeof window.t === 'function' ? window.t('tasks.stopTask') : 'stop task';
         }
         const currentState = progressTaskState.get(progressId);
         if (currentState) {
@@ -1511,13 +1511,13 @@ const progressElapsedTimerById = new Map();
 
 function progressElapsedText(progressId) {
     const el = document.getElementById(progressId);
-    const startedAt = el && el.dataset ? Number(el.dataset.turnStartedAtMs) : NaN;
+    const startedAt = el && el.dataset ? Number(el.dataset.turnstartedAtMs) : NaN;
     const duration = typeof window.formatAssistantTurnDuration === 'function'
         ? window.formatAssistantTurnDuration(Number.isFinite(startedAt) ? Date.now() - startedAt : 0)
-        : Math.max(0, Math.floor((Date.now() - (Number.isFinite(startedAt) ? startedAt : Date.now())) / 1000)) + ' 秒';
+        : Math.max(0, Math.floor((Date.now() - (Number.isFinite(startedAt) ? startedAt : Date.now())) / 1000)) + '  sec';
     return typeof window.t === 'function'
         ? window.t('chat.turnElapsedRunning', { duration: duration })
-        : '已处理 ' + duration;
+        : 'Processed ' + duration;
 }
 
 function syncProgressElapsedSummary(progressId) {
@@ -1567,9 +1567,9 @@ function addProgressMessage() {
     
     const bubble = document.createElement('div');
     bubble.className = 'message-bubble progress-container';
-    const progressTitleText = typeof window.t === 'function' ? window.t('chat.progressInProgress') : '渗透测试进行中...';
-    const stopTaskText = typeof window.t === 'function' ? window.t('tasks.stopTask') : '停止任务';
-    const collapseDetailText = typeof window.t === 'function' ? window.t('tasks.collapseDetail') : '收起详情';
+    const progressTitleText = typeof window.t === 'function' ? window.t('chat.progressInProgress') : 'Penetration testing in progress...';
+    const stopTaskText = typeof window.t === 'function' ? window.t('tasks.stopTask') : 'Stop task';
+    const collapseDetailText = typeof window.t === 'function' ? window.t('tasks.collapseDetail') : 'Collapse details';
     bubble.innerHTML = `
         <div class="progress-header">
             <button type="button" class="turn-process-summary progress-summary-toggle is-expanded" aria-expanded="true" onclick="toggleProgressDetails('${id}')">
@@ -1612,15 +1612,15 @@ function addProgressMessage() {
     return id;
 }
 
-// 切换进度详情显示
+// Toggle progress details display
 function toggleProgressDetails(progressId) {
     const timeline = document.getElementById(progressId + '-timeline');
     const toggleBtns = document.querySelectorAll(`#${progressId} .progress-toggle`);
     
     if (!timeline || !toggleBtns.length) return;
     
-    const expandT = typeof window.t === 'function' ? window.t('chat.expandDetail') : '展开详情';
-    const collapseT = typeof window.t === 'function' ? window.t('tasks.collapseDetail') : '收起详情';
+    const expandT = typeof window.t === 'function' ? window.t('chat.expandDetail') : 'expandDetails';
+    const collapseT = typeof window.t === 'function' ? window.t('tasks.collapseDetail') : 'collapseDetails';
     if (timeline.classList.contains('expanded')) {
         timeline.classList.remove('expanded');
         toggleBtns.forEach((btn) => { btn.textContent = expandT; });
@@ -1634,7 +1634,7 @@ function toggleProgressDetails(progressId) {
     syncProgressElapsedSummary(progressId);
 }
 
-// 编排器开始输出最终回复时隐藏整条进度消息（过程已迁入助手气泡的「展开详情」，避免与进度卡重复）
+// Hide the entire progress message when the orchestrator starts outputting the final reply (the process has been moved into the assistant bubble's 'expand details', to avoid duplication with the progress card)
 function hideProgressMessageForFinalReply(progressId) {
     if (!progressId) return;
     stopLiveProgressLatestFollow(progressId);
@@ -1644,10 +1644,10 @@ function hideProgressMessageForFinalReply(progressId) {
     }
 }
 
-// 折叠所有进度详情
+// collapse all progress details
 function collapseAllProgressDetails(assistantMessageId, progressId, options) {
     const forceCollapse = !!(options && options.force);
-    // 折叠集成到MCP区域的详情
+    // collapse details integrated into the MCP area
     if (assistantMessageId) {
         const detailsId = 'process-details-' + assistantMessageId;
         const detailsContainer = document.getElementById(detailsId);
@@ -1659,7 +1659,7 @@ function collapseAllProgressDetails(assistantMessageId, progressId, options) {
             if (timeline) {
                 timeline.classList.remove('expanded');
                 document.querySelectorAll(`#${assistantMessageId} .process-detail-btn`).forEach((btn) => {
-                    btn.innerHTML = '<span>' + (typeof window.t === 'function' ? window.t('chat.expandDetail') : '展开详情') + '</span>';
+                    btn.innerHTML = '<span>' + (typeof window.t === 'function' ? window.t('chat.expandDetail') : 'expandDetails') + '</span>';
                 });
             }
         }
@@ -1668,34 +1668,34 @@ function collapseAllProgressDetails(assistantMessageId, progressId, options) {
         }
     }
     
-    // 折叠独立的详情组件（通过convertProgressToDetails创建的）
-    // 查找所有以details-开头的详情组件
-    const allDetails = document.querySelectorAll('[id^="details-"]');
+    // collapse standalone details components (created by convertProgressToDetails)
+    // Find all details components with IDs starting with 'details-'
+    const allDetails = document.querySelectorAll('[ID^="details-"]');
     allDetails.forEach(detail => {
         const timeline = detail.querySelector('.progress-timeline');
         const toggleBtns = detail.querySelectorAll('.progress-toggle');
         if (timeline) {
             timeline.classList.remove('expanded');
-            const expandT = typeof window.t === 'function' ? window.t('chat.expandDetail') : '展开详情';
+            const expandT = typeof window.t === 'function' ? window.t('chat.expandDetail') : 'expandDetails';
             toggleBtns.forEach((btn) => { btn.textContent = expandT; });
         }
     });
     
-    // 折叠原始的进度消息（如果还存在）
+    // collapse the original progress message (if it still exists)
     if (progressId) {
         const progressTimeline = document.getElementById(progressId + '-timeline');
         const progressToggleBtns = document.querySelectorAll(`#${progressId} .progress-toggle`);
         if (progressTimeline) {
             progressTimeline.classList.remove('expanded');
-            const expandT = typeof window.t === 'function' ? window.t('chat.expandDetail') : '展开详情';
+            const expandT = typeof window.t === 'function' ? window.t('chat.expandDetail') : 'expandDetails';
             progressToggleBtns.forEach((btn) => { btn.textContent = expandT; });
         }
     }
 }
 
-// 获取当前助手消息ID（用于done事件）
+// Get currentAssistant message ID (for done events)
 function getAssistantId() {
-    // 从最近的助手消息中获取ID
+    // Get ID from the most recent assistant message
     const messages = document.querySelectorAll('.message.assistant');
     if (messages.length > 0) {
         return messages[messages.length - 1].id;
@@ -1705,36 +1705,36 @@ function getAssistantId() {
 
 function applyAssistantTurnTimingFromProgress(progressId, assistantElement, terminalStatus) {
     const progressElement = document.getElementById(progressId);
-    const progressStartedAt = progressElement && progressElement.dataset
-        ? (progressElement.dataset.turnStartedAt || new Date(Number(progressElement.dataset.turnStartedAtMs) || Date.now()).toISOString())
+    const progressstartedAt = progressElement && progressElement.dataset
+        ? (progressElement.dataset.turnstartedAt || new Date(Number(progressElement.dataset.turnstartedAtMs) || Date.now()).toISOString())
         : new Date().toISOString();
-    const progressStartedAtMs = progressElement && progressElement.dataset
-        ? Number(progressElement.dataset.turnStartedAtMs)
+    const progressstartedAtMs = progressElement && progressElement.dataset
+        ? Number(progressElement.dataset.turnstartedAtMs)
         : Date.now();
     const completedAt = new Date();
     stopProgressElapsedClock(progressId);
     if (!assistantElement || typeof window.setAssistantTurnTiming !== 'function') return;
     window.setAssistantTurnTiming(assistantElement, {
-        startedAt: progressStartedAt,
+        startedAt: progressstartedAt,
         completedAt: completedAt.toISOString(),
-        durationMs: Math.max(0, completedAt.getTime() - (Number.isFinite(progressStartedAtMs) ? progressStartedAtMs : completedAt.getTime())),
+        durationMs: Math.max(0, completedAt.getTime() - (Number.isFinite(progressstartedAtMs) ? progressstartedAtMs : completedAt.getTime())),
         status: terminalStatus || 'completed'
     });
 }
 
-// 将进度详情集成到工具调用区域（流式阶段助手消息不挂 mcp 条，结束时在此创建，避免图二整行 MCP 芯片样式）
+// Integrate progress details into the tool call area (during streaming, assistant messages have no MCP records; created here at end to avoid full-row MCP chip style)
 function integrateProgressToMCPSection(progressId, assistantMessageId, mcpExecutionIds, terminalStatus) {
     stopProgressElapsedClock(progressId);
 
-    // 只 flush 终态标题/正文；完成后的详情回看统一走后端分页，不再复制实时 DOM 快照。
+    // Only flush final-state title/body; post-completion details review goes through backend pagination, no longer copying live DOM snapshots.
     flushAllPendingStreamPlainUpdates();
 
-    // 进度 DOM 即将移除；先关闭仍处于 running 的工具摘要状态。
+    // Progress DOM is about to be removed; close tool summary status that is still running first.
     finalizeOutstandingToolCallsForProgress(progressId, 'failed');
 
     const mcpIds = Array.isArray(mcpExecutionIds) ? mcpExecutionIds : [];
     
-    // 获取助手消息元素
+    // Get assistant message element
     const assistantElement = document.getElementById(assistantMessageId);
     if (!assistantElement) {
         removeMessage(progressId);
@@ -1747,7 +1747,7 @@ function integrateProgressToMCPSection(progressId, assistantMessageId, mcpExecut
         return;
     }
     
-    // 查找或创建 MCP 区域（工具栏 + 工具列表 + 迭代时间线）
+    // Find or create the MCP area (tool bar + tool list + iteration timeline)
     if (typeof window.ensureMcpCallSectionChrome === 'function') {
         window.ensureMcpCallSectionChrome(assistantElement, assistantMessageId);
     }
@@ -1771,7 +1771,7 @@ function integrateProgressToMCPSection(progressId, assistantMessageId, mcpExecut
     if (toolbar && !toolbar.querySelector('.process-detail-btn')) {
         const progressDetailBtn = document.createElement('button');
         progressDetailBtn.className = 'mcp-detail-btn process-detail-btn';
-        progressDetailBtn.innerHTML = '<span>' + (typeof window.t === 'function' ? window.t('chat.expandDetail') : '展开详情') + '</span>';
+        progressDetailBtn.innerHTML = '<span>' + (typeof window.t === 'function' ? window.t('chat.expandDetail') : 'expandDetails') + '</span>';
         progressDetailBtn.onclick = () => toggleProcessDetails(null, assistantMessageId);
         toolbar.appendChild(progressDetailBtn);
     }
@@ -1794,13 +1794,13 @@ function integrateProgressToMCPSection(progressId, assistantMessageId, mcpExecut
     if (typeof renderProcessDetails === 'function') {
         renderProcessDetails(assistantMessageId, null);
     } else {
-        const expandLabel = typeof window.t === 'function' ? window.t('chat.expandDetail') : '展开详情';
+        const expandLabel = typeof window.t === 'function' ? window.t('chat.expandDetail') : 'expandDetails';
         detailsContainer.dataset.lazyNotLoaded = '1';
         detailsContainer.dataset.loaded = '0';
         detailsContainer.innerHTML = `
             <div class="process-details-content">
-                <div class="progress-timeline" id="${detailsId}-timeline">
-                    <div class="progress-timeline-empty">${typeof window.t === 'function' ? window.t('chat.expandDetailLazyHint') : (expandLabel + '（点击后加载迭代详情）')}</div>
+                <div class="progress-timeline" ID="${detailsId}-timeline">
+                    <div class="progress-timeline-empty">${typeof window.t === 'function' ? window.t('chat.expandDetailLazyHint') : (expandLabel + ' (Click to load iteration details)')}</div>
                 </div>
             </div>
         `;
@@ -1810,7 +1810,7 @@ function integrateProgressToMCPSection(progressId, assistantMessageId, mcpExecut
         }
     }
 
-    const expandLabel = typeof window.t === 'function' ? window.t('chat.expandDetail') : '展开详情';
+    const expandLabel = typeof window.t === 'function' ? window.t('chat.expandDetail') : 'expandDetails';
     document.querySelectorAll(`#${assistantMessageId} .process-detail-btn`).forEach((btn) => {
         btn.innerHTML = '<span>' + expandLabel + '</span>';
     });
@@ -1824,13 +1824,13 @@ const processDetailsReturnLatestControls = new WeakMap();
 const processDetailsLatestFollowStates = new Map();
 const PROCESS_DETAILS_RESTORE_FOLLOW_MS = 6000;
 const PROCESS_DETAILS_FOLLOW_SCROLLBAR_GUTTER_PX = 18;
-// 只有用户真正滚到底部才恢复自动跟随；保留 2px 兼容亚像素滚动。
+// Only restore auto-follow when the user genuinely scrolls to the bottom; keep 2px tolerance for sub-pixel scrolling.
 const PROCESS_DETAILS_FOLLOW_RESUME_THRESHOLD_PX = 2;
 
 function processDetailsReturnLatestLabel() {
-    if (typeof window.t !== 'function') return '回到最新迭代';
+    if (typeof window.t !== 'function') return 'Return to latest iteration';
     const value = window.t('chat.returnToLatestProcessDetail');
-    return value && value !== 'chat.returnToLatestProcessDetail' ? value : '回到最新迭代';
+    return value && value !== 'chat.returnToLatestProcessDetail' ? value : 'Return to latest iteration';
 }
 
 function processDetailsDistanceFromLatest(timeline) {
@@ -1861,8 +1861,8 @@ function updateProcessDetailsReturnLatestControl(timeline) {
     const awayFromLatest = processDetailsDistanceFromLatest(timeline) > PROCESS_DETAILS_FOLLOW_RESUME_THRESHOLD_PX;
     const expanded = timeline.classList && timeline.classList.contains('expanded');
     const followState = getProcessDetailsLatestFollowStateForTimeline(timeline);
-    // 运行中粘底会在 MutationObserver 与下一帧滚底之间短暂离底；
-    // 只要用户还没主动上滑 detached，就不要把“回到最新迭代”按钮闪出来。
+    // Sticky-to-bottom during running briefly detaches between MutationObserver and the next frame; 
+    // As long as the user has not actively scrolled up (detached), do not flash the "Return to latest iteration" button.
     const followingLatest = !!(followState && !followState.detached);
     const shouldShow = !followingLatest && expanded && scrollable && awayFromLatest;
     const label = processDetailsReturnLatestLabel();
@@ -1986,13 +1986,13 @@ window.markProcessDetailsReturnLatestPending = markProcessDetailsReturnLatestPen
 
 function processDetailsContinuousLabel(kind) {
     if (kind === 'older') {
-        return typeof window.t === 'function' ? window.t('chat.loadingEarlierDetails') : '正在加载更早记录…';
+        return typeof window.t === 'function' ? window.t('chat.loadingEarlierDetails') : 'Loading earlier records…';
     }
     if (kind === 'newer') {
-        return typeof window.t === 'function' ? window.t('chat.loadingLaterDetails') : '正在加载更新记录…';
+        return typeof window.t === 'function' ? window.t('chat.loadingLaterDetails') : 'Loading newer records…';
     }
     if (kind === 'retry') {
-        return typeof window.t === 'function' ? window.t('common.retry') : '加载失败，点击重试';
+        return typeof window.t === 'function' ? window.t('common.retry') : 'Load failed, click to retry';
     }
     return '';
 }
@@ -2029,7 +2029,7 @@ async function requestProcessDetailsAutoPage(assistantMessageId, backendMessageI
             autoLoadAll: false
         });
     } catch (e) {
-        console.error('自动加载过程详情失败:', e);
+        console.error('Autofailed to load process details:', e);
         sentinel.classList.remove('is-loading');
         sentinel.classList.add('is-error');
         sentinel.textContent = processDetailsContinuousLabel('retry');
@@ -2043,12 +2043,12 @@ async function requestProcessDetailsAutoPage(assistantMessageId, backendMessageI
     }
 }
 
-function updateProcessDetailsPaginationButtons(assistantMessageId, backendMessageId, pageState) {
+function updateProcessDetailsPaginationButtons(assistantMessageId, backendMessageId,  pageState) {
     const detailsContainer = document.getElementById('process-details-' + assistantMessageId);
     if (!detailsContainer) return;
     const timeline = detailsContainer.querySelector('.progress-timeline');
     if (!timeline) return;
-    const state = pageState || {};
+    const state =  pageState || {};
     detailsContainer.dataset.hasPrev = state.hasPrev ? '1' : '0';
     detailsContainer.dataset.hasNext = state.hasNext ? '1' : '0';
 
@@ -2097,13 +2097,13 @@ function updateProcessDetailsPaginationButtons(assistantMessageId, backendMessag
         processDetailsAutoLoadObservers.set(detailsContainer, observer);
     } else {
         if (topSentinel) {
-            topSentinel.textContent = typeof window.t === 'function' ? window.t('common.loadMore') : '加载更早记录';
+            topSentinel.textContent = typeof window.t === 'function' ? window.t('common.loadMore') : 'Load earlier records';
             topSentinel.onclick = function () {
                 requestProcessDetailsAutoPage(assistantMessageId, backendMessageId, 'prev', topSentinel);
             };
         }
         if (bottomSentinel) {
-            bottomSentinel.textContent = typeof window.t === 'function' ? window.t('common.loadMore') : '加载更新记录';
+            bottomSentinel.textContent = typeof window.t === 'function' ? window.t('common.loadMore') : 'Load newer records';
             bottomSentinel.onclick = function () {
                 requestProcessDetailsAutoPage(assistantMessageId, backendMessageId, 'next', bottomSentinel);
             };
@@ -2152,9 +2152,9 @@ function stopAllProcessDetailsLatestFollow() {
 }
 
 /**
- * 刷新恢复运行中会话时，迭代思考区有自己独立的滚动容器。
- * 历史详情首屏、后续分帧渲染和 SSE 字符增量都会继续增高该容器，
- * 因此不能只粘住外层 #chat-messages，也不能只在首屏完成时滚动一次。
+ * When restoring a running session, the iterative thinking area has its own independent scroll container.
+ * The initial render of history details, subsequent frame-by-frame rendering, and SSE character increments all continue to increase the height of this container,
+ * so it is not enough to just stick to the outer #chat-messages, nor to scroll only once when the first screen completes.
  */
 function startProcessDetailsLatestFollow(assistantMessageId, options) {
     const opts = options || {};
@@ -2221,7 +2221,7 @@ function startProcessDetailsLatestFollow(assistantMessageId, options) {
             detachForUserNavigation();
         }
     };
-    const onTouchStart = function (event) {
+    const onTouchstart = function (event) {
         if (!event || !event.touches || event.touches.length !== 1) return;
         state.touchLastY = event.touches[0].clientY;
         state.userScrollIntentUntil = Date.now() + 1200;
@@ -2245,10 +2245,10 @@ function startProcessDetailsLatestFollow(assistantMessageId, options) {
         const scrolledDown = currentTop > state.lastScrollTop + 1;
         const distance = Math.max(0, timeline.scrollHeight - timeline.clientHeight - timeline.scrollTop);
 
-        // 第一次小幅上滑时仍可能处在“距底部 32px”阈值内，不能在同一个 scroll
-        // 事件里刚脱离又立即恢复，否则持续输出会把视口反复拉回底部。
-        // 刷新后重建历史迭代会引起无用户输入的滚动锚定变化；这种布局滚动
-        // 不能停止内层最新内容跟随，只有明确用户意图或已分离状态才保持分离。
+        // On the first small upward scroll, the position may still be within the "32px from bottom" threshold; do not
+        // detach and immediately re-attach within the same scroll event, otherwise continuous output will repeatedly pull the viewport back to the bottom.
+        // Rebuilding history iterations after refresh causes scroll anchor changes without user input; such layout scrolling
+        // must not stop the inner latest content from following; only explicit user intent or already-detached state should maintain separation.
         if (scrolledUp && (state.detached || Date.now() <= state.userScrollIntentUntil)) {
             detachForUserNavigation();
         } else if (
@@ -2270,14 +2270,14 @@ function startProcessDetailsLatestFollow(assistantMessageId, options) {
     timeline.addEventListener('wheel', onWheel, { passive: true });
     timeline.addEventListener('pointerdown', onPointerDown, { passive: true });
     timeline.addEventListener('keydown', onKeyDown);
-    timeline.addEventListener('touchstart', onTouchStart, { passive: true });
+    timeline.addEventListener('touchstart', onTouchstart, { passive: true });
     timeline.addEventListener('touchmove', onTouchMove, { passive: true });
     timeline.addEventListener('touchend', onTouchEnd, { passive: true });
     timeline.addEventListener('scroll', onScroll, { passive: true });
     state.cleanup.push(function () { timeline.removeEventListener('wheel', onWheel); });
     state.cleanup.push(function () { timeline.removeEventListener('pointerdown', onPointerDown); });
     state.cleanup.push(function () { timeline.removeEventListener('keydown', onKeyDown); });
-    state.cleanup.push(function () { timeline.removeEventListener('touchstart', onTouchStart); });
+    state.cleanup.push(function () { timeline.removeEventListener('touchstart', onTouchstart); });
     state.cleanup.push(function () { timeline.removeEventListener('touchmove', onTouchMove); });
     state.cleanup.push(function () { timeline.removeEventListener('touchend', onTouchEnd); });
     state.cleanup.push(function () { timeline.removeEventListener('scroll', onScroll); });
@@ -2297,7 +2297,7 @@ function startProcessDetailsLatestFollow(assistantMessageId, options) {
         state.hasPendingNewBelow = false;
         state.lastScrollTop = timeline.scrollTop;
         updateProcessDetailsReturnLatestControl(timeline);
-        // 内层迭代区与外层对话区分别粘底；用户上滑内层后，本状态会暂停两者的自动跟随。
+        // The inner iteration area and outer chat area each stick to the bottom; after the user scrolls up in the inner area, this state pauses auto-follow for both.
         if (window.KestrelChatScroll &&
             typeof window.KestrelChatScroll.scrollIfPinned === 'function') {
             window.KestrelChatScroll.scrollIfPinned(true);
@@ -2359,8 +2359,8 @@ window.startLiveProgressLatestFollow = startLiveProgressLatestFollow;
 window.stopLiveProgressLatestFollow = stopLiveProgressLatestFollow;
 
 /**
- * 分页加载过程详情并增量渲染。默认全量加载供恢复流程使用；
- * 用户手动展开时由任务状态选择首个历史页或最新页，滚动到边界后自动加载相邻页。
+ * Load process details by  PAGE and render incrementally. default full load is used for the resume flow; 
+ * when user manually expands, task status selects the first history  PAGE or latest  PAGE, and after scrolling to the boundary, auto-loads adjacent  pages.
  */
 async function loadProcessDetailsPaginated(assistantMessageId, backendMessageId, options) {
     if (!assistantMessageId || !backendMessageId || typeof apiFetch !== 'function' || typeof renderProcessDetails !== 'function') {
@@ -2384,7 +2384,7 @@ async function loadProcessDetailsPaginated(assistantMessageId, backendMessageId,
     const anchorId = opts.anchorId != null ? String(opts.anchorId).trim() : '';
     if (opts.initialLatest && !prepend && !opts.append && !anchorId) {
         if (detailsContainer) {
-            // 初页渲染完成前禁止顶部哨兵抢先触发；定位到底部后再开放自动加载。
+            // disable the top sentinel from triggering before initial  PAGE render completes; enable auto-load after positioning to the bottom.
             detailsContainer.dataset.autoLoadSuspended = '1';
         }
         const summaryRes = await apiFetch(
@@ -2427,8 +2427,8 @@ async function loadProcessDetailsPaginated(assistantMessageId, backendMessageId,
             markLoaded: autoLoadAll ? !hasMore : true,
             toolExecutions: toolExecutions
         });
-        // renderProcessDetails 对大页分帧渲染；等待一帧后再放置顶部/底部哨兵，
-        // 避免哨兵被后续批次插到时间线中间。
+        // renderProcessDetails renders large  pages in frames; wait one frame before placing top/bottom sentinels,
+        // to avoid sentinels being inserted into the middle of the timeline by subsequent batches.
         await new Promise((resolve) => requestAnimationFrame(resolve));
         const responseOffset = j && typeof j.offset === 'number' ? j.offset : offset;
         const total = j && typeof j.total === 'number' ? j.total : responseOffset + details.length;
@@ -2455,8 +2455,8 @@ async function loadProcessDetailsPaginated(assistantMessageId, backendMessageId,
         await new Promise((resolve) => requestAnimationFrame(resolve));
     }
     if (opts.initialLatest) {
-        // renderProcessDetails 可能继续分帧追加，且恢复后的 SSE 会继续增长同一条思考文本；
-        // 为迭代详情单独建立短时粘底，而不只滚动外层对话容器。
+        // renderProcessDetails may continue appending in frames, and the resumed SSE will continue growing the same thinking text; 
+        // establish short-lived sticky-bottom specifically for iteration details, instead of only scrolling the outer chat container.
         startProcessDetailsLatestFollow(assistantMessageId, {
             durationMs: PROCESS_DETAILS_RESTORE_FOLLOW_MS
         });
@@ -2479,7 +2479,7 @@ window.loadProcessDetailsPaginated = loadProcessDetailsPaginated;
 
 function shouldInitiallyOpenProcessDetailsAtLatest(assistantMessageId, detailsContainer) {
     if (!detailsContainer) return false;
-    // task-events 恢复流会明确给当前详情容器打 is-streaming 标记。
+    // task-events resume stream will explicitly mark the currentDetails container with is-streaming.
     if (detailsContainer.classList.contains('is-streaming')) return true;
     try {
         const replay = window.__csTaskEventStream;
@@ -2487,11 +2487,11 @@ function shouldInitiallyOpenProcessDetailsAtLatest(assistantMessageId, detailsCo
             return true;
         }
     } catch (e) { /* ignore */ }
-    // 其余情况按终态/历史详情处理，从第一条开始，便于顺序复盘。
+    // other cases are treated as terminal/historical details, starting from the first item for sequential review.
     return false;
 }
 
-function resolveEventBackendMessageId(eventData) {
+function resolveEventbackendMessageId(eventData) {
     if (!eventData || typeof eventData !== 'object') return '';
     const raw = eventData.messageId != null ? eventData.messageId : eventData.assistantMessageId;
     return raw != null ? String(raw).trim() : '';
@@ -2500,11 +2500,11 @@ function resolveEventBackendMessageId(eventData) {
 function triggerLazyProcessDetailsLoad(assistantMessageId, backendMessageId, detailsContainer) {
     if (!assistantMessageId || !backendMessageId || !detailsContainer) return false;
     if (detailsContainer.dataset.loading === '1') return false;
-    const collapseT = typeof window.t === 'function' ? window.t('tasks.collapseDetail') : '收起详情';
+    const collapseT = typeof window.t === 'function' ? window.t('tasks.collapseDetail') : 'collapseDetails';
     detailsContainer.dataset.loading = '1';
     const timeline = detailsContainer.querySelector('.progress-timeline');
     if (timeline) {
-        timeline.innerHTML = '<div class="progress-timeline-empty">' + ((typeof window.t === 'function') ? window.t('common.loading') : '加载中…') + '</div>';
+        timeline.innerHTML = '<div class="progress-timeline-empty">' + ((typeof window.t === 'function') ? window.t('common.loading') : 'Loading…') + '</div>';
     }
     const openAtLatest = shouldInitiallyOpenProcessDetailsAtLatest(assistantMessageId, detailsContainer);
     loadProcessDetailsPaginated(assistantMessageId, backendMessageId, {
@@ -2513,10 +2513,10 @@ function triggerLazyProcessDetailsLoad(assistantMessageId, backendMessageId, det
         initialStart: !openAtLatest
     })
         .catch((e) => {
-            console.error('加载过程详情失败:', e);
+            console.error('failed to load process details:', e);
             const tl = detailsContainer.querySelector('.progress-timeline');
             if (tl) {
-                tl.innerHTML = '<div class="progress-timeline-empty">' + ((typeof window.t === 'function') ? window.t('chat.noProcessDetail') : '暂无过程详情（加载失败）') + '</div>';
+                tl.innerHTML = '<div class="progress-timeline-empty">' + ((typeof window.t === 'function') ? window.t('chat.noProcessDetail') : 'No process details (load failed)') + '</div>';
                 if (typeof window.bindProcessDetailsLazyHint === 'function') {
                     window.bindProcessDetailsLazyHint(tl, assistantMessageId);
                 }
@@ -2571,16 +2571,16 @@ function scheduleProcessDetailsLoadWhenReady(assistantMessageId, detailsContaine
     setTimeout(() => scheduleProcessDetailsLoadWhenReady(assistantMessageId, detailsContainer, tries + 1), 200);
 }
 
-// 切换过程详情显示
+// Toggle process details display
 function toggleProcessDetails(progressId, assistantMessageId) {
     const detailsId = 'process-details-' + assistantMessageId;
     const detailsContainer = document.getElementById(detailsId);
     if (!detailsContainer) return;
 
-    const expandT = typeof window.t === 'function' ? window.t('chat.expandDetail') : '展开详情';
-    const collapseT = typeof window.t === 'function' ? window.t('tasks.collapseDetail') : '收起详情';
+    const expandT = typeof window.t === 'function' ? window.t('chat.expandDetail') : 'expandDetails';
+    const collapseT = typeof window.t === 'function' ? window.t('tasks.collapseDetail') : 'collapseDetails';
 
-    // 懒加载：首次展开时才从后端拉取该条消息的过程详情
+    // Lazy load: only fetch this message's process details from backend on first expand
     const maybeLazy = detailsContainer.dataset && detailsContainer.dataset.lazyNotLoaded === '1' && detailsContainer.dataset.loaded !== '1';
     if (maybeLazy) {
         const messageEl = document.getElementById(assistantMessageId);
@@ -2623,19 +2623,19 @@ function toggleProcessDetails(progressId, assistantMessageId) {
         window.syncAssistantTurnSummary(document.getElementById(assistantMessageId));
     }
     
-    // 滚动到展开的详情位置（流式且用户上滑阅读时不抢主列表滚动）
+    // Scroll to the expanded details position (do not grab the main list scroll when streaming and user is scrolling up to read)
     if (timeline && timeline.classList.contains('expanded')) {
         setTimeout(() => {
-            if (window.KestrelChatScroll && typeof window.KestrelChatScroll.scrollIntoViewIfFollowing === 'function') {
-                window.KestrelChatScroll.scrollIntoViewIfFollowing(detailsContainer, { behavior: 'smooth', block: 'nearest' });
+            if (window.KestrelChatScroll && typeof window.KestrelChatScroll.scrollIntoviewIfFollowing === 'function') {
+                window.KestrelChatScroll.scrollIntoviewIfFollowing(detailsContainer, { behavior: 'smooth', block: 'nearest' });
             } else if (typeof window.captureScrollPinState === 'function' ? window.captureScrollPinState() : true) {
-                detailsContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                detailsContainer.scrollIntoview({ behavior: 'smooth', block: 'nearest' });
             }
         }, 100);
     }
 }
 
-// 停止当前进度：弹出「中断并说明 / 彻底停止」
+// stop currentProgress: pop up 'interrupt and explain / fully stop'
 async function cancelProgressTask(progressId) {
     const state = progressTaskState.get(progressId);
     const stopBtn = document.getElementById(`${progressId}-stop-btn`);
@@ -2647,7 +2647,7 @@ async function cancelProgressTask(progressId) {
                 stopBtn.disabled = false;
             }, 1500);
         }
-        alert(typeof window.t === 'function' ? window.t('tasks.taskInfoNotSynced') : '任务信息尚未同步，请稍后再试。');
+        alert(typeof window.t === 'function' ? window.t('tasks.taskInfoNotSynced') : 'Task info not yet synced, please try again later.');
         return;
     }
 
@@ -2658,8 +2658,8 @@ async function cancelProgressTask(progressId) {
     openUserInterruptModal(progressId, state.conversationId);
 }
 
-/** 将后端消息 UUID 绑定到助手气泡，供删除本轮 / 过程详情懒加载（domId 为前端 msg-*） */
-function applyBackendMessageIdToAssistantDom(domAssistantId, backendMessageId) {
+/** bind backend message UUID to assistant bubble for deleting this round / lazy-loading process details (domId is frontend msg-*) */
+function applybackendMessageIdToAssistantDom(domAssistantId, backendMessageId) {
     if (!domAssistantId || !backendMessageId) return;
     const el = document.getElementById(domAssistantId);
     if (!el) return;
@@ -2670,8 +2670,8 @@ function applyBackendMessageIdToAssistantDom(domAssistantId, backendMessageId) {
     maybeReloadLazyProcessDetails(domAssistantId);
 }
 
-/** 将后端用户消息 ID 绑定到最后一条尚未绑定 backendMessageId 的用户气泡 */
-function applyBackendMessageIdToLastUser(backendMessageId) {
+/** bind backend user message ID to the last user bubble that has no bound backendMessageId */
+function applybackendMessageIdToLastUser(backendMessageId) {
     if (!backendMessageId) return;
     const users = document.querySelectorAll('#chat-messages .message.user');
     if (!users.length) return;
@@ -2710,7 +2710,7 @@ function resolveStreamTimeline(progressId) {
     return timeline;
 }
 
-/** 去重合并 MCP execution id（顺序：先 prev 后 next），用于多段 Run / 多次 SSE 同一任务。 */
+/** Dedup-merge MCP execution IDs (order: prev first then next), used for multi-segment run / multiple SSE for the same task. */
 function mergeMcpExecutionIDLists(prev, next) {
     const seen = new Set();
     const out = [];
@@ -2743,7 +2743,7 @@ function formatEinoRunRetryMessage(message, data) {
     if (Number.isFinite(attempt) && attempt > 0 && Number.isFinite(maxAttempts) && maxAttempts > 0) {
         const retryPlan = typeof window.t === 'function'
             ? window.t('chat.einoRunRetryPlan', { attempt: attempt, maxAttempts: maxAttempts, backoffSec: Number.isFinite(backoffSec) && backoffSec > 0 ? backoffSec : '-' })
-            : ('重试进度：第 ' + attempt + '/' + maxAttempts + ' 次，等待 ' + (Number.isFinite(backoffSec) && backoffSec > 0 ? backoffSec : '-') + ' 秒');
+            : ('Retry progress: round ' + attempt + '/ ' + maxAttempts + ' rounds, waiting ' + (Number.isFinite(backoffSec) && backoffSec > 0 ? backoffSec : '-') + '  sec');
         if (!base || base.indexOf(String(attempt) + '/' + String(maxAttempts)) === -1) {
             lines.push(retryPlan);
         }
@@ -2751,17 +2751,17 @@ function formatEinoRunRetryMessage(message, data) {
     if (kind) {
         const kindLabel = typeof window.t === 'function'
             ? window.t('chat.einoRunRetryReasonKind')
-            : '原因类型';
-        lines.push(kindLabel + '：' + kind);
+            : 'reason type';
+        lines.push(kindLabel + ': ' + kind);
     }
     if (!errRaw) {
         return lines.join('\n');
     }
     const detailLabel = typeof window.t === 'function'
         ? window.t('chat.einoRunRetryErrorDetail')
-        : '错误详情';
+        : 'errorDetails';
     if (!base || base.indexOf(errRaw) === -1) {
-        lines.push(detailLabel + '：' + errRaw);
+        lines.push(detailLabel + ': ' + errRaw);
     }
     return lines.join('\n');
 }
@@ -2770,18 +2770,18 @@ function formatEinoRunRetryKind(kind) {
     const key = String(kind || '').trim();
     if (!key) return '';
     const labels = {
-        rate_limit: '限流 / 请求过多',
-        retryable_http: '可重试 HTTP 错误',
-        upstream_server: '上游服务错误',
-        http_error: 'HTTP 错误',
-        upstream_busy: '上游繁忙',
-        network: '网络连接异常',
-        stream: '流式读取异常',
-        transient: '临时异常'
+        rate_limit: 'rate limited / too many requests',
+        retryable_http: 'retryable HTTP error',
+        upstream_server: 'upstream service error',
+        http_error: 'HTTP error',
+        upstream_busy: 'upstream busy',
+        network: 'network connection abnormal',
+        stream: 'streaming read abnormal',
+        transient: 'transient abnormal'
     };
     if (typeof window.t === 'function') {
-        const translated = window.t('chat.einoRunRetryKind_' + key);
-        if (translated && translated !== 'chat.einoRunRetryKind_' + key) return translated;
+        const translated = window.t('chat.einorunRetryKind_' + key);
+        if (translated && translated !== 'chat.einorunRetryKind_' + key) return translated;
     }
     return labels[key] || key;
 }
@@ -2790,11 +2790,11 @@ function formatEinoRunRetryTitle(data) {
     const d = data && typeof data === 'object' ? data : {};
     const base = typeof window.t === 'function'
         ? window.t('chat.einoRunRetryTitle')
-        : '🔁 临时错误重试';
+        : '🔁 transient error retry';
     const attempt = Number(d.attempt || 0);
     const maxAttempts = Number(d.maxAttempts || 0);
     if (Number.isFinite(attempt) && attempt > 0 && Number.isFinite(maxAttempts) && maxAttempts > 0) {
-        return base + '（' + attempt + '/' + maxAttempts + '）';
+        return base + ' (' + attempt + '/' + maxAttempts + ')';
     }
     return base;
 }
@@ -2803,10 +2803,10 @@ function formatEinoModelRetryTitle(data) {
     const d = data && typeof data === 'object' ? data : {};
     const base = typeof window.t === 'function'
         ? window.t('chat.einoModelRetryTitle')
-        : '🔁 模型调用重试';
+        : '🔁 model call retry';
     const attempt = Number(d.attempt || 0);
     if (Number.isFinite(attempt) && attempt > 0) {
-        return base + '（' + attempt + '）';
+        return base + ' (' + attempt + ')';
     }
     return base;
 }
@@ -2817,10 +2817,10 @@ function formatEinoModelRetryMessage(message, data) {
     const base = String(message || '').trim();
     if (base) lines.push(base);
     if (d.reason != null && String(d.reason).trim() !== '') {
-        lines.push('原因：' + String(d.reason).trim());
+        lines.push('Reason: ' + String(d.reason).trim());
     }
     if (d.error != null && String(d.error).trim() !== '') {
-        lines.push('错误详情：' + String(d.error).trim());
+        lines.push('errorDetails: ' + String(d.error).trim());
     }
     return lines.join('\n');
 }
@@ -2829,10 +2829,10 @@ function formatEinoModelFailoverTitle(data) {
     const d = data && typeof data === 'object' ? data : {};
     const base = typeof window.t === 'function'
         ? window.t('chat.einoModelFailoverTitle')
-        : '🔀 切换备用模型';
+        : '🔀 switch to backup model';
     const attempt = Number(d.attempt || 0);
     if (Number.isFinite(attempt) && attempt > 0) {
-        return base + '（' + attempt + '）';
+        return base + ' (' + attempt + ')';
     }
     return base;
 }
@@ -2843,10 +2843,10 @@ function formatEinoModelFailoverMessage(message, data) {
     const base = String(message || '').trim();
     if (base) lines.push(base);
     if (d.channel != null && String(d.channel).trim() !== '') {
-        lines.push('通道：' + String(d.channel).trim());
+        lines.push('Channel: ' + String(d.channel).trim());
     }
     if (d.model != null && String(d.model).trim() !== '') {
-        lines.push('模型：' + String(d.model).trim());
+        lines.push('Model: ' + String(d.model).trim());
     }
     return lines.join('\n');
 }
@@ -2865,7 +2865,7 @@ function formatEinoUsageSummaryTitle(data) {
     const d = data && typeof data === 'object' ? data : {};
     const base = typeof window.t === 'function'
         ? window.t('chat.einoUsageSummaryTitle')
-        : 'Token 用量汇总';
+        : 'token usage summary';
     const total = Number(d.totalTokens || 0);
     if (Number.isFinite(total) && total > 0) {
         return base + ' · ' + formatCompactInteger(total);
@@ -2881,16 +2881,16 @@ function formatEinoUsageSummaryMessage(data) {
         return translated && translated !== key ? translated : fallback;
     };
     const rows = [
-        [label('chat.einoUsageModelCalls', '模型调用'), d.modelCalls],
-        [label('chat.einoUsagePromptTokens', '输入 tokens'), d.promptTokens],
-        [label('chat.einoUsageCompletionTokens', '输出 tokens'), d.completionTokens],
-        [label('chat.einoUsageTotalTokens', '总 tokens'), d.totalTokens]
+        [label('chat.einoUsageModelCalls', 'model calls'), d.modelCalls],
+        [label('chat.einoUsagePromptTokens', 'input tokens'), d.promptTokens],
+        [label('chat.einoUsageCompletionTokens', 'output tokens'), d.completionTokens],
+        [label('chat.einoUsageTotalTokens', 'total tokens'), d.totalTokens]
     ];
     if (Number(d.cachedTokens || 0) > 0) {
-        rows.push([label('chat.einoUsageCachedTokens', '缓存 tokens'), d.cachedTokens]);
+        rows.push([label('chat.einoUsageCachedTokens', 'Cached tokens'), d.cachedTokens]);
     }
     if (Number(d.reasoningTokens || 0) > 0) {
-        rows.push([label('chat.einoUsageReasoningTokens', '推理 tokens'), d.reasoningTokens]);
+        rows.push([label('chat.einoUsageReasoningTokens', 'reasoning tokens'), d.reasoningTokens]);
     }
     return rows.map(function (row) {
         return row[0] + ': ' + formatCompactInteger(row[1]);
@@ -2913,7 +2913,7 @@ function dispatchAgentPlanTaskEvent(event, fallbackConversationId) {
     }));
 }
 
-// 处理流式事件
+// Process streaming events
 function handleStreamEvent(event, progressElement, progressId, 
                           getAssistantId, setAssistantId, getMcpIds, setMcpIds, options) {
     const expectedConversationId = options && options.conversationId
@@ -2946,21 +2946,21 @@ function handleStreamEvent(event, progressElement, progressId,
         ? window.captureScrollPinState()
         : (typeof window.isChatMessagesPinnedToBottom === 'function' ? window.isChatMessagesPinnedToBottom() : true);
 
-    // 不依赖进度时间线；在首条 SSE 即可绑定用户消息 ID
+    // Does not depend on progress timeline; can bind user message ID on first SSE
     if (event.type === 'message_saved') {
         const d = event.data || {};
         if (d.userMessageId) {
-            applyBackendMessageIdToLastUser(d.userMessageId);
+            applybackendMessageIdToLastUser(d.userMessageId);
         }
         scrollChatMessagesToBottomIfPinned(streamScrollWasPinned);
         return;
     }
 
     const timeline = resolveStreamTimeline(progressId);
-    const canHandleWithoutTimeline = ['conversation', 'response', 'error', 'cancelled', 'done'].includes(String(event.type || ''));
+    const canHandleWithoutTimeline = ['conversation', 'response', 'error', 'Cancelled', 'done'].includes(String(event.type || ''));
     if (!timeline && !canHandleWithoutTimeline) return;
 
-    // 终态事件（error/cancelled）优先复用现有助手消息，避免重复追加相同报错
+    // Terminal events (error/cancelled) preferentially reuse existing assistant messages to avoid appending duplicate errors
     const upsertTerminalAssistantMessage = (message, preferredMessageId = null) => {
         const preferredIds = [];
         if (preferredMessageId) preferredIds.push(preferredMessageId);
@@ -2969,12 +2969,12 @@ function handleStreamEvent(event, progressElement, progressId,
             preferredIds.push(existingAssistantId);
         }
 
-        for (const id of preferredIds) {
-            const element = document.getElementById(id);
+        for (const ID of preferredIds) {
+            const element = document.getElementById(ID);
             if (element) {
-                updateAssistantBubbleContent(id, message, true);
-                setAssistantId(id);
-                return { assistantId: id, assistantElement: element };
+                updateAssistantBubbleContent(ID, message, true);
+                setAssistantId(ID);
+                return { assistantId: ID, assistantElement: element };
             }
         }
 
@@ -2985,34 +2985,34 @@ function handleStreamEvent(event, progressElement, progressId,
     
     switch (event.type) {
         case 'heartbeat':
-            // SSE 长连接保活，无需更新 UI
+            // SSE long-connection keepalive, no UI update needed
             break;
         case 'conversation':
             if (event.data && event.data.conversationId) {
-                // 在更新之前，先获取任务对应的原始对话ID
+                // Before updating, first GET the original chat ID corresponding to the task
                 const taskState = progressTaskState.get(progressId);
                 const originalConversationId = taskState?.conversationId;
                 
-                // 更新任务状态
+                // updateTask status
                 updateProgressConversation(progressId, event.data.conversationId);
                 
-                // 如果用户已经开始了新对话（currentConversationId 为 null），
-                // 且这个 conversation 事件来自旧对话，就不更新 currentConversationId
+                // If the user has already started a new chat (currentConversationId is null),
+                // and this conversation event is from the old chat, do not update currentConversationId
                 if (currentConversationId === null && originalConversationId !== null) {
-                    // 用户已经开始了新对话，忽略旧对话的 conversation 事件
-                    // 但仍然更新任务状态，以便正确显示任务信息
+                    // User has already started a new chat, ignoring old chat's conversation event
+                    // but still update task status to correctly display task info
                     break;
                 }
                 
-                // 更新当前对话ID
+                // updatecurrent ChatID
                 setCurrentConversationIdFromStream(event.data.conversationId);
                 syncAgentLiveStreamConversationId(event.data.conversationId);
                 updateActiveConversation();
                 addAttackChainButton(currentConversationId);
                 loadActiveTasks();
-                // 延迟刷新对话列表，确保用户消息已保存，updated_at已更新
-                // 这样新对话才能正确显示在最近对话列表的顶部
-                // 刷新最近对话列表
+                // Delay refreshing chat list to ensure user message is saved and updated_at is updated
+                // so the new chat is correctly shown at the top of the recent chat list
+                // refresh recent chat list
                 setTimeout(() => {
                     if (typeof loadConversations === 'function') {
                         loadConversations();
@@ -3051,12 +3051,12 @@ function handleStreamEvent(event, progressElement, progressId,
                     workflowNodeId: curNode,
                     einoAgent: curAgent
                 });
-                // 主通道进入新轮次或工作流切换到新 Agent 节点后，不复用上一段的流式时间线条目
+                // After main channel enters a new round or Workflows switches to a new agent node, do not reuse the streaming timeline entry from the previous segment
                 if (prevN != null && (n < prevN || prevN !== n || (curNode && prevNode && curNode !== prevNode))) {
                     clearTimelineStreamStates(progressId);
                 }
-                // 同一主代理可能从“进入模型”和“检测到工具批次”两条路径补发同一轮次。
-                // 状态缓存仍更新，但时间线只保留一个幂等条目。
+                // The same main agent may resend the same round from both the "enter model" and "detected tool batch" record paths.
+                // State cache still updates, but the timeline keeps only one idempotent entry.
                 if (duplicateMainIteration) break;
             }
             let iterTitle;
@@ -3064,20 +3064,20 @@ function handleStreamEvent(event, progressElement, progressId,
                 const phase = translatePlanExecuteAgentName(d.einoAgent != null ? d.einoAgent : '');
                 iterTitle = typeof window.t === 'function'
                     ? window.t('chat.einoPlanExecuteRound', { n: n, phase: phase })
-                    : ('Plan-Execute · 第 ' + n + ' 轮 · ' + phase);
+                    : ('Plan-execute · Round ' + n + ' · ' + phase);
             } else if (d.einoScope === 'main') {
                 iterTitle = typeof window.t === 'function'
                     ? window.t('chat.einoOrchestratorRound', { n: n })
-                    : ('主代理 · 第 ' + n + ' 轮');
+                    : ('Main Agent · Round ' + n + '');
             } else if (d.einoScope === 'sub') {
                 const ag = d.einoAgent != null ? String(d.einoAgent).trim() : '';
                 iterTitle = typeof window.t === 'function'
                     ? window.t('chat.einoSubAgentStep', { n: n, agent: ag })
-                    : ('子代理 · ' + ag + ' · 第 ' + n + ' 步');
+                    : ('Sub-Agent · ' + ag + ' · Round ' + n + '');
             } else {
                 iterTitle = typeof window.t === 'function'
                     ? window.t('chat.iterationRound', { n: n })
-                    : ('第 ' + n + ' 轮迭代');
+                    : ('Round ' + n + ' iteration');
             }
             addTimelineItem(timeline, 'iteration', {
                 title: iterTitle,
@@ -3092,7 +3092,7 @@ function handleStreamEvent(event, progressElement, progressId,
             const d = event.data || {};
             const name = d.workflowName || d.workflowId || '';
             addTimelineItem(timeline, 'workflow_start', {
-                title: '🧭 工作流开始' + (name ? (' · ' + name) : ''),
+                title: '🧭 Workflows started' + (name ? (' · ' + name) : ''),
                 message: event.message || '',
                 data: d
             });
@@ -3103,7 +3103,7 @@ function handleStreamEvent(event, progressElement, progressId,
             const d = event.data || {};
             const name = d.workflowName || d.workflowId || '';
             addTimelineItem(timeline, 'workflow_done', {
-                title: '✅ 工作流完成' + (name ? (' · ' + name) : ''),
+                title: '✅ Workflowscomplete' + (name ? (' · ' + name) : ''),
                 message: event.message || '',
                 data: d
             });
@@ -3118,7 +3118,7 @@ function handleStreamEvent(event, progressElement, progressId,
                 clearTimelineStreamStates(progressId);
             }
             addTimelineItem(timeline, 'workflow_node_start', {
-                title: '▶ 节点开始' + (label ? (' · ' + label) : ''),
+                title: '▶ Node started' + (label ? (' · ' + label) : ''),
                 message: event.message || '',
                 data: d
             });
@@ -3133,10 +3133,10 @@ function handleStreamEvent(event, progressElement, progressId,
             let title;
             if (nodeType === 'condition') {
                 const matched = d.matched === true || d.matched === 'true' || (d.output && (d.output.matched === true || d.output.matched === 'true'));
-                title = (matched ? '✅' : '🔀') + ' 条件判断' + (label ? (' · ' + label) : '') + ' → ' + (matched ? '是' : '否');
+                title = (matched ? '✅' : '🔀') + ' condition check' + (label ? (' · ' + label) : '') + ' → ' + (matched ? 'Yes' : 'No');
             } else {
                 const icon = status === 'failed' ? '❌' : (status === 'skipped' ? '⏭️' : '✅');
-                title = icon + ' 节点完成' + (label ? (' · ' + label) : '') + (status ? ('（' + status + '）') : '');
+                title = icon + ' node complete' + (label ? (' · ' + label) : '') + (status ? (' (' + status + ')') : '');
             }
             addTimelineItem(timeline, 'workflow_node_result', {
                 title: title,
@@ -3153,7 +3153,7 @@ function handleStreamEvent(event, progressElement, progressId,
             const target = d.targetLabel || d.targetId || '';
             const taken = event.type === 'workflow_branch_taken';
             addTimelineItem(timeline, event.type, {
-                title: (taken ? '➡️' : '⏭️') + (taken ? ' 执行分支' : ' 跳过分支') + (branch ? (' · ' + branch) : '') + (target ? (' → ' + target) : ''),
+                title: (taken ? '➡️' : '⏭️') + (taken ? ' execute branch' : ' skip branch') + (branch ? (' · ' + branch) : '') + (target ? (' → ' + target) : ''),
                 message: event.message || '',
                 data: d
             });
@@ -3164,7 +3164,7 @@ function handleStreamEvent(event, progressElement, progressId,
             const d = event.data || {};
             const tool = d.tool || d.toolName || '';
             addTimelineItem(timeline, 'workflow_tool_start', {
-                title: '🔧 工具节点' + (tool ? (' · ' + tool) : ''),
+                title: '🔧 tool node' + (tool ? (' · ' + tool) : ''),
                 message: event.message || '',
                 data: d
             });
@@ -3175,7 +3175,7 @@ function handleStreamEvent(event, progressElement, progressId,
             const d = event.data || {};
             const label = d.label || d.nodeId || '';
             addTimelineItem(timeline, 'workflow_agent_output', {
-                title: '🤖 Agent 输出' + (label ? (' · ' + label) : ''),
+                title: '🤖 Agent output' + (label ? (' · ' + label) : ''),
                 message: event.message || '',
                 data: d
             });
@@ -3184,7 +3184,7 @@ function handleStreamEvent(event, progressElement, progressId,
 
         case 'workflow_hitl_checkpoint': {
             addTimelineItem(timeline, 'workflow_hitl_checkpoint', {
-                title: '🧑‍⚖️ 人工确认检查点',
+                title: '🧑‍⚖️ manual confirmation checkpoint',
                 message: event.message || '',
                 data: event.data || {}
             });
@@ -3194,7 +3194,7 @@ function handleStreamEvent(event, progressElement, progressId,
         case 'workflow_hitl_waiting': {
             const d = event.data || {};
             const hitlItemId = addTimelineItem(timeline, 'workflow_hitl_waiting', {
-                title: '🧑‍⚖️ 工作流等待审批',
+                title: '🧑‍⚖️ WorkflowsAwaiting approval',
                 message: event.message || '',
                 data: d
             });
@@ -3204,8 +3204,8 @@ function handleStreamEvent(event, progressElement, progressId,
 
         case 'workflow_hitl_resumed': {
             addTimelineItem(timeline, 'workflow_hitl_resumed', {
-                title: '✅ 审批已通过',
-                message: event.message || '人工审批已通过，继续执行',
+                title: '✅ approval approved',
+                message: event.message || 'Manual approval approved, continuing execution',
                 data: event.data || {}
             });
             break;
@@ -3213,7 +3213,7 @@ function handleStreamEvent(event, progressElement, progressId,
 
         case 'workflow_hitl_rejected': {
             addTimelineItem(timeline, 'workflow_hitl_rejected', {
-                title: '❌ 审批已拒绝',
+                title: '❌ approval rejected',
                 message: event.message || '',
                 data: event.data || {}
             });
@@ -3222,7 +3222,7 @@ function handleStreamEvent(event, progressElement, progressId,
 
         case 'workflow_paused': {
             addTimelineItem(timeline, 'workflow_paused', {
-                title: '⏸️ 工作流已暂停',
+                title: '⏸️ WorkflowsPaused',
                 message: event.message || '',
                 data: event.data || {}
             });
@@ -3268,7 +3268,7 @@ function handleStreamEvent(event, progressElement, progressId,
                 state = new Map();
                 thinkingStreamStateByProgressId.set(progressId, state);
             }
-            // 同一 streamId 重复 start：复用已有条目，避免孤儿卡片 + 新条目重复收 delta
+            // Duplicate start for same streamId: reuse existing entry to avoid orphan cards + duplicate delta reception
             if (state.has(streamId)) {
                 const ex = state.get(streamId);
                 ex.buffer = '';
@@ -3283,7 +3283,7 @@ function handleStreamEvent(event, progressElement, progressId,
             }
             const labelBase = typeof window.t === 'function'
                 ? window.t(timelineType === 'reasoning_chain' ? 'chat.reasoningChain' : 'chat.aiThinking')
-                : (timelineType === 'reasoning_chain' ? '推理过程' : 'AI思考');
+                : (timelineType === 'reasoning_chain' ? 'reasoning process' : 'AI thinking');
             const emoji = timelineType === 'reasoning_chain' ? '🔗' : '🤔';
             const title = timelineAgentBracketPrefix(d) + emoji + ' ' + labelBase;
             const itemId = addTimelineItem(timeline, timelineType, {
@@ -3321,7 +3321,7 @@ function handleStreamEvent(event, progressElement, progressId,
         case 'thinking':
         case 'reasoning_chain': {
             const timelineType = event.type === 'reasoning_chain' ? 'reasoning_chain' : 'thinking';
-            // 若已由 *_stream_* 聚合（带 streamId），避免重复创建 timeline item
+            // If already aggregated by *_stream_* (with streamId), avoid creating duplicate timeline  items
             if (event.data && event.data.streamId) {
                 const streamId = event.data.streamId;
                 const state = thinkingStreamStateByProgressId.get(progressId);
@@ -3342,7 +3342,7 @@ function handleStreamEvent(event, progressElement, progressId,
 
             const labelBase = typeof window.t === 'function'
                 ? window.t(timelineType === 'reasoning_chain' ? 'chat.reasoningChain' : 'chat.aiThinking')
-                : (timelineType === 'reasoning_chain' ? '推理过程' : 'AI思考');
+                : (timelineType === 'reasoning_chain' ? 'reasoning process' : 'AI thinking');
             const emoji = timelineType === 'reasoning_chain' ? '🔗' : '🤔';
             addTimelineItem(timeline, timelineType, {
                 title: timelineAgentBracketPrefix(event.data) + emoji + ' ' + labelBase,
@@ -3353,7 +3353,7 @@ function handleStreamEvent(event, progressElement, progressId,
         }
             
         case 'tool_calls_detected':
-            // 助手正文段结束、进入工具调用：下一段 response_start 应新建时间线条目
+            // Assistant body segment ended, entering tool call: the next response_start should create a new timeline entry
             responseStreamStateByProgressId.delete(progressId);
             break;
 
@@ -3370,7 +3370,7 @@ function handleStreamEvent(event, progressElement, progressId,
             const finalizationCheckPassed = isFinalizedResponseData(finalizationCheckData);
             addTimelineItem(timeline, 'finalization_check', {
                 title: finalizationCheckTitle(finalizationCheckData),
-                message: finalizationCheckPassed ? (event.message || '最终回复检查通过。') : finalizationNoticeMarkdown(finalizationCheckData, event.message),
+                message: finalizationCheckPassed ? (event.message || 'Final reply check passed.') : finalizationNoticeMarkdown(finalizationCheckData, event.message),
                 data: event.data,
                 expanded: !finalizationCheckPassed
             });
@@ -3378,7 +3378,7 @@ function handleStreamEvent(event, progressElement, progressId,
 
         case 'finalization_auto_continue':
             addTimelineItem(timeline, 'progress', {
-                title: '继续验证',
+                title: 'Continue verification',
                 message: event.message,
                 data: event.data,
                 expanded: false
@@ -3389,7 +3389,7 @@ function handleStreamEvent(event, progressElement, progressId,
             const d = event.data || {};
             markToolExecutionItemsCancelled(timeline, autoCancelledExecutionIdsFromData(d));
             addTimelineItem(timeline, 'progress', {
-                title: '工具执行已收尾',
+                title: 'Tool execution finalized',
                 message: event.message,
                 data: d,
                 expanded: false
@@ -3402,12 +3402,12 @@ function handleStreamEvent(event, progressElement, progressId,
                 reviewer: 'audit_agent',
                 status: 'audit_running'
             });
-            const auditTargetItem = findToolCallItemForHitl(timeline, auditData);
-            if (auditTargetItem && auditTargetItem.id) {
-                renderInlineHitlApproval(auditTargetItem.id, auditData);
+            const audittargetItem = findToolCallItemForHitl(timeline, auditData);
+            if (audittargetItem && audittargetItem.id) {
+                renderInlineHitlApproval(audittargetItem.id, auditData);
             } else {
                 const auditItemId = addTimelineItem(timeline, 'hitl_audit_agent_started', {
-                    title: '审计 Agent 正在审查',
+                    title: 'Audit Agent is reviewing',
                     message: event.message,
                     data: auditData
                 });
@@ -3423,9 +3423,9 @@ function handleStreamEvent(event, progressElement, progressId,
             });
             const auditDecision = auditDecisionData.decision === 'reject' ? 'reject' : 'approve';
             if (!resolveInlineHitlDecision(timeline, auditDecisionData, auditDecision, event.message)) {
-                const auditTargetItem = findToolCallItemForHitl(timeline, auditDecisionData);
-                if (auditTargetItem && auditTargetItem.id) {
-                    renderInlineHitlApproval(auditTargetItem.id, Object.assign({}, auditDecisionData, {
+                const audittargetItem = findToolCallItemForHitl(timeline, auditDecisionData);
+                if (audittargetItem && audittargetItem.id) {
+                    renderInlineHitlApproval(audittargetItem.id, Object.assign({}, auditDecisionData, {
                         resolved: true,
                         decision: auditDecision
                     }));
@@ -3436,9 +3436,9 @@ function handleStreamEvent(event, progressElement, progressId,
         case 'hitl_interrupt': {
             hitlPendingInterruptTracker.add(event.data || {});
             hitlPendingInterruptTracker.ready = true;
-            const hitlTargetItem = findToolCallItemForHitl(timeline, event.data || {});
-            if (hitlTargetItem && hitlTargetItem.id) {
-                renderInlineHitlApproval(hitlTargetItem.id, event.data || {});
+            const hitltargetItem = findToolCallItemForHitl(timeline, event.data || {});
+            if (hitltargetItem && hitltargetItem.id) {
+                renderInlineHitlApproval(hitltargetItem.id, event.data || {});
             } else {
                 const hitlItemId = addTimelineItem(timeline, 'hitl_interrupt', {
                     title: '🧑‍⚖️ HITL',
@@ -3450,7 +3450,7 @@ function handleStreamEvent(event, progressElement, progressId,
             renderChatHitlApprovalDock(event.data || {});
             updateHitlApprovalSidebar(event.data || {}, true);
             try {
-                window.dispatchEvent(new CustomEvent('hitl-interrupt', { detail: event.data || {} }));
+                window.dispatchEvent(new CustomEvent('HITL-interrupt', { detail: event.data || {} }));
             } catch (e) {}
             break;
         }
@@ -3467,7 +3467,7 @@ function handleStreamEvent(event, progressElement, progressId,
             clearChatHitlApprovalDock(event.data && event.data.interruptId);
             updateHitlApprovalSidebar(event.data || {}, false);
             try {
-                window.dispatchEvent(new CustomEvent('hitl-resolved', { detail: event.data || {} }));
+                window.dispatchEvent(new CustomEvent('HITL-resolved', { detail: event.data || {} }));
             } catch (e) {}
             break;
         }
@@ -3484,7 +3484,7 @@ function handleStreamEvent(event, progressElement, progressId,
             clearChatHitlApprovalDock(event.data && event.data.interruptId);
             updateHitlApprovalSidebar(event.data || {}, false);
             try {
-                window.dispatchEvent(new CustomEvent('hitl-resolved', { detail: event.data || {} }));
+                window.dispatchEvent(new CustomEvent('HITL-resolved', { detail: event.data || {} }));
             } catch (e) {}
             break;
         }
@@ -3493,7 +3493,7 @@ function handleStreamEvent(event, progressElement, progressId,
             const d = event.data || {};
             const titleBase = typeof window.t === 'function'
                 ? window.t('chat.userInterruptContinueTitle')
-                : '⏸️ 用户中断并继续';
+                : '⏸️ user interrupted and continued';
             addTimelineItem(timeline, 'user_interrupt_continue', {
                 title: titleBase,
                 message: event.message || '',
@@ -3508,12 +3508,12 @@ function handleStreamEvent(event, progressElement, progressId,
             const agent = d.einoAgent ? String(d.einoAgent) : '';
             const title = typeof window.t === 'function'
                 ? window.t('chat.einoStreamErrorTitle', { agent: agent || '-' })
-                : (agent ? ('⚠️ Eino 流式中断（' + agent + '）') : '⚠️ Eino 流式中断');
+                : (agent ? ('⚠️ Eino streaming interrupted (' + agent + ')') : '⚠️ Eino streaming interrupted');
             addTimelineItem(timeline, 'warning', {
                 title: title,
                 message: event.message || (typeof window.t === 'function'
                     ? window.t('chat.einoStreamErrorMessage')
-                    : '流式读取异常，系统将按策略重试或结束。'),
+                    : 'Streaming read abnormal; system will retry or end according to policy.'),
                 data: d
             });
             break;
@@ -3523,12 +3523,12 @@ function handleStreamEvent(event, progressElement, progressId,
             const d = event.data || {};
             const title = typeof window.t === 'function'
                 ? window.t('chat.einoEmptyResponseContinueTitle')
-                : '🔁 自动续跑（无助手正文）';
+                : '🔁 auto-continue (no assistant body)';
             addTimelineItem(timeline, 'warning', {
                 title: title,
                 message: event.message || (typeof window.t === 'function'
                     ? window.t('chat.einoEmptyResponseContinueMessage')
-                    : '会话已结束但未捕获到助手正文，正在基于轨迹自动续跑…'),
+                    : 'Session ended without capturing assistant body; auto-continuing based on trajectory…'),
                 data: d
             });
             break;
@@ -3578,10 +3578,10 @@ function handleStreamEvent(event, progressElement, progressId,
 
         case 'iteration_limit_reached': {
             addTimelineItem(timeline, 'warning', {
-                title: typeof window.t === 'function' ? window.t('chat.iterationLimitReachedTitle') : '⛔ 达到迭代上限',
+                title: typeof window.t === 'function' ? window.t('chat.iterationLimitReachedTitle') : '⛔ iteration limit reached',
                 message: event.message || (typeof window.t === 'function'
                     ? window.t('chat.iterationLimitReachedMessage')
-                    : '已达到最大迭代次数，任务已停止继续自动迭代。'),
+                    : 'Maximum iterations reached, task stopped continuing auto-iteration.'),
                 data: event.data
             });
             finalizeOutstandingToolCallsForProgress(progressId, 'failed');
@@ -3593,10 +3593,10 @@ function handleStreamEvent(event, progressElement, progressId,
             const count = Number(d.pendingCount || 0);
             const countText = Number.isFinite(count) && count > 0 ? String(count) : '?';
             addTimelineItem(timeline, 'warning', {
-                title: typeof window.t === 'function' ? window.t('chat.einoPendingOrphanedTitle') : '🧹 工具调用收尾补偿',
+                title: typeof window.t === 'function' ? window.t('chat.einoPendingOrphanedTitle') : '🧹 tool call finalization compensation',
                 message: event.message || (typeof window.t === 'function'
                     ? window.t('chat.einoPendingOrphanedMessage', { count: countText })
-                    : ('检测到 ' + countText + ' 个未闭合工具调用，已自动标记为失败并收尾。')),
+                    : ('Detected ' + countText + ' unclosed tool calls, automatically marked as failed and finalized.')),
                 data: d
             });
             finalizeOutstandingToolCallsForProgress(progressId, 'failed');
@@ -3605,7 +3605,7 @@ function handleStreamEvent(event, progressElement, progressId,
 
         case 'tool_call':
             const toolInfo = event.data || {};
-            const toolName = toolInfo.toolName || (typeof window.t === 'function' ? window.t('chat.unknownTool') : '未知工具');
+            const toolName = toolInfo.toolName || (typeof window.t === 'function' ? window.t('chat.unknownTool') : 'unknown tool');
             const index = toolInfo.index || 0;
             const total = toolInfo.total || 0;
             const toolCallId = toolInfo.toolCallId || null;
@@ -3614,7 +3614,7 @@ function handleStreamEvent(event, progressElement, progressId,
                 if (existing && existing.itemId) {
                     const existingItem = document.getElementById(existing.itemId);
                     if (existingItem) {
-                        // 同一 toolCallId 的重复 tool_call（重试/补发）只更新状态，不重复追加条目。
+                        // Duplicate tool_call for same toolCallId (retry/resend) only updates status, does not append duplicate entries.
                         if (!existing.terminalStatus) {
                             updateToolCallStatus(progressId, toolCallId, 'running');
                         }
@@ -3631,7 +3631,7 @@ function handleStreamEvent(event, progressElement, progressId,
                 expanded: false
             });
             
-            // 如果有toolCallId，存储映射关系以便后续更新状态
+            // If there is a toolCallId, store the mapping for subsequent status updates
             if (toolCallId && toolCallItemId) {
                 const mapKey = toolCallMapKey(progressId, toolCallId);
                 toolCallStatusMap.set(mapKey, {
@@ -3641,18 +3641,18 @@ function handleStreamEvent(event, progressElement, progressId,
                     progressId: progressId
                 });
                 
-                // 添加执行中状态指示器
+                // add executing status indicator
                 updateToolCallStatus(progressId, toolCallId, 'running');
             }
             break;
 
         case 'tool_result_delta':
-            // 工具执行过程不流式展示，仅等 tool_result 展示最终结果。
+            // Tool execution process is not shown streaming; only waits for tool_result to show final result.
             break;
             
         case 'tool_result':
             const resultInfo = event.data || {};
-            const resultToolName = resultInfo.toolName || (typeof window.t === 'function' ? window.t('chat.unknownTool') : '未知工具');
+            const resultToolName = resultInfo.toolName || (typeof window.t === 'function' ? window.t('chat.unknownTool') : 'unknown tool');
             const success = getToolResultDisplayState(resultInfo).success;
             const resultDisplayState = getToolResultDisplayState(resultInfo, { rawText: event.message || '' });
             const backgroundRunning = resultDisplayState.kind === 'background_running';
@@ -3660,10 +3660,10 @@ function handleStreamEvent(event, progressElement, progressId,
             const resultToolCallId = resultInfo.toolCallId || null;
             const resultStatusForCall = toolDisplayStatusFromState(resultDisplayState);
             const resultExecText = resultDisplayState.kind === 'blocked'
-                ? (typeof window.t === 'function' ? window.t('chat.toolExecBlocked', { name: escapeHtml(resultToolName) }) : '工具 ' + escapeHtml(resultToolName) + ' 已拦截')
+                ? (typeof window.t === 'function' ? window.t('chat.toolExecBlocked', { name: escapeHtml(resultToolName) }) : 'Tool ' + escapeHtml(resultToolName) + ' Blocked')
                 : backgroundRunning
                 ? (getBackgroundRunningToolLabel() + ': ' + escapeHtml(resultToolName))
-                : (success ? (typeof window.t === 'function' ? window.t('chat.toolExecComplete', { name: escapeHtml(resultToolName) }) : '工具 ' + escapeHtml(resultToolName) + ' 执行完成') : (typeof window.t === 'function' ? window.t('chat.toolExecFailed', { name: escapeHtml(resultToolName) }) : '工具 ' + escapeHtml(resultToolName) + ' 执行失败'));
+                : (success ? (typeof window.t === 'function' ? window.t('chat.toolExecComplete', { name: escapeHtml(resultToolName) }) : 'Tool ' + escapeHtml(resultToolName) + ' executecomplete') : (typeof window.t === 'function' ? window.t('chat.toolExecFailed', { name: escapeHtml(resultToolName) }) : 'Tool ' + escapeHtml(resultToolName) + ' executefailed'));
 
             if (resultToolCallId) {
                 const key = toolResultStreamKey(progressId, resultToolCallId);
@@ -3725,8 +3725,8 @@ function handleStreamEvent(event, progressElement, progressId,
                 }
                 break;
             }
-            const streamingLabel = typeof window.t === 'function' ? window.t('timeline.running') : '执行中...';
-            const replyTitleBase = typeof window.t === 'function' ? window.t('chat.einoAgentReplyTitle') : '子代理回复';
+            const streamingLabel = typeof window.t === 'function' ? window.t('timeline.running') : 'Executing...';
+            const replyTitleBase = typeof window.t === 'function' ? window.t('chat.einoAgentReplyTitle') : 'sub-agent reply';
             const itemId = addTimelineItem(timeline, 'eino_agent_reply', {
                 title: timelineAgentBracketPrefix(d) + '💬 ' + replyTitleBase + ' · ' + streamingLabel,
                 message: ' ',
@@ -3777,7 +3777,7 @@ function handleStreamEvent(event, progressElement, progressId,
                 if (item) {
                     const titleEl = item.querySelector('.timeline-item-title');
                     if (titleEl) {
-                        const replyTitleBase = typeof window.t === 'function' ? window.t('chat.einoAgentReplyTitle') : '子代理回复';
+                        const replyTitleBase = typeof window.t === 'function' ? window.t('chat.einoAgentReplyTitle') : 'sub-agent reply';
                         titleEl.textContent = timelineAgentBracketPrefix(d) + '💬 ' + replyTitleBase;
                     }
                     let contentEl = item.querySelector('.timeline-item-content');
@@ -3799,7 +3799,7 @@ function handleStreamEvent(event, progressElement, progressId,
 
         case 'eino_agent_reply': {
             const replyData = event.data || {};
-            const replyTitleBase = typeof window.t === 'function' ? window.t('chat.einoAgentReplyTitle') : '子代理回复';
+            const replyTitleBase = typeof window.t === 'function' ? window.t('chat.einoAgentReplyTitle') : 'sub-agent reply';
             addTimelineItem(timeline, 'eino_agent_reply', {
                 title: timelineAgentBracketPrefix(replyData) + '💬 ' + replyTitleBase,
                 message: event.message || '',
@@ -3812,7 +3812,7 @@ function handleStreamEvent(event, progressElement, progressId,
         case 'progress':
             const progressTitle = document.querySelector(`#${progressId} .progress-stage`);
             if (progressTitle) {
-                // 保存原文，语言切换时可用 translateProgressMessage 重新套当前语言
+                // save original text; on language switch, translateProgressMessage can reapply the currentLanguage
                 const progressEl = document.getElementById(progressId);
                 if (progressEl) {
                     progressEl.dataset.progressRawMessage = event.message || '';
@@ -3827,11 +3827,11 @@ function handleStreamEvent(event, progressElement, progressId,
             }
             break;
         
-        case 'cancelled':
+        case 'Cancelled':
             stopProgressElapsedClock(progressId);
-            const taskCancelledText = typeof window.t === 'function' ? window.t('chat.taskCancelled') : '任务已取消';
+            const taskCancelledText = typeof window.t === 'function' ? window.t('chat.taskCancelled') : 'Task cancelled';
             if (timeline) {
-                addTimelineItem(timeline, 'cancelled', {
+                addTimelineItem(timeline, 'Cancelled', {
                     title: '⛔ ' + taskCancelledText,
                     message: event.message,
                     data: event.data
@@ -3846,22 +3846,22 @@ function handleStreamEvent(event, progressElement, progressId,
                 cancelProgressContainer.classList.add('completed');
             }
             if (progressTaskState.has(progressId)) {
-                finalizeProgressTask(progressId, typeof window.t === 'function' ? window.t('tasks.statusCancelled') : '已取消');
+                finalizeProgressTask(progressId, typeof window.t === 'function' ? window.t('tasks.statusCancelled') : 'Cancelled');
             }
             
-            // 复用已有助手消息（若有），避免终态事件重复插入消息
+            // Reuse existing assistant message (if any) to avoid terminal events inserting duplicate messages
             {
-                const preferredMessageId = resolveEventBackendMessageId(event.data) || null;
+                const preferredMessageId = resolveEventbackendMessageId(event.data) || null;
                 const { assistantId, assistantElement } = upsertTerminalAssistantMessage(event.message, preferredMessageId);
                 if (assistantId && preferredMessageId) {
-                    applyBackendMessageIdToAssistantDom(assistantId, preferredMessageId);
+                    applybackendMessageIdToAssistantDom(assistantId, preferredMessageId);
                 }
                 if (assistantElement) {
                     const detailsId = 'process-details-' + assistantId;
                     if (!document.getElementById(detailsId)) {
-                        integrateProgressToMCPSection(progressId, assistantId, typeof getMcpIds === 'function' ? (getMcpIds() || []) : [], 'cancelled');
+                        integrateProgressToMCPSection(progressId, assistantId, typeof getMcpIds === 'function' ? (getMcpIds() || []) : [], 'Cancelled');
                     } else if (preferredMessageId) {
-                        applyAssistantTurnTimingFromProgress(progressId, assistantElement, 'cancelled');
+                        applyAssistantTurnTimingFromProgress(progressId, assistantElement, 'Cancelled');
                         maybeReloadLazyProcessDetails(assistantId);
                     }
                     setTimeout(() => {
@@ -3870,10 +3870,10 @@ function handleStreamEvent(event, progressElement, progressId,
                 }
             }
             
-            // 立即刷新任务状态
+            // Immediately refresh task status
             loadActiveTasks();
             // Close any remaining running tool calls for this progress.
-            finalizeOutstandingToolCallsForProgress(progressId, 'cancelled');
+            finalizeOutstandingToolCallsForProgress(progressId, 'Cancelled');
             break;
 
         case 'response_start': {
@@ -3887,7 +3887,7 @@ function handleStreamEvent(event, progressElement, progressId,
             setMcpIds(mergeMcpExecutionIDLists(typeof getMcpIds === 'function' ? (getMcpIds() || []) : [], mcpIds));
 
             if (responseData.conversationId) {
-                // 如果用户已经开始了新对话（currentConversationId 为 null），且这个事件来自旧对话，则忽略
+                // If user has already started a new chat (currentConversationId is null) and this event is from the old chat, ignore it
                 if (currentConversationId === null && responseOriginalConversationId !== null) {
                     updateProgressConversation(progressId, responseData.conversationId);
                     break;
@@ -3900,13 +3900,13 @@ function handleStreamEvent(event, progressElement, progressId,
                 loadActiveTasks();
             }
 
-            // 多代理模式下，迭代过程中的输出只显示在时间线中，不创建助手消息气泡
+            // In multi-agent mode, output during iteration is only shown in the timeline, no assistant message bubble is created
             const prevStream = responseStreamStateByProgressId.get(progressId);
             const streamOrch = responseData.orchestration != null
                 ? responseData.orchestration
                 : (prevStream && prevStream.streamMeta ? prevStream.streamMeta.orchestration : '');
             if (shouldReuseMainResponseStream(progressId, prevStream, responseData, streamOrch)) {
-                // Eino 可能对同一段流重复发 response_start；复用已有条目与 buffer，避免多条「助手输出」
+                // Eino may send duplicate response_start for the same stream; reuse existing entry and buffer to avoid multiple 'assistant output' entries
                 prevStream.streamMeta = Object.assign({}, prevStream.streamMeta || {}, responseData);
                 prevStream.streamIdentity = streamIdentity;
                 if (responseData.streamId != null) {
@@ -3952,8 +3952,8 @@ function handleStreamEvent(event, progressElement, progressId,
                 }
             }
 
-            // 多代理模式下，迭代过程中的输出只显示在时间线中
-            // 更新时间线条目内容
+            // In multi-agent mode, output during iteration is only shown in the timeline
+            // update timeline entry content
             let state = responseStreamStateByProgressId.get(progressId);
             const incomingStreamId = responseData.streamId != null ? String(responseData.streamId).trim() : '';
             if (!state) {
@@ -3989,7 +3989,7 @@ function handleStreamEvent(event, progressElement, progressId,
             if (!deltaContent && streamBufferFromAccumulated(responseData) === null) break;
             state.buffer = mergeStreamBuffer(state.buffer, deltaContent, responseData);
 
-            // 流式阶段仅追加纯文本；formatTimelineStreamBody 在终态 response 时一次性处理
+            // Streaming phase only appends plain text; formatTimelineStreamBody processes once at terminal response
             if (state.itemId) {
                 const item = document.getElementById(state.itemId);
                 if (item) {
@@ -4003,17 +4003,17 @@ function handleStreamEvent(event, progressElement, progressId,
         }
 
         case 'response':
-            // 在更新之前，先获取任务对应的原始对话ID
+            // Before updating, first GET the original chat ID corresponding to the task
             const responseTaskState = progressTaskState.get(progressId);
             const responseOriginalConversationId = responseTaskState?.conversationId;
 
-            // 先更新 mcp ids
+            // First update MCP ids
             const responseData = event.data || {};
             const mcpIds = mergeMcpExecutionIDLists(typeof getMcpIds === 'function' ? (getMcpIds() || []) : [], responseData.mcpExecutionIds || []);
             setMcpIds(mcpIds);
             markToolExecutionItemsCancelled(timeline, autoCancelledExecutionIdsFromData(responseData));
 
-            // 更新对话ID
+            // updateChatID
             if (responseData.conversationId) {
                 if (currentConversationId === null && responseOriginalConversationId !== null) {
                     updateProgressConversation(progressId, responseData.conversationId);
@@ -4028,7 +4028,7 @@ function handleStreamEvent(event, progressElement, progressId,
                 loadActiveTasks();
             }
 
-            // 如果之前已经在 response_start/response_delta 阶段创建过占位，则复用该消息更新最终内容
+            // If a placeholder was previously created in response_start/response_delta phase, reuse that message to update final content
             const streamState = responseStreamStateByProgressId.get(progressId);
             const existingAssistantId = streamState?.assistantId || getAssistantId();
             let assistantIdFinal = existingAssistantId;
@@ -4048,28 +4048,28 @@ function handleStreamEvent(event, progressElement, progressId,
             }
             markAssistantFinalizationState(assistantIdFinal, responseData);
 
-            // 将 response_start/response_delta 占位固化为 planning，与后端落库一致后再快照过程详情
+            // Solidify response_start/response_delta placeholder as planning, consistent with backend DB storage, then snapshot process details
             if (streamState && streamState.itemId) {
                 finalizeMainResponseStreamItem(streamState, responseFinalized ? event.message : '', responseData);
             } else if (timeline && responseFinalized && bubbleText && String(bubbleText).trim() && !isEinoEmptyResponsePlaceholder(event.message)) {
                 addTimelineItem(timeline, 'planning', {
                     title: typeof einoMainStreamPlanningTitle === 'function'
                         ? einoMainStreamPlanningTitle(responseData)
-                        : ('📝 ' + (typeof window.t === 'function' ? window.t('chat.planning') : '规划中')),
+                        : ('📝 ' + (typeof window.t === 'function' ? window.t('chat.planning') : 'Planning')),
                     message: event.message,
                     data: responseData,
                     expanded: false
                 });
             } else if (timeline && !responseFinalized && !responseHasFinalizationContract && resolvedResponseText && String(resolvedResponseText).trim()) {
                 addTimelineItem(timeline, 'finalization_check', {
-                    title: '候选输出缺少最终化证明',
+                    title: 'Candidate output missing finalisation evidence',
                     message: resolvedResponseText,
                     data: Object.assign({}, responseData, { missingFinalizationContract: true }),
                     expanded: true
                 });
             }
 
-            // 最终回复时隐藏进度卡片（多代理模式下，迭代过程已完整展示）
+            // Hide progress card on final reply (in multi-agent mode, iteration process is fully displayed)
             hideProgressMessageForFinalReply(progressId);
 
             // Before integrating/removing the progress DOM, close any outstanding running tool calls
@@ -4078,13 +4078,13 @@ function handleStreamEvent(event, progressElement, progressId,
 
             const respMid = responseData.messageId;
             if (respMid) {
-                applyBackendMessageIdToAssistantDom(assistantIdFinal, respMid);
+                applybackendMessageIdToAssistantDom(assistantIdFinal, respMid);
             }
 
             const replayCtx = window.csTaskReplay;
             const directReplay = replayCtx && replayCtx.progressId === progressId;
             if (!directReplay) {
-                // 将详情入口集成到工具调用区域；完整过程从后端分页加载，不依赖实时 DOM 快照。
+                // Integrate details entry into the tool call area; full process is loaded paginated from backend, not relying on real-time DOM snapshot.
                 integrateProgressToMCPSection(progressId, assistantIdFinal, mcpIds);
             }
             responseStreamStateByProgressId.delete(progressId);
@@ -4108,38 +4108,38 @@ function handleStreamEvent(event, progressElement, progressId,
             
         case 'error':
             stopProgressElapsedClock(progressId);
-            // 显示错误
+            // Show error
             if (timeline) {
                 addTimelineItem(timeline, 'error', {
-                    title: '❌ ' + (typeof window.t === 'function' ? window.t('chat.error') : '错误'),
+                    title: '❌ ' + (typeof window.t === 'function' ? window.t('chat.error') : 'error'),
                     message: event.message,
                     data: event.data
                 });
             }
             
-            // 更新进度标题为错误状态
+            // update progress title to error state
             const errorTitle = document.querySelector(`#${progressId} .progress-stage`);
             if (errorTitle) {
-                errorTitle.textContent = '❌ ' + (typeof window.t === 'function' ? window.t('chat.executionFailed') : '执行失败');
+                errorTitle.textContent = '❌ ' + (typeof window.t === 'function' ? window.t('chat.executionFailed') : 'executefailed');
             }
             
-            // 更新进度容器为已完成状态（添加completed类）
+            // update progress container to completed state (add completed class)
             const progressContainer = document.querySelector(`#${progressId} .progress-container`);
             if (progressContainer) {
                 progressContainer.classList.add('completed');
             }
             
-            // 完成进度任务（标记为失败）
+            // complete progress task (mark as failed)
             if (progressTaskState.has(progressId)) {
-                finalizeProgressTask(progressId, typeof window.t === 'function' ? window.t('tasks.statusFailed') : '执行失败');
+                finalizeProgressTask(progressId, typeof window.t === 'function' ? window.t('tasks.statusFailed') : 'executefailed');
             }
             
-            // 复用已有助手消息（若有），避免终态事件重复插入消息
+            // Reuse existing assistant message (if any) to avoid terminal events inserting duplicate messages
             {
-                const preferredMessageId = resolveEventBackendMessageId(event.data) || null;
+                const preferredMessageId = resolveEventbackendMessageId(event.data) || null;
                 const { assistantId, assistantElement } = upsertTerminalAssistantMessage(event.message, preferredMessageId);
                 if (assistantId && preferredMessageId) {
-                    applyBackendMessageIdToAssistantDom(assistantId, preferredMessageId);
+                    applybackendMessageIdToAssistantDom(assistantId, preferredMessageId);
                 }
                 if (assistantElement) {
                     const detailsId = 'process-details-' + assistantId;
@@ -4157,7 +4157,7 @@ function handleStreamEvent(event, progressElement, progressId,
                 }
             }
             
-            // 立即刷新任务状态（执行失败时任务状态会更新）
+            // Immediately refresh task status (updated when execution fails)
             loadActiveTasks();
             // Close any remaining running tool calls for this progress.
             finalizeOutstandingToolCallsForProgress(progressId, 'failed');
@@ -4168,20 +4168,20 @@ function handleStreamEvent(event, progressElement, progressId,
             if (event.data && event.data.workflowStatus === 'awaiting_hitl') {
                 const waitingTitle = document.querySelector(`#${progressId} .progress-stage`);
                 if (waitingTitle) {
-                    waitingTitle.textContent = '⏸️ ' + (typeof window.t === 'function' ? window.t('chat.workflowAwaitingApproval') : '工作流等待审批');
+                    waitingTitle.textContent = '⏸️ ' + (typeof window.t === 'function' ? window.t('chat.workflowAwaitingApproval') : 'WorkflowsAwaiting approval');
                 }
                 if (progressTaskState.has(progressId)) {
-                    finalizeProgressTask(progressId, typeof window.t === 'function' ? window.t('chat.workflowAwaitingApproval') : '等待审批');
+                    finalizeProgressTask(progressId, typeof window.t === 'function' ? window.t('chat.workflowAwaitingApproval') : 'Awaiting approval');
                 }
                 break;
             }
             stopProgressElapsedClock(progressId);
-            // 清理流式输出状态
+            // Clean up streaming output state
             responseStreamStateByProgressId.delete(progressId);
             mainIterationStateByProgressId.delete(String(progressId));
             thinkingStreamStateByProgressId.delete(progressId);
             einoAgentReplyStreamStateByProgressId.delete(progressId);
-            // 清理工具流式输出占位
+            // Clean up tool streaming output placeholder
             const prefix = String(progressId) + '::';
             for (const key of Array.from(toolResultStreamStateByKey.keys())) {
                 if (String(key).startsWith(prefix)) {
@@ -4191,13 +4191,13 @@ function handleStreamEvent(event, progressElement, progressId,
             if (window.csTaskReplay && window.csTaskReplay.progressId === progressId) {
                 clearCsTaskReplay();
             }
-            // 完成，更新进度标题（如果进度消息还存在）
+            // Completed; update progress title (if progress message still exists)
             const doneTitle = document.querySelector(`#${progressId} .progress-stage`);
             if (doneTitle) {
                 const outcome = progressDoneOutcome(event.data);
                 doneTitle.textContent = outcome.icon + ' ' + (typeof window.t === 'function' ? window.t(outcome.key) : outcome.fallback);
             }
-            // 更新对话ID
+            // updateChatID
             if (event.data && event.data.conversationId) {
                 setCurrentConversationIdFromStream(event.data.conversationId);
                 syncAgentLiveStreamConversationId(event.data.conversationId);
@@ -4211,32 +4211,32 @@ function handleStreamEvent(event, progressElement, progressId,
                 finalizeProgressTask(progressId, typeof window.t === 'function' ? window.t(labelKey) : outcome.fallback);
             }
             
-            // 检查时间线中是否有错误项
+            // Check whether there are error items in the timeline
             const hasError = timeline && timeline.querySelector('.timeline-item-error');
             
-            // 立即刷新任务状态（确保任务状态同步）
+            // Immediately refresh task status (ensure task status is synchronized)
             loadActiveTasks();
             // Close any remaining running tool calls for this progress (best-effort).
             finalizeOutstandingToolCallsForProgress(progressId, progressDoneOutcome(event.data).toolStatus);
             
-            // 延迟再次刷新任务状态（确保后端已完成状态更新）
+            // Refresh task status again after a delay (ensure backend completed status is updated)
             setTimeout(() => {
                 loadActiveTasks();
             }, 200);
             
-            // 完成时自动折叠所有详情（延迟一下确保response事件已处理）
+            // Auto-collapse all details on completion (slight delay to ensure response events have been handled)
             setTimeout(() => {
                 const assistantIdFromDone = getAssistantId();
                 if (assistantIdFromDone) {
                     collapseAllProgressDetails(assistantIdFromDone, progressId);
                 } else {
-                    // 如果无法获取助手ID，尝试折叠所有详情
+                    // If assistant ID cannot be obtained, try to collapse all details
                     collapseAllProgressDetails(null, progressId);
                 }
                 
-                // 如果有错误，确保详情是折叠的（错误时应该默认折叠）
+                // If there is an error, ensure details are collapsed (should be collapsed by default on error)
                 if (hasError) {
-                    // 再次确保折叠（延迟一点确保DOM已更新）
+                    // Ensure collapse again (slight delay to ensure DOM has been updated)
                     setTimeout(() => {
                         collapseAllProgressDetails(assistantIdFromDone || null, progressId);
                     }, 200);
@@ -4245,7 +4245,7 @@ function handleStreamEvent(event, progressElement, progressId,
             break;
     }
     
-    // 仅在事件处理前用户已在底部附近时跟随滚到底部（避免上滑看历史时被拉回）
+    // Only scroll to bottom if the user was already near the bottom before the event (avoid pulling back while browsing history)
     scrollChatMessagesToBottomIfPinned(streamScrollWasPinned);
 }
 
@@ -4302,35 +4302,35 @@ function describeHitlApprovalRequest(data) {
     const args = hitlApprovalArguments(data);
     const rawToolName = String(data.toolName || payload.toolName || 'tool').trim() || 'tool';
     const toolName = rawToolName.toLowerCase();
-    const url = findHitlArgumentValue(args, ['url', 'uri', 'href', 'targetUrl', 'target_url']);
+    const URL = findHitlArgumentValue(args, ['URL', 'uri', 'href', 'targetUrl', 'target_url']);
     const command = findHitlArgumentValue(args, ['command', 'cmd', 'script', 'shell_command']);
     const path = findHitlArgumentValue(args, ['path', 'filePath', 'file_path', 'filename']);
-    const isBrowser = !!url || /browser|chrome|navigate|open_url|web/.test(toolName);
+    const isBrowser = !!URL || /browser|chrome|navigate|open_url|web/.test(toolName);
     const isCommand = !!command || /(^|::|_)exec$|shell|terminal|command|run_command/.test(toolName);
     const isFile = !!path || /write_file|edit_file|apply_patch|delete_file|move_file/.test(toolName);
     let displayTool = rawToolName;
-    let question = hitlApprovalTemplate('hitl.requestGeneric', '允许 Kestrel 调用 {{tool}}？', { tool: rawToolName });
+    let question = hitlApprovalTemplate('hitl.requestGeneric', 'Allow Kestrel to call {{tool}}?', { tool: rawToolName });
     let primary = '';
     let kind = 'generic';
     if (isBrowser) {
         kind = 'browser';
-        question = url
+        question = URL
             ? (url.length > 160
-                ? hitlApprovalTranslate('hitl.requestVisitLongUrl', '允许 Kestrel 访问此地址？')
-                : hitlApprovalTemplate('hitl.requestVisitUrl', '允许 Kestrel 访问 {{url}}？', { url: url }))
-            : hitlApprovalTranslate('hitl.requestBrowser', '允许 Kestrel 使用浏览器？');
-        primary = url;
+                ? hitlApprovalTranslate('hitl.requestVisitLongUrl', 'Allow Kestrel to visit this URL?')
+                : hitlApprovalTemplate('hitl.requestVisitUrl', 'Allow Kestrel to visit {{URL}}?', { URL: URL }))
+            : hitlApprovalTranslate('hitl.requestBrowser', 'Allow Kestrel to use the browser?');
+        primary = URL;
     } else if (isCommand) {
         kind = 'command';
-        question = hitlApprovalTranslate('hitl.requestCommand', '允许 Kestrel 执行这条命令？');
+        question = hitlApprovalTranslate('hitl.requestCommand', 'Allow Kestrel to execute this command?');
         primary = command;
     } else if (isFile) {
         kind = 'file';
         question = path
             ? (path.length > 160
-                ? hitlApprovalTranslate('hitl.requestModifyLongPath', '允许 Kestrel 修改此文件？')
-                : hitlApprovalTemplate('hitl.requestFile', '允许 Kestrel 修改 {{path}}？', { path: path }))
-            : hitlApprovalTranslate('hitl.requestFiles', '允许 Kestrel 修改文件？');
+                ? hitlApprovalTranslate('hitl.requestModifyLongPath', 'Allow Kestrel to modify this file?')
+                : hitlApprovalTemplate('hitl.requestFile', 'Allow Kestrel to modify {{path}}?', { path: path }))
+            : hitlApprovalTranslate('hitl.requestFiles', 'Allow Kestrel to modify files?');
         primary = path;
     }
     return {
@@ -4348,7 +4348,7 @@ function isAgentReviewedHitl(data) {
     if (!data) return false;
     const reviewer = String(data.reviewer || data.decidedBy || data.decided_by || '').trim().toLowerCase();
     const status = String(data.status || '').trim().toLowerCase();
-    return reviewer === 'audit_agent' || reviewer === 'agent' || reviewer === 'ai' || status === 'audit_running';
+    return reviewer === 'audit_agent' || reviewer === 'agent' || reviewer === 'AI' || status === 'audit_running';
 }
 
 function getHitlApprovalTiming(data) {
@@ -4380,15 +4380,15 @@ function formatHitlRemaining(milliseconds) {
 function buildHitlCountdownHtml(data) {
     const timing = getHitlApprovalTiming(data);
     if (!timing.timeoutSeconds || !timing.expiresAt) {
-        return '<div class="hitl-approval-countdown hitl-approval-countdown--unlimited">' +
-            '<span>' + escapeHtml(hitlApprovalTranslate('hitl.timeoutUnlimited', '不限时等待')) + '</span></div>';
+        return '<div class="HITL-approval-countdown HITL-approval-countdown--unlimited">' +
+            '<span>' + escapeHtml(hitlApprovalTranslate('hitl.timeoutUnlimited', 'Wait indefinitely')) + '</span></div>';
     }
     const remaining = Math.max(0, timing.expiresAt - Date.now());
     const percent = Math.max(0, Math.min(100, remaining / (timing.timeoutSeconds * 1000) * 100));
-    return '<div class="hitl-approval-countdown" data-hitl-expires-at="' + timing.expiresAt + '" data-hitl-timeout="' + timing.timeoutSeconds + '">' +
-        '<div class="hitl-approval-countdown-copy"><span>' + escapeHtml(hitlApprovalTranslate('hitl.timeoutAutoReject', '到期自动拒绝')) + '</span>' +
-        '<strong class="hitl-approval-countdown-value">' + formatHitlRemaining(remaining) + '</strong></div>' +
-        '<div class="hitl-approval-progress" aria-hidden="true"><span class="hitl-approval-progress-value" style="width:' + percent.toFixed(2) + '%"></span></div>' +
+    return '<div class="HITL-approval-countdown" data-hitl-expires-at="' + timing.expiresAt + '" data-hitl-timeout="' + timing.timeoutSeconds + '">' +
+        '<div class="HITL-approval-countdown-copy"><span>' + escapeHtml(hitlApprovalTranslate('hitl.timeoutAutoReject', 'Auto-reject on expiry')) + '</span>' +
+        '<strong class="HITL-approval-countdown-value">' + formatHitlRemaining(remaining) + '</strong></div>' +
+        '<div class="HITL-approval-progress" aria-hidden="true"><span class="HITL-approval-progress-value" style="width:' + percent.toFixed(2) + '%"></span></div>' +
         '</div>';
 }
 
@@ -4403,7 +4403,7 @@ function bindHitlApprovalCountdown(panel, data) {
     if (!panel) return;
     stopHitlApprovalCountdown(panel);
     panel.__hitlApprovalCountdownData = data;
-    if (panel.classList.contains('hitl-approval-task-closed')) return;
+    if (panel.classList.contains('HITL-approval-task-closed')) return;
     const timing = getHitlApprovalTiming(data);
     const countdown = panel.querySelector('.hitl-approval-countdown[data-hitl-expires-at]');
     if (!countdown || !timing.expiresAt || !timing.timeoutSeconds) return;
@@ -4416,12 +4416,12 @@ function bindHitlApprovalCountdown(panel, data) {
         if (progress) progress.style.width = percent.toFixed(2) + '%';
         if (remaining <= 0) {
             stopHitlApprovalCountdown(panel);
-            panel.classList.add('hitl-approval-expired');
+            panel.classList.add('HITL-approval-expired');
             panel.querySelectorAll('.hitl-inline-approve, .hitl-inline-reject').forEach(function (button) {
                 button.disabled = true;
             });
             const status = panel.querySelector('.hitl-inline-status');
-            if (status) status.textContent = hitlApprovalTranslate('hitl.expiredAutoRejected', '审批已超时，正在自动拒绝…');
+            if (status) status.textContent = hitlApprovalTranslate('hitl.expiredAutoRejected', 'Approval timed out, auto-rejecting…');
         }
     };
     update();
@@ -4433,7 +4433,7 @@ function renderToolCallApprovalSummary(item, data) {
     let panel = item.querySelector(':scope > .hitl-inline-approval.hitl-tool-approval-summary');
     if (!panel) {
         panel = document.createElement('div');
-        panel.className = 'hitl-inline-approval hitl-tool-approval-summary';
+        panel.className = 'HITL-inline-approval HITL-tool-approval-summary';
         const header = item.querySelector(':scope > .timeline-item-header');
         if (header && header.nextSibling) {
             item.insertBefore(panel, header.nextSibling);
@@ -4455,7 +4455,7 @@ function renderToolCallApprovalSummary(item, data) {
     });
     panel.dataset.hitlInterruptId = String(data.interruptId);
     panel.dataset.conversationId = String(data.conversationId || window.currentConversationId || '').trim();
-    panel.classList.toggle('hitl-inline-done', !!data.resolved || String(data.status || '') === 'decided');
+    panel.classList.toggle('HITL-inline-done', !!data.resolved || String(data.status || '') === 'decided');
     if (!data.resolved && !isAgentReviewedHitl(data)) {
         bindInlineHitlApproval(panel, data, { allowEdit: allowEdit });
         bindHitlApprovalCountdown(panel, data);
@@ -4485,7 +4485,7 @@ function renderInlineHitlApproval(itemId, data) {
     }
     let contentEl = item.querySelector('.timeline-item-content');
     if (!contentEl) {
-        // warning 等类型默认没有内容区域；HITL 内联审批需要可交互容器
+        // Warning and similar types have no content area by default; HITL inline approval needs an interactive container
         contentEl = document.createElement('div');
         contentEl.className = 'timeline-item-content';
         item.appendChild(contentEl);
@@ -4504,10 +4504,10 @@ function renderInlineHitlApproval(itemId, data) {
     const allowEdit = mode === 'review_edit';
     const argsObj = payload.argumentsObj && typeof payload.argumentsObj === 'object' ? payload.argumentsObj : {};
     const argsJSON = JSON.stringify(argsObj, null, 2);
-    const modeLabel = mode === 'review_edit' ? '审查编辑' : '审批模式';
+    const modeLabel = mode === 'review_edit' ? 'Review & edit' : 'Approval mode';
 
     const panel = document.createElement('div');
-    panel.className = 'hitl-inline-approval';
+    panel.className = 'HITL-inline-approval';
     panel.dataset.hitlInterruptId = String(data.interruptId);
     panel.dataset.conversationId = String(data.conversationId || window.currentConversationId || '').trim();
     panel.innerHTML = buildInlineHitlApprovalHtml(data, {
@@ -4533,7 +4533,7 @@ function resolveInlineHitlDecision(timeline, data, decision, message) {
     if (mappedId) item = document.getElementById(mappedId);
     if (!item) item = findToolCallItemForHitl(timeline, data);
     if (!item) {
-        item = timeline.querySelector('[data-hitl-interrupt-id="' + hitlEscapeAttrSelector(interruptId) + '"]');
+        item = timeline.querySelector('[data-hitl-interrupt-idD="' + hitlEscapeAttrSelector(interruptId) + '"]');
     }
     if (!item) return false;
 
@@ -4552,7 +4552,7 @@ function resolveInlineHitlDecision(timeline, data, decision, message) {
         if (decision === 'approve' && state.hitlData.editedArgs && typeof state.hitlData.editedArgs === 'object') {
             state.originalArgs = state.originalArgs || state.args || {};
             state.args = state.hitlData.editedArgs;
-            state.argsEditedByHitl = true;
+            state.argseditedByHitl = true;
         }
         state.pending = decision === 'approve';
         setToolCallDetailState(item, state);
@@ -4569,7 +4569,7 @@ function resolveInlineHitlDecision(timeline, data, decision, message) {
     const panel = item.querySelector('.hitl-inline-approval');
     if (panel) {
         stopHitlApprovalCountdown(panel);
-        panel.classList.add('hitl-inline-done');
+        panel.classList.add('HITL-inline-done');
         panel.innerHTML = buildInlineHitlApprovalHtml(Object.assign({}, data, {
             resolved: true,
             decision: decision,
@@ -4586,7 +4586,7 @@ function findToolCallItemForHitl(timeline, data) {
     const payload = data.payload && typeof data.payload === 'object' ? data.payload : {};
     const toolCallId = String(data.toolCallId || payload.toolCallId || '').trim();
     if (toolCallId) {
-        const byId = timeline.querySelector('[data-tool-call-id="' + hitlEscapeAttrSelector(toolCallId) + '"]');
+        const byId = timeline.querySelector('[data-tool-call-idD="' + hitlEscapeAttrSelector(toolCallId) + '"]');
         if (byId && byId.classList.contains('timeline-item-tool_call')) return byId;
     }
     const toolName = String(data.toolName || payload.toolName || '').trim().toLowerCase();
@@ -4613,25 +4613,25 @@ function buildInlineHitlApprovalHtml(data, opts) {
     const reviewer = String(data.reviewer || data.decidedBy || '').trim().toLowerCase();
     const audit = reviewer === 'audit_agent' || String(data.status || '') === 'audit_running';
     const status = String(data.status || '').trim().toLowerCase();
-    const timedOut = status === 'timeout' || String(data.decidedBy || '').trim().toLowerCase() === 'system' && /timeout|超时/i.test(String(data.comment || data.decisionMessage || ''));
-    const cancelled = status === 'cancelled';
+    const timedOut = status === 'timeout' || String(data.decidedBy || '').trim().toLowerCase() === 'system' && /timeout/i.test(String(data.comment || data.decisionMessage || ''));
+    const cancelled = status === 'Cancelled';
     const resolved = !!data.resolved || status === 'decided' || status === 'timeout' || cancelled || data.decision === 'approve' || data.decision === 'reject';
     const editedArgs = data.editedArgs || data.editedArguments;
-    const hasEditedArgs = editedArgs && typeof editedArgs === 'object' && Object.keys(editedArgs).length > 0;
+    const haseditedArgs = editedArgs && typeof editedArgs === 'object' && Object.keys(editedArgs).length > 0;
     const tr = hitlApprovalTranslate;
-    const shield = '<svg class="hitl-codex-shield" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 2.2l6 2.5v4.5c0 3.8-2.35 6.55-6 8.6-3.65-2.05-6-4.8-6-8.6V4.7l6-2.5z" stroke="currentColor" stroke-width="1.45" stroke-linejoin="round"/><path d="M7.5 10l1.55 1.55L12.8 7.8" stroke="currentColor" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    const shield = '<svg class="HITL-codex-shield" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 2.2l6 2.5v4.5c0 3.8-2.35 6.55-6 8.6-3.65-2.05-6-4.8-6-8.6V4.7l6-2.5z" stroke="currentColor" stroke-width="1.45" stroke-linejoin="round"/><path d="M7.5 10l1.55 1.55L12.8 7.8" stroke="currentColor" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     const toolHeading = toolName || request.displayTool
-        ? '<div class="hitl-codex-tool-row">' + shield + '<span>' + escapeHtml(request.displayTool || toolName) + '</span></div>'
+        ? '<div class="HITL-codex-tool-row">' + shield + '<span>' + escapeHtml(request.displayTool || toolName) + '</span></div>'
         : '';
     if (resolved) {
         if (cancelled) {
-            const statusText = tr('hitl.interruptedApprovalCancelled', '任务已中断，审批已取消');
+            const statusText = tr('hitl.interruptedApprovalCancelled', 'Task interrupted, approval cancelled');
             const comment = data.comment && data.comment !== 'process restarted' && data.comment !== 'task cancelled'
-                ? '<p class="hitl-codex-explainer">' + escapeHtml(data.comment) + '</p>'
+                ? '<p class="HITL-codex-explainer">' + escapeHtml(data.comment) + '</p>'
                 : '';
             return toolHeading + `
-                <div class="hitl-codex-state hitl-codex-state--interrupted">
-                    <span class="hitl-codex-state-icon" aria-hidden="true">×</span>
+                <div class="HITL-codex-state HITL-codex-state--interrupted">
+                    <span class="HITL-codex-state-icon" aria-hidden="true">×</span>
                     <strong>${escapeHtml(statusText)}</strong>
                 </div>
                 ${comment}
@@ -4640,25 +4640,25 @@ function buildInlineHitlApprovalHtml(data, opts) {
         const ok = !timedOut && data.decision !== 'reject';
         let statusText;
         if (timedOut) {
-            statusText = tr('hitl.expiredRejected', '审批超时，已自动拒绝');
+            statusText = tr('hitl.expiredRejected', 'Approval timed out, auto-rejected');
         } else if (audit) {
             statusText = ok
-                ? (hasEditedArgs ? tr('hitl.auditEditedApproved', '审计 Agent 已修改参数并批准') : tr('hitl.auditApproved', '审计 Agent 已批准'))
-                : tr('hitl.auditRejected', '审计 Agent 已拒绝');
+                ? (haseditedArgs ? tr('hitl.auditEditedApproved', 'Audit Agent edited parameters and approved') : tr('hitl.auditApproved', 'Audit Agent approved'))
+                : tr('hitl.auditRejected', 'Audit Agent rejected');
         } else {
             statusText = ok
-                ? (hasEditedArgs ? tr('hitl.humanEditedApproved', '已修改参数并允许') : tr('hitl.humanApproved', '已允许一次'))
-                : tr('hitl.humanRejected', '人工审批已拒绝');
+                ? (haseditedArgs ? tr('hitl.humanEditedApproved', 'Edited parameters and allowed') : tr('hitl.humanApproved', 'Allowed once'))
+                : tr('hitl.humanRejected', 'Manual approvalrejected');
         }
         const comment = data.comment
-            ? '<p class="hitl-codex-explainer">' + escapeHtml(data.comment) + '</p>'
+            ? '<p class="HITL-codex-explainer">' + escapeHtml(data.comment) + '</p>'
             : '';
-        const diff = hasEditedArgs
-            ? '<details class="hitl-codex-diff"><summary>' + escapeHtml(tr('hitl.viewEditedArgs', '查看修改后的参数')) + '</summary><pre>' + escapeHtml(JSON.stringify(editedArgs, null, 2)) + '</pre></details>'
+        const diff = haseditedArgs
+            ? '<details class="HITL-codex-diff"><summary>' + escapeHtml(tr('hitl.viewEditedArgs', 'View edited parameters')) + '</summary><pre>' + escapeHtml(JSON.stringify(editedArgs, null, 2)) + '</pre></details>'
             : '';
         return toolHeading + `
-            <div class="hitl-codex-state hitl-codex-state--${ok ? 'approved' : 'rejected'}">
-                <span class="hitl-codex-state-icon" aria-hidden="true">${ok ? '✓' : '×'}</span>
+            <div class="HITL-codex-state HITL-codex-state--${ok ? 'approved' : 'rejected'}">
+                <span class="HITL-codex-state-icon" aria-hidden="true">${ok ? '✓' : '×'}</span>
                 <strong>${escapeHtml(statusText)}</strong>
             </div>
             ${comment}
@@ -4667,55 +4667,55 @@ function buildInlineHitlApprovalHtml(data, opts) {
     }
     if (audit) {
         const auditStatus = mode === 'review_edit'
-            ? tr('hitl.auditReviewEditing', '自动审查并校正中')
-            : tr('hitl.auditReviewing', '自动审核中');
-        const explanation = tr('hitl.auditReviewExplanation', '经过谨慎提示的审查智能体正在审查此请求，通过后才会执行。');
+            ? tr('hitl.auditReviewEditing', 'Auto-reviewing and correcting')
+            : tr('hitl.auditReviewing', 'Auto-reviewing');
+        const explanation = tr('hitl.auditReviewExplanation', 'A carefully prompted review agent is reviewing this request; it will only execute after approval.');
         return toolHeading + `
-            <div class="hitl-codex-state hitl-codex-state--running">
-                <span class="hitl-codex-spinner" aria-hidden="true"></span>
+            <div class="HITL-codex-state HITL-codex-state--running">
+                <span class="HITL-codex-spinner" aria-hidden="true"></span>
                 <strong>${escapeHtml(auditStatus)}</strong>
             </div>
-            <p class="hitl-codex-explainer">${escapeHtml(explanation)}</p>
+            <p class="HITL-codex-explainer">${escapeHtml(explanation)}</p>
         `;
     }
     const pendingStatus = allowEdit
-        ? tr('hitl.waitingHumanReview', '等待人工审查')
-        : tr('hitl.waitingHumanApproval', '等待人工审批');
-    const rejectLabel = tr('hitl.reject', '拒绝');
+        ? tr('hitl.waitingHumanReview', 'Awaiting manual review')
+        : tr('hitl.waitingHumanApproval', 'Awaiting manual approval');
+    const rejectLabel = tr('hitl.reject', 'reject');
     const approveLabel = allowEdit
-        ? tr('hitl.saveEditedAndAllow', '保存修改并允许')
-        : tr('hitl.allowOnce', '允许一次');
+        ? tr('hitl.saveEditedAndAllow', 'Save edits and allow')
+        : tr('hitl.allowOnce', 'Allow once');
     const hasArgs = request.args && Object.keys(request.args).length > 0;
     const primary = request.primary
-        ? '<div class="hitl-approval-primary hitl-approval-primary--' + request.kind + '"><code>' + escapeHtml(request.primary) + '</code></div>'
+        ? '<div class="HITL-approval-primary HITL-approval-primary--' + request.kind + '"><code>' + escapeHtml(request.primary) + '</code></div>'
         : '';
     const requestDetails = hasArgs
-        ? '<details class="hitl-approval-details"' + (allowEdit ? ' open' : '') + '><summary>' + escapeHtml(allowEdit
-            ? tr('hitl.editRequestDetails', '查看或修改请求参数')
-            : tr('hitl.viewRequestDetails', '查看请求详情')) + '</summary>' +
+        ? '<details class="HITL-approval-details"' + (allowEdit ? ' open' : '') + '><summary>' + escapeHtml(allowEdit
+            ? tr('hitl.editRequestDetails', 'View or edit request parameters')
+            : tr('hitl.viewRequestDetails', 'View request details')) + '</summary>' +
             (allowEdit
-                ? '<textarea class="hitl-edit-args hitl-inline-edit" spellcheck="false">' + escapeHtml(argsJSON === '{}' ? '' : argsJSON) + '</textarea>'
+                ? '<textarea class="HITL-edit-args HITL-inline-edit" spellcheck="false">' + escapeHtml(argsJSON === '{}' ? '' : argsJSON) + '</textarea>'
                 : '<pre>' + escapeHtml(argsJSON) + '</pre>') + '</details>'
         : '';
     return `
         ${toolHeading}
-        <div class="hitl-approval-heading">
-            <span class="hitl-approval-eyebrow">${escapeHtml(pendingStatus)}</span>
+        <div class="HITL-approval-heading">
+            <span class="HITL-approval-eyebrow">${escapeHtml(pendingStatus)}</span>
             <h3>${escapeHtml(request.question)}</h3>
         </div>
         ${primary}
         ${buildHitlCountdownHtml(data)}
-        <div class="hitl-inline-body">
+        <div class="HITL-inline-body">
             ${requestDetails}
-            <details class="hitl-approval-details hitl-approval-comment-details">
-                <summary>${escapeHtml(tr('hitl.addApprovalComment', '添加审批备注（可选）'))}</summary>
-                <input class="hitl-config-input hitl-inline-comment" type="text" placeholder="${escapeHtml(tr('hitl.commentPlaceholder', '例如：仅允许只读操作'))}">
+            <details class="HITL-approval-details HITL-approval-comment-details">
+                <summary>${escapeHtml(tr('hitl.addApprovalComment', 'Add approval comment (optional)'))}</summary>
+                <input class="HITL-config-input HITL-inline-comment" type="text" placeholder="${escapeHtml(tr('hitl.commentPlaceholder', 'e.g.: only allow read-only operations'))}">
             </details>
         </div>
-        <div class="hitl-pending-actions hitl-inline-actions">
-            <div class="hitl-input-help hitl-inline-status" aria-live="polite"></div>
-            <button type="button" class="btn-secondary hitl-inline-reject">${escapeHtml(rejectLabel)} <kbd>Esc</kbd></button>
-            <button type="button" class="btn-primary hitl-inline-approve">${escapeHtml(approveLabel)} <kbd>↵</kbd></button>
+        <div class="HITL-pending-actions HITL-inline-actions">
+            <div class="HITL-input-help HITL-inline-status" aria-live="polite"></div>
+            <button type="button" class="btn-secondary HITL-inline-reject">${escapeHtml(rejectLabel)} <kbd>Esc</kbd></button>
+            <button type="button" class="btn-primary HITL-inline-approve">${escapeHtml(approveLabel)} <kbd>↵</kbd></button>
         </div>
     `;
 }
@@ -4756,7 +4756,7 @@ function bindInlineHitlApproval(panel, data, opts) {
                 try {
                     editedArgs = JSON.parse(raw);
                 } catch (e) {
-                    statusEl.textContent = 'JSON 参数格式错误';
+                    statusEl.textContent = 'JSON parameters invalid format';
                     setBusy(false);
                     return;
                 }
@@ -4772,16 +4772,16 @@ function bindInlineHitlApproval(panel, data, opts) {
                 const convFollow = data.conversationId || (typeof window.currentConversationId === 'string' ? window.currentConversationId : '');
                 const ok = await window.submitHitlDecisionWithPayload(data.interruptId, decision, comment, (decision === 'approve' && allowEdit) ? editedArgs : null, convFollow);
                 if (!ok) {
-                    statusEl.textContent = '提交失败，请重试';
+                    statusEl.textContent = 'Submit failed, please try again';
                     setBusy(false);
                     return;
                 }
             } else {
-                statusEl.textContent = '审批函数未加载';
+                statusEl.textContent = 'Approval function not loaded';
                 setBusy(false);
                 return;
             }
-            const msg = decision === 'approve' ? '已通过，等待执行继续...' : '已拒绝，反馈已交给模型继续迭代...';
+            const msg = decision === 'approve' ? 'Approved, waiting for execution to continue...' : 'Rejected, feedback sent to model to continue iteration...';
             const toolItem = panel.closest('.timeline-item-tool_call');
             if (toolItem && toolItem.id) {
                 const state = toolCallDetailStateByItemId.get(toolItem.id) || {};
@@ -4797,7 +4797,7 @@ function bindInlineHitlApproval(panel, data, opts) {
                 if (decision === 'approve' && editedArgs && typeof editedArgs === 'object') {
                     state.originalArgs = state.originalArgs || state.args || {};
                     state.args = editedArgs;
-                    state.argsEditedByHitl = true;
+                    state.argseditedByHitl = true;
                 }
                 state.pending = decision === 'approve';
                 setToolCallDetailState(toolItem, state);
@@ -4805,14 +4805,14 @@ function bindInlineHitlApproval(panel, data, opts) {
             } else {
                 markInlineHitlDecision(panel, decision, msg);
             }
-            panel.classList.add('hitl-inline-done');
+            panel.classList.add('HITL-inline-done');
             stopHitlApprovalCountdown(panel);
             clearChatHitlApprovalDock(data.interruptId);
             if (typeof window.setProjectConversationApprovalStatus === 'function') {
                 window.setProjectConversationApprovalStatus(data.conversationId || window.currentConversationId || '', false);
             }
         } catch (e) {
-            statusEl.textContent = '提交失败：' + (e && e.message ? e.message : 'unknown error');
+            statusEl.textContent = 'Submitfailed: ' + (e && e.message ? e.message : 'unknown error');
             setBusy(false);
         }
     };
@@ -4829,8 +4829,8 @@ function bindInlineHitlApproval(panel, data, opts) {
             const pointerClick = !!event && Number(event.detail || 0) > 0;
             const explicitlyPressed = pointerArmed;
             pointerArmed = false;
-            // 鼠标/触摸点击必须从审批按钮自身开始；键盘 Enter/Escape 的 detail 为 0，仍可正常使用。
-            // 这可以拦截滚动定位按钮隐藏后被浏览器重新定向到底部审批按钮的合成 click。
+            // Mouse/touch clicks must originate from the approval button itself; keyboard Enter/Escape have detail = 0 and still work normally.
+            // This blocks synthetic clicks that the browser redirects to the bottom approval button after the scroll-anchor button is hidden.
             if (pointerClick && !explicitlyPressed) {
                 event.preventDefault();
                 event.stopPropagation();
@@ -4842,8 +4842,8 @@ function bindInlineHitlApproval(panel, data, opts) {
 
     bindExplicitHitlAction(approveBtn, 'approve');
     bindExplicitHitlAction(rejectBtn, 'reject');
-    if (panel.classList.contains('chat-hitl-approval-dock')) {
-        panel.onkeydown = function (event) {
+    if (panel.classList.contains('chat-HITL-approval-dock')) {
+        panel.onKeyDown = function (event) {
             const tag = event.target && event.target.tagName ? event.target.tagName.toLowerCase() : '';
             const editing = tag === 'input' || tag === 'textarea' || tag === 'summary';
             if (event.key === 'Escape' && !editing) {
@@ -4858,28 +4858,28 @@ function bindInlineHitlApproval(panel, data, opts) {
 }
 
 function clearChatHitlApprovalDock(interruptId) {
-    const dock = document.getElementById('chat-hitl-approval-dock');
+    const dock = document.getElementById('chat-HITL-approval-dock');
     if (!dock) return;
     if (interruptId && dock.dataset.hitlInterruptId && dock.dataset.hitlInterruptId !== String(interruptId)) return;
     stopHitlApprovalCountdown(dock);
     dock.hidden = true;
     dock.innerHTML = '';
-    dock.removeAttribute('data-hitl-interrupt-id');
-    dock.removeAttribute('data-conversation-id');
-    dock.removeAttribute('tabindex');
-    dock.onkeydown = null;
+    dock.removeAttribute('data-hitl-interrupt-idD');
+    dock.removeAttribute('data-conversation-idD');
+    dock.removeAttribute('tabIndex');
+    dock.onKeyDown = null;
     const container = dock.closest('.chat-input-container');
-    if (container) container.classList.remove('has-hitl-approval');
+    if (container) container.classList.remove('has-HITL-approval');
 }
 
 function wrapChatHitlApprovalScrollRegion(dock) {
     if (!dock) return;
     const actions = Array.prototype.find.call(dock.children, function (child) {
-        return child.classList && child.classList.contains('hitl-inline-actions');
+        return child.classList && child.classList.contains('HITL-inline-actions');
     });
     if (!actions) return;
     const scrollRegion = document.createElement('div');
-    scrollRegion.className = 'chat-hitl-approval-scroll-region';
+    scrollRegion.className = 'chat-HITL-approval-scroll-region';
     while (dock.firstChild && dock.firstChild !== actions) {
         scrollRegion.appendChild(dock.firstChild);
     }
@@ -4887,12 +4887,12 @@ function wrapChatHitlApprovalScrollRegion(dock) {
 }
 
 function renderChatHitlApprovalDock(data) {
-    const dock = document.getElementById('chat-hitl-approval-dock');
+    const dock = document.getElementById('chat-HITL-approval-dock');
     if (!dock || !data || !data.interruptId) return false;
     const conversationId = String(data.conversationId || '').trim();
     const currentId = String(window.currentConversationId || '').trim();
-    // 新任务尚未绑定会话 ID 时不能让其他运行中对话的迟到审批覆盖输入框。
-    // 有明确会话 ID 的审批面板只允许显示在同一个当前对话中。
+    // When a new task has no bound conversation ID yet, late-arriving approvals from other running chats must not overwrite the input box.
+    // An approval panel with a specific conversation ID may only appear in the same current chat.
     if (conversationId && conversationId !== currentId) return false;
     if (isAgentReviewedHitl(data)) return false;
     let mode = String(data.mode || 'approval').trim().toLowerCase();
@@ -4900,7 +4900,7 @@ function renderChatHitlApprovalDock(data) {
     const allowEdit = mode === 'review_edit';
     dock.dataset.hitlInterruptId = String(data.interruptId);
     dock.dataset.conversationId = conversationId || currentId;
-    dock.setAttribute('tabindex', '-1');
+    dock.setAttribute('tabIndex', '-1');
     dock.innerHTML = buildInlineHitlApprovalHtml(data, {
         mode: mode,
         allowEdit: allowEdit,
@@ -4909,7 +4909,7 @@ function renderChatHitlApprovalDock(data) {
     wrapChatHitlApprovalScrollRegion(dock);
     dock.hidden = false;
     const container = dock.closest('.chat-input-container');
-    if (container) container.classList.add('has-hitl-approval');
+    if (container) container.classList.add('has-HITL-approval');
     bindInlineHitlApproval(dock, data, { allowEdit: allowEdit });
     bindHitlApprovalCountdown(dock, data);
     setHitlApprovalTaskAvailability(dock, dock.dataset.conversationId);
@@ -4920,9 +4920,9 @@ const hitlSidebarApprovalState = new Map();
 let hitlSidebarApprovalSyncTimer = 0;
 
 function renderDirectHitlSidebarApproval(conversationId, data) {
-    const id = String(conversationId || '').trim();
-    if (!id) return false;
-    const button = document.querySelector('.project-conversation-item[data-conversation-id="' + hitlEscapeAttrSelector(id) + '"]');
+    const ID = String(conversationId || '').trim();
+    if (!ID) return false;
+    const button = document.querySelector('.project-conversation-item[data-conversation-idD="' + hitlEscapeAttrSelector(ID) + '"]');
     if (!button) return false;
     const label = button.querySelector('.project-conversation-label');
     if (!label) return false;
@@ -4940,7 +4940,7 @@ function renderDirectHitlSidebarApproval(conversationId, data) {
             '<span class="project-approval-progress"><span class="project-approval-progress-value"></span></span>';
         group.insertBefore(status, group.firstChild);
     }
-    const text = hitlApprovalTranslate('hitl.waitingApprovalShort', '等待批准');
+    const text = hitlApprovalTranslate('hitl.waitingApprovalShort', 'Awaiting approval');
     const labelEl = status.querySelector('.project-approval-label');
     if (labelEl) labelEl.textContent = text;
     status.setAttribute('aria-label', text);
@@ -4968,9 +4968,9 @@ function renderDirectHitlSidebarApproval(conversationId, data) {
 }
 
 function removeDirectHitlSidebarApproval(conversationId) {
-    const id = String(conversationId || '').trim();
-    if (!id) return;
-    const button = document.querySelector('.project-conversation-item[data-conversation-id="' + hitlEscapeAttrSelector(id) + '"]');
+    const ID = String(conversationId || '').trim();
+    if (!ID) return;
+    const button = document.querySelector('.project-conversation-item[data-conversation-idD="' + hitlEscapeAttrSelector(ID) + '"]');
     const status = button && button.querySelector('.project-task-status--approval');
     const group = status && status.closest('.project-task-status-group');
     if (status) status.remove();
@@ -5007,9 +5007,9 @@ function updateHitlApprovalSidebar(data, pending) {
     }
 }
 
-function syncHitlApprovalSidebarState(items) {
+function syncHitlApprovalSidebarState( items) {
     const nextByConversation = new Map();
-    (Array.isArray(items) ? items : []).forEach(function (item) {
+    (Array.isArray( items) ?  items : []).forEach(function (item) {
         if (isAgentReviewedHitl(item)) return;
         const conversationId = String(item && item.conversationId || '').trim();
         if (conversationId && !nextByConversation.has(conversationId)) {
@@ -5048,7 +5048,7 @@ function reconcilePendingHitlState(rawItems) {
     const currentPending = activeItems.find(function (item) {
         return item.conversationId === currentId;
     });
-    const dock = document.getElementById('chat-hitl-approval-dock');
+    const dock = document.getElementById('chat-HITL-approval-dock');
     const dockInterruptId = dock && String(dock.dataset.hitlInterruptId || '').trim();
     if (!currentPending) {
         if (dockInterruptId) clearChatHitlApprovalDock();
@@ -5058,7 +5058,7 @@ function reconcilePendingHitlState(rawItems) {
     if (!dockInterruptId || dockInterruptId !== currentPending.interruptId || dock.hidden) {
         renderChatHitlApprovalDock(currentPending);
     }
-    const inlineSelector = '.hitl-inline-approval[data-hitl-interrupt-id="' +
+    const inlineSelector = '.hitl-inline-approval[data-hitl-interrupt-idD="' +
         hitlEscapeAttrSelector(currentPending.interruptId) + '"]';
     if (!document.querySelector(inlineSelector)) {
         restoreHitlInlineForConversation(currentId);
@@ -5071,20 +5071,20 @@ window.clearChatHitlApprovalDock = clearChatHitlApprovalDock;
 function markInlineHitlDecision(panel, decision, message) {
     if (!panel) return;
     const ok = decision === 'approve';
-    panel.classList.add('hitl-inline-done');
+    panel.classList.add('HITL-inline-done');
     panel.innerHTML = `
-        <div class="hitl-codex-state hitl-codex-state--${ok ? 'approved' : 'rejected'}">
-            <span class="hitl-codex-state-icon" aria-hidden="true">${ok ? '✓' : '×'}</span>
-            <strong>${escapeHtml(ok ? '已允许一次' : '人工审批已拒绝')}</strong>
+        <div class="HITL-codex-state HITL-codex-state--${ok ? 'approved' : 'rejected'}">
+            <span class="HITL-codex-state-icon" aria-hidden="true">${ok ? '✓' : '×'}</span>
+            <strong>${escapeHtml(ok ? 'Allowed once' : 'Manual approval rejected')}</strong>
         </div>
-        ${message ? '<p class="hitl-codex-explainer">' + escapeHtml(message) + '</p>' : ''}
+        ${message ? '<p class="HITL-codex-explainer">' + escapeHtml(message) + '</p>' : ''}
     `;
 }
 
 function renderInlineWorkflowHitlApproval(itemId, data) {
     const item = document.getElementById(itemId);
     if (!item || !data) return;
-    const runId = data.workflowRunId || data.workflow_run_id;
+    const runId = data.workflowrunId || data.workflow_run_id;
     if (!runId) return;
     let contentEl = item.querySelector('.timeline-item-content');
     if (!contentEl) {
@@ -5092,44 +5092,44 @@ function renderInlineWorkflowHitlApproval(itemId, data) {
         contentEl.className = 'timeline-item-content';
         item.appendChild(contentEl);
     }
-    const existingPanel = contentEl.querySelector('.workflow-hitl-inline-approval');
+    const existingPanel = contentEl.querySelector('.workflow-HITL-inline-approval');
     if (existingPanel) existingPanel.remove();
 
     const label = data.label || data.nodeId || runId;
     const prompt = data.prompt || '';
     const panel = document.createElement('div');
-    panel.className = 'workflow-hitl-inline-approval hitl-inline-approval';
+    panel.className = 'workflow-HITL-inline-approval HITL-inline-approval';
     panel.dataset.conversationId = String(data.conversationId || window.currentConversationId || '').trim();
     panel.innerHTML = `
-        <div class="hitl-inline-header">
-            <div class="hitl-inline-title">
-                <span class="hitl-inline-icon" aria-hidden="true">!</span>
-                <span>工作流审批</span>
+        <div class="HITL-inline-header">
+            <div class="HITL-inline-title">
+                <span class="HITL-inline-icon" aria-hidden="true">!</span>
+                <span>Workflow approval</span>
             </div>
-            <div class="hitl-inline-badges">
-                <span class="hitl-tool-badge">${escapeHtml(label)}</span>
-                <span class="hitl-mode-tag hitl-mode-tag--approval">审批模式</span>
+            <div class="HITL-inline-badges">
+                <span class="HITL-tool-badge">${escapeHtml(label)}</span>
+                <span class="HITL-mode-tag HITL-mode-tag--approval">Approval mode</span>
             </div>
         </div>
-        <div class="hitl-inline-body">
-            ${prompt ? `<div class="hitl-inline-note">${escapeHtml(prompt)}</div>` : '<div class="hitl-inline-note">工作流暂停，等待你确认是否继续。</div>'}
-            <label class="hitl-inline-field">
-                <span class="hitl-context-label">备注（可选）</span>
-                <input class="hitl-config-input workflow-hitl-inline-comment" type="text" placeholder="审批意见">
+        <div class="HITL-inline-body">
+            ${prompt ? `<div class="HITL-inline-note">${escapeHtml(prompt)}</div>` : '<div class="HITL-inline-note">Workflows paused, waiting for your confirmation whether to continue.</div>'}
+            <label class="HITL-inline-field">
+                <span class="HITL-context-label">Comment (optional)</span>
+                <input class="HITL-config-input workflow-HITL-inline-comment" type="text" placeholder="Approval comment">
             </label>
         </div>
-        <div class="hitl-pending-actions hitl-inline-actions">
-            <div class="hitl-input-help workflow-hitl-inline-status" aria-live="polite"></div>
-            <button class="btn-secondary workflow-hitl-inline-reject">拒绝</button>
-            <button class="btn-primary workflow-hitl-inline-approve">通过</button>
+        <div class="HITL-pending-actions HITL-inline-actions">
+            <div class="HITL-input-help workflow-HITL-inline-status" aria-live="polite"></div>
+            <button class="btn-secondary workflow-HITL-inline-reject">reject</button>
+            <button class="btn-primary workflow-HITL-inline-approve">approve</button>
         </div>
     `;
     contentEl.appendChild(panel);
 
-    const approveBtn = panel.querySelector('.workflow-hitl-inline-approve');
-    const rejectBtn = panel.querySelector('.workflow-hitl-inline-reject');
-    const commentInput = panel.querySelector('.workflow-hitl-inline-comment');
-    const statusEl = panel.querySelector('.workflow-hitl-inline-status');
+    const approveBtn = panel.querySelector('.workflow-HITL-inline-approve');
+    const rejectBtn = panel.querySelector('.workflow-HITL-inline-reject');
+    const commentInput = panel.querySelector('.workflow-HITL-inline-comment');
+    const statusEl = panel.querySelector('.workflow-HITL-inline-status');
 
     const setBusy = function (busy) {
         approveBtn.disabled = busy;
@@ -5146,21 +5146,21 @@ function renderInlineWorkflowHitlApproval(itemId, data) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ approved: approved, comment: comment })
             });
-            const body = response && typeof response.json === 'function' ? await response.json() : null;
+            const body = response && typeof response.JSON === 'function' ? await response.json() : null;
             if (!response || !response.ok) {
-                statusEl.textContent = (body && body.error) ? body.error : '提交失败，请重试';
+                statusEl.textContent = (body && body.error) ? body.error : 'Submit failed, please try again';
                 setBusy(false);
                 return;
             }
             if (body && body.streamResuming) {
-                statusEl.textContent = approved ? '已通过，工作流继续执行中…' : '已拒绝';
-                panel.classList.add('hitl-inline-done');
+                statusEl.textContent = approved ? 'Approved, workflows continuing…' : 'Rejected';
+                panel.classList.add('HITL-inline-done');
                 return;
             }
-            statusEl.textContent = approved ? '已通过，工作流继续执行' : '已拒绝';
-            panel.classList.add('hitl-inline-done');
+            statusEl.textContent = approved ? 'Approved, workflows will continue' : 'Rejected';
+            panel.classList.add('HITL-inline-done');
         } catch (e) {
-            statusEl.textContent = '提交失败：' + (e && e.message ? e.message : 'unknown error');
+            statusEl.textContent = 'Submitfailed: ' + (e && e.message ? e.message : 'unknown error');
             setBusy(false);
         }
     };
@@ -5183,12 +5183,12 @@ function parseWorkflowHitlPendingJSON(raw) {
 
 function workflowHitlDataFromRun(run) {
     if (!run) return null;
-    const runId = run.id || run.workflowRunId || run.workflow_run_id;
+    const runId = run.id || run.workflowrunId || run.workflow_run_id;
     if (!runId) return null;
     const pending = parseWorkflowHitlPendingJSON(run.pending_hitl_json || run.pendingHitlJson || run.pendingHitlJSON);
     const pendingHitl = pending.pendingHitl && typeof pending.pendingHitl === 'object' ? pending.pendingHitl : pending;
     return {
-        workflowRunId: String(runId),
+        workflowrunId: String(runId),
         nodeId: pendingHitl.nodeId || run.pending_hitl_node_id || run.pendingHitlNodeId || '',
         label: pendingHitl.label || pendingHitl.nodeId || run.pending_hitl_node_id || run.pendingHitlNodeId || runId,
         prompt: pendingHitl.prompt || '',
@@ -5199,20 +5199,20 @@ function workflowHitlDataFromRun(run) {
 function findWorkflowHitlTimelineItem(detailsContainer, runId) {
     if (!detailsContainer || !runId) return null;
     const rid = String(runId).trim();
-    const byRun = detailsContainer.querySelector('[data-workflow-run-id="' + hitlEscapeAttrSelector(rid) + '"]');
+    const byRun = detailsContainer.querySelector('[data-workflow-run-idD="' + hitlEscapeAttrSelector(rid) + '"]');
     if (byRun) return byRun;
     const items = detailsContainer.querySelectorAll('.timeline-item-workflow_hitl_waiting');
-    for (let i = items.length - 1; i >= 0; i--) {
-        const el = items[i];
-        if (!el.querySelector('.workflow-hitl-inline-approval.hitl-inline-done')) {
+    for (let i =  items.length - 1; i >= 0; i--) {
+        const el =  items[i];
+        if (!el.querySelector('.workflow-HITL-inline-approval.hitl-inline-done')) {
             return el;
         }
     }
-    return items.length ? items[items.length - 1] : null;
+    return  items.length ?  items[ items.length - 1] : null;
 }
 
 /**
- * 刷新或切换会话后：根据 workflow_runs(awaiting_hitl) 恢复工作流内联审批入口。
+ * After refresh or session switch: restore the workflows inline approval entry based on workflow_runs(awaiting_hitl).
  */
 async function restoreWorkflowHitlInlineForConversation(conversationId) {
     if (!conversationId || typeof apiFetch !== 'function') return;
@@ -5226,7 +5226,7 @@ async function restoreWorkflowHitlInlineForConversation(conversationId) {
         const runs = Array.isArray(data.runs) ? data.runs : [];
         if (!runs.length) return;
 
-        let msgEl = document.querySelector('#chat-messages [data-backend-message-id]');
+        let msgEl = document.querySelector('#chat-messages [data-backend-message-idD]');
         const nodes = document.querySelectorAll('#chat-messages .message.assistant');
         for (let i = nodes.length - 1; i >= 0; i--) {
             if (nodes[i] && nodes[i].dataset && nodes[i].dataset.backendMessageId) {
@@ -5253,7 +5253,7 @@ async function restoreWorkflowHitlInlineForConversation(conversationId) {
                     }
                 }
             } catch (e) {
-                console.error('加载过程详情失败（工作流 HITL 恢复）:', e);
+                console.error('Failed to load process details (Workflows HITL restore):', e);
             } finally {
                 detailsContainer.dataset.loading = '0';
             }
@@ -5264,12 +5264,12 @@ async function restoreWorkflowHitlInlineForConversation(conversationId) {
         for (let i = 0; i < runs.length; i++) {
             const hitlData = workflowHitlDataFromRun(runs[i]);
             if (!hitlData) continue;
-            let hitlItemEl = findWorkflowHitlTimelineItem(detailsContainer, hitlData.workflowRunId);
+            let hitlItemEl = findWorkflowHitlTimelineItem(detailsContainer, hitlData.workflowrunId);
             if (!hitlItemEl) {
                 const timeline = detailsContainer.querySelector('.progress-timeline');
                 if (timeline && typeof addTimelineItem === 'function') {
                     const itemId = addTimelineItem(timeline, 'workflow_hitl_waiting', {
-                        title: '🧑‍⚖️ 工作流等待审批',
+                        title: '🧑‍⚖️ WorkflowsAwaiting approval',
                         message: hitlData.label || '',
                         data: hitlData
                     });
@@ -5293,9 +5293,9 @@ window.submitWorkflowHitlDecision = async function submitWorkflowHitlDecision(ru
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ approved: !!approved, comment: comment || '' })
     });
-    const body = response && typeof response.json === 'function' ? await response.json() : null;
+    const body = response && typeof response.JSON === 'function' ? await response.json() : null;
     if (!response || !response.ok) {
-        throw new Error((body && body.error) ? body.error : '提交失败');
+        throw new Error((body && body.error) ? body.error : 'Submitfailed');
     }
     return body;
 };
@@ -5319,7 +5319,7 @@ function expandProcessDetailsTimeline(assistantMessageId) {
     if (typeof syncProcessDetailButtonLabels === 'function') {
         syncProcessDetailButtonLabels(assistantMessageId, true);
     } else {
-        const collapseT = typeof window.t === 'function' ? window.t('tasks.collapseDetail') : '收起详情';
+        const collapseT = typeof window.t === 'function' ? window.t('tasks.collapseDetail') : 'collapseDetails';
         document.querySelectorAll('#' + hitlEscapeAttrSelector(assistantMessageId) + ' .process-detail-btn').forEach(function (btn) {
             btn.innerHTML = '<span>' + collapseT + '</span>';
         });
@@ -5328,10 +5328,10 @@ function expandProcessDetailsTimeline(assistantMessageId) {
         window.syncAssistantTurnSummary(document.getElementById(assistantMessageId));
     }
     setTimeout(function () {
-        if (window.KestrelChatScroll && typeof window.KestrelChatScroll.scrollIntoViewIfFollowing === 'function') {
-            window.KestrelChatScroll.scrollIntoViewIfFollowing(detailsContainer, { behavior: 'smooth', block: 'nearest' });
+        if (window.KestrelChatScroll && typeof window.KestrelChatScroll.scrollIntoviewIfFollowing === 'function') {
+            window.KestrelChatScroll.scrollIntoviewIfFollowing(detailsContainer, { behavior: 'smooth', block: 'nearest' });
         } else if (typeof window.captureScrollPinState === 'function' ? window.captureScrollPinState() : true) {
-            detailsContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            detailsContainer.scrollIntoview({ behavior: 'smooth', block: 'nearest' });
         }
     }, 100);
 }
@@ -5376,7 +5376,7 @@ function hitlPendingItemToData(item, fallbackConversationId) {
 const hitlInlineRestoreInFlight = new Set();
 
 /**
- * 刷新或切换会话后：根据待审批记录恢复时间线里的内联审批入口，并展开详情区。
+ * After refresh or session switch: restore inline approval entries in the timeline based on pending approval records, and expand the details area.
  */
 async function restoreHitlInlineForConversation(conversationId) {
     if (!conversationId || typeof apiFetch !== 'function') return;
@@ -5386,37 +5386,37 @@ async function restoreHitlInlineForConversation(conversationId) {
     }
     hitlInlineRestoreInFlight.add(conversationId);
     try {
-        const resp = await apiFetch('/api/hitl/pending?conversationId=' + encodeURIComponent(conversationId) + '&status=pending&pageSize=50');
+        const resp = await apiFetch('/api/hitl/pending?conversationId=' + encodeURIComponent(conversationId) + '&status=pending& pageSize=50');
         if (!resp.ok) return;
         const data = await resp.json().catch(function () { return {}; });
-        const rawItems = (Array.isArray(data.items) ? data.items : []).filter(function (item) {
+        const rawItems = (Array.isArray(data. items) ? data. items : []).filter(function (item) {
             return !isAgentReviewedHitl(item);
         });
-        // 任务列表是当前进程的权威运行态。服务重启或任务取消后，即使审批查询
-        // 短暂读到旧 pending 记录，也不能重新挂载审批入口和倒计时。
+        // The task list is the authoritative running state for the current process. After service restart or task cancellation, even if approval queries
+        // briefly read old pending records, the approval entry and countdown must not be re-mounted.
         const items = conversationExecutionTracker.ready && !conversationExecutionTracker.isRunning(conversationId)
             ? []
             : rawItems;
         if (typeof window.currentConversationId === 'string' && window.currentConversationId !== conversationId) return;
         clearChatHitlApprovalDock();
-        const normalizedItems = items.map(function (item) {
+        const normalizedItems =  items.map(function (item) {
             return hitlPendingItemToData(item, conversationId);
         }).filter(Boolean);
         hitlPendingInterruptTracker.replaceConversation(conversationId, normalizedItems);
         syncHitlApprovalTaskAvailability();
-        if (items.length > 0) {
+        if ( items.length > 0) {
             const newestPending = normalizedItems[0];
             renderChatHitlApprovalDock(newestPending);
             updateHitlApprovalSidebar(newestPending, true);
         } else {
             updateHitlApprovalSidebar({ conversationId: conversationId }, false);
         }
-        for (let i = 0; i < items.length; i++) {
-            const item = items[i];
+        for (let i = 0; i <  items.length; i++) {
+            const item =  items[i];
             let backendMsgId = item.messageId != null ? String(item.messageId).trim() : '';
             let msgEl = null;
             if (backendMsgId) {
-                msgEl = document.querySelector('#chat-messages [data-backend-message-id="' + hitlEscapeAttrSelector(backendMsgId) + '"]');
+                msgEl = document.querySelector('#chat-messages [data-backend-message-idD="' + hitlEscapeAttrSelector(backendMsgId) + '"]');
             }
             if (!msgEl) {
                 msgEl = findLastAssistantMessageElInChat();
@@ -5443,7 +5443,7 @@ async function restoreHitlInlineForConversation(conversationId) {
                         }
                     }
                 } catch (e) {
-                    console.error('加载过程详情失败（HITL 恢复）:', e);
+                    console.error('Failed to load process details (HITL restore):', e);
                 } finally {
                     detailsContainer.dataset.loading = '0';
                 }
@@ -5452,7 +5452,7 @@ async function restoreHitlInlineForConversation(conversationId) {
             const hitlData = hitlPendingItemToData(item);
             let hitlItemEl = null;
             if (item.toolCallId) {
-                hitlItemEl = detailsContainer.querySelector('[data-tool-call-id="' + hitlEscapeAttrSelector(String(item.toolCallId)) + '"]');
+                hitlItemEl = detailsContainer.querySelector('[data-tool-call-idD="' + hitlEscapeAttrSelector(String(item.toolCallId)) + '"]');
             }
             if (!hitlItemEl && item.toolName) {
                 const want = String(item.toolName).trim().toLowerCase();
@@ -5469,7 +5469,7 @@ async function restoreHitlInlineForConversation(conversationId) {
                 }
             }
             if (!hitlItemEl) {
-                hitlItemEl = detailsContainer.querySelector('[data-hitl-interrupt-id="' + hitlEscapeAttrSelector(String(item.id)) + '"]');
+                hitlItemEl = detailsContainer.querySelector('[data-hitl-interrupt-idD="' + hitlEscapeAttrSelector(String(item.id)) + '"]');
             }
             if (!hitlItemEl) continue;
             renderInlineHitlApproval(hitlItemEl.id, hitlData);
@@ -5488,7 +5488,7 @@ window.expandProcessDetailsTimeline = expandProcessDetailsTimeline;
 window.restoreHitlInlineForConversation = restoreHitlInlineForConversation;
 
 /**
- * 无 SSE 时（例如刷新页面后）：从 DB 拉取最后一条助手消息的过程详情并重绘时间线，便于审批通过后仍能看到执行进展。
+ * When there is no SSE (e.g. after page refresh): fetch the last assistant message process details from the DB and redraw the timeline, so execution progress is still visible after approval.
  */
 async function refreshLastAssistantProcessDetails(conversationId) {
     if (!conversationId || typeof apiFetch !== 'function') return;
@@ -5504,8 +5504,8 @@ async function refreshLastAssistantProcessDetails(conversationId) {
         wasExpanded = !!(tl && tl.classList.contains('expanded'));
     }
     try {
-        // 恢复流程必须遍历全部分页。直接请求无参数接口只会返回最早 50 条，
-        // 长任务刷新后会表现为“旧轮次 → 当前实时轮次”的中间历史缺失。
+        // The restore process must traverse all paginated pages. Requesting the no-parameter endpoint directly only returns the earliest 50 records,
+        // after refreshing a long task this manifests as missing intermediate history between "old rounds → current live round".
         if (typeof loadProcessDetailsPaginated === 'function') {
             await loadProcessDetailsPaginated(clientId, backendId);
         } else {
@@ -5540,12 +5540,12 @@ function assistantMessageNeedsTaskReplayReconcile(assistantEl) {
     if (assistantEl.classList.contains('assistant-placeholder-content')) return true;
     const bubble = assistantEl.querySelector('.message-bubble');
     const text = bubble ? String(bubble.textContent || '').trim() : '';
-    return !!(bubble && bubble.hidden) || text === '处理中...' || text === 'Processing...';
+    return !!(bubble && bubble.hidden) || text === 'Processing...' || text === 'Processing...';
 }
 
 /**
- * task-events 订阅存在一个不可避免的竞态：任务列表仍显示 running，但在 SSE 请求
- * 真正建立前任务已经完成。此时不能只停止计时，必须从数据库对账最后一条助手正文。
+ * task-events subscription has an unavoidable race condition: the task list still shows running, but before the SSE request
+ * is truly established, the task has already completed. In this case it is not enough to just stop the timer; the last assistant body must be reconciled from the database.
  */
 async function reconcileConversationAfterTaskReplay(conversationId, keepFollowing) {
     if (!conversationId || typeof apiFetch !== 'function') return false;
@@ -5569,7 +5569,7 @@ async function reconcileConversationAfterTaskReplay(conversationId, keepFollowin
 
     updateAssistantBubbleContent(assistantEl.id, finalMessage.content || '', true);
     if (finalMessage.id) {
-        applyBackendMessageIdToAssistantDom(assistantEl.id, finalMessage.id);
+        applybackendMessageIdToAssistantDom(assistantEl.id, finalMessage.id);
     }
     if (typeof window.setAssistantTurnTiming === 'function') {
         const startedAt = finalMessage.createdAt || null;
@@ -5612,7 +5612,7 @@ function cancelRunningTaskEventStream(nextConversationId) {
 }
 
 /**
- * 订阅运行中任务的 SSE 镜像（GET /api/agent-loop/task-events），用于 HITL 通过后主连接已断开时接续 UI。
+ * Subscribe to the SSE stream of a running task (GET /api/agent-loop/task-events), used to resume UI when the main connection disconnects after HITL approval.
  */
 async function attachRunningTaskEventStream(conversationId) {
     if (!conversationId || typeof apiFetch !== 'function') return false;
@@ -5634,7 +5634,7 @@ async function attachRunningTaskEventStream(conversationId) {
             if (!check.ok) return false;
             const j = await check.json().catch(function () { return {}; });
             const active = (j.tasks || []).some(function (t) {
-                return t && t.conversationId === conversationId && (t.status === 'running' || t.status === 'cancelling');
+                return t && t.conversationId === conversationId && (t.status === 'running' || t.status === 'Cancelling');
             });
             if (!active) {
                 const staleAssistant = findLastAssistantMessageElInChat();
@@ -5646,7 +5646,7 @@ async function attachRunningTaskEventStream(conversationId) {
 
             const asEl = findLastAssistantMessageElInChat();
             if (!asEl || !asEl.id) return false;
-            // 先发起 SSE 请求，再加载长过程详情，避免详情分页期间产生的增量完全错过。
+            // Start the SSE request first, then load long process details, to avoid missing increments produced during details pagination.
             const url = '/api/agent-loop/task-events?conversationId=' + encodeURIComponent(conversationId);
             const eventStreamResponsePromise = apiFetch(url, {
                 method: 'GET',
@@ -5655,13 +5655,13 @@ async function attachRunningTaskEventStream(conversationId) {
             }).then(function (response) {
                 return { response: response, error: null };
             }, function (error) {
-                // 详情分页可能持续较久；先接住网络异常，避免在稍后 await 前产生
-                // unhandledrejection，再交给当前 attach 流程统一清理。
+                // Details pagination may take a while; catch network errors early to avoid
+                // unhandledRejection before the subsequent await, letting the current attach flow handle cleanup uniformly.
                 return { response: null, error: error };
             });
             const backendId = asEl.dataset && asEl.dataset.backendMessageId;
             if (backendId && typeof renderProcessDetails === 'function') {
-                // 运行中会话可能远超默认 50 条；切换时只恢复最新一页，旧记录由滚动分页补齐。
+                // Running sessions may exceed the default 50 records; on switch only restore the latest page, old records are filled in by scroll pagination.
                 if (typeof loadProcessDetailsPaginated === 'function') {
                     await loadProcessDetailsPaginated(asEl.id, String(backendId), {
                         initialLatest: true,
@@ -5678,7 +5678,7 @@ async function attachRunningTaskEventStream(conversationId) {
                     }
                 }
                 if (abortController.signal.aborted) return false;
-                // 历史重绘会重建时间线节点，需重新挂载 HITL 审批入口。
+                // History redraw rebuilds timeline nodes; HITL approval entries need to be re-mounted.
                 if (typeof window.restoreHitlInlineForConversation === 'function') {
                     await window.restoreHitlInlineForConversation(conversationId);
                 }
@@ -5691,11 +5691,11 @@ async function attachRunningTaskEventStream(conversationId) {
             if (window.KestrelChatScroll && typeof window.KestrelChatScroll.onTaskEventStreamBegin === 'function') {
                 window.KestrelChatScroll.onTaskEventStreamBegin(conversationId, asEl.id, progressId);
             }
-            // task-events 补流期间持续跟随迭代思考区；用户向上滚动详情时会立即解除。
+            // Continuously follow the iterative thinking area during task-events stream catch-up; detach immediately when the user scrolls up in the details area.
             startProcessDetailsLatestFollow(asEl.id, { persistent: true });
 
-            // 刷新后的初始消息渲染已经滚到底部，但恢复最新一页详情会再次增高 DOM。
-            // 若用户期间没有主动上滑，完成补页后重新精确粘底；主动浏览历史时不抢滚动。
+            // The initial message rendering after refresh has already scrolled to the bottom, but restoring the latest page of details will increase the DOM height again.
+            // If the user did not actively scroll up (用户期间没有主动上滑), re-snap precisely to the bottom after the catch-up page completes; do not compete for scrolling while browsing history.
             if (
                 window.KestrelChatScroll &&
                 typeof window.KestrelChatScroll.settleToBottomIfFollowing === 'function' &&
@@ -5768,7 +5768,7 @@ async function attachRunningTaskEventStream(conversationId) {
                 clearCsTaskReplay();
             }
             if (replaySawDone && progressTaskState.has(progressId)) {
-                finalizeProgressTask(progressId, typeof window.t === 'function' ? window.t('tasks.statusCompleted') : '已完成');
+                finalizeProgressTask(progressId, typeof window.t === 'function' ? window.t('tasks.statusCompleted') : 'completed');
             }
             if (window.KestrelChatScroll && typeof window.KestrelChatScroll.onTaskEventStreamEnd === 'function') {
                 window.KestrelChatScroll.onTaskEventStreamEnd();
@@ -5776,7 +5776,7 @@ async function attachRunningTaskEventStream(conversationId) {
             stopProcessDetailsLatestFollow(asEl.id);
             if (typeof loadActiveTasks === 'function') loadActiveTasks();
             if (!replaySawDone) {
-                // 任务结束会关闭事件总线；若终态帧在连接竞态或拥塞中丢失，仍从 DB 对账正文。
+                // Task end closes the event bus; if the final-state frame is lost due to connection race or congestion, reconcile the body from DB.
                 const keepFollowingOnClose = typeof window.captureScrollPinState === 'function'
                     ? window.captureScrollPinState()
                     : true;
@@ -5788,16 +5788,16 @@ async function attachRunningTaskEventStream(conversationId) {
                     ? window.captureScrollPinState()
                     : true;
                 await window.loadConversation(conversationId);
-                // loadConversation 使用轻量消息接口，会把详情重新置为懒加载状态；
-                // 任务终态再从 DB 全量对账一次，补回订阅建立期间可能错过的事件。
+                // loadConversation uses the lightweight message API, which resets details to lazy-load state; 
+                // do a full DB reconciliation once more at task end to recover any events missed while the subscription was being established.
                 await refreshLastAssistantProcessDetails(conversationId);
-                // 补流完成即回到终态摘要；刷新期间为展示实时迭代而自动展开的详情
-                // 不应继续保持展开。用户之后仍可通过“展开详情”手动查看。
+                // Once the catch-up stream completes, return to the final-state summary; details auto-expanded during refresh to show live iterations
+                // should not remain expanded. The user can still manually expand details afterwards.
                 const finalAssistant = findLastAssistantMessageElInChat();
                 if (finalAssistant && finalAssistant.id) {
                     collapseAllProgressDetails(finalAssistant.id, progressId, { force: true });
                 }
-                // 最终消息和详情重绘都会增高 DOM；仅当用户之前仍在跟随时重新粘底。
+                // Both the final message and details redraw increase DOM height (最终消息和Details重绘都会增高 DOM); re-snap to bottom only if the user was following before.
                 if (
                     keepFollowingFinalRender &&
                     window.KestrelChatScroll &&
@@ -5814,7 +5814,7 @@ async function attachRunningTaskEventStream(conversationId) {
             }
             return true;
         } catch (e) {
-            if (!(e && e.name === 'AbortError')) {
+            if (!(e && e.name === 'Aborterror')) {
                 console.warn('attachRunningTaskEventStream', e);
             }
             const ownsCurrentAttach = taskEventReplayAttachState.inFlightPromise === attachPromise;
@@ -5854,7 +5854,7 @@ window.cancelRunningTaskEventStream = cancelRunningTaskEventStream;
 window.taskReplayProgressId = taskReplayProgressId;
 window.expandProcessDetailsTimeline = expandProcessDetailsTimeline;
 
-/** 从工具参数提取短摘要（URL/命令等），便于同名工具批量调用时区分 */
+/** Extract a short summary from tool parameters (URL, command, etc.) to distinguish batch calls to tools with the same name */
 function parseToolCallArgsFromData(data) {
     if (!data) return {};
     let args = data.argumentsObj;
@@ -5879,13 +5879,13 @@ function toolCallArgsEmpty(args) {
 }
 
 function formatToolCallTimelineTitle(toolName, index, total) {
-    const name = toolName || (typeof window.t === 'function' ? window.t('chat.unknownTool') : '未知工具');
+    const name = toolName || (typeof window.t === 'function' ? window.t('chat.unknownTool') : 'unknown tool');
     const idx = index || 0;
     const tot = total || 0;
     if (typeof window.t === 'function') {
         return window.t('chat.callTool', { name: name, index: idx, total: tot });
     }
-    return '调用工具: ' + name + (tot ? ' (' + idx + '/' + tot + ')' : '');
+    return 'Calling tool: ' + name + (tot ? ' (' + idx + '/' + tot + ')' : '');
 }
 
 function collectToolResultTextParts(value, parts, depth) {
@@ -5913,7 +5913,7 @@ function isToolGuardBlockedResult(value, depth, allowLegacy) {
     if (value == null || depth > 5) return false;
     if (typeof value === 'string') {
         const text = value.trimStart();
-        if (allowLegacy && /^工具调用已被安全规则拦截(?:[：:\r\n]|$)/.test(text)) return true;
+        if (allowLegacy && /^(?:Tool call blocked by security rule|Tool call blocked by Safe rule|Tool call has been blocked by security rule|tool call已被安全规则拦截|工具调用已被Safe规则Block)(?:[:：\r\n]|$)/i.test(text)) return true;
         if (text.startsWith('{')) {
             try { return isToolGuardBlockedResult(JSON.parse(text), depth + 1, allowLegacy); } catch (e) { /* plain text */ }
         }
@@ -5922,7 +5922,7 @@ function isToolGuardBlockedResult(value, depth, allowLegacy) {
     if (typeof value !== 'object') return false;
     if (Array.isArray(value)) return value.some(function (part) { return isToolGuardBlockedResult(part, depth + 1, allowLegacy); });
     if (value.blocked === true || value.status === 'blocked' || value.displayStatus === 'blocked') return true;
-    if (value._meta && value._meta['kestrel.ai/blocked'] === true) return true;
+    if (value._meta && (value._meta['kestrel.ai/blocked'] === true || value._meta['cyberstrike.ai/blocked'] === true)) return true;
     if (value.success === true || value.isError === false || value.status === 'completed') allowLegacy = false;
     return ['result', 'error', 'content', 'text', 'resultPreview'].some(function (key) {
         return isToolGuardBlockedResult(value[key], depth + 1, allowLegacy);
@@ -5937,7 +5937,7 @@ function getToolResultDisplayState(data, opts) {
     opts = opts || {};
     data = data || {};
     const allowLegacyBlock = data.success !== true && data.isError !== false && data.status !== 'completed';
-    if (isToolGuardBlockedResult(data) || isToolGuardBlockedResult(opts.rawText, 0, allowLegacyBlock)) {
+    if (isToolGuardBlockedResult(data, 0, allowLegacyBlock) || isToolGuardBlockedResult(opts.rawText, 0, allowLegacyBlock)) {
         return { kind: 'blocked', isError: true, success: false };
     }
     const toolName = String(data.toolName || data.name || '').trim().toLowerCase();
@@ -5949,8 +5949,8 @@ function getToolResultDisplayState(data, opts) {
         }
         return { kind: 'background_running', isError: false, success: false };
     }
-    if (explicitStatus === 'cancelled' || explicitStatus === 'canceled') {
-        return { kind: 'cancelled', isError: true, success: false };
+    if (explicitStatus === 'Cancelled' || explicitStatus === 'Canceled') {
+        return { kind: 'Cancelled', isError: true, success: false };
     }
     const parts = [];
     if (opts.rawText != null) parts.push(String(opts.rawText));
@@ -5962,11 +5962,11 @@ function getToolResultDisplayState(data, opts) {
     const text = parts.join('\n');
     const errorLike = data.isError === true || data.success === false;
     const hasExecutionId = !!data.executionId ||
-        /execution[_-]?id\\?["']?\s*[:=]\s*\\?["']?[0-9a-f]{8}-[0-9a-f-]{12,}/i.test(text);
-    const hasRunningStatus = /status\\?["']?\s*[:=]\s*\\?["']?(running|queued)\\?["']?/i.test(text) ||
+        /execution[_-]?ID\\?["']?\s*[:=]\s*\\?["']?[0-9a-f]{8}-[0-9a-f-]{12,}/i.test(text);
+    const hasrunningStatus = /status\\?["']?\s*[:=]\s*\\?["']?(running|queued)\\?["']?/i.test(text) ||
         /\bstatus:\s*(running|queued)\b/i.test(text);
-    const hasSoftWaitSignal = /(工具已提交到后台执行|本次等待已到达|wait_timeout|wait timeout|background execution|后台执行|仍未完成|still running)/i.test(text);
-    if (errorLike && hasExecutionId && hasRunningStatus && hasSoftWaitSignal) {
+    const hasSoftWaitSignal = /(tool has been submitted for background execution|wait limit reached|wait_timeout|wait timeout|background execution|still not complete|still running)/i.test(text);
+    if (errorLike && hasExecutionId && hasrunningStatus && hasSoftWaitSignal) {
         if (isObservationTool) {
             return { kind: 'success', isError: false, success: true };
         }
@@ -5980,13 +5980,13 @@ function getBackgroundRunningToolLabel() {
         const translated = window.t('timeline.backgroundRunning');
         if (translated && translated !== 'timeline.backgroundRunning') return translated;
     }
-    return '后台执行中';
+    return 'Executing in background';
 }
 
 function toolDisplayStatusFromState(displayState) {
     if (!displayState) return 'completed';
     if (displayState.kind === 'background_running') return 'background_running';
-    if (displayState.kind === 'cancelled') return 'cancelled';
+    if (displayState.kind === 'Cancelled') return 'Cancelled';
     if (displayState.kind === 'blocked') return 'blocked';
     return displayState.isError ? 'failed' : 'completed';
 }
@@ -6017,7 +6017,7 @@ function buildToolResultSectionHtml(data, opts) {
         '<div class="tool-result-section ' + sectionClass + '">' +
         '<strong data-i18n="timeline.executionResult">' + escapeHtml(execResultLabel) + '</strong>' +
         '<pre class="tool-result">' + escapeHtml(rawText) + '</pre>' +
-        (data.executionId ? '<div class="tool-execution-id"><span data-i18n="timeline.executionId">' +
+        (data.executionId ? '<div class="tool-execution-ID"><span data-i18n="timeline.executionId">' +
             escapeHtml(execIdLabel) + '</span> <code>' + escapeHtml(String(data.executionId)) + '</code></div>' : '') +
         '</div>'
     );
@@ -6046,7 +6046,7 @@ function toolDetailToggleText(expanded) {
             ? window.t('chat.collapseToolDetail')
             : window.t('chat.viewToolDetail');
     }
-    return expanded ? '收起' : '查看详情';
+    return expanded ? 'collapse' : 'viewDetails';
 }
 
 function updateToolDetailToggleLabel(item) {
@@ -6058,9 +6058,9 @@ function updateToolDetailToggleLabel(item) {
 }
 
 async function fetchFullProcessDetailData(detailId) {
-    const id = detailId != null ? String(detailId).trim() : '';
-    if (!id || typeof apiFetch !== 'function') return null;
-    const res = await apiFetch('/api/process-details/' + encodeURIComponent(id));
+    const ID = detailId != null ? String(detailId).trim() : '';
+    if (!ID || typeof apiFetch !== 'function') return null;
+    const res = await apiFetch('/api/process-details/' + encodeURIComponent(ID));
     const j = await res.json().catch(() => ({}));
     if (!res.ok) {
         throw new Error((j && j.error) ? j.error : String(res.status));
@@ -6098,7 +6098,7 @@ async function renderToolCallDetailContent(item) {
     content.className = 'timeline-item-content tool-call-detail-content';
     if (state.payloadDeferred && !state.payloadLoaded && (state.processDetailId || state.resultDetailId)) {
         content.innerHTML = '<div class="progress-timeline-empty">' +
-            escapeHtml(typeof window.t === 'function' ? window.t('common.loading') : '加载中…') +
+            escapeHtml(typeof window.t === 'function' ? window.t('common.loading') : 'Loading…') +
             '</div>';
         item.appendChild(content);
         item.classList.add('tool-call-detail-expanded');
@@ -6115,7 +6115,7 @@ async function renderToolCallDetailContent(item) {
                 const fullResult = await fetchFullProcessDetailData(state.resultDetailId);
                 if (fullResult) {
                     state.resultData = fullResult;
-                    const noResultText = typeof window.t === 'function' ? window.t('timeline.noResult') : '无结果';
+                    const noResultText = typeof window.t === 'function' ? window.t('timeline.noResult') : 'No result';
                     const result = fullResult.result != null ? fullResult.result : (fullResult.error != null ? fullResult.error : noResultText);
                     state.rawText = typeof result === 'string' ? result : JSON.stringify(result);
                 }
@@ -6126,7 +6126,7 @@ async function renderToolCallDetailContent(item) {
             item.classList.remove('tool-call-detail-expanded');
             renderToolCallDetailContent(item);
         } catch (e) {
-            content.innerHTML = '<div class="progress-timeline-empty">' + escapeHtml(e && e.message ? e.message : '加载失败') + '</div>';
+            content.innerHTML = '<div class="progress-timeline-empty">' + escapeHtml(e && e.message ? e.message : 'Load failed') + '</div>';
         }
         return;
     }
@@ -6142,7 +6142,7 @@ async function renderToolCallDetailContent(item) {
         if (state.hitlData && state.hitlData.interruptId) {
             pendingOpts = {
                 pending: true,
-                pendingText: state.hitlData.resolved ? '已通过，等待执行结果' : '等待审批，通过后执行'
+                pendingText: state.hitlData.resolved ? 'Approved, awaiting execution result' : 'Awaiting approval, will execute after approval'
             };
         }
         resultBlock = '<div class="tool-details tool-result-slot">' +
@@ -6150,14 +6150,14 @@ async function renderToolCallDetailContent(item) {
             '</div>';
     }
 
-    const paramsLabel = typeof window.t === 'function' ? window.t('timeline.params') : '参数:';
-    const hitlEditedArgsLabel = state.argsEditedByHitl
-        ? '<span class="tool-args-hitl-edited">已按 HITL 改参执行</span>'
+    const paramsLabel = typeof window.t === 'function' ? window.t('timeline.params') : 'Parameters:';
+    const hitleditedArgsLabel = state.argseditedByHitl
+        ? '<span class="tool-args-HITL-edited">Executed with HITL-edited parameters</span>'
         : '';
     const argsBlock = state.hideArgs ? '' :
         '<div class="tool-arg-section">' +
         '<strong data-i18n="timeline.params">' + escapeHtml(paramsLabel) + '</strong>' +
-        hitlEditedArgsLabel +
+        hitleditedArgsLabel +
         '<pre class="tool-args">' + escapeHtml(JSON.stringify(args, null, 2)) + '</pre>' +
         '</div>';
     content.innerHTML = '<div class="tool-details">' + argsBlock + resultBlock + '</div>';
@@ -6203,7 +6203,7 @@ function ensureToolCallResultSlot(item) {
 function mergeToolResultIntoCallItem(item, data, options) {
     if (!item || !data) return false;
     options = options || {};
-    const noResultText = typeof window.t === 'function' ? window.t('timeline.noResult') : '无结果';
+    const noResultText = typeof window.t === 'function' ? window.t('timeline.noResult') : 'No result';
     const result = data.result != null ? data.result : (data.error != null ? data.error : (data.resultPreview != null ? data.resultPreview : noResultText));
     const resultStr = typeof result === 'string' ? result : JSON.stringify(result);
     const text = options.rawText != null ? String(options.rawText) : resultStr;
@@ -6260,11 +6260,11 @@ function mergeToolResultIntoCallItem(item, data, options) {
     }
 
     if (data.executionId) {
-        let execIdEl = section.querySelector('.tool-execution-id');
+        let execIdEl = section.querySelector('.tool-execution-ID');
         if (!execIdEl) {
-            const execIdLabel = typeof window.t === 'function' ? window.t('timeline.executionId') : '执行ID:';
+            const execIdLabel = typeof window.t === 'function' ? window.t('timeline.executionId') : 'executeID:';
             execIdEl = document.createElement('div');
-            execIdEl.className = 'tool-execution-id';
+            execIdEl.className = 'tool-execution-ID';
             execIdEl.innerHTML = '<span data-i18n="timeline.executionId">' + escapeHtml(execIdLabel) +
                 '</span> <code></code>';
             section.appendChild(execIdEl);
@@ -6287,12 +6287,12 @@ function mergeToolResultIntoCallItem(item, data, options) {
 
 function findToolCallItemById(root, toolCallId) {
     if (!root || !toolCallId) return null;
-    const id = String(toolCallId).trim();
-    if (!id) return null;
+    const ID = String(toolCallId).trim();
+    if (!ID) return null;
     try {
-        return root.querySelector('[data-tool-call-id="' + CSS.escape(id) + '"]');
+        return root.querySelector('[data-tool-call-idD="' + CSS.escape(ID) + '"]');
     } catch (e) {
-        return root.querySelector('[data-tool-call-id="' + id.replace(/"/g, '\\"') + '"]');
+        return root.querySelector('[data-tool-call-idD="' + ID.replace(/"/g, '\\"') + '"]');
     }
 }
 
@@ -6346,21 +6346,21 @@ function coalesceProcessDetailsToolPairs(details) {
         const detail = details[i];
         const et = detail.eventType || '';
         const data = detail.data || {};
-        const id = data.toolCallId != null ? String(data.toolCallId).trim() : '';
+        const ID = data.toolCallId != null ? String(data.toolCallId).trim() : '';
 
         if (et === 'tool_call') {
             const copy = {
-                id: detail.id,
+                ID: detail.id,
                 eventType: detail.eventType,
                 message: detail.message,
                 createdAt: detail.createdAt,
                 data: Object.assign({}, data)
             };
-            if (id) {
-                let list = callsById.get(id);
+            if (ID) {
+                let list = callsById.get(ID);
                 if (!list) {
                     list = [];
-                    callsById.set(id, list);
+                    callsById.set(ID, list);
                 }
                 list.push(copy);
             }
@@ -6368,8 +6368,8 @@ function coalesceProcessDetailsToolPairs(details) {
             out.push(copy);
         } else if (et === 'tool_result') {
             let target = null;
-            if (id && callsById.has(id)) {
-                const list = callsById.get(id);
+            if (ID && callsById.has(ID)) {
+                const list = callsById.get(ID);
                 while (list.length) {
                     const candidate = list.shift();
                     if (candidate && candidate.data && !candidate.data._mergedResult) {
@@ -6391,12 +6391,12 @@ function coalesceProcessDetailsToolPairs(details) {
                         break;
                     }
                 }
-                if (!target && id) {
+                if (!target && ID) {
                     target = anyUnmatched;
                 }
             }
             if (target) {
-                // agentFacing 或较新的 tool_result 覆盖旧合并（历史数据可能含 reduction 前全量正文）
+                // agentFacing or newer tool_result overrides old merged content (historical data may contain full body before reduction)
                 const prev = target.data._mergedResult;
                 if (prev && data.agentFacing !== true && prev.agentFacing === true) {
                     out.push(detail);
@@ -6431,30 +6431,30 @@ function getToolCallStatusPresentation(status) {
         return value && value !== key ? value : fallback;
     };
     if (normalized === 'running') {
-        return { status: normalized, itemClass: 'tool-call-running', badgeClass: 'tool-status-running', label: translate('timeline.running', '执行中...'), icon: '' };
+        return { status: normalized, itemClass: 'tool-call-running', badgeClass: 'tool-status-running', label: translate('timeline.running', 'Executing...'), icon: '' };
     }
     if (normalized === 'background_running') {
         return { status: normalized, itemClass: 'tool-call-running', badgeClass: 'tool-status-running', label: getBackgroundRunningToolLabel(), icon: '' };
     }
     if (normalized === 'completed') {
-        return { status: normalized, itemClass: 'tool-call-completed', badgeClass: 'tool-status-completed', label: translate('timeline.completed', '已完成'), icon: '✅ ' };
+        return { status: normalized, itemClass: 'tool-call-completed', badgeClass: 'tool-status-completed', label: translate('timeline.completed', 'completed'), icon: '✅ ' };
     }
     if (normalized === 'failed') {
-        return { status: normalized, itemClass: 'tool-call-failed', badgeClass: 'tool-status-failed', label: translate('timeline.execFailed', '执行失败'), icon: '❌ ' };
+        return { status: normalized, itemClass: 'tool-call-failed', badgeClass: 'tool-status-failed', label: translate('timeline.execFailed', 'executefailed'), icon: '❌ ' };
     }
     if (normalized === 'blocked') {
-        return { status: normalized, itemClass: 'tool-call-blocked', badgeClass: 'tool-status-blocked', label: translate('timeline.blocked', '已拦截'), icon: '🛡 ' };
+        return { status: normalized, itemClass: 'tool-call-blocked', badgeClass: 'tool-status-blocked', label: translate('timeline.blocked', 'Blocked'), icon: '🛡 ' };
     }
-    if (normalized === 'cancelled' || normalized === 'canceled') {
-        return { status: 'cancelled', itemClass: 'tool-call-failed', badgeClass: 'tool-status-failed', label: translate('tasks.statusCancelled', '已取消'), icon: '⛔ ' };
+    if (normalized === 'Cancelled' || normalized === 'Canceled') {
+        return { status: 'Cancelled', itemClass: 'tool-call-failed', badgeClass: 'tool-status-failed', label: translate('tasks.statusCancelled', 'Cancelled'), icon: '⛔ ' };
     }
     if (normalized === 'result_missing') {
-        return { status: normalized, itemClass: 'tool-call-incomplete', badgeClass: 'tool-status-incomplete', label: translate('timeline.resultMissing', '结果记录缺失'), icon: '⚠️ ' };
+        return { status: normalized, itemClass: 'tool-call-incomplete', badgeClass: 'tool-status-incomplete', label: translate('timeline.resultMissing', 'Result record missing'), icon: '⚠️ ' };
     }
     return null;
 }
 
-// 实时事件、刷新后的历史记录和语言切换都复用同一套工具状态展示。
+// Live events, post-refresh history records, and language switches all reuse the same tool status display.
 function applyToolCallStatus(item, status) {
     if (!item) return;
     const presentation = getToolCallStatusPresentation(status);
@@ -6477,7 +6477,7 @@ function applyToolCallStatus(item, status) {
     titleElement.appendChild(badge);
 }
 
-// 更新工具调用状态
+// Update tool call status
 function updateToolCallStatus(progressId, toolCallId, status) {
     const mapping = getToolCallMapping(progressId, toolCallId);
     if (!mapping) return;
@@ -6511,44 +6511,44 @@ function markToolExecutionItemsCancelled(root, executionIds) {
     if (!root || ids.length === 0) return 0;
     const idSet = new Set(ids);
     let count = 0;
-    root.querySelectorAll('.timeline-item[data-tool-execution-id]').forEach(function (item) {
+    root.querySelectorAll('.timeline-item[data-tool-execution-idD]').forEach(function (item) {
         const execId = String(item.dataset.toolExecutionId || '').trim();
         if (!execId || !idSet.has(execId)) return;
         item.dataset.toolSuccess = '0';
-        item.dataset.toolDisplayStatus = 'cancelled';
+        item.dataset.toolDisplayStatus = 'Cancelled';
         item.classList.remove('tool-call-running', 'tool-call-completed', 'tool-call-incomplete');
         item.classList.add('tool-call-failed');
         const state = toolCallDetailStateByItemId.get(item.id);
         if (state && state.resultData && typeof state.resultData === 'object') {
             state.resultData = Object.assign({}, state.resultData, {
-                status: 'cancelled',
+                status: 'Cancelled',
                 success: false,
                 isError: true
             });
             state.pending = false;
             setToolCallDetailState(item, state);
         }
-        applyToolCallStatus(item, 'cancelled');
+        applyToolCallStatus(item, 'Cancelled');
         count++;
     });
     return count;
 }
 
-// 添加时间线项目
+// Add timeline item
 function buildWorkflowConditionResultHtml(data) {
     const output = (data && data.output) || {};
     const expr = (data && data.expression) || output.condition || '';
     const matched = (data && (data.matched === true || data.matched === 'true'))
         || output.matched === true || output.matched === 'true';
-    const branchText = matched ? '是（true）' : '否（false）';
+    const branchText = matched ? 'Yes (true)' : 'No (false)';
     const branchClass = matched ? 'is-true' : 'is-false';
     return `<div class="timeline-item-content workflow-condition-result">
         <div class="workflow-condition-row">
-            <span class="workflow-agent-io-label">表达式</span>
-            <code>${escapeHtml(String(expr || '（空）'))}</code>
+            <span class="workflow-agent-io-label">Expression</span>
+            <code>${escapeHtml(String(expr || '(empty)'))}</code>
         </div>
         <div class="workflow-condition-row">
-            <span class="workflow-agent-io-label">结果</span>
+            <span class="workflow-agent-io-label">Result</span>
             <span class="workflow-condition-branch ${branchClass}">${escapeHtml(branchText)}</span>
         </div>
     </div>`;
@@ -6558,7 +6558,7 @@ function buildWorkflowBranchDetailHtml(data) {
     const cond = (data && data.edgeCondition) || '';
     if (!cond) return '';
     return `<div class="timeline-item-content workflow-branch-detail">
-        <span class="workflow-agent-io-label">连线条件</span>
+        <span class="workflow-agent-io-label">Edge condition</span>
         <code>${escapeHtml(cond)}</code>
     </div>`;
 }
@@ -6574,16 +6574,16 @@ function formatLiveTimelinePrunedMarker(marker) {
     const translate = typeof window.t === 'function' ? window.t : null;
     const baseText = translate
         ? translate('chat.liveTimelinePruned', { count: count })
-        : ('已收起前 ' + count + ' 条实时过程详情，任务完成后可按页查看完整记录');
+        : ('Collapsed ' + count + ' real-time process detail records; full records can be viewed by page after task completion');
     if (minIteration <= 0 || maxIteration < minIteration) return baseText;
     if (minIteration === maxIteration) {
         return baseText + ' · ' + (translate
             ? translate('chat.liveTimelinePrunedSingleRound', { n: minIteration })
-            : ('主代理第 ' + minIteration + ' 轮'));
+            : ('Main agent round ' + minIteration + ''));
     }
     return baseText + ' · ' + (translate
         ? translate('chat.liveTimelinePrunedRoundRange', { from: minIteration, to: maxIteration })
-        : ('主代理第 ' + minIteration + '–' + maxIteration + ' 轮'));
+        : ('Main agent rounds ' + minIteration + '–' + maxIteration + ''));
 }
 
 function pruneLiveTimelineIfNeeded(timeline) {
@@ -6591,17 +6591,17 @@ function pruneLiveTimelineIfNeeded(timeline) {
     const items = Array.from(timeline.children).filter(function (el) {
         return el && el.classList && el.classList.contains('timeline-item');
     });
-    if (items.length <= LIVE_TIMELINE_MAX_ITEMS) return;
+    if ( items.length <= LIVE_TIMELINE_MAX_ITEMS) return;
 
     let marker = timeline.querySelector('.timeline-live-pruned-marker');
     let pruned = marker ? (parseInt(marker.dataset.prunedCount || '0', 10) || 0) : 0;
-    let removable = items.filter(function (el) {
+    let removable =  items.filter(function (el) {
         return !el.dataset.hitlInterruptId &&
-            !el.dataset.workflowRunId &&
+            !el.dataset.workflowrunId &&
             !el.classList.contains('timeline-item-workflow_hitl_waiting') &&
             !el.classList.contains('timeline-item-hitl_interrupt');
     });
-    const overflow = items.length - LIVE_TIMELINE_MAX_ITEMS;
+    const overflow =  items.length - LIVE_TIMELINE_MAX_ITEMS;
     const removeCount = Math.min(removable.length, Math.max(overflow, LIVE_TIMELINE_PRUNE_CHUNK));
     if (removeCount <= 0) return;
 
@@ -6635,7 +6635,7 @@ function pruneLiveTimelineIfNeeded(timeline) {
     marker.dataset.prunedMainIterationMin = String(prunedMainIterationMin);
     marker.dataset.prunedMainIterationMax = String(prunedMainIterationMax);
     marker.textContent = formatLiveTimelinePrunedMarker(marker);
-    // 始终放在已保留详情之前；配合 sticky 样式，查看最新内容时也能感知历史已裁剪。
+    // Always placed before retained details; with sticky styling, the user can sense that history has been trimmed while viewing latest content.
     if (timeline.firstChild !== marker) {
         timeline.insertBefore(marker, timeline.firstChild);
     }
@@ -6643,14 +6643,14 @@ function pruneLiveTimelineIfNeeded(timeline) {
 
 function addTimelineItem(timeline, type, options) {
     const item = document.createElement('div');
-    // 生成唯一ID
+    // Generate unique ID
     const itemId = 'timeline-item-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
     item.id = itemId;
     item.className = `timeline-item timeline-item-${type}`;
     if (type === 'eino_run_retry') {
         item.classList.add('timeline-item-warning');
     }
-    // 记录类型与参数，便于 languagechange 时刷新标题文案
+    // Record type and parameters for refreshing title text on languagechange
     item.dataset.timelineType = type;
     if (type === 'iteration') {
         const n = options.iterationN != null ? options.iterationN : (options.data && options.data.iteration != null ? options.data.iteration : 1);
@@ -6678,14 +6678,14 @@ function addTimelineItem(timeline, type, options) {
         }
         const merged = options.mergedResult || d._mergedResult;
         const mergedDisplayState = merged ? getToolResultDisplayState(merged) : null;
-        const mergedBackgroundRunning = mergedDisplayState && mergedDisplayState.kind === 'background_running';
+        const mergedreturngroundrunning = mergedDisplayState && mergedDisplayState.kind === 'background_running';
         const terminalStatus = String(options.toolStatus || '').toLowerCase();
-        const forcedStatus = mergedDisplayState && mergedDisplayState.kind === 'blocked' ? 'blocked' : (terminalStatus === 'completed' || terminalStatus === 'blocked' || terminalStatus === 'failed' || terminalStatus === 'cancelled' || terminalStatus === 'canceled')
-            ? (terminalStatus === 'canceled' ? 'cancelled' : terminalStatus)
+        const forcedStatus = mergedDisplayState && mergedDisplayState.kind === 'blocked' ? 'blocked' : (terminalStatus === 'completed' || terminalStatus === 'blocked' || terminalStatus === 'failed' || terminalStatus === 'Cancelled' || terminalStatus === 'Canceled')
+            ? (terminalStatus === 'Canceled' ? 'Cancelled' : terminalStatus)
             : '';
         if (merged) {
             item.dataset.toolResultMerged = '1';
-            item.dataset.toolSuccess = forcedStatus ? (forcedStatus === 'completed' ? '1' : '0') : ((!mergedDisplayState.isError && !mergedBackgroundRunning) ? '1' : '0');
+            item.dataset.toolSuccess = forcedStatus ? (forcedStatus === 'completed' ? '1' : '0') : ((!mergedDisplayState.isError && !mergedreturngroundrunning) ? '1' : '0');
             item.dataset.toolDisplayStatus = forcedStatus || toolDisplayStatusFromState(mergedDisplayState);
             if (merged.executionId != null && String(merged.executionId).trim() !== '') {
                 item.dataset.toolExecutionId = String(merged.executionId).trim();
@@ -6694,14 +6694,14 @@ function addTimelineItem(timeline, type, options) {
             if (d._mergedResultDetailId) {
                 item.dataset.toolResultDetailId = String(d._mergedResultDetailId);
             }
-        } else if (terminalStatus === 'completed' || terminalStatus === 'blocked' || terminalStatus === 'failed' || terminalStatus === 'cancelled' || terminalStatus === 'canceled') {
+        } else if (terminalStatus === 'completed' || terminalStatus === 'blocked' || terminalStatus === 'failed' || terminalStatus === 'Cancelled' || terminalStatus === 'Canceled') {
             item.dataset.toolSuccess = terminalStatus === 'completed' ? '1' : '0';
-            item.dataset.toolDisplayStatus = terminalStatus === 'canceled' ? 'cancelled' : terminalStatus;
+            item.dataset.toolDisplayStatus = terminalStatus === 'Canceled' ? 'Cancelled' : terminalStatus;
             item.classList.add(getToolCallStatusPresentation(terminalStatus).itemClass);
         } else if (terminalStatus === 'result_missing') {
             item.dataset.toolDisplayStatus = 'result_missing';
             item.classList.add('tool-call-incomplete');
-            item.title = typeof window.t === 'function' ? window.t('timeline.resultMissing') : '结果记录缺失';
+            item.title = typeof window.t === 'function' ? window.t('timeline.resultMissing') : 'Result record missing';
         } else if (terminalStatus === 'running' || terminalStatus === 'background_running') {
             item.dataset.toolDisplayStatus = terminalStatus;
             item.classList.add('tool-call-running');
@@ -6711,14 +6711,14 @@ function addTimelineItem(timeline, type, options) {
         item.dataset.hitlInterruptId = String(options.data.interruptId).trim();
     }
     if (type === 'workflow_hitl_waiting' && options.data) {
-        const runId = options.data.workflowRunId || options.data.workflow_run_id;
+        const runId = options.data.workflowrunId || options.data.workflow_run_id;
         if (runId != null && String(runId).trim() !== '') {
-            item.dataset.workflowRunId = String(runId).trim();
+            item.dataset.workflowrunId = String(runId).trim();
         }
     }
     if (type === 'tool_result' && options.data) {
         const d = options.data;
-        const noResultText = typeof window.t === 'function' ? window.t('timeline.noResult') : '无结果';
+        const noResultText = typeof window.t === 'function' ? window.t('timeline.noResult') : 'No result';
         const result = d.result != null ? d.result : (d.error != null ? d.error : (d.resultPreview != null ? d.resultPreview : noResultText));
         const resultStr = typeof result === 'string' ? result : JSON.stringify(result);
         const displayState = getToolResultDisplayState(d, { rawText: resultStr });
@@ -6734,7 +6734,7 @@ function addTimelineItem(timeline, type, options) {
     }
     if (type === 'eino_usage_summary' && options.data) {
         const d = options.data;
-        ['modelCalls', 'promptTokens', 'completionTokens', 'totalTokens', 'cachedTokens', 'reasoningTokens'].forEach(function (key) {
+        ['modelCalls', 'promptTokens', 'completionTokens', 'totalTokens', 'CachedTokens', 'reasoningTokens'].forEach(function (key) {
             if (d[key] != null) {
                 item.dataset[key] = String(d[key]);
             }
@@ -6753,10 +6753,10 @@ function addTimelineItem(timeline, type, options) {
         item.dataset.responseStreamPlaceholder = '1';
     }
 
-    // 使用传入的createdAt时间，如果没有则使用当前时间（向后兼容）
+    // Use the passed createdAt time; fall back to current time if absent (backwards compatibility)
     let eventTime;
     if (options.createdAt) {
-        // 处理字符串或Date对象
+        // Handle string or Date object
         if (typeof options.createdAt === 'string') {
             eventTime = new Date(options.createdAt);
         } else if (options.createdAt instanceof Date) {
@@ -6764,14 +6764,14 @@ function addTimelineItem(timeline, type, options) {
         } else {
             eventTime = new Date(options.createdAt);
         }
-        // 如果解析失败，使用当前时间
+        // If parsing fails, use currentTime
         if (isNaN(eventTime.getTime())) {
             eventTime = new Date();
         }
     } else {
         eventTime = new Date();
     }
-    // 保存事件时间 ISO，语言切换时可重算时间格式
+    // Save event time as ISO string so the time format can be recalculated on language switch
     try {
         item.dataset.createdAtIso = eventTime.toISOString();
     } catch (e) { /* ignore */ }
@@ -6787,7 +6787,7 @@ function addTimelineItem(timeline, type, options) {
         </div>
     `;
     
-    // 根据类型添加详细内容
+    // Add detailed content based on type
     if ((type === 'thinking' || type === 'reasoning_chain' || type === 'planning') && options.message) {
         const streamBody = typeof formatTimelineStreamBody === 'function'
             ? formatTimelineStreamBody(options.message, options.data)
@@ -6798,12 +6798,12 @@ function addTimelineItem(timeline, type, options) {
         const args = parseToolCallArgsFromData(data);
         const merged = options.mergedResult || data._mergedResult;
         const mergedDisplayState = merged ? getToolResultDisplayState(merged) : null;
-        const mergedBackgroundRunning = mergedDisplayState && mergedDisplayState.kind === 'background_running';
+        const mergedreturngroundrunning = mergedDisplayState && mergedDisplayState.kind === 'background_running';
         const terminalStatus = String(options.toolStatus || '').toLowerCase();
-        const forcedStatus = mergedDisplayState && mergedDisplayState.kind === 'blocked' ? 'blocked' : (terminalStatus === 'completed' || terminalStatus === 'blocked' || terminalStatus === 'failed' || terminalStatus === 'cancelled' || terminalStatus === 'canceled')
-            ? (terminalStatus === 'canceled' ? 'cancelled' : terminalStatus)
+        const forcedStatus = mergedDisplayState && mergedDisplayState.kind === 'blocked' ? 'blocked' : (terminalStatus === 'completed' || terminalStatus === 'blocked' || terminalStatus === 'failed' || terminalStatus === 'Cancelled' || terminalStatus === 'Canceled')
+            ? (terminalStatus === 'Canceled' ? 'Cancelled' : terminalStatus)
             : '';
-        const hasTerminalStatus = terminalStatus === 'completed' || terminalStatus === 'blocked' || terminalStatus === 'failed' || terminalStatus === 'cancelled' || terminalStatus === 'canceled';
+        const hasTerminalStatus = terminalStatus === 'completed' || terminalStatus === 'blocked' || terminalStatus === 'failed' || terminalStatus === 'Cancelled' || terminalStatus === 'Canceled';
         const hasHistoricalStatus = hasTerminalStatus || terminalStatus === 'result_missing';
         if (merged) {
             const statusForClass = forcedStatus || toolDisplayStatusFromState(mergedDisplayState);
@@ -6834,17 +6834,17 @@ function addTimelineItem(timeline, type, options) {
                 const summaryPreview = previewText.length > 80 ? (previewText.slice(0, 80) + '...') : previewText;
                 prefix = `<details class="workflow-agent-input">
                     <summary>
-                        <span class="workflow-agent-io-label">输入</span>
+                        <span class="workflow-agent-io-label">Input</span>
                         ${source ? `<code>${escapeHtml(source)}</code>` : ''}
                         ${summaryPreview ? `<span class="workflow-agent-input-summary">${escapeHtml(summaryPreview)}</span>` : ''}
                     </summary>
-                    ${previewText ? `<pre>${escapeHtml(previewText)}</pre>` : '<div class="workflow-agent-empty">暂无输入预览</div>'}
+                    ${previewText ? `<pre>${escapeHtml(previewText)}</pre>` : '<div class="workflow-agent-empty">No input preview</div>'}
                 </details>`;
             }
         }
         const body = type === 'workflow_agent_output'
             ? `<div class="workflow-agent-output">
-                <div class="workflow-agent-io-label">输出</div>
+                <div class="workflow-agent-io-label">output</div>
                 <div class="workflow-agent-output-body">${formatTimelinePlainTextHtml(options.message)}</div>
             </div>`
             : formatTimelinePlainTextHtml(options.message);
@@ -6855,7 +6855,7 @@ function addTimelineItem(timeline, type, options) {
         content += buildWorkflowBranchDetailHtml(options.data);
     } else if (type === 'tool_result' && options.data) {
         const data = options.data;
-        const noResultText = typeof window.t === 'function' ? window.t('timeline.noResult') : '无结果';
+        const noResultText = typeof window.t === 'function' ? window.t('timeline.noResult') : 'No result';
         const result = data.result || data.error || data.resultPreview || noResultText;
         const resultStr = typeof result === 'string' ? result : JSON.stringify(result);
         const displayState = getToolResultDisplayState(data, { rawText: resultStr });
@@ -6874,8 +6874,8 @@ function addTimelineItem(timeline, type, options) {
             item.dataset.toolExecutionId = String(data.executionId).trim();
         }
         item.classList.add(getToolCallStatusPresentation(toolDisplayStatusFromState(displayState)).itemClass);
-    } else if (type === 'cancelled') {
-        const taskCancelledLabel = typeof window.t === 'function' ? window.t('chat.taskCancelled') : '任务已取消';
+    } else if (type === 'Cancelled') {
+        const taskCancelledLabel = typeof window.t === 'function' ? window.t('chat.taskCancelled') : 'Task cancelled';
         content += `
             <div class="timeline-item-content">
                 ${escapeHtml(options.message || taskCancelledLabel)}
@@ -6911,8 +6911,8 @@ function addTimelineItem(timeline, type, options) {
         const scope = options.data && options.data.einoScope != null
             ? String(options.data.einoScope).trim()
             : '';
-        // 主代理每次重新进入模型才形成一轮；子代理的步骤保留普通时间线样式，
-        // 避免把同一轮中的专家调用误显示成新的主迭代分组。
+        // Each time the main agent re-enters the model forms a new round; sub-agent steps retain the regular timeline style,
+        // to avoid misrepresenting expert calls within the same round as a new main iteration group.
         if (scope !== 'sub') {
             item.classList.add('timeline-iteration-divider');
             item.setAttribute('role', 'separator');
@@ -6928,17 +6928,17 @@ function addTimelineItem(timeline, type, options) {
     timeline.appendChild(item);
     pruneLiveTimelineIfNeeded(timeline);
     
-    // 自动展开详情
+    // AutoexpandDetails
     const expanded = timeline.classList.contains('expanded');
     if (!expanded && (type === 'tool_call' || type === 'tool_result')) {
-        // 对于工具调用和结果，默认显示摘要
+        // For tool calls and results, show summary by default
     }
     
-    // 返回item ID以便后续更新
+    // Return item ID for subsequent updates
     return itemId;
 }
 
-// 加载活跃任务列表
+// Load active task list
 function loadActiveTasks(showErrors = false) {
     if (activeTasksLoadPromise) return activeTasksLoadPromise;
     const bar = document.getElementById('active-tasks-bar');
@@ -6951,17 +6951,17 @@ function loadActiveTasks(showErrors = false) {
             const result = await response.json().catch(() => ({}));
 
             if (!response.ok) {
-                throw new Error(result.error || (typeof window.t === 'function' ? window.t('tasks.loadActiveTasksFailed') : '获取活跃任务失败'));
+                throw new Error(result.error || (typeof window.t === 'function' ? window.t('tasks.loadActiveTasksFailed') : 'Failed to get active tasks'));
             }
 
             renderActiveTasks(result.tasks || []);
             if (pendingResponse && pendingResponse.ok) {
                 const pendingResult = await pendingResponse.json().catch(function () { return {}; });
-                reconcilePendingHitlState(pendingResult.items || []);
+                reconcilePendingHitlState(pendingResult. items || []);
             }
         } catch (error) {
-            // 服务停止、重启或登录失效时，旧进程任务不可能仍可审批。
-            // 立即清空本地运行/审批缓存，防止倒计时和按钮继续保持可用。
+            // When service stops, restarts, or sign-in expires, old process tasks cannot still be approved.
+            // Immediately clear local run/approval cache to prevent countdown and buttons from remaining available.
             renderActiveTasks([]);
             hitlPendingInterruptTracker.update([]);
             syncHitlApprovalTaskAvailability();
@@ -6969,10 +6969,10 @@ function loadActiveTasks(showErrors = false) {
             if (typeof window.syncProjectConversationApprovalStatuses === 'function') {
                 window.syncProjectConversationApprovalStatuses([]);
             }
-            console.error('获取活跃任务失败:', error);
+            console.error('Failed to get active tasks:', error);
             if (showErrors && bar) {
                 bar.style.display = 'block';
-                const cannotGetStatus = typeof window.t === 'function' ? window.t('tasks.cannotGetTaskStatus') : '无法获取任务状态：';
+                const cannotGetStatus = typeof window.t === 'function' ? window.t('tasks.cannotGetTaskStatus') : 'Cannot get task status: ';
                 bar.innerHTML = `<div class="active-task-error">${escapeHtml(cannotGetStatus)}${escapeHtml(error.message)}</div>`;
             }
         }
@@ -7009,8 +7009,8 @@ function syncVisibleConversationTaskReplay(tasks) {
     visibleConversationReplaySyncId = conversationId;
     visibleConversationReplaySyncPromise = Promise.resolve()
         .then(async function () {
-            // 用户可能在任务刷新排队后、此微任务执行前切换了会话。
-            // 不允许旧会话补流取消或覆盖用户刚发起的目标会话加载。
+            // The user may have switched sessions after the task refresh was queued but before this microtask executes.
+            // Do not allow old session catch-up streams to cancel or overwrite the target session load just initiated by the user.
             if (String(window.currentConversationId || '') !== conversationId) {
                 return false;
             }
@@ -7020,7 +7020,7 @@ function syncVisibleConversationTaskReplay(tasks) {
             ) {
                 return false;
             }
-            // 另一标签页已新增用户消息和运行中助手轮次；先重载轻量历史，避免把补流挂到旧助手消息上。
+            // Another tab has already added a user message and a running assistant round; reload lightweight history first to avoid attaching the catch-up stream to an old assistant message.
             if (typeof window.loadConversation === 'function') {
                 await window.loadConversation(conversationId);
             }
@@ -7034,7 +7034,7 @@ function syncVisibleConversationTaskReplay(tasks) {
             return false;
         })
         .catch(function (error) {
-            console.warn('同步其他标签页的运行中对话失败:', error);
+            console.warn('Failed to sync running chat from another tab:', error);
             return false;
         })
         .finally(function () {
@@ -7057,10 +7057,10 @@ function getActiveTaskDisplayName(task) {
 
 function stableActiveTasksForDisplay(tasks) {
     return (Array.isArray(tasks) ? tasks : []).slice().sort(function (a, b) {
-        const aStartedAt = Date.parse(a && a.startedAt ? a.startedAt : '');
-        const bStartedAt = Date.parse(b && b.startedAt ? b.startedAt : '');
-        const aTime = Number.isFinite(aStartedAt) ? aStartedAt : Number.MAX_SAFE_INTEGER;
-        const bTime = Number.isFinite(bStartedAt) ? bStartedAt : Number.MAX_SAFE_INTEGER;
+        const astartedAt = Date.parse(a && a.startedAt ? a.startedAt : '');
+        const bstartedAt = Date.parse(b && b.startedAt ? b.startedAt : '');
+        const aTime = Number.isFinite(astartedAt) ? astartedAt : Number.MAX_SAFE_INTEGER;
+        const bTime = Number.isFinite(bstartedAt) ? bstartedAt : Number.MAX_SAFE_INTEGER;
         if (aTime !== bTime) return aTime - bTime;
         return String(a && a.conversationId || '').localeCompare(String(b && b.conversationId || ''));
     });
@@ -7087,7 +7087,7 @@ function updateActiveTaskConversationTitle(conversationId, newTitle) {
     if (!bar || !conversationId) return;
     const title = (newTitle || '').trim();
     if (!title) return;
-    bar.querySelectorAll('.active-task-item[data-conversation-id="' + conversationId + '"] .active-task-message')
+    bar.querySelectorAll('.active-task-item[data-conversation-idD="' + conversationId + '"] .active-task-message')
         .forEach(function (el) {
             el.textContent = title;
         });
@@ -7153,7 +7153,7 @@ function renderActiveTasks(tasks) {
         const item = document.createElement('div');
         item.className = 'active-task-item active-task-item-clickable';
         if (task && task.conversationId) {
-            item.title = (typeof window.t === 'function' ? window.t('tasks.viewConversation') : '查看会话');
+            item.title = (typeof window.t === 'function' ? window.t('tasks.viewConversation') : 'View conversation');
             item.setAttribute('role', 'button');
             item.onclick = () => openActiveTaskConversation(task.conversationId);
         }
@@ -7168,17 +7168,17 @@ function renderActiveTasks(tasks) {
         const _t = function (k) { return typeof window.t === 'function' ? window.t(k) : k; };
         const statusMap = {
             'running': _t('tasks.statusRunning'),
-            'cancelling': _t('tasks.statusCancelling'),
+            'Cancelling': _t('tasks.statusCancelling'),
             'cleaning': _t('tasks.statusCleaning'),
             'cleanup_failed': _t('tasks.statusCleanupFailed'),
             'cleanup_unconfirmed': _t('tasks.statusCleanupUnconfirmed'),
             'failed': _t('tasks.statusFailed'),
             'timeout': _t('tasks.statusTimeout'),
-            'cancelled': _t('tasks.statusCancelled'),
+            'Cancelled': _t('tasks.statusCancelled'),
             'completed': _t('tasks.statusCompleted')
         };
         const statusText = statusMap[task.status] || _t('tasks.statusRunning');
-        const isFinalStatus = ['failed', 'timeout', 'cancelled', 'completed', 'cleanup_unconfirmed'].includes(task.status);
+        const isFinalStatus = ['failed', 'timeout', 'Cancelled', 'completed', 'cleanup_unconfirmed'].includes(task.status);
         const taskDisplayName = getActiveTaskDisplayName(task);
         const stopTaskBtnText = _t('tasks.stopTask');
 
@@ -7197,7 +7197,7 @@ function renderActiveTasks(tasks) {
             </div>
         `;
 
-        // 只有非最终状态的任务才显示停止按钮
+        // Only show stop button for tasks that are not in a final state
         if (!isFinalStatus) {
             const cancelBtn = item.querySelector('.active-task-cancel');
             if (cancelBtn) {
@@ -7205,9 +7205,9 @@ function renderActiveTasks(tasks) {
                     evt.stopPropagation();
                     cancelActiveTask(task.conversationId);
                 };
-                if (task.status === 'cancelling') {
+                if (task.status === 'Cancelling') {
                     cancelBtn.disabled = true;
-                    cancelBtn.textContent = typeof window.t === 'function' ? window.t('tasks.cancelling') : '取消中...';
+                    cancelBtn.textContent = typeof window.t === 'function' ? window.t('tasks.cancelling') : 'Cancelling...';
                 }
             }
         }
@@ -7231,7 +7231,7 @@ function reconcileHitlApprovalStateWithActiveTasks(tasks) {
             window.setProjectConversationApprovalStatus(conversationId, false);
         }
     });
-    const dock = document.getElementById('chat-hitl-approval-dock');
+    const dock = document.getElementById('chat-HITL-approval-dock');
     const dockConversationId = dock && String(dock.dataset.conversationId || '').trim();
     if (dockConversationId && !activeIds.has(dockConversationId)) {
         clearChatHitlApprovalDock();
@@ -7248,7 +7248,7 @@ function cancelActiveTask(conversationId) {
 
 let monitorPanelFetchSeq = 0;
 
-// 监控面板状态
+// Monitor panel state
 const monitorState = {
     executions: [],
     summary: null,
@@ -7267,9 +7267,9 @@ const monitorState = {
         timeline: ''
     },
     pagination: {
-        page: 1,
-        pageSize: (() => {
-            // 从 localStorage 读取保存的每页显示数量，默认为 20
+         PAGE: 1,
+         pageSize: (() => {
+            // Read saved per-page count from localStorage, default is 20
             const saved = localStorage.getItem('monitorPageSize');
             return saved ? parseInt(saved, 10) : 20;
         })(),
@@ -7291,20 +7291,20 @@ function scheduleMonitorPoll(generation) {
     monitorPollTimer = setTimeout(async function pollMonitor() {
         monitorPollTimer = null;
         if (generation !== monitorPollGeneration) return;
-        const page = document.getElementById('page-mcp-monitor');
-        if (!page || !page.classList.contains('active')) {
+        const  PAGE = document.getElementById(' PAGE-mcp-monitor');
+        if (! PAGE || ! PAGE.classList.contains('active')) {
             return;
         }
 
         try {
             if (!document.hidden && typeof refreshMonitorPanel === 'function') {
-                // 等待本轮完成后再安排下一轮，避免 WSL 或慢网络下请求重叠。
+                // Wait for the current round to complete before scheduling the next, to avoid overlapping requests on WSL or slow networks.
                 await refreshMonitorPanel();
             }
         } catch (error) {
-            // refreshMonitorPanel 已负责展示错误；轮询仍应继续。
+            // refreshMonitorPanel already handles displaying errors; polling should continue.
         } finally {
-            const activePage = document.getElementById('page-mcp-monitor');
+            const activePage = document.getElementById(' PAGE-mcp-monitor');
             if (generation === monitorPollGeneration && activePage && activePage.classList.contains('active')) {
                 scheduleMonitorPoll(generation);
             }
@@ -7321,90 +7321,90 @@ function stopMonitorPoll() {
 }
 
 function openMonitorPanel() {
-    // 切换到MCP监控页面
+    // Switch to MCP monitor page
     if (typeof switchPage === 'function') {
         switchPage('mcp-monitor');
     }
-    // 初始化每页显示数量选择器
+    // Initialize per-page count selector
     initializeMonitorPageSize();
 }
 
-// 初始化每页显示数量选择器
+// Initialize per-page count selector
 function initializeMonitorPageSize() {
-    const pageSizeSelect = document.getElementById('monitor-page-size');
-    if (pageSizeSelect) {
-        pageSizeSelect.value = monitorState.pagination.pageSize;
+    const  pageSizeSelect = document.getElementById('monitor- PAGE-size');
+    if ( pageSizeSelect) {
+         pageSizeSelect.value = monitorState.pagination. pageSize;
     }
 }
 
-// 改变每页显示数量
+// Change items per page
 function changeMonitorPageSize() {
-    const pageSizeSelect = document.getElementById('monitor-page-size');
-    if (!pageSizeSelect) {
+    const  pageSizeSelect = document.getElementById('monitor- PAGE-size');
+    if (! pageSizeSelect) {
         return;
     }
     
-    const newPageSize = parseInt(pageSizeSelect.value, 10);
+    const newPageSize = parseInt( pageSizeSelect.value, 10);
     if (isNaN(newPageSize) || newPageSize <= 0) {
         return;
     }
     
-    // 保存到 localStorage
+    // Save to localStorage
     localStorage.setItem('monitorPageSize', newPageSize.toString());
     
-    // 更新状态
-    monitorState.pagination.pageSize = newPageSize;
-    monitorState.pagination.page = 1; // 重置到第一页
+    // updatestatus
+    monitorState.pagination. pageSize = newPageSize;
+    monitorState.pagination. PAGE = 1; // Reset to first page
     
-    // 刷新数据
+    // Refresh data
     refreshMonitorPanel(1);
 }
 
 function closeMonitorPanel() {
-    // 不再需要关闭功能，因为现在是页面而不是模态框
-    // 如果需要，可以切换回对话页面
+    // Close functionality no longer needed since it is now a  PAGE rather than a modal
+    // If needed, can switch back to chat  PAGE
     if (typeof switchPage === 'function') {
         switchPage('chat');
     }
 }
 
-async function refreshMonitorPanel(page = null) {
+async function refreshMonitorPanel( PAGE = null) {
     const statsContainer = document.getElementById('monitor-stats');
     const execContainer = document.getElementById('monitor-executions');
 
     try {
         const mySeq = ++monitorPanelFetchSeq;
-        const currentPage = page !== null ? page : monitorState.pagination.page;
-        const pageSize = monitorState.pagination.pageSize;
+        const currentPage =  PAGE !== null ?  PAGE : monitorState.pagination. PAGE;
+        const pageSize = monitorState.pagination. pageSize;
 
         const statusFilter = document.getElementById('monitor-status-filter');
         const toolFilter = document.getElementById('monitor-tool-filter');
-        const currentStatusFilter = statusFilter ? statusFilter.value : 'all';
-        const currentToolFilter = toolFilter ? (toolFilter.value.trim() || 'all') : 'all';
+        const currentStatusfilter = statusFilter ? statusFilter.value : 'all';
+        const currentToolfilter = toolFilter ? (toolFilter.value.trim() || 'all') : 'all';
 
-        let url = `/api/monitor?page=${currentPage}&page_size=${pageSize}`;
-        if (currentStatusFilter && currentStatusFilter !== 'all') {
-            url += `&status=${encodeURIComponent(currentStatusFilter)}`;
+        let URL = `/api/monitor? PAGE=${currentPage}& page_size=${ pageSize}`;
+        if (currentStatusfilter && currentStatusfilter !== 'all') {
+            URL += `&status=${encodeURIComponent(currentStatusfilter)}`;
         }
-        if (currentToolFilter && currentToolFilter !== 'all') {
-            url += `&tool=${encodeURIComponent(currentToolFilter)}`;
+        if (currentToolfilter && currentToolfilter !== 'all') {
+            URL += `&tool=${encodeURIComponent(currentToolfilter)}`;
         }
 
         const range = getMcpMonitorTimelineRange();
-        // 后台轮询时保留当前趋势图，避免每 3 秒重新进入加载态并触发闪烁。
+        // Preserve the current trend chart during background polling to avoid re-entering loading state and flickering every 3 seconds.
         monitorState.timelineLoading = monitorState.timeline == null && !monitorState.timelineError;
         const timelinePromise = fetchMonitorTimeline(range);
 
-        const monitorResp = await apiFetch(url, { method: 'GET' });
+        const monitorResp = await apiFetch(URL, { method: 'GET' });
         const result = await monitorResp.json().catch(() => ({}));
         if (!monitorResp.ok) {
-            throw new Error(result.error || '获取监控数据失败');
+            throw new Error(result.error || 'Failed to get monitoring data');
         }
         if (mySeq !== monitorPanelFetchSeq) {
             return;
         }
 
-        applyMonitorPayload(result, currentStatusFilter);
+        applyMonitorPayload(result, currentStatusfilter);
 
         const { timeline, timelineError } = await timelinePromise;
         if (mySeq !== monitorPanelFetchSeq) {
@@ -7413,28 +7413,28 @@ async function refreshMonitorPanel(page = null) {
         applyMonitorTimelinePayload(timeline, timelineError, range);
         initializeMonitorPageSize();
     } catch (error) {
-        console.error('刷新监控面板失败:', error);
+        console.error('Failed to refresh monitor panel:', error);
         monitorState.timelineLoading = false;
         if (statsContainer) {
-            statsContainer.innerHTML = `<div class="monitor-error">${escapeHtml(typeof window.t === 'function' ? window.t('mcpMonitor.loadStatsError') : '无法加载统计信息')}：${escapeHtml(error.message)}</div>`;
+            statsContainer.innerHTML = `<div class="monitor-error">${escapeHtml(typeof window.t === 'function' ? window.t('mcpMonitor.loadStatsError') : 'Cannot load statistics')}: ${escapeHtml(error.message)}</div>`;
         }
         if (execContainer) {
-            execContainer.innerHTML = `<div class="monitor-error">${escapeHtml(typeof window.t === 'function' ? window.t('mcpMonitor.loadExecutionsError') : '无法加载执行记录')}：${escapeHtml(error.message)}</div>`;
+            execContainer.innerHTML = `<div class="monitor-error">${escapeHtml(typeof window.t === 'function' ? window.t('mcpMonitor.loadExecutionsError') : 'Cannot load execution records')}: ${escapeHtml(error.message)}</div>`;
         }
     }
 }
 
-// 处理工具搜索输入（防抖）
-let toolFilterDebounceTimer = null;
+// Handle tool search input (debounced)
+let toolfilterDebounceTimer = null;
 
 const MONITOR_FILTER_SELECT_IDS = ['monitor-status-filter'];
-const monitorFilterSelectMap = {};
-let monitorFilterSelectDocBound = false;
+const monitorfilterSelectMap = {};
+let monitorfilterSelectDocBound = false;
 const MONITOR_FILTER_SELECT_CARET = '<svg class="monitor-filter-select-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
 function closeAllMonitorFilterSelects() {
-    Object.keys(monitorFilterSelectMap).forEach(function (id) {
-        const reg = monitorFilterSelectMap[id];
+    Object.keys(monitorfilterSelectMap).forEach(function (ID) {
+        const reg = monitorfilterSelectMap[ID];
         if (!reg || !reg.wrapper) return;
         reg.wrapper.classList.remove('open');
         if (reg.trigger) reg.trigger.setAttribute('aria-expanded', 'false');
@@ -7442,7 +7442,7 @@ function closeAllMonitorFilterSelects() {
 }
 
 function syncMonitorFilterSelect(selectId) {
-    const reg = monitorFilterSelectMap[selectId];
+    const reg = monitorfilterSelectMap[selectId];
     if (!reg) return;
     const select = reg.select;
     const dropdown = reg.dropdown;
@@ -7489,9 +7489,9 @@ function syncAllMonitorFilterSelects() {
 function enhanceMonitorFilterSelect(selectId) {
     const select = document.getElementById(selectId);
     if (!select) return;
-    const existing = monitorFilterSelectMap[selectId];
+    const existing = monitorfilterSelectMap[selectId];
     if (existing && existing.select !== select) {
-        delete monitorFilterSelectMap[selectId];
+        delete monitorfilterSelectMap[selectId];
     }
     if (select.dataset.monitorCustomSelect === '1') {
         syncMonitorFilterSelect(selectId);
@@ -7503,7 +7503,7 @@ function enhanceMonitorFilterSelect(selectId) {
     select.setAttribute('aria-hidden', 'true');
 
     const wrapper = document.createElement('div');
-    wrapper.className = 'monitor-filter-select-ui';
+    wrapper.className = 'monitor-filter-select-UI';
 
     const trigger = document.createElement('button');
     trigger.type = 'button';
@@ -7525,7 +7525,7 @@ function enhanceMonitorFilterSelect(selectId) {
     wrapper.appendChild(dropdown);
     wrapper.appendChild(select);
 
-    monitorFilterSelectMap[selectId] = { wrapper: wrapper, trigger: trigger, dropdown: dropdown, select: select };
+    monitorfilterSelectMap[selectId] = { wrapper: wrapper, trigger: trigger, dropdown: dropdown, select: select };
 
     trigger.addEventListener('click', function (e) {
         e.stopPropagation();
@@ -7557,8 +7557,8 @@ function enhanceMonitorFilterSelect(selectId) {
         syncMonitorFilterSelect(selectId);
     });
 
-    if (!select.dataset.monitorFilterBound) {
-        select.dataset.monitorFilterBound = '1';
+    if (!select.dataset.monitorfilterBound) {
+        select.dataset.monitorfilterBound = '1';
         select.addEventListener('change', function () {
             applyMonitorFilters();
         });
@@ -7568,28 +7568,28 @@ function enhanceMonitorFilterSelect(selectId) {
 }
 
 function initMonitorFilterSelects() {
-    if (!monitorFilterSelectDocBound) {
+    if (!monitorfilterSelectDocBound) {
         document.addEventListener('click', function (e) {
-            if (e.target.closest('.monitor-filter-select-ui')) return;
+            if (e.target.closest('.monitor-filter-select-UI')) return;
             closeAllMonitorFilterSelects();
         });
         document.addEventListener('keydown', function (e) {
             if (e.key === 'Escape') closeAllMonitorFilterSelects();
         });
-        monitorFilterSelectDocBound = true;
+        monitorfilterSelectDocBound = true;
     }
     MONITOR_FILTER_SELECT_IDS.forEach(enhanceMonitorFilterSelect);
     syncAllMonitorFilterSelects();
 }
 
 function handleToolFilterInput() {
-    // 清除之前的定时器
-    if (toolFilterDebounceTimer) {
-        clearTimeout(toolFilterDebounceTimer);
+    // clear the previous timer
+    if (toolfilterDebounceTimer) {
+        clearTimeout(toolfilterDebounceTimer);
     }
     
-    // 设置新的定时器，500ms后执行筛选
-    toolFilterDebounceTimer = setTimeout(() => {
+    // Set a new timer; execute filter after 500ms
+    toolfilterDebounceTimer = setTimeout(() => {
         applyMonitorFilters();
     }, 500);
 }
@@ -7603,7 +7603,7 @@ async function applyMonitorFilters() {
     if (toolFilter) {
         toolFilter.classList.toggle('is-filter-active', toolRaw !== 'all');
     }
-    // 当筛选条件改变时，从后端重新获取数据
+    // When filter conditions change, retry data from backend
     await refreshMonitorPanelWithFilter(status, tool);
 }
 
@@ -7614,24 +7614,24 @@ async function refreshMonitorPanelWithFilter(statusFilter = 'all', toolFilter = 
     try {
         const mySeq = ++monitorPanelFetchSeq;
         const currentPage = 1;
-        const pageSize = monitorState.pagination.pageSize;
+        const pageSize = monitorState.pagination. pageSize;
 
-        let url = `/api/monitor?page=${currentPage}&page_size=${pageSize}`;
+        let URL = `/api/monitor? PAGE=${currentPage}& page_size=${ pageSize}`;
         if (statusFilter && statusFilter !== 'all') {
-            url += `&status=${encodeURIComponent(statusFilter)}`;
+            URL += `&status=${encodeURIComponent(statusFilter)}`;
         }
         if (toolFilter && toolFilter !== 'all') {
-            url += `&tool=${encodeURIComponent(toolFilter)}`;
+            URL += `&tool=${encodeURIComponent(toolFilter)}`;
         }
 
         const range = getMcpMonitorTimelineRange();
         monitorState.timelineLoading = monitorState.timeline == null && !monitorState.timelineError;
         const timelinePromise = fetchMonitorTimeline(range);
 
-        const monitorResp = await apiFetch(url, { method: 'GET' });
+        const monitorResp = await apiFetch(URL, { method: 'GET' });
         const result = await monitorResp.json().catch(() => ({}));
         if (!monitorResp.ok) {
-            throw new Error(result.error || '获取监控数据失败');
+            throw new Error(result.error || 'Failed to get monitoring data');
         }
         if (mySeq !== monitorPanelFetchSeq) {
             return;
@@ -7646,20 +7646,20 @@ async function refreshMonitorPanelWithFilter(statusFilter = 'all', toolFilter = 
         applyMonitorTimelinePayload(timeline, timelineError, range);
         initializeMonitorPageSize();
     } catch (error) {
-        console.error('刷新监控面板失败:', error);
+        console.error('Failed to refresh monitor panel:', error);
         monitorState.timelineLoading = false;
         if (statsContainer) {
-            statsContainer.innerHTML = `<div class="monitor-error">${escapeHtml(typeof window.t === 'function' ? window.t('mcpMonitor.loadStatsError') : '无法加载统计信息')}：${escapeHtml(error.message)}</div>`;
+            statsContainer.innerHTML = `<div class="monitor-error">${escapeHtml(typeof window.t === 'function' ? window.t('mcpMonitor.loadStatsError') : 'Cannot load statistics')}: ${escapeHtml(error.message)}</div>`;
         }
         if (execContainer) {
-            execContainer.innerHTML = `<div class="monitor-error">${escapeHtml(typeof window.t === 'function' ? window.t('mcpMonitor.loadExecutionsError') : '无法加载执行记录')}：${escapeHtml(error.message)}</div>`;
+            execContainer.innerHTML = `<div class="monitor-error">${escapeHtml(typeof window.t === 'function' ? window.t('mcpMonitor.loadExecutionsError') : 'Cannot load execution records')}: ${escapeHtml(error.message)}</div>`;
         }
     }
 }
 
 function applyMonitorPayload(result, statusFilter) {
-    const currentPage = monitorState.pagination.page;
-    const pageSize = monitorState.pagination.pageSize;
+    const currentPage = monitorState.pagination. PAGE;
+    const pageSize = monitorState.pagination. pageSize;
 
     monitorState.executions = Array.isArray(result.executions) ? result.executions : [];
     monitorState.summary = result.summary || null;
@@ -7669,27 +7669,27 @@ function applyMonitorPayload(result, statusFilter) {
 
     if (result.total !== undefined) {
         monitorState.pagination = {
-            page: result.page || currentPage,
-            pageSize: result.pageSize || pageSize,
+             PAGE: result. PAGE || currentPage,
+             pageSize: result. pageSize ||  pageSize,
             total: result.total || 0,
             totalPages: result.totalPages || 1
         };
     }
 
     const locale = typeof window.__locale === 'string' ? window.__locale : '';
-    const toolFilterEl = document.getElementById('monitor-tool-filter');
-    const currentToolFilter = toolFilterEl ? toolFilterEl.value.trim() : '';
+    const toolfilterEl = document.getElementById('monitor-tool-filter');
+    const currentToolfilter = toolfilterEl ? toolfilterEl.value.trim() : '';
     const statsKey = monitorRenderKey([
         monitorState.summary,
         monitorState.topTools,
         monitorState.retentionDays,
-        currentToolFilter,
+        currentToolfilter,
         locale
     ]);
     const executionsKey = monitorRenderKey([
         monitorState.executions,
         statusFilter || 'all',
-        currentToolFilter,
+        currentToolfilter,
         locale
     ]);
     const paginationKey = monitorRenderKey(monitorState.pagination);
@@ -7712,7 +7712,7 @@ function applyMonitorPayload(result, statusFilter) {
         updateMonitorExecutionDurations(monitorState.executions);
     }
 
-    // 空列表渲染会清空执行区，因此这种情况下也需要恢复分页控件。
+    // Rendering an empty list clears the execution area, so pagination controls must also be restored in this case.
     if (executionsChanged || paginationKey !== monitorState.renderKeys.pagination) {
         monitorState.renderKeys.pagination = paginationKey;
         renderMonitorPagination();
@@ -7919,12 +7919,12 @@ function buildMcpTimelineSvg(points, rangeKey) {
 
     return `<svg class="mcp-stats-timeline__chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
         <defs>
-            <linearGradient id="mcpTimelineAreaFill" x1="0" y1="0" x2="0" y2="1">
+            <linearGradient ID="mcpTimelineAreaFill" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.28"/>
                 <stop offset="85%" stop-color="#3b82f6" stop-opacity="0.04"/>
                 <stop offset="100%" stop-color="#3b82f6" stop-opacity="0"/>
             </linearGradient>
-            <linearGradient id="mcpTimelineLineStroke" x1="0" y1="0" x2="1" y2="0">
+            <linearGradient ID="mcpTimelineLineStroke" x1="0" y1="0" x2="1" y2="0">
                 <stop offset="0%" stop-color="#60a5fa"/>
                 <stop offset="50%" stop-color="#3b82f6"/>
                 <stop offset="100%" stop-color="#2563eb"/>
@@ -7981,7 +7981,7 @@ function bindMcpStatsTimelineEvents() {
         const failed = dot.getAttribute('data-failed') || '0';
         const blocked = dot.getAttribute('data-blocked') || '0';
         const tip = mcpMonitorT('timelineTooltip', { time, total, failed, blocked })
-            || monitorFallback(`${time}：${total} 次（失败 ${failed}，安全拦截 ${blocked}）`, `${time}: ${total} calls (${failed} failed, ${blocked} blocked)`);
+            || monitorFallback(`${time}: ${total} calls (failed ${failed}, SafeBlock ${blocked})`, `${time}: ${total} calls (${failed} failed, ${blocked} blocked)`);
         mcpTimelineTooltipEl.textContent = tip;
         mcpTimelineTooltipEl.style.display = 'block';
         mcpTimelineTooltipEl.style.left = `${e.clientX}px`;
@@ -8019,7 +8019,7 @@ function syncMcpMonitorTimelineRangeUI(activeRange) {
 function renderMcpStatsScopeBadges(showTools, showTimeline) {
     const parts = [];
     if (showTools) {
-        const cumulative = mcpMonitorT('scopeCumulative') || '累计';
+        const cumulative = mcpMonitorT('scopeCumulative') || 'Cumulative';
         parts.push(`<span class="mcp-stats-scope-badge mcp-stats-scope-badge--cumulative">${escapeHtml(cumulative)}</span>`);
     }
     if (showTimeline) {
@@ -8050,8 +8050,8 @@ function buildTimelineSparseHint(points, timeline) {
     const peakTime = timeline.summary.peakAt
         ? formatMcpTimelineLabel(timeline.summary.peakAt, rangeKey, locale)
         : formatMcpTimelineLabel(points[peakIdx].t, rangeKey, locale);
-    return mcpMonitorT('timelineSparseHint', { peak, peakTime })
-        || `该时段多数时间为 0，峰值 ${peak} 次出现在 ${peakTime}`;
+    return mcpMonitorT('timelineSparsehint', { peak, peakTime })
+        || `Most of this period had 0 calls; peak of ${peak} at ${peakTime}`;
 }
 
 function renderMcpTimelineActiveMoments(points, rangeKey) {
@@ -8064,14 +8064,14 @@ function renderMcpTimelineActiveMoments(points, rangeKey) {
     const shown = active.slice(0, 4);
     const hiddenCount = Math.max(0, active.length - shown.length);
     if (!active.length) return '';
-    const label = mcpMonitorT('timelineActiveMoments') || monitorFallback('活跃时段', 'Active moments');
-    const moreLabel = mcpMonitorT('timelineMoreMoments', { n: hiddenCount }) || `+${hiddenCount}`;
+    const label = mcpMonitorT('timelineactiveMoments') || monitorFallback('Active periods', 'active moments');
+    const moreLabel = mcpMonitorT('timelinemoreMoments', { n: hiddenCount }) || `+${hiddenCount}`;
     const chips = shown.map((p) => {
         const time = formatMcpTimelineLabel(p.t, rangeKey, locale);
         const failed = p.failed || 0;
-        const failedLabel = mcpMonitorT('failedCount', { n: failed }) || `失败 ${failed}`;
+        const failedLabel = mcpMonitorT('failedCount', { n: failed }) || `failed ${failed}`;
         const blocked = p.blocked || 0;
-        const blockedLabel = mcpMonitorT('blockedCount', { n: blocked }) || monitorFallback(`安全拦截 ${blocked}`, `Blocked ${blocked}`);
+        const blockedLabel = mcpMonitorT('blockedCount', { n: blocked }) || monitorFallback(`SafeBlock ${blocked}`, `Blocked ${blocked}`);
         return `<span class="mcp-stats-timeline-moment" title="${escapeHtml(time)}">
             <span class="mcp-stats-timeline-moment__time">${escapeHtml(time)}</span>
             <span class="mcp-stats-timeline-moment__count">${p.total || 0}</span>
@@ -8080,7 +8080,7 @@ function renderMcpTimelineActiveMoments(points, rangeKey) {
         </span>`;
     }).join('');
     const moreChip = hiddenCount > 0
-        ? `<span class="mcp-stats-timeline-moment mcp-stats-timeline-moment--more" title="${escapeHtml(mcpMonitorT('timelineMoreMomentsTitle', { n: hiddenCount }) || `还有 ${hiddenCount} 个活跃时段`)}">${escapeHtml(moreLabel)}</span>`
+        ? `<span class="mcp-stats-timeline-moment mcp-stats-timeline-moment--more" title="${escapeHtml(mcpMonitorT('timelineMoreMomentsTitle', { n: hiddenCount }) || `${hiddenCount} more active periods`)}">${escapeHtml(moreLabel)}</span>`
         : '';
     return `<div class="mcp-stats-timeline-moments">
         <span class="mcp-stats-timeline-moments__label">${escapeHtml(label)}</span>
@@ -8118,9 +8118,9 @@ function renderMcpStatsTimelineRangeButtons() {
 const MCP_TIMELINE_EMPTY_ICON = '<svg class="mcp-stats-timeline-empty-state__icon" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>';
 
 function renderMcpStatsTimelineEmptyState(compact) {
-    const noData = mcpMonitorT('timelineNoData') || monitorFallback('该时段暂无调用', 'No calls in this period');
+    const noData = mcpMonitorT('timelineNoData') || monitorFallback('No calls in this period', 'No calls in this period');
     const emptyHint = mcpMonitorT('timelineEmptyHint')
-        || monitorFallback('切换时间范围查看其他时段，或在对话/任务中调用 MCP 工具', 'Switch the time range or invoke MCP tools in chat or tasks');
+        || monitorFallback('Switch the time range or invoke MCP tools in chat or tasks', 'Switch the time range or invoke MCP tools in chat or tasks');
     const compactClass = compact ? ' mcp-stats-timeline-empty-state--compact' : '';
     return `<div class="mcp-stats-timeline-empty-state${compactClass}">
         ${MCP_TIMELINE_EMPTY_ICON}
@@ -8131,22 +8131,22 @@ function renderMcpStatsTimelineEmptyState(compact) {
 
 function renderMcpStatsTimelineBody(timeline, timelineError, compactEmpty, loading) {
     if (loading) {
-        const loadingText = mcpMonitorT('timelineLoading') || monitorFallback('趋势加载中…', 'Loading trend…');
+        const loadingText = mcpMonitorT('timelineLoading') || monitorFallback('Loading trend…', 'Loading trend…');
         return `<div class="monitor-empty monitor-empty--inline">${escapeHtml(loadingText)}</div>`;
     }
 
-    const hint = mcpMonitorT('timelineHint') || monitorFallback('全部工具合计', 'All tools combined');
+    const hint = mcpMonitorT('timelineHint') || monitorFallback('All tools combined', 'all tools combined');
 
     if (timelineError) {
-        const errText = mcpMonitorT('timelineLoadError') || monitorFallback('无法加载调用趋势', 'Failed to load call trend');
-        return `<p class="mcp-stats-timeline-error">${escapeHtml(errText)}：${escapeHtml(timelineError)}</p>`;
+        const errText = mcpMonitorT('timelineLoadError') || monitorFallback('Failed to load call trend', 'failed to load call trend');
+        return `<p class="mcp-stats-timeline-error">${escapeHtml(errText)}: ${escapeHtml(timelineError)}</p>`;
     }
 
     const points = timeline && Array.isArray(timeline.points) ? timeline.points : [];
     const summaryTotal = timeline && timeline.summary ? (timeline.summary.totalCalls || 0) : 0;
     const peak = timeline && timeline.summary ? (timeline.summary.peak || 0) : 0;
     const summaryText = mcpMonitorT('timelineSummary', { total: summaryTotal, peak })
-        || `区间内 ${summaryTotal} 次 · 峰值 ${peak}`;
+        || `${summaryTotal} calls in range · peak ${peak}`;
 
     if (points.length === 0 || summaryTotal === 0) {
         return renderMcpStatsTimelineEmptyState(!!compactEmpty);
@@ -8154,9 +8154,9 @@ function renderMcpStatsTimelineBody(timeline, timelineError, compactEmpty, loadi
 
     const rangeKey = timeline.range || getMcpMonitorTimelineRange();
     const chartSvg = buildMcpTimelineSvg(points, rangeKey);
-    const totalLegend = mcpMonitorT('timelineTotalLegend') || '总调用';
-    const failLegend = mcpMonitorT('timelineFailedLegend') || '失败';
-    const blockedLegend = mcpMonitorT('timelineBlockedLegend') || monitorFallback('安全拦截', 'Blocked');
+    const totalLegend = mcpMonitorT('timelineTotalLegend') || 'Total calls';
+    const failLegend = mcpMonitorT('timelinefailedLegend') || 'failed';
+    const blockedLegend = mcpMonitorT('timelineBlockedLegend') || monitorFallback('SafeBlock', 'Blocked');
     const hasFailed = points.some((p) => (p.failed || 0) > 0);
     const hasBlocked = points.some((p) => (p.blocked || 0) > 0);
     const sparseHint = buildTimelineSparseHint(points, timeline);
@@ -8177,19 +8177,19 @@ function renderMcpStatsTimelineBody(timeline, timelineError, compactEmpty, loadi
         </div>`;
 }
 
-function renderMcpStatsCombinedSection(topTools, totals, activeToolFilter, timeline, timelineError, showTimeline) {
-    const statsTitle = mcpMonitorT('toolStatsTitle') || monitorFallback('工具统计', 'Tool statistics');
-    const timelineTitle = mcpMonitorT('timelineTitle') || monitorFallback('调用趋势', 'Call trend');
-    const statsHint = mcpMonitorT('toolStatsHint') || monitorFallback('点击色条或列表行筛选下方执行记录', 'Click a bar segment or row to filter records below');
+function renderMcpStatsCombinedSection(topTools, totals, activeToolfilter, timeline, timelineError, showTimeline) {
+    const statsTitle = mcpMonitorT('toolStatsTitle') || monitorFallback('Tool statistics', 'Tool statistics');
+    const timelineTitle = mcpMonitorT('timelineTitle') || monitorFallback('Call trend', 'Call trend');
+    const statsHint = mcpMonitorT('toolStatsHint') || monitorFallback('Click a bar segment or list row to filter execution records below', 'Click a bar segment or row to filter records below');
     const hasTools = topTools.length > 0;
 
     if (!hasTools && !showTimeline) return '';
 
-    const filterChipLabel = activeToolFilter ? formatMonitorToolName(activeToolFilter) : '';
-    const filterChip = activeToolFilter
+    const filterChipLabel = activeToolfilter ? formatMonitorToolName(activeToolfilter) : '';
+    const filterChip = activeToolfilter
         ? `<span class="mcp-stats-filter-chip" title="${escapeHtml(mcpMonitorT('filterByToolTitle', { tool: filterChipLabel }) || filterChipLabel)}">
-            <span class="mcp-stats-filter-chip__label">${escapeHtml(mcpMonitorT('filterActive', { tool: filterChipLabel }) || `已筛选：${filterChipLabel}`)}</span>
-            <button type="button" class="mcp-stats-filter-chip__clear mcp-stats-clear-filter" aria-label="${escapeHtml(mcpMonitorT('clearToolFilter') || '清除工具筛选')}">×</button>
+            <span class="mcp-stats-filter-chip__label">${escapeHtml(mcpMonitorT('filterActive', { tool: filterChipLabel }) || `Filtered: ${filterChipLabel}`)}</span>
+            <button type="button" class="mcp-stats-filter-chip__clear mcp-stats-clear-filter" aria-label="${escapeHtml(mcpMonitorT('clearToolFilter') || 'Clear tool filterfilter')}">×</button>
         </span>`
         : '';
 
@@ -8217,7 +8217,7 @@ function renderMcpStatsCombinedSection(topTools, totals, activeToolFilter, timel
     else bodyMod += ' mcp-stats-combined__body--timeline';
 
     const mainBlock = hasTools
-        ? `<div class="mcp-stats-combined__main">${renderMcpStatsToolsPanel(topTools, totals, activeToolFilter)}</div>`
+        ? `<div class="mcp-stats-combined__main">${renderMcpStatsToolsPanel(topTools, totals, activeToolfilter)}</div>`
         : '';
 
     return `
@@ -8261,9 +8261,9 @@ function refreshMonitorPanelFromState() {
     if (!document.getElementById('monitor-stats')) return;
     if (!monitorState.lastFetchedAt) return;
     const statusFilter = document.getElementById('monitor-status-filter');
-    const currentStatusFilter = statusFilter ? statusFilter.value : 'all';
+    const currentStatusfilter = statusFilter ? statusFilter.value : 'all';
     renderMonitorStats(monitorState.summary, monitorState.topTools, monitorState.lastFetchedAt);
-    renderMonitorExecutions(monitorState.executions || [], currentStatusFilter);
+    renderMonitorExecutions(monitorState.executions || [], currentStatusfilter);
     renderMonitorPagination();
 }
 
@@ -8300,7 +8300,7 @@ function renderMcpStatsToolVolumeBar(total, success, failed, maxTotal) {
     const volumePct = maxTotal > 0 && total > 0 ? (total / maxTotal) * 100 : 0;
     const successPct = total > 0 ? (success / total) * 100 : 0;
     const failPct = total > 0 ? (failed / total) * 100 : 0;
-    const legend = mcpMonitorT('barVolumeLegend') || '条长表示相对调用量';
+    const legend = mcpMonitorT('barVolumeLegend') || 'Bar length indicates relative call volume';
     const volumeTitle = `${total} / ${maxTotal}`;
     return `<div class="mcp-stats-tool-bar-track" title="${escapeHtml(legend)} · ${escapeHtml(volumeTitle)}">
         <div class="mcp-stats-tool-bar-fill" style="width:${volumePct.toFixed(2)}%">
@@ -8324,7 +8324,7 @@ const MCP_STATS_CHART_MIN_PCT = 5;
 function buildMcpStatsChartSegments(topTools, totals, options = {}) {
     const groupSmall = options.groupSmall !== false;
     const minPct = options.minPct ?? MCP_STATS_CHART_MIN_PCT;
-    const othersLabel = mcpMonitorT('distOthers') || '其他工具';
+    const othersLabel = mcpMonitorT('distOthers') || 'othertool';
     const topNTotal = topTools.reduce((s, t) => s + (t.totalCalls || 0), 0);
     const otherCalls = Math.max(0, totals.total - topNTotal);
 
@@ -8490,12 +8490,12 @@ function handleMonitorStatsToolFilter(toolName) {
     filterMonitorByTool(toolName);
 }
 
-function renderMcpStatsInsightPanel(topTools, totals, activeToolFilter = '', options = {}) {
+function renderMcpStatsInsightPanel(topTools, totals, activeToolfilter = '', options = {}) {
     const embedded = !!options.embedded;
-    const distTitle = mcpMonitorT('distTitle') || '调用分布';
-    const distClickHint = mcpMonitorT('distClickHint') || '点击扇区筛选执行记录';
-    const distOthersTitle = mcpMonitorT('distOthersNoFilter') || '其他工具无法单独筛选';
-    const top6ShareLabel = mcpMonitorT('distTop6Share', { n: MCP_STATS_TOP_N }) || `Top ${MCP_STATS_TOP_N} 占全部调用`;
+    const distTitle = mcpMonitorT('distTitle') || 'Call distribution';
+    const distClickhint = mcpMonitorT('distClickHint') || 'Click a sector to filter execution records';
+    const distothersTitle = mcpMonitorT('distOthersNoFilter') || 'Other tools cannot be filtered individually';
+    const top6ShareLabel = mcpMonitorT('distTop6Share', { n: MCP_STATS_TOP_N }) || `Top ${MCP_STATS_TOP_N} share of all calls`;
 
     const top6Total = topTools.reduce((s, t) => s + (t.totalCalls || 0), 0);
     const top6SharePct = totals.total > 0 ? ((top6Total / totals.total) * 100).toFixed(1) : '0.0';
@@ -8505,11 +8505,11 @@ function renderMcpStatsInsightPanel(topTools, totals, activeToolFilter = '', opt
     const segmentPathsHtml = segments.map((s) => {
         const pathD = mcpStatsDescribeDonutSegment(s.start, s.end, 48, 30);
         if (!pathD) return '';
-        const isActive = !s.isOthers && activeToolFilter && activeToolFilter === s.name;
+        const isActive = !s.isOthers && activeToolfilter && activeToolfilter === s.name;
         const segAria = s.isOthers
             ? escapeHtml(s.name)
             : escapeHtml(mcpMonitorT('distSegmentAria', { name: s.name, pct: s.pct, calls: s.calls })
-                || `${s.name}，占 ${s.pct}%，${s.calls} 次`);
+                || `${s.name}, ${s.pct}%, ${s.calls} calls`);
         return `<path class="mcp-stats-dist-segment${isActive ? ' is-active' : ''}${s.isOthers ? ' is-others' : ''}"
             d="${pathD}"
             fill="${s.color}"
@@ -8517,22 +8517,22 @@ function renderMcpStatsInsightPanel(topTools, totals, activeToolFilter = '', opt
             data-pct="${s.pct}"
             data-calls="${s.calls}"
             data-is-others="${s.isOthers ? '1' : '0'}"
-            tabindex="${s.isOthers ? '-1' : '0'}"
+            tabIndex="${s.isOthers ? '-1' : '0'}"
             role="${s.isOthers ? 'presentation' : 'button'}"
             aria-label="${segAria}" />`;
     }).join('');
 
     const legendHtml = embedded ? '' : segments.map((s) => {
-        const isActive = !s.isOthers && activeToolFilter && activeToolFilter === s.name;
+        const isActive = !s.isOthers && activeToolfilter && activeToolfilter === s.name;
         const inner = `
             <span class="mcp-stats-dist-swatch" style="--swatch-color:${s.color}"></span>
             <span class="mcp-stats-dist-legend-name" title="${escapeHtml(s.name)}">${escapeHtml(s.name)}</span>
             <span class="mcp-stats-dist-legend-pct">${s.pct}%</span>`;
         if (s.isOthers) {
-            return `<li class="mcp-stats-dist-legend-item is-others" title="${escapeHtml(distOthersTitle)}" data-is-others="1">${inner}</li>`;
+            return `<li class="mcp-stats-dist-legend-item is-others" title="${escapeHtml(distothersTitle)}" data-is-others="1">${inner}</li>`;
         }
         const rowAria = mcpMonitorT('toolRowAriaLabel', { name: s.name, total: s.calls, rate: s.pct })
-            || `${s.name}，${s.calls} 次调用，占 ${s.pct}%`;
+            || `${s.name}, ${s.calls} calls, ${s.pct}%`;
         return `<li class="mcp-stats-dist-legend-item-wrap">
             <button type="button" class="mcp-stats-dist-legend-item${isActive ? ' is-active' : ''}"
                 data-tool-name="${escapeAttrLocal(s.name)}"
@@ -8544,9 +8544,9 @@ function renderMcpStatsInsightPanel(topTools, totals, activeToolFilter = '', opt
         </li>`;
     }).join('');
 
-    const centerLabel = embedded ? (mcpMonitorT('distTitle') || '占比') : `Top ${MCP_STATS_TOP_N}`;
+    const centerLabel = embedded ? (mcpMonitorT('distTitle') || 'Distribution') : `Top ${MCP_STATS_TOP_N}`;
     const distHint = totals.total > 0
-        ? (mcpMonitorT('distTotalCalls', { n: totals.total }) || `共 ${totals.total} 次调用`)
+        ? (mcpMonitorT('distTotalCalls', { n: totals.total }) || `Total ${totals.total} calls`)
         : '';
 
     const bodyClass = embedded ? 'mcp-stats-dist-body mcp-stats-dist-body--chart-only' : 'mcp-stats-dist-body mcp-stats-dist-body--side';
@@ -8560,7 +8560,7 @@ function renderMcpStatsInsightPanel(topTools, totals, activeToolFilter = '', opt
             <div class="mcp-stats-tools-header">
                 <div class="mcp-stats-tools-heading">
                     <h4 class="mcp-stats-tools-title">${escapeHtml(distTitle)}</h4>
-                    <span class="mcp-stats-tools-legend">${escapeHtml(distClickHint)}</span>
+                    <span class="mcp-stats-tools-legend">${escapeHtml(distClickhint)}</span>
                 </div>
                 <span class="mcp-stats-tools-hint">${escapeHtml(distHint)}</span>
             </div>`;
@@ -8611,10 +8611,10 @@ function updateMonitorStatsSubtitle(lastFetchedAt, toolCount, retentionDays) {
         ? (lastFetchedAt.toLocaleString ? lastFetchedAt.toLocaleString(locale) : String(lastFetchedAt))
         : '—';
     let text = mcpMonitorT('statsSubtitle', { time: timeText, count: toolCount })
-        || monitorFallback(`最后刷新 ${timeText} · 共 ${toolCount} 个工具`, `Refreshed ${timeText} · ${toolCount} tools`);
+        || monitorFallback(`Last refreshed ${timeText} · ${toolCount} tools`, `refreshed ${timeText} · ${toolCount} tools`);
     if (typeof retentionDays === 'number' && retentionDays > 0) {
         const hint = mcpMonitorT('retentionHint', { days: retentionDays })
-            || monitorFallback(`执行记录保留 ${retentionDays} 天，超期自动清理`, `Execution records are kept for ${retentionDays} days, then purged automatically.`);
+            || monitorFallback(`Execution records retained for ${retentionDays} days, auto-purged on expiry`, `Execution records are kept for ${retentionDays} days, then purged automatically.`);
         text += ' · ' + hint;
     }
     subtitle.textContent = text;
@@ -8628,8 +8628,8 @@ function filterMonitorByTool(toolName) {
     toolFilter.classList.add('is-filter-active');
     applyMonitorFilters();
     const execSection = document.querySelector('.monitor-executions');
-    if (execSection && typeof execSection.scrollIntoView === 'function') {
-        execSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    if (execSection && typeof execSection.scrollIntoview === 'function') {
+        execSection.scrollIntoview({ behavior: 'smooth', block: 'nearest' });
     }
 }
 
@@ -8709,14 +8709,14 @@ function bindMonitorStatsPanelEvents() {
 }
 
 function renderMcpStatsMetricsBar(totals, successRate, rateTone, rateSubText, lastCallText, hasCalls = true) {
-    const totalCallsLabel = mcpMonitorT('totalCalls') || monitorFallback('总调用次数', 'Total calls');
-    const successRateLabel = mcpMonitorT('successRate') || monitorFallback('成功率', 'Success rate');
-    const lastCallLabel = mcpMonitorT('lastCall') || monitorFallback('最近一次调用', 'Last call');
-    const successPill = mcpMonitorT('successCount', { n: totals.success }) || monitorFallback(`成功 ${totals.success}`, `Success ${totals.success}`);
-    const failedPill = mcpMonitorT('failedCount', { n: totals.failed }) || monitorFallback(`失败 ${totals.failed}`, `Failed ${totals.failed}`);
-    const blockedPill = mcpMonitorT('blockedCount', { n: totals.blocked }) || monitorFallback(`安全拦截 ${totals.blocked}`, `Blocked ${totals.blocked}`);
-    const neutralPill = mcpMonitorT('neutralCount', { n: totals.neutral }) || monitorFallback(`终止 ${totals.neutral}`, `Stopped ${totals.neutral}`);
-    const rateHint = mcpMonitorT('rateExcludesBlocked') || monitorFallback('成功率仅统计成功和失败的调用，不包含安全拦截和终止', 'Success rate includes only successful and failed calls; blocked and stopped calls are excluded');
+    const totalCallsLabel = mcpMonitorT('totalCalls') || monitorFallback('Total calls', 'Total calls');
+    const successRateLabel = mcpMonitorT('successRate') || monitorFallback('Success rate', 'success rate');
+    const lastCallLabel = mcpMonitorT('lastCall') || monitorFallback('Last call', 'Last call');
+    const successPill = mcpMonitorT('successCount', { n: totals.success }) || monitorFallback(`success ${totals.success}`, `success ${totals.success}`);
+    const failedPill = mcpMonitorT('failedCount', { n: totals.failed }) || monitorFallback(`failed ${totals.failed}`, `failed ${totals.failed}`);
+    const blockedPill = mcpMonitorT('blockedCount', { n: totals.blocked }) || monitorFallback(`SafeBlock ${totals.blocked}`, `Blocked ${totals.blocked}`);
+    const neutralPill = mcpMonitorT('neutralCount', { n: totals.neutral }) || monitorFallback(`Stopped ${totals.neutral}`, `stopped ${totals.neutral}`);
+    const rateHint = mcpMonitorT('rateExcludesBlocked') || monitorFallback('Success rate counts only successful and failed calls, excluding safe-blocked and stopped', 'success rate includes only successful and failed calls; blocked and stopped calls are excluded');
     const rateValue = hasCalls ? `${successRate}%` : successRate;
     const blockedChip = totals.blocked > 0
         ? `<span class="mcp-stats-kpi__chip is-blocked">${escapeHtml(blockedPill)}</span>`
@@ -8758,12 +8758,12 @@ function renderMcpStatsMetricsBar(totals, successRate, rateTone, rateSubText, la
         </div>`;
 }
 
-function renderMcpStatsToolTable(topTools, totals, activeToolFilter = '') {
-    const colTool = mcpMonitorT('columnTool') || '工具';
-    const colCalls = mcpMonitorT('columnCalls') || '调用';
-    const colShare = mcpMonitorT('columnShare') || '占比';
-    const colRate = mcpMonitorT('columnSuccessRate') || '成功率';
-    const unknownToolLabel = mcpMonitorT('unknownTool') || '未知工具';
+function renderMcpStatsToolTable(topTools, totals, activeToolfilter = '') {
+    const colTool = mcpMonitorT('columnTool') || 'tool';
+    const colCalls = mcpMonitorT('columnCalls') || 'Calls';
+    const colShare = mcpMonitorT('columnShare') || 'Share';
+    const colRate = mcpMonitorT('columnSuccessRate') || 'Success rate';
+    const unknownToolLabel = mcpMonitorT('unknownTool') || 'unknown tool';
 
     let rowsHtml = '';
     topTools.forEach((tool, index) => {
@@ -8779,18 +8779,18 @@ function renderMcpStatsToolTable(topTools, totals, activeToolFilter = '') {
         const rateText = effectiveTotal > 0 ? `${toolRate}%` : '-';
         const sharePct = totals.total > 0 ? ((total / totals.total) * 100).toFixed(1) : '0.0';
         const dotColor = MCP_STATS_DIST_COLORS[index % MCP_STATS_DIST_COLORS.length];
-        const isActive = activeToolFilter && monitorToolNamesEqual(activeToolFilter, rawName);
+        const isActive = activeToolfilter && monitorToolNamesEqual(activeToolfilter, rawName);
         const rateClass = effectiveTotal > 0 ? getMcpToolRateClass(toolRateNum) : 'is-muted';
         const rankClass = index === 0 ? ' rank-1' : index === 1 ? ' rank-2' : index === 2 ? ' rank-3' : '';
-        const blockedLabel = mcpMonitorT('blockedCount', { n: blocked }) || monitorFallback(`安全拦截 ${blocked}`, `Blocked ${blocked}`);
+        const blockedLabel = mcpMonitorT('blockedCount', { n: blocked }) || monitorFallback(`SafeBlock ${blocked}`, `Blocked ${blocked}`);
         const rowAria = (effectiveTotal > 0
-            ? (mcpMonitorT('toolRowAriaLabel', { name, total, rate: toolRate }) || `${name}，${total} 次调用，成功率 ${toolRate}%`)
-            : (mcpMonitorT('toolRowNoCompletedAriaLabel', { name, total }) || monitorFallback(`${name}，${total} 次调用，暂无完成结果，点击查看执行记录`, `${name}, ${total} calls, no completed outcomes, click to view records`)))
+            ? (mcpMonitorT('toolRowAriaLabel', { name, total, rate: toolRate }) || `${name}, ${total} calls, success rate ${toolRate}%`)
+            : (mcpMonitorT('toolRowNocompletedAriaLabel', { name, total }) || monitorFallback(`${name}, ${total} calls, no completed results, click to view execution records`, `${name}, ${total} calls, no completed outcomes, click to view records`)))
             + (blocked > 0 ? ` · ${blockedLabel}` : '');
         rowsHtml += `
             <tr class="mcp-stats-tool-row${isActive ? ' is-active' : ''}"
                 data-tool-name="${escapeAttrLocal(rawName)}"
-                tabindex="0"
+                tabIndex="0"
                 role="button"
                 aria-label="${escapeAttrLocal(rowAria)}"
                 aria-pressed="${isActive ? 'true' : 'false'}">
@@ -8803,7 +8803,7 @@ function renderMcpStatsToolTable(topTools, totals, activeToolFilter = '') {
                 <td class="col-share">${sharePct}%</td>
                 <td class="col-rate">
                     <span class="mcp-stats-rate ${rateClass}">${rateText}</span>
-                    ${failed > 0 ? `<span class="mcp-stats-fail-note">${escapeHtml(mcpMonitorT('failedCount', { n: failed }) || `失败 ${failed}`)}</span>` : ''}
+                    ${failed > 0 ? `<span class="mcp-stats-fail-note">${escapeHtml(mcpMonitorT('failedCount', { n: failed }) || `failed ${failed}`)}</span>` : ''}
                     ${blocked > 0 ? `<span class="mcp-stats-blocked-note">${escapeHtml(blockedLabel)}</span>` : ''}
                 </td>
             </tr>`;
@@ -8824,18 +8824,18 @@ function renderMcpStatsToolTable(topTools, totals, activeToolFilter = '') {
         </table>`;
 }
 
-/** MCP 合并面板左侧：堆叠占比条 + 工具排行列表（无饼图/表格套娃） */
-function renderMcpStatsToolsPanel(topTools, totals, activeToolFilter = '') {
+/** MCP combined panel left side: stacked share bar + tool ranking list (no pie chart/table nesting) */
+function renderMcpStatsToolsPanel(topTools, totals, activeToolfilter = '') {
     const segments = buildMcpStatsChartSegments(topTools, totals, { groupSmall: false });
     const topNTotal = topTools.reduce((s, t) => s + (t.totalCalls || 0), 0);
     const topNSharePct = totals.total > 0 ? ((topNTotal / totals.total) * 100).toFixed(1) : '0.0';
     const caption = mcpMonitorT('rankingSummary', { n: MCP_STATS_TOP_N, pct: topNSharePct, total: totals.total })
-        || `Top ${MCP_STATS_TOP_N} 占 ${topNSharePct}% · 共 ${totals.total} 次`;
-    const unknownToolLabel = mcpMonitorT('unknownTool') || '未知工具';
-    const distAria = mcpMonitorT('distTitle') || '调用分布';
+        || `Top ${MCP_STATS_TOP_N} accounts for ${topNSharePct}% · Total ${totals.total} calls`;
+    const unknownToolLabel = mcpMonitorT('unknownTool') || 'unknown tool';
+    const distAria = mcpMonitorT('distTitle') || 'Call distribution';
 
     const stackedHtml = segments.map((s) => {
-        const isActive = !s.isOthers && activeToolFilter && monitorToolNamesEqual(activeToolFilter, s.name);
+        const isActive = !s.isOthers && activeToolfilter && monitorToolNamesEqual(activeToolfilter, s.name);
         const displayName = s.isOthers ? s.name : formatMonitorToolName(s.name);
         const title = `${displayName} · ${s.pct}% · ${s.calls}`;
         if (s.isOthers) {
@@ -8843,10 +8843,10 @@ function renderMcpStatsToolsPanel(topTools, totals, activeToolFilter = '') {
                 style="flex:${s.pctNum} 1 0;background:${s.color}" title="${escapeHtml(title)}"></span>`;
         }
         const segAria = mcpMonitorT('distSegmentAria', { name: displayName, pct: s.pct, calls: s.calls })
-            || `${displayName}，占 ${s.pct}%，${s.calls} 次`;
+            || `${displayName}, ${s.pct}%, ${s.calls} calls`;
         return `<span class="mcp-stats-proportion-seg${isActive ? ' is-active' : ''}"
             data-tool-name="${escapeAttrLocal(s.name)}" data-pct="${s.pct}" data-calls="${s.calls}" data-is-others="0"
-            role="button" tabindex="0" aria-label="${escapeAttrLocal(segAria)}"
+            role="button" tabIndex="0" aria-label="${escapeAttrLocal(segAria)}"
             style="flex:${s.pctNum} 1 0;background:${s.color}" title="${escapeHtml(title)}"></span>`;
     }).join('');
 
@@ -8865,21 +8865,21 @@ function renderMcpStatsToolsPanel(topTools, totals, activeToolFilter = '') {
         const sharePct = totals.total > 0 ? ((total / totals.total) * 100).toFixed(1) : '0.0';
         const color = MCP_STATS_DIST_COLORS[index % MCP_STATS_DIST_COLORS.length];
         const barPct = maxCalls > 0 ? ((total / maxCalls) * 100).toFixed(1) : '0';
-        const isActive = activeToolFilter && monitorToolNamesEqual(activeToolFilter, rawName);
+        const isActive = activeToolfilter && monitorToolNamesEqual(activeToolfilter, rawName);
         const rateClass = effectiveTotal > 0 ? getMcpToolRateClass(toolRateNum) : 'is-muted';
         const rankClass = index === 0 ? ' rank-1' : index === 1 ? ' rank-2' : index === 2 ? ' rank-3' : '';
-        const blockedLabel = mcpMonitorT('blockedCount', { n: blocked }) || monitorFallback(`安全拦截 ${blocked}`, `Blocked ${blocked}`);
+        const blockedLabel = mcpMonitorT('blockedCount', { n: blocked }) || monitorFallback(`SafeBlock ${blocked}`, `Blocked ${blocked}`);
         const rowAria = (effectiveTotal > 0
-            ? (mcpMonitorT('toolRowAriaLabel', { name, total, rate: toolRate }) || `${name}，${total} 次，成功率 ${toolRate}%`)
-            : (mcpMonitorT('toolRowNoCompletedAriaLabel', { name, total }) || monitorFallback(`${name}，${total} 次调用，暂无完成结果，点击查看执行记录`, `${name}, ${total} calls, no completed outcomes, click to view records`)))
+            ? (mcpMonitorT('toolRowAriaLabel', { name, total, rate: toolRate }) || `${name}, ${total} calls, success rate ${toolRate}%`)
+            : (mcpMonitorT('toolRowNocompletedAriaLabel', { name, total }) || monitorFallback(`${name}, ${total} calls, no completed results, click to view execution records`, `${name}, ${total} calls, no completed outcomes, click to view records`)))
             + (blocked > 0 ? ` · ${blockedLabel}` : '');
         const failNote = failed > 0
-            ? `<span class="mcp-stats-tool-item__fail">${escapeHtml(mcpMonitorT('failedCount', { n: failed }) || `失败 ${failed}`)}</span>`
+            ? `<span class="mcp-stats-tool-item__fail">${escapeHtml(mcpMonitorT('failedCount', { n: failed }) || `failed ${failed}`)}</span>`
             : '';
-        const successLabel = mcpMonitorT('successCount', { n: success }) || `成功 ${success}`;
-        const failedLabel = mcpMonitorT('failedCount', { n: failed }) || `失败 ${failed}`;
+        const successLabel = mcpMonitorT('successCount', { n: success }) || `success ${success}`;
+        const failedLabel = mcpMonitorT('failedCount', { n: failed }) || `failed ${failed}`;
         return `<li class="mcp-stats-tool-item${isActive ? ' is-active' : ''}"
-            data-tool-name="${escapeAttrLocal(rawName)}" tabindex="0" role="button"
+            data-tool-name="${escapeAttrLocal(rawName)}" tabIndex="0" role="button"
             aria-label="${escapeAttrLocal(rowAria)}" aria-pressed="${isActive ? 'true' : 'false'}">
             <div class="mcp-stats-tool-item__top">
                 <span class="mcp-stats-tool-item__rank mcp-stats-rank${rankClass}">${index + 1}</span>
@@ -8889,7 +8889,7 @@ function renderMcpStatsToolsPanel(topTools, totals, activeToolFilter = '') {
             </div>
             <div class="mcp-stats-tool-item__middle">
                 <strong class="mcp-stats-tool-item__calls">${total}</strong>
-                <span class="mcp-stats-tool-item__calls-label">${escapeHtml(mcpMonitorT('columnCalls') || '调用')}</span>
+                <span class="mcp-stats-tool-item__calls-label">${escapeHtml(mcpMonitorT('columnCalls') || 'Calls')}</span>
                 <span class="mcp-stats-tool-item__track" aria-hidden="true">
                     <span class="mcp-stats-tool-item__fill" style="width:${barPct}%;background:${color}"></span>
                 </span>
@@ -8904,11 +8904,11 @@ function renderMcpStatsToolsPanel(topTools, totals, activeToolFilter = '') {
     }).join('');
 
     return `
-        <div class="mcp-stats-tools-panel" role="region" aria-label="${escapeHtml(mcpMonitorT('toolStatsTitle') || '工具统计')}">
+        <div class="mcp-stats-tools-panel" role="region" aria-label="${escapeHtml(mcpMonitorT('toolStatsTitle') || 'Tool statistics')}">
             <div class="mcp-stats-tools-panel__hero">
                 <div class="mcp-stats-proportion-bar" role="img" aria-label="${escapeHtml(distAria)}">${stackedHtml}</div>
                 <p class="mcp-stats-tools-panel__caption">
-                    <span class="mcp-stats-scope-badge mcp-stats-scope-badge--cumulative mcp-stats-scope-badge--inline">${escapeHtml(mcpMonitorT('scopeCumulative') || '累计')}</span>
+                    <span class="mcp-stats-scope-badge mcp-stats-scope-badge--cumulative mcp-stats-scope-badge--inline">${escapeHtml(mcpMonitorT('scopeCumulative') || 'Cumulative')}</span>
                     ${escapeHtml(caption)}
                 </p>
             </div>
@@ -8916,10 +8916,10 @@ function renderMcpStatsToolsPanel(topTools, totals, activeToolFilter = '') {
         </div>`;
 }
 
-function renderMcpStatsChartAside(topTools, totals, activeToolFilter = '') {
-    const distTitle = mcpMonitorT('distTitle') || '调用分布';
-    const distClickHint = mcpMonitorT('distClickHint') || '点击扇区筛选';
-    const top6ShareLabel = mcpMonitorT('distTop6Share', { n: MCP_STATS_TOP_N }) || `Top ${MCP_STATS_TOP_N} 占全部调用`;
+function renderMcpStatsChartAside(topTools, totals, activeToolfilter = '') {
+    const distTitle = mcpMonitorT('distTitle') || 'Call distribution';
+    const distClickhint = mcpMonitorT('distClickHint') || 'Click a sector to filter';
+    const top6ShareLabel = mcpMonitorT('distTop6Share', { n: MCP_STATS_TOP_N }) || `Top ${MCP_STATS_TOP_N} share of all calls`;
     const topNTotal = topTools.reduce((s, t) => s + (t.totalCalls || 0), 0);
     const top6SharePct = totals.total > 0 ? ((topNTotal / totals.total) * 100).toFixed(1) : '0.0';
     const centerLabel = `Top ${MCP_STATS_TOP_N}`;
@@ -8928,17 +8928,17 @@ function renderMcpStatsChartAside(topTools, totals, activeToolFilter = '') {
     const segmentPathsHtml = segments.map((s) => {
         const pathD = mcpStatsDescribeDonutSegment(s.start, s.end, 48, 30);
         if (!pathD) return '';
-        const isActive = !s.isOthers && activeToolFilter && activeToolFilter === s.name;
+        const isActive = !s.isOthers && activeToolfilter && activeToolfilter === s.name;
         const segAria = s.isOthers
             ? escapeHtml(s.name)
             : escapeHtml(mcpMonitorT('distSegmentAria', { name: s.name, pct: s.pct, calls: s.calls })
-                || `${s.name}，占 ${s.pct}%，${s.calls} 次`);
+                || `${s.name}, ${s.pct}%, ${s.calls} calls`);
         return `<path class="mcp-stats-dist-segment${isActive ? ' is-active' : ''}${s.isOthers ? ' is-others' : ''}"
             d="${pathD}" fill="${s.color}"
             data-tool-name="${s.isOthers ? '' : escapeHtml(s.name)}"
             data-pct="${s.pct}" data-calls="${s.calls}"
             data-is-others="${s.isOthers ? '1' : '0'}"
-            tabindex="${s.isOthers ? '-1' : '0'}"
+            tabIndex="${s.isOthers ? '-1' : '0'}"
             role="${s.isOthers ? 'presentation' : 'button'}"
             aria-label="${segAria}" />`;
     }).join('');
@@ -8962,21 +8962,21 @@ function renderMcpStatsChartAside(topTools, totals, activeToolFilter = '') {
                     </span>
                 </div>
             </div>
-            <p class="mcp-stats-panel__aside-hint">${escapeHtml(distClickHint)}</p>
+            <p class="mcp-stats-panel__aside-hint">${escapeHtml(distClickhint)}</p>
         </div>`;
 }
 
-function renderMcpStatsDetailSection(topTools, totals, activeToolFilter = '', timeline = null, timelineError = null) {
+function renderMcpStatsDetailSection(topTools, totals, activeToolfilter = '', timeline = null, timelineError = null) {
     const showTimeline = timeline != null || !!timelineError;
-    return renderMcpStatsCombinedSection(topTools, totals, activeToolFilter, timeline, timelineError, showTimeline);
+    return renderMcpStatsCombinedSection(topTools, totals, activeToolfilter, timeline, timelineError, showTimeline);
 }
 
-/** @deprecated 保留供其他页面；MCP 监控主面板请用 renderMcpStatsToolTable */
-function renderMcpStatsToolRanking(topTools, totals, activeToolFilter = '', options = {}) {
+/** @deprecated Retained for other pages; MCP monitor main panel should use renderMcpStatsToolTable */
+function renderMcpStatsToolRanking(topTools, totals, activeToolfilter = '', options = {}) {
     if (options.bare || options.embedded) {
-        return renderMcpStatsToolTable(topTools, totals, activeToolFilter);
+        return renderMcpStatsToolTable(topTools, totals, activeToolfilter);
     }
-    return renderMcpStatsDetailSection(topTools, totals, activeToolFilter);
+    return renderMcpStatsDetailSection(topTools, totals, activeToolfilter);
 }
 
 function renderMonitorStats(summary = null, topTools = [], lastFetchedAt = null) {
@@ -8992,7 +8992,7 @@ function renderMonitorStats(summary = null, topTools = [], lastFetchedAt = null)
     const hasSummaryData = toolCount > 0 || totals.total > 0;
 
     if (!hasSummaryData && !showTimeline) {
-        const noStats = mcpMonitorT('noStatsData') || monitorFallback('暂无统计数据', 'No statistical data');
+        const noStats = mcpMonitorT('noStatsData') || monitorFallback('No statistical data', 'No statistical data');
         container.innerHTML = '<div class="monitor-empty">' + escapeHtml(noStats) + '</div>';
         const subtitle = document.getElementById('monitor-stats-subtitle');
         if (subtitle) subtitle.hidden = true;
@@ -9004,32 +9004,32 @@ function renderMonitorStats(summary = null, topTools = [], lastFetchedAt = null)
     const successRateNum = hasCalls ? (totals.success / effectiveTotal) * 100 : 0;
     const successRate = hasCalls ? successRateNum.toFixed(1) : '-';
     const locale = (typeof window.uiLocale === 'function' ? window.uiLocale() : 'en-US');
-    const noCallsYet = mcpMonitorT('noCallsYet') || monitorFallback('暂无调用', 'No calls yet');
-    const noCompletedYet = mcpMonitorT('noCompletedYet') || monitorFallback('暂无有效完成', 'No completed outcomes yet');
+    const noCallsYet = mcpMonitorT('noCallsYet') || monitorFallback('No calls yet', 'No calls yet');
+    const nocompletedYet = mcpMonitorT('noCompletedYet') || monitorFallback('No completed outcomes yet', 'No completed outcomes yet');
     const lastCallText = totals.lastCallTime
         ? (totals.lastCallTime.toLocaleString ? totals.lastCallTime.toLocaleString(locale) : String(totals.lastCallTime))
         : noCallsYet;
 
     const rateTone = hasCalls ? getMcpStatsRateTone(successRateNum) : 'is-muted';
-    let rateSubText = totals.total > 0 ? noCompletedYet : noCallsYet;
+    let rateSubText = totals.total > 0 ? nocompletedYet : noCallsYet;
     if (hasCalls) {
-        rateSubText = mcpMonitorT('rateHealthy') || monitorFallback('运行平稳', 'Running smoothly');
-        if (successRateNum < 80) rateSubText = mcpMonitorT('rateCritical') || monitorFallback('失败率偏高', 'High failure rate');
-        else if (successRateNum < 95) rateSubText = mcpMonitorT('rateWarning') || monitorFallback('存在失败调用', 'Some failures detected');
+        rateSubText = mcpMonitorT('rateHealthy') || monitorFallback('Running smoothly', 'running smoothly');
+        if (successRateNum < 80) rateSubText = mcpMonitorT('rateCritical') || monitorFallback('High failure rate', 'High failure rate');
+        else if (successRateNum < 95) rateSubText = mcpMonitorT('rateWarning') || monitorFallback('Some failures detected', 'Some failures detected');
     }
 
-    const toolFilterEl = document.getElementById('monitor-tool-filter');
-    const activeToolFilter = toolFilterEl ? toolFilterEl.value.trim() : '';
+    const toolfilterEl = document.getElementById('monitor-tool-filter');
+    const activeToolfilter = toolfilterEl ? toolfilterEl.value.trim() : '';
 
     const hasAnyCalls = totals.total > 0;
     const showCombined = hasAnyCalls && (tools.length > 0 || showTimeline);
-    const html = `
+    const HTML = `
         <div class="mcp-exec-stats">
             ${renderMcpStatsMetricsBar(totals, successRate, rateTone, rateSubText, lastCallText, hasCalls)}
             ${showCombined ? renderMcpStatsCombinedSection(
                 tools,
                 totals,
-                activeToolFilter,
+                activeToolfilter,
                 monitorState.timeline,
                 monitorState.timelineError,
                 showTimeline
@@ -9037,13 +9037,13 @@ function renderMonitorStats(summary = null, topTools = [], lastFetchedAt = null)
         </div>
     `;
 
-    container.innerHTML = html;
+    container.innerHTML = HTML;
     bindMonitorStatsPanelEvents();
     bindMcpStatsTimelineEvents();
-    if (toolFilterEl && activeToolFilter) {
-        toolFilterEl.classList.add('is-filter-active');
-    } else if (toolFilterEl) {
-        toolFilterEl.classList.remove('is-filter-active');
+    if (toolfilterEl && activeToolfilter) {
+        toolfilterEl.classList.add('is-filter-active');
+    } else if (toolfilterEl) {
+        toolfilterEl.classList.remove('is-filter-active');
     }
     updateMonitorStatsSubtitle(lastFetchedAt, toolCount, monitorState.retentionDays);
 }
@@ -9055,22 +9055,22 @@ function renderMonitorExecutions(executions = [], statusFilter = 'all') {
     }
 
     if (!Array.isArray(executions) || executions.length === 0) {
-        // 根据是否有筛选条件显示不同的提示
+        // Show different hints depending on whether filter conditions are active
         const toolFilter = document.getElementById('monitor-tool-filter');
-        const currentToolFilter = toolFilter ? toolFilter.value : 'all';
-        const hasFilter = (statusFilter && statusFilter !== 'all') || (currentToolFilter && currentToolFilter !== 'all');
-        const noRecordsFilter = typeof window.t === 'function' ? window.t('mcpMonitor.noRecordsWithFilter') : monitorFallback('当前筛选条件下暂无记录', 'No records with current filter');
-        const noExecutions = typeof window.t === 'function' ? window.t('mcpMonitor.noExecutions') : monitorFallback('暂无执行记录', 'No execution records');
+        const currentToolfilter = toolFilter ? toolFilter.value : 'all';
+        const hasFilter = (statusFilter && statusFilter !== 'all') || (currentToolfilter && currentToolfilter !== 'all');
+        const noRecordsfilter = typeof window.t === 'function' ? window.t('mcpMonitor.noRecordsWithFilter') : monitorFallback('No records under current filter conditions', 'No records with currentFilter');
+        const noExecutions = typeof window.t === 'function' ? window.t('mcpMonitor.noExecutions') : monitorFallback('No execution records', 'No execution records');
         if (hasFilter) {
-            container.innerHTML = '<div class="monitor-empty">' + escapeHtml(noRecordsFilter) + '</div>';
+            container.innerHTML = '<div class="monitor-empty">' + escapeHtml(noRecordsfilter) + '</div>';
         } else {
-            const emptyHint = typeof window.t === 'function' ? window.t('mcpMonitor.emptyHint') : monitorFallback('在对话或任务中调用 MCP 工具后，执行记录将显示在此处', 'Execution records will appear here after you invoke MCP tools in chat or tasks');
+            const emptyHint = typeof window.t === 'function' ? window.t('mcpMonitor.emptyHint') : monitorFallback('Execution records will appear after calling MCP tools in chat or tasks', 'Execution records will appear here', 'Execution records will appear here after you invoke MCP tools in chat or tasks');
             container.innerHTML = `<div class="monitor-empty">
                 <p class="monitor-empty__title">${escapeHtml(noExecutions)}</p>
                 <p class="monitor-empty__hint">${escapeHtml(emptyHint)}</p>
             </div>`;
         }
-        // 隐藏批量操作栏
+        // Hide batch action bar
         const batchActions = document.getElementById('monitor-batch-actions');
         if (batchActions) {
             batchActions.style.display = 'none';
@@ -9078,14 +9078,14 @@ function renderMonitorExecutions(executions = [], statusFilter = 'all') {
         return;
     }
 
-    // 由于筛选已经在后端完成，这里直接使用所有传入的执行记录
-    // 不再需要前端再次筛选，因为后端已经返回了筛选后的数据
-    const unknownLabel = typeof window.t === 'function' ? window.t('mcpMonitor.unknown') : '未知';
-    const unknownToolLabel = typeof window.t === 'function' ? window.t('mcpMonitor.unknownTool') : '未知工具';
-    const viewDetailLabel = typeof window.t === 'function' ? window.t('mcpMonitor.viewDetail') : '查看详情';
-    const deleteLabel = typeof window.t === 'function' ? window.t('mcpMonitor.delete') : '删除';
-    const deleteExecTitle = typeof window.t === 'function' ? window.t('mcpMonitor.deleteExecTitle') : '删除此执行记录';
-    const terminateLabel = typeof window.t === 'function' ? window.t('mcpMonitor.terminateExecution') : '终止';
+    // Since filtering is already done on the backend, use all passed execution records directly
+    // No need to filter on the frontend again, as the backend already returned filtered data
+    const unknownLabel = typeof window.t === 'function' ? window.t('mcpMonitor.unknown') : 'Unknown';
+    const unknownToolLabel = typeof window.t === 'function' ? window.t('mcpMonitor.unknownTool') : 'unknown tool';
+    const viewDetailLabel = typeof window.t === 'function' ? window.t('mcpMonitor.viewDetail') : 'viewDetails';
+    const deleteLabel = typeof window.t === 'function' ? window.t('mcpMonitor.delete') : 'delete';
+    const deleteExecTitle = typeof window.t === 'function' ? window.t('mcpMonitor.deleteExecTitle') : 'Delete this execution record';
+    const terminateLabel = typeof window.t === 'function' ? window.t('mcpMonitor.terminateExecution') : 'Terminate';
     const statusKeyMap = {
         pending: 'statusPending',
         queued: 'statusQueued',
@@ -9116,10 +9116,10 @@ function renderMonitorExecutions(executions = [], statusFilter = 'all') {
             const isSelected = monitorState.selectedExecutions.has(rawExecId);
             const rowKey = monitorRenderKey([exec, isSelected, locale || 'en-US']);
             return {
-                id: rawExecId,
+                ID: rawExecId,
                 key: rowKey,
-                html: `
-                <tr data-execution-id="${executionId}">
+                HTML: `
+                <tr data-execution-idD="${executionId}">
                     <td>
                         <input type="checkbox" class="monitor-execution-checkbox theme-checkbox" value="${executionId}" ${isSelected ? 'checked' : ''} onchange="toggleExecutionSelection(${jsExecId}, this.checked)" />
                     </td>
@@ -9139,26 +9139,26 @@ function renderMonitorExecutions(executions = [], statusFilter = 'all') {
             };
         });
 
-    // 清除"加载中..."等提示信息
+    // Clear "Loading..." and other hint text
     const oldEmpty = container.querySelector('.monitor-empty');
     if (oldEmpty) {
         oldEmpty.remove();
     }
     
-    const colTool = typeof window.t === 'function' ? window.t('mcpMonitor.columnTool') : '工具';
-    const colStatus = typeof window.t === 'function' ? window.t('mcpMonitor.columnStatus') : '状态';
-    const colStartTime = typeof window.t === 'function' ? window.t('mcpMonitor.columnStartTime') : '开始时间';
-    const colDuration = typeof window.t === 'function' ? window.t('mcpMonitor.columnDuration') : '耗时';
-    const colActions = typeof window.t === 'function' ? window.t('mcpMonitor.columnActions') : '操作';
-    const headerKey = monitorRenderKey([colTool, colStatus, colStartTime, colDuration, colActions, locale || 'en-US']);
+    const colTool = typeof window.t === 'function' ? window.t('mcpMonitor.columnTool') : 'tool';
+    const colStatus = typeof window.t === 'function' ? window.t('mcpMonitor.columnStatus') : 'status';
+    const colstartTime = typeof window.t === 'function' ? window.t('mcpMonitor.columnStartTime') : 'start time';
+    const colDuration = typeof window.t === 'function' ? window.t('mcpMonitor.columnDuration') : 'Duration';
+    const colActions = typeof window.t === 'function' ? window.t('mcpMonitor.columnActions') : 'Actions';
+    const headerKey = monitorRenderKey([colTool, colStatus, colstartTime, colDuration, colActions, locale || 'en-US']);
     const headerHtml = `
         <tr>
             <th style="width: 40px;">
-                <input type="checkbox" id="monitor-select-all" class="theme-checkbox" onchange="toggleSelectAll(this)" />
+                <input type="checkbox" ID="monitor-select-all" class="theme-checkbox" onchange="toggleSelectAll(this)" />
             </th>
             <th>${escapeHtml(colTool)}</th>
             <th>${escapeHtml(colStatus)}</th>
-            <th>${escapeHtml(colStartTime)}</th>
+            <th>${escapeHtml(colstartTime)}</th>
             <th>${escapeHtml(colDuration)}</th>
             <th>${escapeHtml(colActions)}</th>
         </tr>`;
@@ -9188,7 +9188,7 @@ function renderMonitorExecutions(executions = [], statusFilter = 'all') {
         ? reconcileMonitorExecutionRows(table.querySelector('tbody'), rowEntries)
         : [];
     
-    // 更新批量操作状态
+    // Update batch action state
     updateBatchActionsState();
     if (typeof rbacAfterDynamicRender === 'function') {
         if (tableCreated) {
@@ -9201,13 +9201,13 @@ function renderMonitorExecutions(executions = [], statusFilter = 'all') {
 
 function createMonitorExecutionRow(entry) {
     const template = document.createElement('template');
-    template.innerHTML = entry.html.trim();
+    template.innerHTML = entry.HTML.trim();
     const row = template.content.firstElementChild;
     if (row) row.__monitorRenderKey = entry.key;
     return row;
 }
 
-// 以 execution ID 为 key 对账，只操作新增、删除、换序或内容变化的行。
+// Reconcile using execution ID as key; only add, delete, reorder, or update rows whose content has changed.
 function reconcileMonitorExecutionRows(tbody, rowEntries) {
     if (!tbody) return [];
 
@@ -9217,8 +9217,8 @@ function reconcileMonitorExecutionRows(tbody, rowEntries) {
     });
 
     const desiredIds = new Set(rowEntries.map(function (entry) { return entry.id; }));
-    existingById.forEach(function (row, id) {
-        if (!desiredIds.has(id)) row.remove();
+    existingById.forEach(function (row, ID) {
+        if (!desiredIds.has(ID)) row.remove();
     });
 
     const changedRows = [];
@@ -9247,7 +9247,7 @@ function reconcileMonitorExecutionRows(tbody, rowEntries) {
     return changedRows;
 }
 
-// 轮询结果未变化时只原位刷新运行中记录的耗时，避免重建整张表格。
+// When query results have not changed, only refresh the duration of running records in-place, avoiding rebuilding the entire table.
 function updateMonitorExecutionDurations(executions = []) {
     const container = document.getElementById('monitor-executions');
     if (!container || !Array.isArray(executions)) return;
@@ -9257,7 +9257,7 @@ function updateMonitorExecutionDurations(executions = []) {
         if (execution && execution.id) executionMap.set(String(execution.id), execution);
     });
 
-    container.querySelectorAll('tr[data-execution-id]').forEach(function (row) {
+    container.querySelectorAll('tr[data-execution-idD]').forEach(function (row) {
         const execution = executionMap.get(row.dataset.executionId || '');
         if (!execution || String(execution.status || '').toLowerCase() !== 'running') return;
         const durationCell = row.querySelector('.monitor-execution-duration');
@@ -9267,71 +9267,71 @@ function updateMonitorExecutionDurations(executions = []) {
     });
 }
 
-// 渲染监控面板分页控件
+// Render monitor panel pagination controls
 function renderMonitorPagination() {
     const container = document.getElementById('monitor-executions');
     if (!container) return;
     
-    // 移除旧的分页控件
+    // Remove old pagination controls
     const oldPagination = container.querySelector('.monitor-pagination');
     if (oldPagination) {
         oldPagination.remove();
     }
     
-    const { page, totalPages, total, pageSize } = monitorState.pagination;
+    const {  PAGE, totalPages, total,  pageSize } = monitorState.pagination;
     
-    // 始终显示分页控件
+    // Always show pagination controls
     const pagination = document.createElement('div');
     pagination.className = 'monitor-pagination';
     
-    // 处理没有数据的情况
-    const startItem = total === 0 ? 0 : (page - 1) * pageSize + 1;
-    const endItem = total === 0 ? 0 : Math.min(page * pageSize, total);
-    const paginationInfoText = mcpMonitorT('paginationInfo', { start: startItem, end: endItem, total: total })
-        || (typeof window.t === 'function' ? window.t('mcpMonitor.paginationInfo', { start: startItem, end: endItem, total: total }) : `Show ${startItem}-${endItem} of ${total} records`);
-    const perPageLabel = mcpMonitorT('perPageLabel') || (typeof window.t === 'function' ? window.t('mcpMonitor.perPageLabel') : 'Per page');
-    const firstPageLabel = mcpMonitorT('firstPage') || (typeof window.t === 'function' ? window.t('mcp.firstPage') : 'First');
-    const prevPageLabel = mcpMonitorT('prevPage') || (typeof window.t === 'function' ? window.t('mcp.prevPage') : 'Previous');
-    const pageInfoText = mcpMonitorT('pageInfo', { page: page, total: totalPages || 1 })
-        || (typeof window.t === 'function' ? window.t('mcp.pageInfo', { page: page, total: totalPages || 1 }) : `Page ${page} / ${totalPages || 1}`);
-    const nextPageLabel = mcpMonitorT('nextPage') || (typeof window.t === 'function' ? window.t('mcp.nextPage') : 'Next');
-    const lastPageLabel = mcpMonitorT('lastPage') || (typeof window.t === 'function' ? window.t('mcp.lastPage') : 'Last');
+    // Handle the case where there is no data
+    const startItem = total === 0 ? 0 : ( PAGE - 1) *  pageSize + 1;
+    const endItem = total === 0 ? 0 : Math.min( PAGE *  pageSize, total);
+    const paginationInfoText = mcpMonitorT('pagination info', { start: startItem, end: endItem, total: total })
+        || (typeof window.t === 'function' ? window.t('mcpMonitor.pagination info', { start: startItem, end: endItem, total: total }) : `Show ${startItem}-${endItem} of ${total} records`);
+    const perPageLabel = mcpMonitorT('perPageLabel') || (typeof window.t === 'function' ? window.t('mcpMonitor.perPageLabel') : 'Per  PAGE');
+    const firstPageLabel = mcpMonitorT('firstPage') || (typeof window.t === 'function' ? window.t('MCP.firstPage') : 'First');
+    const prevPageLabel = mcpMonitorT('prevPage') || (typeof window.t === 'function' ? window.t('MCP.prevPage') : 'Previous');
+    const pageInfoText = mcpMonitorT('pageInfo', { PAGE: PAGE, total: totalPages || 1 })
+        || (typeof window.t === 'function' ? window.t('MCP. PAGE info', {  PAGE:  PAGE, total: totalPages || 1 }) : `Page ${ PAGE} / ${totalPages || 1}`);
+    const nextPageLabel = mcpMonitorT('nextPage') || (typeof window.t === 'function' ? window.t('MCP.nextPage') : 'Next');
+    const lastPageLabel = mcpMonitorT('lastPage') || (typeof window.t === 'function' ? window.t('MCP.lastPage') : 'Last');
     pagination.innerHTML = `
         <div class="pagination-info">
             <span>${escapeHtml(paginationInfoText)}</span>
-            <label class="pagination-page-size">
+            <label class="pagination-PAGE-size">
                 ${escapeHtml(perPageLabel)}
-                <select id="monitor-page-size" onchange="changeMonitorPageSize()">
-                    <option value="10" ${pageSize === 10 ? 'selected' : ''}>10</option>
-                    <option value="20" ${pageSize === 20 ? 'selected' : ''}>20</option>
-                    <option value="50" ${pageSize === 50 ? 'selected' : ''}>50</option>
-                    <option value="100" ${pageSize === 100 ? 'selected' : ''}>100</option>
+                <select ID="monitor- PAGE-size" onchange="changeMonitorPageSize()">
+                    <option value="10" ${ pageSize === 10 ? 'selected' : ''}>10</option>
+                    <option value="20" ${ pageSize === 20 ? 'selected' : ''}>20</option>
+                    <option value="50" ${ pageSize === 50 ? 'selected' : ''}>50</option>
+                    <option value="100" ${ pageSize === 100 ? 'selected' : ''}>100</option>
                 </select>
             </label>
         </div>
         <div class="pagination-controls">
-            <button class="btn-secondary" onclick="refreshMonitorPanel(1)" ${page === 1 || total === 0 ? 'disabled' : ''}>${escapeHtml(firstPageLabel)}</button>
-            <button class="btn-secondary" onclick="refreshMonitorPanel(${page - 1})" ${page === 1 || total === 0 ? 'disabled' : ''}>${escapeHtml(prevPageLabel)}</button>
-            <span class="pagination-page">${escapeHtml(pageInfoText)}</span>
-            <button class="btn-secondary" onclick="refreshMonitorPanel(${page + 1})" ${page >= totalPages || total === 0 ? 'disabled' : ''}>${escapeHtml(nextPageLabel)}</button>
-            <button class="btn-secondary" onclick="refreshMonitorPanel(${totalPages || 1})" ${page >= totalPages || total === 0 ? 'disabled' : ''}>${escapeHtml(lastPageLabel)}</button>
+            <button class="btn-secondary" onclick="refreshMonitorPanel(1)" ${ PAGE === 1 || total === 0 ? 'disabled' : ''}>${escapeHtml(firstPageLabel)}</button>
+            <button class="btn-secondary" onclick="refreshMonitorPanel(${ PAGE - 1})" ${ PAGE === 1 || total === 0 ? 'disabled' : ''}>${escapeHtml(prevPageLabel)}</button>
+            <span class="pagination-PAGE">${escapeHtml(pageInfoText)}</span>
+            <button class="btn-secondary" onclick="refreshMonitorPanel(${ PAGE + 1})" ${ PAGE >= totalPages || total === 0 ? 'disabled' : ''}>${escapeHtml(nextPageLabel)}</button>
+            <button class="btn-secondary" onclick="refreshMonitorPanel(${totalPages || 1})" ${ PAGE >= totalPages || total === 0 ? 'disabled' : ''}>${escapeHtml(lastPageLabel)}</button>
         </div>
     `;
     
     container.appendChild(pagination);
     
-    // 初始化每页显示数量选择器
+    // Initialize per-page count selector
     initializeMonitorPageSize();
 }
 
-// 删除执行记录
+// Delete execution record
 async function deleteExecution(executionId) {
     if (!executionId) {
         return;
     }
     
-    const deleteConfirmMsg = typeof window.t === 'function' ? window.t('mcpMonitor.deleteExecConfirmSingle') : '确定要删除此执行记录吗？此操作不可恢复。';
-    if (!confirm(deleteConfirmMsg)) {
+    const deleteconfirmMsg = typeof window.t === 'function' ? window.t('mcpMonitor.deleteExecConfirmSingle') : 'Are you sure you want to delete this execution record? This action cannot be undone.';
+    if (!confirm(deleteconfirmMsg)) {
         return;
     }
     
@@ -9342,26 +9342,26 @@ async function deleteExecution(executionId) {
         
         if (!response.ok) {
             const error = await response.json().catch(() => ({}));
-            const deleteFailedMsg = typeof window.t === 'function' ? window.t('mcpMonitor.deleteExecFailed') : '删除执行记录失败';
-            throw new Error(error.error || deleteFailedMsg);
+            const deletefailedMsg = typeof window.t === 'function' ? window.t('mcpMonitor.deleteExecFailed') : 'Failed to delete execution record';
+            throw new Error(error.error || deletefailedMsg);
         }
         
         monitorState.selectedExecutions.delete(executionId);
 
-        // 删除成功后刷新当前页面
-        const currentPage = monitorState.pagination.page;
+        // Refresh current page after successful deletion
+        const currentPage = monitorState.pagination. PAGE;
         await refreshMonitorPanel(currentPage);
         
-        const execDeletedMsg = typeof window.t === 'function' ? window.t('mcpMonitor.execDeleted') : '执行记录已删除';
-        alert(execDeletedMsg);
+        const execdeletedMsg = typeof window.t === 'function' ? window.t('mcpMonitor.execDeleted') : 'Execution record deleted';
+        alert(execdeletedMsg);
     } catch (error) {
-        console.error('删除执行记录失败:', error);
-        const deleteFailedMsg = typeof window.t === 'function' ? window.t('mcpMonitor.deleteExecFailed') : '删除执行记录失败';
-        alert(deleteFailedMsg + ': ' + error.message);
+        console.error('Failed to delete execution record:', error);
+        const deletefailedMsg = typeof window.t === 'function' ? window.t('mcpMonitor.deleteExecFailed') : 'Failed to delete execution record';
+        alert(deletefailedMsg + ': ' + error.message);
     }
 }
 
-// 切换单条执行记录选中状态（持久化到 monitorState，避免轮询刷新后丢失）
+// Toggle single execution record selection state (persisted to monitorState to avoid loss on polling refresh)
 function toggleExecutionSelection(executionId, selected) {
     if (!executionId) {
         return;
@@ -9374,7 +9374,7 @@ function toggleExecutionSelection(executionId, selected) {
     updateBatchActionsState();
 }
 
-// 更新批量操作状态
+// Update batch action state
 function updateBatchActionsState() {
     const selectedCount = monitorState.selectedExecutions.size;
     const batchActions = document.getElementById('monitor-batch-actions');
@@ -9390,25 +9390,25 @@ function updateBatchActionsState() {
         }
     }
     if (selectedCountSpan) {
-        selectedCountSpan.textContent = typeof window.t === 'function' ? window.t('mcp.selectedCount', { count: selectedCount }) : '已选择 ' + selectedCount + ' 项';
+        selectedCountSpan.textContent = typeof window.t === 'function' ? window.t('MCP.selectedCount', { count: selectedCount }) : 'Selected ' + selectedCount + ' more  items';
     }
     
-    // 更新全选复选框状态（仅反映当前页）
-    const selectAllCheckbox = document.getElementById('monitor-select-all');
-    if (selectAllCheckbox) {
+    // Update select-all checkbox state (reflects current page only)
+    const selectallCheckbox = document.getElementById('monitor-select-all');
+    if (selectallCheckbox) {
         const allCheckboxes = document.querySelectorAll('.monitor-execution-checkbox');
         if (allCheckboxes.length === 0) {
-            selectAllCheckbox.checked = false;
-            selectAllCheckbox.indeterminate = false;
+            selectallCheckbox.checked = false;
+            selectallCheckbox.indeterminate = false;
         } else {
             const checkedOnPage = Array.from(allCheckboxes).filter(cb => monitorState.selectedExecutions.has(cb.value)).length;
-            selectAllCheckbox.checked = checkedOnPage === allCheckboxes.length;
-            selectAllCheckbox.indeterminate = checkedOnPage > 0 && checkedOnPage < allCheckboxes.length;
+            selectallCheckbox.checked = checkedOnPage === allCheckboxes.length;
+            selectallCheckbox.indeterminate = checkedOnPage > 0 && checkedOnPage < allCheckboxes.length;
         }
     }
 }
 
-// 切换全选
+// Toggle select all
 function toggleSelectAll(checkbox) {
     const checkboxes = document.querySelectorAll('.monitor-execution-checkbox');
     checkboxes.forEach(cb => {
@@ -9422,47 +9422,47 @@ function toggleSelectAll(checkbox) {
     updateBatchActionsState();
 }
 
-// 全选
+// Select all
 function selectAllExecutions() {
     const checkboxes = document.querySelectorAll('.monitor-execution-checkbox');
     checkboxes.forEach(cb => {
         cb.checked = true;
         monitorState.selectedExecutions.add(cb.value);
     });
-    const selectAllCheckbox = document.getElementById('monitor-select-all');
-    if (selectAllCheckbox) {
-        selectAllCheckbox.checked = true;
-        selectAllCheckbox.indeterminate = false;
+    const selectallCheckbox = document.getElementById('monitor-select-all');
+    if (selectallCheckbox) {
+        selectallCheckbox.checked = true;
+        selectallCheckbox.indeterminate = false;
     }
     updateBatchActionsState();
 }
 
-// 取消全选
+// Deselect all
 function deselectAllExecutions() {
     const checkboxes = document.querySelectorAll('.monitor-execution-checkbox');
     checkboxes.forEach(cb => {
         cb.checked = false;
     });
     monitorState.selectedExecutions.clear();
-    const selectAllCheckbox = document.getElementById('monitor-select-all');
-    if (selectAllCheckbox) {
-        selectAllCheckbox.checked = false;
-        selectAllCheckbox.indeterminate = false;
+    const selectallCheckbox = document.getElementById('monitor-select-all');
+    if (selectallCheckbox) {
+        selectallCheckbox.checked = false;
+        selectallCheckbox.indeterminate = false;
     }
     updateBatchActionsState();
 }
 
-// 批量删除执行记录
+// Batch delete execution records
 async function batchDeleteExecutions() {
     const ids = Array.from(monitorState.selectedExecutions);
     if (ids.length === 0) {
-        const selectFirstMsg = typeof window.t === 'function' ? window.t('mcpMonitor.selectExecFirst') : '请先选择要删除的执行记录';
+        const selectFirstMsg = typeof window.t === 'function' ? window.t('mcpMonitor.selectExecFirst') : 'Please select execution records to delete first';
         alert(selectFirstMsg);
         return;
     }
     const count = ids.length;
-    const batchConfirmMsg = typeof window.t === 'function' ? window.t('mcpMonitor.batchDeleteConfirm', { count: count }) : `确定要删除选中的 ${count} 条执行记录吗？此操作不可恢复。`;
-    if (!confirm(batchConfirmMsg)) {
+    const batchconfirmMsg = typeof window.t === 'function' ? window.t('mcpMonitor.batchDeleteConfirm', { count: count }) : `Are you sure you want to delete the selected ${count} execution records? This action cannot be undone.`;
+    if (!confirm(batchconfirmMsg)) {
         return;
     }
     
@@ -9477,32 +9477,32 @@ async function batchDeleteExecutions() {
         
         if (!response.ok) {
             const error = await response.json().catch(() => ({}));
-            const batchFailedMsg = typeof window.t === 'function' ? window.t('mcp.batchDeleteFailed') : '批量删除执行记录失败';
-            throw new Error(error.error || batchFailedMsg);
+            const batchfailedMsg = typeof window.t === 'function' ? window.t('MCP.batchDeleteFailed') : 'Failed to batch delete execution records';
+            throw new Error(error.error || batchfailedMsg);
         }
         
         const result = await response.json().catch(() => ({}));
         const deletedCount = result.deleted || count;
 
-        ids.forEach(function (id) {
-            monitorState.selectedExecutions.delete(id);
+        ids.forEach(function (ID) {
+            monitorState.selectedExecutions.delete(ID);
         });
         
-        // 删除成功后刷新当前页面
-        const currentPage = monitorState.pagination.page;
+        // Refresh current page after successful deletion
+        const currentPage = monitorState.pagination. PAGE;
         await refreshMonitorPanel(currentPage);
         
-        const batchSuccessMsg = typeof window.t === 'function' ? window.t('mcpMonitor.batchDeleteSuccess', { count: deletedCount }) : `成功删除 ${deletedCount} 条执行记录`;
-        alert(batchSuccessMsg);
+        const batchsuccessMsg = typeof window.t === 'function' ? window.t('mcpMonitor.batchDeleteSuccess', { count: deletedCount }) : `Successfully deleted ${deletedCount} execution records`;
+        alert(batchsuccessMsg);
     } catch (error) {
-        console.error('批量删除执行记录失败:', error);
-        const batchFailedMsg = typeof window.t === 'function' ? window.t('mcp.batchDeleteFailed') : '批量删除执行记录失败';
-        alert(batchFailedMsg + ': ' + error.message);
+        console.error('Failed to batch delete execution records:', error);
+        const batchfailedMsg = typeof window.t === 'function' ? window.t('MCP.batchDeleteFailed') : 'Failed to batch delete execution records';
+        alert(batchfailedMsg + ': ' + error.message);
     }
 }
 
 function formatExecutionDuration(start, end) {
-    const unknownLabel = typeof window.t === 'function' ? window.t('mcpMonitor.unknown') : '未知';
+    const unknownLabel = typeof window.t === 'function' ? window.t('mcpMonitor.unknown') : 'Unknown';
     if (!start) {
         return unknownLabel;
     }
@@ -9514,26 +9514,26 @@ function formatExecutionDuration(start, end) {
     const diffMs = Math.max(0, endTime - startTime);
     const seconds = Math.floor(diffMs / 1000);
     if (seconds < 60) {
-        return typeof window.t === 'function' ? window.t('mcpMonitor.durationSeconds', { n: seconds }) : seconds + ' 秒';
+        return typeof window.t === 'function' ? window.t('mcpMonitor.durationSeconds', { n: seconds }) : seconds + '  sec';
     }
     const minutes = Math.floor(seconds / 60);
     if (minutes < 60) {
         const remain = seconds % 60;
         if (remain > 0) {
-            return typeof window.t === 'function' ? window.t('mcpMonitor.durationMinutes', { minutes: minutes, seconds: remain }) : minutes + ' 分 ' + remain + ' 秒';
+            return typeof window.t === 'function' ? window.t('mcpMonitor.durationMinutes', { minutes: minutes, seconds: remain }) : minutes + ' min ' + remain + '  sec';
         }
-        return typeof window.t === 'function' ? window.t('mcpMonitor.durationMinutesOnly', { minutes: minutes }) : minutes + ' 分';
+        return typeof window.t === 'function' ? window.t('mcpMonitor.durationMinutesOnly', { minutes: minutes }) : minutes + ' min';
     }
     const hours = Math.floor(minutes / 60);
     const remainMinutes = minutes % 60;
     if (remainMinutes > 0) {
-        return typeof window.t === 'function' ? window.t('mcpMonitor.durationHours', { hours: hours, minutes: remainMinutes }) : hours + ' 小时 ' + remainMinutes + ' 分';
+        return typeof window.t === 'function' ? window.t('mcpMonitor.durationHours', { hours: hours, minutes: remainMinutes }) : hours + '  hours ' + remainMinutes + ' min';
     }
-    return typeof window.t === 'function' ? window.t('mcpMonitor.durationHoursOnly', { hours: hours }) : hours + ' 小时';
+    return typeof window.t === 'function' ? window.t('mcpMonitor.durationHoursOnly', { hours: hours }) : hours + '  hours';
 }
 
 /**
- * 语言切换后刷新对话页已渲染的进度条、时间线标题与时间格式（避免仍显示英文或 AM/PM）
+ * After a language switch, refresh progress records, timeline titles, and time formats already rendered on the Chat page (to avoid displaying stale language or AM/PM).
  */
 function refreshProgressAndTimelineI18n() {
     const _t = function (k, o) {
@@ -9542,7 +9542,7 @@ function refreshProgressAndTimelineI18n() {
     const timeLocale = getCurrentTimeLocale();
     const timeOpts = getTimeFormatOptions();
 
-    // 进度块内停止按钮：未禁用时统一为当前语言的「停止任务」（避免仍显示 Stop task）
+    // Stop button inside progress block: when not disabled, always show "Stop task" in the current language (avoid showing stale text).
     document.querySelectorAll('.progress-message .progress-stop').forEach(function (btn) {
         if (!btn.disabled && btn.id && btn.id.indexOf('-stop-btn') !== -1) {
             const cancelling = _t('tasks.cancelling');
@@ -9574,7 +9574,7 @@ function refreshProgressAndTimelineI18n() {
         if (msgEl.id) syncProgressElapsedSummary(msgEl.id);
     });
 
-    // 时间线项：按类型重算标题，并重绘时间戳
+    // Timeline items: recalculate title by type and redraw timestamps
     document.querySelectorAll('.timeline-item').forEach(function (item) {
         const type = item.dataset.timelineType;
         const titleSpan = item.querySelector('.timeline-item-title');
@@ -9658,7 +9658,7 @@ function refreshProgressAndTimelineI18n() {
             if (contentEl) {
                 setTimelineItemContentStreamPlain(contentEl, formatEinoUsageSummaryMessage(usageData));
             }
-        } else if (type === 'cancelled') {
+        } else if (type === 'Cancelled') {
             titleSpan.textContent = '\u26D4 ' + _t('chat.taskCancelled');
         } else if (type === 'user_interrupt_continue') {
             titleSpan.textContent = _t('chat.userInterruptContinueTitle');
@@ -9680,7 +9680,7 @@ function refreshProgressAndTimelineI18n() {
         marker.textContent = formatLiveTimelinePrunedMarker(marker);
     });
 
-    // 详情区「展开/收起」按钮
+    // Details area expand/collapse button
     document.querySelectorAll('.process-detail-btn span').forEach(function (span) {
         const btn = span.closest('.process-detail-btn');
         const assistantId = btn && btn.closest('.message.assistant') && btn.closest('.message.assistant').id;

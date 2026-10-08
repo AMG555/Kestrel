@@ -1,4 +1,4 @@
-﻿const fs=require('node:fs'),vm=require('node:vm'),test=require('node:test'),assert=require('node:assert/strict');
+const fs=require('node:fs'),vm=require('node:vm'),test=require('node:test'),assert=require('node:assert/strict');
 const source=fs.readFileSync('web/static/js/tasks.js','utf8');
 const start=source.indexOf('function getBatchQueueStatusPresentation('),end=source.indexOf('\nfunction ',start+10);
 const c=vm.createContext({_t:key=>key,_tPlain:(key,args)=>key+':'+JSON.stringify(args)});vm.runInContext(source.slice(start,end),c);

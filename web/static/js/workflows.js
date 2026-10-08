@@ -1,4 +1,4 @@
-﻿(function () {
+(function () {
     'use strict';
 
     function _t(key, opts) {
@@ -43,21 +43,21 @@
         activeStep: '',
         animating: false
     };
-    const WORKFLOW_PACKAGE_INSPECTION_STORAGE_KEY = 'csai.workflow-package.inspection-id';
-    const WORKFLOW_PACKAGE_IMPORT_STORAGE_KEY = 'csai.workflow-package.import-id';
+    const WORKFLOW_PACKAGE_INSPECTION_STORAGE_KEY = 'csai.workflow-package.inspection-ID';
+    const WORKFLOW_PACKAGE_IMPORT_STORAGE_KEY = 'csai.workflow-package.import-ID';
 
     const KNOWN_NODE_LABELS = {
-        start: ['开始', 'Start'],
-        tool: ['工具', 'Tool'],
+        start: ['start', 'start'],
+        tool: ['tool', 'Tool'],
         agent: ['Agent'],
-        condition: ['条件', 'Condition'],
-        hitl: ['审批', 'Approval'],
-        output: ['输出', 'Output'],
-        end: ['结束', 'End']
+        condition: ['condition', 'Condition'],
+        hitl: ['approval', 'Approval'],
+        output: ['output', 'output'],
+        end: ['end', 'End']
     };
     const KNOWN_EDGE_LABELS = {
-        yes: ['是', 'Yes'],
-        no: ['否', 'No']
+        yes: ['Yes', 'Yes'],
+        no: ['No', 'No']
     };
 
     function wfNodeLabel(type) {
@@ -74,16 +74,16 @@
 
     const WORKFLOW_EDIT_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
     const WORKFLOW_AI_TOOL_HINTS = [
-        { keywords: ['子域名', 'subdomain', 'subfinder', 'amass'], tools: ['subfinder', 'amass'], label: '子域名发现' },
-        { keywords: ['端口', 'port', 'nmap', 'rustscan', 'masscan'], tools: ['nmap', 'rustscan', 'masscan'], label: '端口扫描' },
-        { keywords: ['漏洞', 'vuln', '漏洞扫描', 'nuclei', 'nikto', 'zap'], tools: ['nuclei', 'nikto', 'zap'], label: '漏洞扫描' },
-        { keywords: ['目录', '路径', '暴露页面', 'dir', 'ffuf', 'gobuster', 'feroxbuster'], tools: ['ffuf', 'gobuster', 'feroxbuster', 'dirsearch'], label: '暴露面探测' },
-        { keywords: ['证书', 'certificate', 'crt'], tools: ['subfinder'], label: '证书与域名线索收集' },
-        { keywords: ['云', 'cloud', '配置审计', 'prowler', 'scout'], tools: ['prowler', 'scout-suite'], label: '云配置审计' },
-        { keywords: ['容器', '镜像', 'k8s', 'kubernetes', 'trivy', 'kube'], tools: ['trivy', 'kube-bench', 'kube-hunter'], label: '容器安全检查' },
-        { keywords: ['情报', '威胁情报', 'threat', 'ioc', 'virustotal', 'shodan', 'fofa'], tools: ['virustotal_search', 'shodan_search', 'fofa_search'], label: '威胁情报收集' }
+        { keywords: ['subdomain', 'subdomain', 'subfinder', 'amass'], tools: ['subfinder', 'amass'], label: 'subdomain discovery' },
+        { keywords: ['port', 'port', 'nmap', 'rustscan', 'masscan'], tools: ['nmap', 'rustscan', 'masscan'], label: 'port scan' },
+        { keywords: ['vulnerability', 'vuln', 'vulnerability scan', 'nuclei', 'nikto', 'zap'], tools: ['nuclei', 'nikto', 'zap'], label: 'vulnerability scan' },
+        { keywords: ['directory', 'path', 'exposed  pages', 'dir', 'ffuf', 'gobuster', 'feroxbuster'], tools: ['ffuf', 'gobuster', 'feroxbuster', 'dirsearch'], label: 'attack surface detection' },
+        { keywords: ['certificate', 'certificate', 'crt'], tools: ['subfinder'], label: 'certificate and domain clue collection' },
+        { keywords: ['cloud', 'cloud', 'config audit', 'prowler', 'scout'], tools: ['prowler', 'scout-suite'], label: 'cloud configuration audit' },
+        { keywords: ['container', 'image', 'k8s', 'kubernetes', 'trivy', 'kube'], tools: ['trivy', 'kube-bench', 'kube-hunter'], label: 'container security check' },
+        { keywords: ['intelligence', 'threat intelligence', 'threat', 'ioc', 'virustotal', 'shodan', 'fofa'], tools: ['virustotal_search', 'shodan_search', 'fofa_search'], label: 'threat intelligence collection' }
     ];
-    const WORKFLOW_AI_HIGH_RISK_RE = /(隔离|封禁|加固|修复|执行|命令|脚本|删除|清理|阻断|封锁|攻击|利用|getshell|shell|payload|exploit|isolate|block|execute|script|delete|exploit|payload)/i;
+    const WORKFLOW_AI_HIGH_RISK_RE = /(isolate|block|harden|fix|execute|command|script|delete|clean|intercept|lockdown|attack|exploit|getshell|shell|payload|exploit|isolate|block|execute|script|delete|exploit|payload)/i;
     const WORKFLOW_AI_PROGRESS_STEPS = ['understand', 'match', 'draft', 'audit'];
 
     function esc(text) {
@@ -121,8 +121,8 @@
             <div class="form-group">
                 <label>${esc(label)}</label>
                 <div class="workflow-binding-row" style="display:flex;gap:8px;">
-                    <select id="${prefix}-from" class="workflow-form-select-native" onchange="updateWorkflowTypedConfig()" style="flex:1;">${options}</select>
-                    <input type="text" id="${prefix}-field" value="${esc(field)}" placeholder="output" oninput="updateWorkflowTypedConfig()" style="flex:1;">
+                    <SELECT ID="${prefix}-from" class="workflow-form-SELECT-native" onchange="updateWorkflowTypedConfig()" style="flex:1;">${options}</SELECT>
+                    <INPUT type="text" ID="${prefix}-field" value="${esc(field)}" placeholder="output" oninput="updateWorkflowTypedConfig()" style="flex:1;">
                 </div>
                 ${hint ? '<p class="workflow-config-hint">' + hint + '</p>' : ''}
             </div>`;
@@ -189,7 +189,7 @@
                 node.config && (node.config.risk_level === 'high' || node.config.requires_human_confirmation === 'true') ? 'high-risk' : ''
             ].filter(Boolean).join(' '),
             data: {
-                id: node.id || `node-${index + 1}`,
+                ID: node.id || `node-${index + 1}`,
                 label: node.label || wfNodeLabel(node.type) || node.id || _t('workflows.nodeFallback', { n: index + 1 }),
                 type: node.type || 'tool',
                 config: configWithDefaults(node.type || 'tool', node.config)
@@ -199,7 +199,7 @@
         const edges = (graph.edges || []).map((edge, index) => ({
             group: 'edges',
             data: {
-                id: edge.id || `edge-${index + 1}`,
+                ID: edge.id || `edge-${index + 1}`,
                 source: edge.source,
                 target: edge.target,
                 label: edge.label || '',
@@ -213,14 +213,14 @@
         if (!cy) return defaultGraph();
         return {
             nodes: cy.nodes().map(node => ({
-                id: node.id(),
+                ID: node.id(),
                 type: node.data('type') || 'tool',
                 label: node.data('label') || '',
                 position: node.position(),
                 config: node.data('config') || {}
             })),
             edges: cy.edges().map(edge => ({
-                id: edge.id(),
+                ID: edge.id(),
                 source: edge.source().id(),
                 target: edge.target().id(),
                 label: edge.data('label') || '',
@@ -244,9 +244,9 @@
             if (cy) cy.resize();
         });
         const canvasWrap = container.closest('.workflow-canvas-wrap');
-        const pageContent = container.closest('.workflow-page-content');
+        const  pageContent = container.closest('.workflow- page-content');
         if (canvasWrap) workflowResizeObserver.observe(canvasWrap);
-        if (pageContent) workflowResizeObserver.observe(pageContent);
+        if ( pageContent) workflowResizeObserver.observe( pageContent);
     }
 
     function initCy() {
@@ -362,7 +362,7 @@
             const editing = active && ['INPUT', 'TEXTAREA', 'SELECT'].includes(active.tagName);
             if (editing) return;
             if (typeof currentPage !== 'undefined' && currentPage !== 'workflows') return;
-            if (event.key === 'Delete' || event.key === 'Backspace') {
+            if (event.key === 'delete' || event.key === 'returnspace') {
                 event.preventDefault();
                 deleteWorkflowSelection();
             }
@@ -385,10 +385,10 @@
         if (workflowToolsLoaded) return workflowToolOptions;
         const collected = [];
         const seen = new Set();
-        let page = 1;
+        let  page = 1;
         let totalPages = 1;
-        while (page <= totalPages && page <= 20) {
-            const response = await apiFetch(`/api/config/tools?page=${page}&page_size=100`);
+        while ( page <= totalPages &&  page <= 20) {
+            const response = await apiFetch(`/api/config/tools? page=${ page}& page_size=100`);
             if (!response.ok) break;
             const data = await response.json();
             totalPages = data.total_pages || 1;
@@ -399,7 +399,7 @@
                 seen.add(key);
                 collected.push({ key, name: tool.name, enabled: tool.enabled !== false });
             });
-            page += 1;
+             page += 1;
         }
         workflowToolOptions = collected;
         workflowToolsLoaded = true;
@@ -421,7 +421,7 @@
     function createWorkflowToolOptionButton(value, label, selectedValue) {
         const item = document.createElement('button');
         item.type = 'button';
-        item.className = 'workflow-tool-select-option';
+        item.className = 'workflow-tool-SELECT-option';
         item.setAttribute('role', 'option');
         item.setAttribute('data-value', value);
         item.title = label;
@@ -432,11 +432,11 @@
             item.setAttribute('aria-selected', 'false');
         }
         const check = document.createElement('span');
-        check.className = 'workflow-tool-select-check';
+        check.className = 'workflow-tool-SELECT-check';
         check.setAttribute('aria-hidden', 'true');
         check.textContent = '✓';
         const labelEl = document.createElement('span');
-        labelEl.className = 'workflow-tool-select-label';
+        labelEl.className = 'workflow-tool-SELECT-label';
         labelEl.textContent = label;
         labelEl.title = label;
         item.appendChild(check);
@@ -445,27 +445,27 @@
     }
 
     function renderWorkflowToolSelectOptions(reg, query) {
-        const { select, optionsList } = reg;
+        const { SELECT, optionsList } = reg;
         optionsList.innerHTML = '';
         const q = (query || '').trim().toLowerCase();
         let matchCount = 0;
 
-        Array.prototype.forEach.call(select.options, (opt) => {
+        Array.prototype.forEach.call(SELECT.options, (opt) => {
             if (opt.value === '') {
                 if (!q) {
-                    optionsList.appendChild(createWorkflowToolOptionButton(opt.value, opt.textContent || '', select.value));
+                    optionsList.appendChild(createWorkflowToolOptionButton(opt.value, opt.textContent || '', SELECT.value));
                 }
                 return;
             }
             const label = opt.textContent || opt.value;
             if (q && !label.toLowerCase().includes(q) && !opt.value.toLowerCase().includes(q)) return;
             matchCount += 1;
-            optionsList.appendChild(createWorkflowToolOptionButton(opt.value, label, select.value));
+            optionsList.appendChild(createWorkflowToolOptionButton(opt.value, label, SELECT.value));
         });
 
         if (matchCount === 0) {
             const empty = document.createElement('div');
-            empty.className = 'workflow-tool-select-empty';
+            empty.className = 'workflow-tool-SELECT-empty';
             empty.textContent = q
                 ? _t('workflows.config.noToolsFound')
                 : _t('workflows.config.noToolsAvailable');
@@ -479,10 +479,10 @@
         dropdown.innerHTML = '';
 
         const searchWrap = document.createElement('div');
-        searchWrap.className = 'workflow-tool-select-search';
-        const searchInput = document.createElement('input');
+        searchWrap.className = 'workflow-tool-SELECT-search';
+        const searchInput = document.createElement('INPUT');
         searchInput.type = 'search';
-        searchInput.className = 'workflow-tool-select-search-input';
+        searchInput.className = 'workflow-tool-SELECT-search-INPUT';
         searchInput.setAttribute('autocomplete', 'off');
         searchInput.setAttribute('data-i18n', 'workflows.config.searchTool');
         searchInput.setAttribute('data-i18n-attr', 'placeholder');
@@ -492,11 +492,11 @@
         reg.searchInput = searchInput;
 
         const optionsList = document.createElement('div');
-        optionsList.className = 'workflow-tool-select-options';
+        optionsList.className = 'workflow-tool-SELECT-options';
         dropdown.appendChild(optionsList);
         reg.optionsList = optionsList;
 
-        searchInput.addEventListener('input', () => renderWorkflowToolSelectOptions(reg, searchInput.value));
+        searchInput.addEventListener('INPUT', () => renderWorkflowToolSelectOptions(reg, searchInput.value));
         searchInput.addEventListener('click', (e) => e.stopPropagation());
         searchInput.addEventListener('keydown', (e) => {
             e.stopPropagation();
@@ -505,69 +505,69 @@
     }
 
     function syncWorkflowToolSelect() {
-        const select = document.getElementById(WORKFLOW_TOOL_SELECT_ID);
+        const SELECT = document.getElementById(WORKFLOW_TOOL_SELECT_ID);
         const reg = workflowToolSelectRegistry;
-        if (!select || !reg || reg.select !== select) return;
-        const selected = select.options[select.selectedIndex];
+        if (!SELECT || !reg || reg.SELECT !== SELECT) return;
+        const selected = SELECT.options[SELECT.selectedIndex];
         reg.valueSpan.textContent = selected && selected.value
             ? selected.textContent
             : _t('workflows.config.selectTool');
         if (reg.optionsList) {
             renderWorkflowToolSelectOptions(reg, reg.searchInput ? reg.searchInput.value : '');
         }
-        reg.trigger.disabled = !!select.disabled;
-        reg.wrapper.classList.toggle('is-disabled', !!select.disabled);
+        reg.trigger.disabled = !!SELECT.disabled;
+        reg.wrapper.classList.toggle('is-disabled', !!SELECT.disabled);
     }
 
     function enhanceWorkflowToolSelect() {
-        const select = document.getElementById(WORKFLOW_TOOL_SELECT_ID);
-        if (!select) {
+        const SELECT = document.getElementById(WORKFLOW_TOOL_SELECT_ID);
+        if (!SELECT) {
             workflowToolSelectRegistry = null;
             return;
         }
-        if (select.dataset.workflowToolCustom === '1' && workflowToolSelectRegistry && workflowToolSelectRegistry.select === select) {
+        if (SELECT.dataset.workflowToolCustom === '1' && workflowToolSelectRegistry && workflowToolSelectRegistry.SELECT === SELECT) {
             syncWorkflowToolSelect();
             return;
         }
         workflowToolSelectRegistry = null;
 
-        select.dataset.workflowToolCustom = '1';
-        select.classList.add('workflow-tool-native-select');
-        select.tabIndex = -1;
-        select.setAttribute('aria-hidden', 'true');
+        SELECT.dataset.workflowToolCustom = '1';
+        SELECT.classList.add('workflow-tool-native-SELECT');
+        SELECT.tabIndex = -1;
+        SELECT.setAttribute('aria-hidden', 'true');
 
         const wrapper = document.createElement('div');
-        wrapper.className = 'workflow-tool-select';
+        wrapper.className = 'workflow-tool-SELECT';
 
         const trigger = document.createElement('button');
         trigger.type = 'button';
-        trigger.className = 'workflow-tool-select-trigger';
+        trigger.className = 'workflow-tool-SELECT-trigger';
         trigger.setAttribute('aria-haspopup', 'listbox');
         trigger.setAttribute('aria-expanded', 'false');
         const valueSpan = document.createElement('span');
-        valueSpan.className = 'workflow-tool-select-value';
+        valueSpan.className = 'workflow-tool-SELECT-value';
         trigger.appendChild(valueSpan);
         const caret = document.createElement('span');
-        caret.className = 'workflow-tool-select-caret';
+        caret.className = 'workflow-tool-SELECT-caret';
         caret.setAttribute('aria-hidden', 'true');
         caret.textContent = '▾';
         trigger.appendChild(caret);
 
         const dropdown = document.createElement('div');
-        dropdown.className = 'workflow-tool-select-dropdown';
+        dropdown.className = 'workflow-tool-SELECT-dropdown';
         dropdown.setAttribute('role', 'listbox');
 
-        const parent = select.parentNode;
-        parent.insertBefore(wrapper, select);
+        const parent = SELECT.parentNode;
+        parent.insertBefore(wrapper, SELECT);
         wrapper.appendChild(trigger);
         wrapper.appendChild(dropdown);
-        wrapper.appendChild(select);
+        wrapper.appendChild(SELECT);
 
         workflowToolSelectRegistry = {
             wrapper,
             trigger,
             dropdown,
-            select,
+            SELECT,
             valueSpan,
             searchInput: null,
             optionsList: null
@@ -575,7 +575,7 @@
 
         trigger.addEventListener('click', (e) => {
             e.stopPropagation();
-            if (select.disabled) return;
+            if (SELECT.disabled) return;
             const open = wrapper.classList.contains('open');
             closeWorkflowToolSelect();
             closeAllWorkflowFormSelects();
@@ -592,20 +592,20 @@
         });
 
         dropdown.addEventListener('click', (e) => {
-            const opt = e.target.closest('.workflow-tool-select-option');
+            const opt = e.target.closest('.workflow-tool-SELECT-option');
             if (!opt) return;
             e.stopPropagation();
             const val = opt.getAttribute('data-value');
             if (val === null) return;
-            if (select.value !== val) {
-                select.value = val;
-                select.dispatchEvent(new Event('change', { bubbles: true }));
+            if (SELECT.value !== val) {
+                SELECT.value = val;
+                SELECT.dispatchEvent(new Event('change', { bubbles: true }));
             }
             closeWorkflowToolSelect();
             syncWorkflowToolSelect();
         });
 
-        select.addEventListener('change', () => syncWorkflowToolSelect());
+        SELECT.addEventListener('change', () => syncWorkflowToolSelect());
 
         if (!workflowToolSelectDocBound) {
             workflowToolSelectDocBound = true;
@@ -620,11 +620,11 @@
 
     const workflowFormSelectMap = {};
     let workflowFormSelectDocBound = false;
-    const WORKFLOW_FORM_SELECT_CARET = '<svg class="workflow-form-select-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    const WORKFLOW_FORM_SELECT_CARET = '<svg class="workflow-form-SELECT-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
     function closeAllWorkflowFormSelects() {
-        Object.keys(workflowFormSelectMap).forEach(function (id) {
-            const reg = workflowFormSelectMap[id];
+        Object.keys(workflowFormSelectMap).forEach(function (ID) {
+            const reg = workflowFormSelectMap[ID];
             if (!reg || !reg.wrapper) return;
             reg.wrapper.classList.remove('open');
             if (reg.trigger) reg.trigger.setAttribute('aria-expanded', 'false');
@@ -632,98 +632,98 @@
     }
 
     function pruneWorkflowFormSelectMap(root) {
-        Object.keys(workflowFormSelectMap).forEach(function (id) {
-            const select = document.getElementById(id);
-            if (!select || (root && !root.contains(select))) {
-                delete workflowFormSelectMap[id];
+        Object.keys(workflowFormSelectMap).forEach(function (ID) {
+            const SELECT = document.getElementById(ID);
+            if (!SELECT || (root && !root.contains(SELECT))) {
+                delete workflowFormSelectMap[ID];
             }
         });
     }
 
-    function syncWorkflowFormSelect(select) {
-        const reg = workflowFormSelectMap[select.id];
+    function syncWorkflowFormSelect(SELECT) {
+        const reg = workflowFormSelectMap[SELECT.id];
         if (!reg) return;
         const dropdown = reg.dropdown;
         const trigger = reg.trigger;
-        const valueSpan = trigger.querySelector('.workflow-form-select-value');
+        const valueSpan = trigger.querySelector('.workflow-form-SELECT-value');
 
         dropdown.innerHTML = '';
-        Array.prototype.forEach.call(select.options, function (opt) {
+        Array.prototype.forEach.call(SELECT.options, function (opt) {
             const item = document.createElement('button');
             item.type = 'button';
-            item.className = 'workflow-form-select-option';
+            item.className = 'workflow-form-SELECT-option';
             item.setAttribute('role', 'option');
             item.setAttribute('data-value', opt.value);
-            if (opt.value === select.value) {
+            if (opt.value === SELECT.value) {
                 item.classList.add('is-selected');
                 item.setAttribute('aria-selected', 'true');
             } else {
                 item.setAttribute('aria-selected', 'false');
             }
             const check = document.createElement('span');
-            check.className = 'workflow-form-select-check';
+            check.className = 'workflow-form-SELECT-check';
             check.setAttribute('aria-hidden', 'true');
             check.textContent = '✓';
             const label = document.createElement('span');
-            label.className = 'workflow-form-select-label';
+            label.className = 'workflow-form-SELECT-label';
             label.textContent = opt.textContent;
             item.appendChild(check);
             item.appendChild(label);
             dropdown.appendChild(item);
         });
 
-        const selectedOpt = select.options[select.selectedIndex];
+        const selectedOpt = SELECT.options[SELECT.selectedIndex];
         if (valueSpan) {
             valueSpan.textContent = selectedOpt ? selectedOpt.textContent : '';
         }
-        trigger.disabled = !!select.disabled;
-        reg.wrapper.classList.toggle('is-disabled', !!select.disabled);
+        trigger.disabled = !!SELECT.disabled;
+        reg.wrapper.classList.toggle('is-disabled', !!SELECT.disabled);
     }
 
-    function enhanceWorkflowFormSelect(select) {
-        if (!select || !select.id) return;
-        if (select.id === WORKFLOW_TOOL_SELECT_ID) return;
-        const existing = workflowFormSelectMap[select.id];
-        if (existing && existing.select !== select) {
-            delete workflowFormSelectMap[select.id];
+    function enhanceWorkflowFormSelect(SELECT) {
+        if (!SELECT || !SELECT.id) return;
+        if (SELECT.id === WORKFLOW_TOOL_SELECT_ID) return;
+        const existing = workflowFormSelectMap[SELECT.id];
+        if (existing && existing.SELECT !== SELECT) {
+            delete workflowFormSelectMap[SELECT.id];
         }
-        if (select.dataset.workflowFormCustom === '1') {
-            syncWorkflowFormSelect(select);
+        if (SELECT.dataset.workflowFormCustom === '1') {
+            syncWorkflowFormSelect(SELECT);
             return;
         }
-        select.dataset.workflowFormCustom = '1';
-        select.classList.add('workflow-form-native-select');
-        select.tabIndex = -1;
-        select.setAttribute('aria-hidden', 'true');
+        SELECT.dataset.workflowFormCustom = '1';
+        SELECT.classList.add('workflow-form-native-SELECT');
+        SELECT.tabIndex = -1;
+        SELECT.setAttribute('aria-hidden', 'true');
 
         const wrapper = document.createElement('div');
-        wrapper.className = 'workflow-form-select-ui';
+        wrapper.className = 'workflow-form-SELECT-ui';
 
         const trigger = document.createElement('button');
         trigger.type = 'button';
-        trigger.className = 'workflow-form-select-trigger';
+        trigger.className = 'workflow-form-SELECT-trigger';
         trigger.setAttribute('aria-haspopup', 'listbox');
         trigger.setAttribute('aria-expanded', 'false');
         const valueSpan = document.createElement('span');
-        valueSpan.className = 'workflow-form-select-value';
+        valueSpan.className = 'workflow-form-SELECT-value';
         trigger.appendChild(valueSpan);
         trigger.insertAdjacentHTML('beforeend', WORKFLOW_FORM_SELECT_CARET);
 
         const dropdown = document.createElement('div');
-        dropdown.className = 'workflow-form-select-dropdown';
+        dropdown.className = 'workflow-form-SELECT-dropdown';
         dropdown.setAttribute('role', 'listbox');
 
-        const parent = select.parentNode;
-        parent.insertBefore(wrapper, select);
+        const parent = SELECT.parentNode;
+        parent.insertBefore(wrapper, SELECT);
         wrapper.appendChild(trigger);
         wrapper.appendChild(dropdown);
-        wrapper.appendChild(select);
+        wrapper.appendChild(SELECT);
 
-        workflowFormSelectMap[select.id] = { wrapper: wrapper, trigger: trigger, dropdown: dropdown, select: select };
+        workflowFormSelectMap[SELECT.id] = { wrapper: wrapper, trigger: trigger, dropdown: dropdown, SELECT: SELECT };
 
         trigger.addEventListener('click', function (e) {
             e.stopPropagation();
-            if (select.disabled) return;
+            if (SELECT.disabled) return;
             const open = wrapper.classList.contains('open');
             closeAllWorkflowFormSelects();
             closeWorkflowToolSelect();
@@ -734,34 +734,34 @@
         });
 
         dropdown.addEventListener('click', function (e) {
-            const opt = e.target.closest('.workflow-form-select-option');
+            const opt = e.target.closest('.workflow-form-SELECT-option');
             if (!opt) return;
             e.stopPropagation();
             const val = opt.getAttribute('data-value');
             if (val === null) return;
-            if (select.value !== val) {
-                select.value = val;
-                select.dispatchEvent(new Event('change', { bubbles: true }));
+            if (SELECT.value !== val) {
+                SELECT.value = val;
+                SELECT.dispatchEvent(new Event('change', { bubbles: true }));
             }
             wrapper.classList.remove('open');
             trigger.setAttribute('aria-expanded', 'false');
-            syncWorkflowFormSelect(select);
+            syncWorkflowFormSelect(SELECT);
         });
 
-        select.addEventListener('change', function () {
-            syncWorkflowFormSelect(select);
+        SELECT.addEventListener('change', function () {
+            syncWorkflowFormSelect(SELECT);
         });
 
-        syncWorkflowFormSelect(select);
+        syncWorkflowFormSelect(SELECT);
     }
 
     function refreshWorkflowPropertySelects() {
         const form = document.getElementById('workflow-property-form');
         if (!form || form.hidden) return;
         pruneWorkflowFormSelectMap(form);
-        form.querySelectorAll('select').forEach(function (select) {
-            if (select.id === WORKFLOW_TOOL_SELECT_ID) return;
-            enhanceWorkflowFormSelect(select);
+        form.querySelectorAll('SELECT').forEach(function (SELECT) {
+            if (SELECT.id === WORKFLOW_TOOL_SELECT_ID) return;
+            enhanceWorkflowFormSelect(SELECT);
         });
         if (!workflowFormSelectDocBound) {
             workflowFormSelectDocBound = true;
@@ -773,12 +773,12 @@
     }
 
     function readWorkflowMetaFromForm() {
-        const idEl = document.getElementById('workflow-id');
+        const idEl = document.getElementById('workflow-ID');
         const nameEl = document.getElementById('workflow-name');
         const descEl = document.getElementById('workflow-description');
         const enabledEl = document.getElementById('workflow-enabled');
         return {
-            id: idEl ? idEl.value.trim() : '',
+            ID: idEl ? idEl.value.trim() : '',
             name: nameEl ? nameEl.value.trim() : '',
             description: descEl ? descEl.value.trim() : '',
             enabled: enabledEl ? enabledEl.checked : true
@@ -788,7 +788,7 @@
     function workflowValidationError(wf) {
         if (cy && wf && wf.id === currentWorkflowId) {
             const errors = validateWorkflowGraph(elementsToGraph());
-            if (errors.length) return errors.join('；');
+            if (errors.length) return errors.join('; ');
         }
         return wf && wf.validation_error || '';
     }
@@ -815,25 +815,25 @@
             const parts = [];
             if (meta.id) parts.push(meta.id);
             if (wf && wf.version) parts.push(`v${wf.version}`);
-            parts.push(_t(workflowStatusKey(wf || {id: currentWorkflowId}, meta.enabled)));
+            parts.push(_t(workflowStatusKey(wf || {ID: currentWorkflowId}, meta.enabled)));
             subtitleEl.textContent = parts.join(' · ');
             subtitleEl.hidden = !parts.length;
         }
     }
 
-    function syncWorkflowMetaIdField(locked, id) {
-        const idEl = document.getElementById('workflow-id');
-        const lockedEl = document.getElementById('workflow-id-locked');
-        const displayEl = document.getElementById('workflow-id-display');
-        const hintEl = document.querySelector('.workflow-meta-id-hint');
-        const idGroup = document.getElementById('workflow-meta-id-group');
+    function syncWorkflowMetaIdField(locked, ID) {
+        const idEl = document.getElementById('workflow-ID');
+        const lockedEl = document.getElementById('workflow-ID-locked');
+        const displayEl = document.getElementById('workflow-ID-display');
+        const hintEl = document.querySelector('.workflow-meta-ID-hint');
+        const idGroup = document.getElementById('workflow-meta-ID-group');
         if (!idEl) return;
-        idEl.value = id || '';
+        idEl.value = ID || '';
         if (locked) {
             idEl.hidden = true;
             idEl.disabled = true;
             if (lockedEl) lockedEl.hidden = false;
-            if (displayEl) displayEl.textContent = id || '';
+            if (displayEl) displayEl.textContent = ID || '';
             if (hintEl) hintEl.hidden = true;
             if (idGroup) idGroup.classList.add('is-locked');
         } else {
@@ -893,16 +893,16 @@
 
     function nextNodeId(type) {
         while (cy && cy.getElementById(`node-${nodeSeq}`).length) nodeSeq += 1;
-        const id = `node-${nodeSeq}`;
+        const ID = `node-${nodeSeq}`;
         nodeSeq += 1;
-        return id;
+        return ID;
     }
 
     function nextEdgeId() {
         while (cy && cy.getElementById(`edge-${edgeSeq}`).length) edgeSeq += 1;
-        const id = `edge-${edgeSeq}`;
+        const ID = `edge-${edgeSeq}`;
         edgeSeq += 1;
-        return id;
+        return ID;
     }
 
     function resetSequences(graph) {
@@ -960,7 +960,7 @@
             deleteBtn.textContent = selectedElement.isNode() ? _t('workflows.deleteNode') : _t('workflows.deleteEdge');
         }
         cy.elements().unselect();
-        selectedElement.select();
+        selectedElement.SELECT();
         const typeWrap = document.getElementById('workflow-prop-type-wrap');
         const label = document.getElementById('workflow-prop-label');
         const type = document.getElementById('workflow-prop-type');
@@ -986,20 +986,20 @@
         return cfg;
     }
 
-    function typedField(id, label, value, placeholder) {
+    function typedField(ID, label, value, placeholder) {
         return `
             <div class="form-group">
-                <label for="${id}">${label}</label>
-                <input type="text" id="${id}" class="form-input" value="${esc(value || '')}" placeholder="${esc(placeholder || '')}" oninput="updateWorkflowTypedConfig()">
+                <label for="${ID}">${label}</label>
+                <INPUT type="text" ID="${ID}" class="form-INPUT" value="${esc(value || '')}" placeholder="${esc(placeholder || '')}" oninput="updateWorkflowTypedConfig()">
             </div>
         `;
     }
 
-    function typedTextarea(id, label, value, placeholder) {
+    function typedTextarea(ID, label, value, placeholder) {
         return `
             <div class="form-group">
-                <label for="${id}">${label}</label>
-                <textarea id="${id}" class="form-input" rows="4" placeholder="${esc(placeholder || '')}" oninput="updateWorkflowTypedConfig()">${esc(value || '')}</textarea>
+                <label for="${ID}">${label}</label>
+                <TEXTAREA ID="${ID}" class="form-INPUT" rows="4" placeholder="${esc(placeholder || '')}" oninput="updateWorkflowTypedConfig()">${esc(value || '')}</TEXTAREA>
             </div>
         `;
     }
@@ -1008,11 +1008,11 @@
         const selected = cfg.join_strategy || 'all_merge';
         return `
             <div class="form-group">
-                <label for="workflow-join-strategy">${esc(_t('workflows.config.joinStrategy') || '汇聚策略')}</label>
-                <select id="workflow-join-strategy" class="workflow-form-select-native" onchange="updateWorkflowTypedConfig()">
+                <label for="workflow-join-strategy">${esc(_t('workflows.config.joinStrategy') || 'join strategy')}</label>
+                <SELECT ID="workflow-join-strategy" class="workflow-form-SELECT-native" onchange="updateWorkflowTypedConfig()">
                     ${JOIN_STRATEGIES.map(strategy => `<option value="${strategy}" ${strategy === selected ? 'selected' : ''}>${strategy}</option>`).join('')}
-                </select>
-                <p class="workflow-config-hint">${esc(_t('workflows.config.joinStrategyHint') || '多个上游进入同一节点时如何生成 previous。')}</p>
+                </SELECT>
+                <p class="workflow-config-hint">${esc(_t('workflows.config.joinStrategyHint') || 'How to generate previous when multiple upstreams enter the same node.')}</p>
             </div>
         `;
     }
@@ -1052,12 +1052,12 @@
                 ${typedField('workflow-edge-condition', _t('workflows.config.edgeCondition'), cfg.condition || '', edgeHint)}
                 ${sourceType === 'condition' ? `
                     <div class="form-group">
-                        <label for="workflow-edge-branch">${esc(_t('workflows.config.edgeBranch') || '条件分支')}</label>
-                        <select id="workflow-edge-branch" class="workflow-form-select-native" onchange="updateWorkflowTypedConfig()">
-                            <option value="">${esc(_t('workflows.config.selectBranch') || '请选择')}</option>
-                            <option value="true" ${cfg.branch === 'true' ? 'selected' : ''}>true / 是</option>
-                            <option value="false" ${cfg.branch === 'false' ? 'selected' : ''}>false / 否</option>
-                        </select>
+                        <label for="workflow-edge-branch">${esc(_t('workflows.config.edgeBranch') || 'conditional branch')}</label>
+                        <SELECT ID="workflow-edge-branch" class="workflow-form-SELECT-native" onchange="updateWorkflowTypedConfig()">
+                            <option value="">${esc(_t('workflows.config.selectBranch') || 'Please SELECT')}</option>
+                            <option value="true" ${cfg.branch === 'true' ? 'selected' : ''}>true / Yes</option>
+                            <option value="false" ${cfg.branch === 'false' ? 'selected' : ''}>false / No</option>
+                        </SELECT>
                     </div>
                     <p class="workflow-config-hint">${esc(_t('workflows.config.edgeBranchHint'))}</p>
                 ` : ''}
@@ -1068,17 +1068,17 @@
         const type = ele.data('type') || 'tool';
         switch (type) {
             case 'start':
-                wrap.innerHTML = typedField('workflow-start-input-keys', _t('workflows.config.inputKeys'), cfg.input_keys, 'message, projectId');
+                wrap.innerHTML = typedField('workflow-start-INPUT-keys', _t('workflows.config.inputKeys'), cfg.input_keys, 'message, projectId');
                 break;
             case 'tool':
                 wrap.innerHTML = `
                     ${joinStrategyHtml(cfg)}
                     <div class="form-group">
                         <label>${esc(_t('workflows.config.mcpTool'))}</label>
-                        <select id="workflow-tool-name" onchange="updateWorkflowTypedConfig()">
+                        <SELECT ID="workflow-tool-name" onchange="updateWorkflowTypedConfig()">
                             <option value="">${esc(_t('workflows.config.selectTool'))}</option>
                             ${workflowToolOptions.map(tool => `<option value="${esc(tool.key)}" ${tool.key === cfg.tool_name ? 'selected' : ''}>${esc(tool.key)}${tool.enabled ? '' : esc(_t('workflows.config.toolDisabled'))}</option>`).join('')}
-                        </select>
+                        </SELECT>
                     </div>
                     ${typedTextarea('workflow-tool-arguments', _t('workflows.config.argumentsStatic'), cfg.arguments, '{"target":"example.com"}')}
                     ${typedField('workflow-tool-timeout', _t('workflows.config.timeoutSeconds'), cfg.timeout_seconds, _t('workflows.config.optional'))}
@@ -1095,11 +1095,11 @@
                     ${joinStrategyHtml(cfg)}
                     <div class="form-group">
                         <label for="workflow-agent-mode">${esc(_t('workflows.config.agentMode'))}</label>
-                        <select id="workflow-agent-mode" class="workflow-form-select-native" onchange="updateWorkflowTypedConfig()">
+                        <SELECT ID="workflow-agent-mode" class="workflow-form-SELECT-native" onchange="updateWorkflowTypedConfig()">
                             ${AGENT_MODES.map(mode => `<option value="${mode}" ${mode === cfg.agent_mode ? 'selected' : ''}>${mode}</option>`).join('')}
-                        </select>
+                        </SELECT>
                     </div>
-                    ${bindingFieldHtml('workflow-agent-input', 'workflows.config.inputBinding', bindingFromConfig(cfg, 'input_binding', 'previous', 'output'), 'workflows.config.inputBindingHint')}
+                    ${bindingFieldHtml('workflow-agent-INPUT', 'workflows.config.inputBinding', bindingFromConfig(cfg, 'input_binding', 'previous', 'output'), 'workflows.config.inputBindingHint')}
                     ${typedTextarea('workflow-agent-instruction', _t('workflows.config.nodeInstruction'), cfg.instruction, _t('workflows.config.instructionPlaceholder'))}
                     ${typedField('workflow-agent-output-key', _t('workflows.config.outputKey'), cfg.output_key, 'agent_result')}
                 `;
@@ -1120,10 +1120,10 @@
                     <p class="workflow-config-hint">${_t('workflows.config.hitlInteractiveHint')}</p>
                     <div class="form-group">
                         <label for="workflow-hitl-reviewer">${esc(_t('workflows.config.hitlReviewer'))}</label>
-                        <select id="workflow-hitl-reviewer" class="workflow-form-select-native" onchange="updateWorkflowTypedConfig()">
+                        <SELECT ID="workflow-hitl-reviewer" class="workflow-form-SELECT-native" onchange="updateWorkflowTypedConfig()">
                             <option value="human" ${cfg.reviewer === 'human' ? 'selected' : ''}>human</option>
                             <option value="audit_agent" ${cfg.reviewer === 'audit_agent' ? 'selected' : ''}>audit_agent</option>
-                        </select>
+                        </SELECT>
                     </div>
                 `;
                 break;
@@ -1154,8 +1154,8 @@
         }
         wrap.innerHTML = entries.map(([key, value], index) => `
             <div class="workflow-custom-field" data-index="${index}">
-                <input type="text" value="${esc(key)}" data-field-key oninput="updateWorkflowCustomFields()">
-                <input type="text" value="${esc(String(value == null ? '' : value))}" data-field-value oninput="updateWorkflowCustomFields()">
+                <INPUT type="text" value="${esc(key)}" data-field-key oninput="updateWorkflowCustomFields()">
+                <INPUT type="text" value="${esc(String(value == null ? '' : value))}" data-field-value oninput="updateWorkflowCustomFields()">
                 <button type="button" onclick="removeWorkflowCustomField(${index})">×</button>
             </div>
         `).join('');
@@ -1183,7 +1183,7 @@
         const join_strategy = (document.getElementById('workflow-join-strategy') || {}).value || 'all_merge';
         switch (type) {
             case 'start':
-                return { input_keys: (document.getElementById('workflow-start-input-keys') || {}).value || '' };
+                return { input_keys: (document.getElementById('workflow-start-INPUT-keys') || {}).value || '' };
             case 'tool':
                 return {
                     tool_name: (document.getElementById('workflow-tool-name') || {}).value || '',
@@ -1194,7 +1194,7 @@
             case 'agent':
                 return {
                     agent_mode: (document.getElementById('workflow-agent-mode') || {}).value || 'eino_single',
-                    input_binding: readBinding('workflow-agent-input'),
+                    input_binding: readBinding('workflow-agent-INPUT'),
                     instruction: (document.getElementById('workflow-agent-instruction') || {}).value || '',
                     output_key: (document.getElementById('workflow-agent-output-key') || {}).value || 'agent_result',
                     join_strategy
@@ -1264,7 +1264,7 @@
         cy.add({
             group: 'edges',
             data: {
-                id: nextEdgeId(),
+                ID: nextEdgeId(),
                 source: connectSourceId,
                 target: node.id(),
                 label: edgeLabel,
@@ -1379,7 +1379,7 @@
         const node = cy.add({
             group: 'nodes',
             data: {
-                id: nextNodeId(type),
+                ID: nextNodeId(type),
                 type,
                 label: wfNodeLabel(type),
                 config: defaultConfigForType(type)
@@ -1395,8 +1395,8 @@
         }
     }
 
-    function workflowAiOption(id) {
-        const el = document.getElementById(id);
+    function workflowAiOption(ID) {
+        const el = document.getElementById(ID);
         return !!(el && el.checked);
     }
 
@@ -1442,18 +1442,18 @@
 
     function workflowAiPreviewHtml(graph) {
         const items = workflowAiPreviewItems(graph);
-        if (!items.length) return '';
+        if (! items.length) return '';
         return `<div class="workflow-ai-preview" aria-label="${esc(_t('workflows.ai.preview'))}">
             <div class="workflow-ai-preview-title">${esc(_t('workflows.ai.preview'))}</div>
             <div class="workflow-ai-preview-flow">
-                ${items.map(function (node, index) {
+                ${ items.map(function (node, index) {
                     const type = node.type || 'tool';
                     const cfg = node.config || {};
                     const risky = cfg.risk_level === 'high' || cfg.requires_human_confirmation === 'true';
                     return `<span class="workflow-ai-preview-node is-${esc(type)} ${risky ? 'is-risky' : ''}">
                         <small>${esc(wfNodeLabel(type))}</small>
                         <strong>${esc(node.label || wfNodeLabel(type))}</strong>
-                    </span>${index < items.length - 1 ? '<i aria-hidden="true">→</i>' : ''}`;
+                    </span>${index <  items.length - 1 ? '<i aria-hidden="true">→</i>' : ''}`;
                 }).join('')}
             </div>
         </div>`;
@@ -1498,9 +1498,9 @@
         return capabilities;
     }
 
-    function workflowAiNode(id, type, label, x, y, config) {
+    function workflowAiNode(ID, type, label, x, y, config) {
         return {
-            id,
+            ID,
             type,
             label,
             position: { x, y },
@@ -1511,9 +1511,9 @@
         };
     }
 
-    function workflowAiEdge(id, source, target, label, config) {
+    function workflowAiEdge(ID, source, target, label, config) {
         return {
-            id,
+            ID,
             source,
             target,
             label: label || '',
@@ -1523,9 +1523,9 @@
 
     function workflowAiBuildDraft(prompt, options) {
         const capabilities = workflowAiDetectCapabilities(prompt);
-        const wantsApproval = /(审批|确认|审核|负责人|人工|review|approve|approval|human)/i.test(prompt);
-        const wantsReport = /(报告|汇总|输出|通知|任务|工单|report|summary|notify|ticket)/i.test(prompt);
-        const wantsCondition = /(如果|发现|存在|高危|新增|失败|通过|否则|if|when|high|critical|new|fail)/i.test(prompt);
+        const wantsApproval = /(approval|confirm|review|responsible person|manual|review|approve|approval|human)/i.test(prompt);
+        const wantsReport = /(report|summary|output|notification|task|ticket|report|summary|notify|ticket)/i.test(prompt);
+        const wantsCondition = /(if|found|exists|High|add|failed|approve|otherwise|if|when|high|critical|new|fail)/i.test(prompt);
         const highRisk = WORKFLOW_AI_HIGH_RISK_RE.test(prompt);
         const nodes = [];
         const edges = [];
@@ -1538,15 +1538,15 @@
         let openConditionId = '';
 
         function nextId(prefix) {
-            const id = prefix + '-' + nodeIndex;
+            const ID = prefix + '-' + nodeIndex;
             nodeIndex += 1;
-            return id;
+            return ID;
         }
         function add(type, label, config, yy) {
-            const id = nextId(type);
-            nodes.push(workflowAiNode(id, type, label, x, yy || y, config));
+            const ID = nextId(type);
+            nodes.push(workflowAiNode(ID, type, label, x, yy || y, config));
             x += 210;
-            return id;
+            return ID;
         }
         function connect(source, target, label, config) {
             edges.push(workflowAiEdge('edge-ai-' + edgeIndex, source, target, label, config));
@@ -1557,7 +1557,7 @@
         let previous = start;
         capabilities.forEach(function (capability) {
             const hasTool = !!capability.tool_name;
-            const id = add(hasTool ? 'tool' : 'agent', capability.label, hasTool ? {
+            const ID = add(hasTool ? 'tool' : 'agent', capability.label, hasTool ? {
                 tool_name: capability.tool_name,
                 arguments: '{"target":"{{inputs.target}}","message":"{{inputs.message}}"}',
                 timeout_seconds: '120',
@@ -1565,26 +1565,26 @@
             } : {
                 agent_mode: 'eino_single',
                 input_binding: { from: 'previous', field: 'output' },
-                instruction: capability.label + '。根据用户需求执行安全流程步骤，并输出结构化结果：' + prompt,
+                instruction: capability.label + '. Execute security process steps based on user requirements and output structured results: ' + prompt,
                 output_key: 'agent_result',
                 join_strategy: 'all_merge',
                 missing_tool_candidates: capability.tool_candidates.join(', ')
             });
-            connect(previous, id);
-            previous = id;
+            connect(previous, ID);
+            previous = ID;
             if (!hasTool && capability.tool_candidates.length) {
-                assumptions.push(capability.label + ' 未匹配到已启用工具，已生成 Agent 草稿节点。');
+                assumptions.push(capability.label + ' did not match any enabled tools; an agent draft node was generated.');
             }
         });
 
         if (wantsCondition) {
-            const condition = add('condition', highRisk ? '是否需要高风险处置' : '是否满足触发条件', {
-                expression: highRisk ? '{{previous.output}} contains "高危"' : '{{previous.output}} != ""',
+            const condition = add('condition', highRisk ? 'Whether high-risk action is required' : 'Whether trigger condition is met', {
+                expression: highRisk ? '{{previous.output}} contains "High"' : '{{previous.output}} != ""',
                 join_strategy: 'all_merge'
             });
             connect(previous, condition);
             openConditionId = condition;
-            const report = add('output', wantsReport ? '输出报告' : wfNodeLabel('output'), {
+            const report = add('output', wantsReport ? 'output report' : wfNodeLabel('output'), {
                 output_key: 'result',
                 source_binding: { from: 'previous', field: 'output' },
                 static_value: '',
@@ -1597,8 +1597,8 @@
         if (highRisk) {
             let insertedApproval = false;
             if (!options.allowHighRisk || wantsApproval) {
-                const approval = add('hitl', '人工审批', {
-                    prompt: '请确认是否允许继续执行高风险处置：' + prompt,
+                const approval = add('hitl', 'Manual approval', {
+                    prompt: 'Please confirm whether to allow continuing high-risk action execution: ' + prompt,
                     prompt_binding: { from: 'previous', field: 'output' },
                     reviewer: 'human',
                     join_strategy: 'all_merge',
@@ -1609,10 +1609,10 @@
                 previous = approval;
                 insertedApproval = true;
             }
-            const action = add('agent', '执行受控处置', {
+            const action = add('agent', 'execute controlled remediation', {
                 agent_mode: 'eino_single',
                 input_binding: { from: 'previous', field: 'output' },
-                instruction: '仅在授权范围内生成处置步骤草稿；实际执行前必须由人工确认。用户需求：' + prompt,
+                instruction: 'Only generate remediation step drafts within the authorized scope; actual execution must be manually confirmed first. User request: ' + prompt,
                 output_key: 'remediation_plan',
                 join_strategy: 'all_merge',
                 risk_level: 'high',
@@ -1622,11 +1622,11 @@
             if (previous === openConditionId) openConditionId = '';
             previous = action;
             riskWarnings.push(insertedApproval
-                ? '检测到高风险动作，已加入人工确认与 requires_human_confirmation 标记。'
-                : '检测到高风险动作，已保留为草稿并添加 requires_human_confirmation 标记。');
+                ? 'High-risk action detected; manual confirmation and requires_human_confirmation flag have been added.'
+                : 'High-risk action detected; kept as draft with requires_human_confirmation flag added.');
         } else if (wantsApproval && !nodes.some(node => node.type === 'hitl')) {
-            const approval = add('hitl', '人工审批', {
-                prompt: '请审核工作流阶段结果：' + prompt,
+            const approval = add('hitl', 'Manual approval', {
+                prompt: 'Please review the workflow stage results: ' + prompt,
                 prompt_binding: { from: 'previous', field: 'output' },
                 reviewer: 'human',
                 join_strategy: 'all_merge'
@@ -1635,7 +1635,7 @@
             previous = approval;
         }
 
-        const output = add('output', wantsReport ? '输出报告' : wfNodeLabel('output'), {
+        const output = add('output', wantsReport ? 'output report' : wfNodeLabel('output'), {
             output_key: 'result',
             source_binding: { from: 'previous', field: 'output' },
             static_value: '',
@@ -1653,14 +1653,14 @@
                 objective: options.includeObjective ? prompt : ''
             }
         };
-        if (options.allowSchedule && /(每天|每周|定时|周期|持续|daily|weekly|schedule|monitor)/i.test(prompt)) {
-            graph.config.trigger_suggestion = /(每天|daily)/i.test(prompt) ? 'daily' : 'scheduled';
-            assumptions.push('已记录定时触发建议；保存后仍需在触发器或角色绑定处配置。');
+        if (options.allowSchedule && /(daily|weekly|scheduled|periodic|continuous|daily|weekly|schedule|monitor)/i.test(prompt)) {
+            graph.config.trigger_suggestion = /(daily)/i.test(prompt) ? 'daily' : 'scheduled';
+            assumptions.push('Scheduled trigger suggestion recorded; you still need to configure the trigger or role binding after saving.');
         }
         return {
             graph,
             meta: {
-                id: workflowAiSlug(prompt),
+                ID: workflowAiSlug(prompt),
                 name: prompt.length > 22 ? prompt.slice(0, 22) + '...' : prompt,
                 description: prompt,
                 enabled: true
@@ -1764,7 +1764,7 @@
     function workflowAiApplyGraph(result) {
         if (!result || !result.graph) return;
         fillWorkflowForm({
-            id: '',
+            ID: '',
             name: result.meta.name,
             description: result.meta.description,
             enabled: true,
@@ -1778,7 +1778,7 @@
             if (generated.length) {
                 generated.addClass('just-added');
                 const risky = generated.filter('.high-risk');
-                if (risky.length) risky.select();
+                if (risky.length) risky.SELECT();
                 setTimeout(function () {
                     if (cy) cy.nodes('.ai-generated').removeClass('just-added');
                 }, 1200);
@@ -1809,7 +1809,7 @@
             }
             const graph = parseGraph(result.graph);
             syncWorkflowMetaForm({
-                id: '',
+                ID: '',
                 name: result.meta && result.meta.name ? result.meta.name : '',
                 description: result.meta && result.meta.description ? result.meta.description : '',
                 enabled: true
@@ -1834,7 +1834,7 @@
             }
             for (const edge of edgeElements) {
                 const added = cy.add(edge);
-                added.select();
+                added.SELECT();
                 await workflowAiSleep(80);
                 added.unselect();
             }
@@ -1976,7 +1976,7 @@
         const shouldOpenMeta = !options || options.openMeta !== false;
         currentWorkflowId = '';
         fillWorkflowForm({
-            id: '',
+            ID: '',
             name: '',
             description: '',
             enabled: true,
@@ -1988,14 +1988,14 @@
         }
     };
 
-    window.selectWorkflow = function (id) {
-        const wf = workflows.find(item => item.id === id);
+    window.selectWorkflow = function (ID) {
+        const wf = workflows.find(item => item.id === ID);
         if (wf) fillWorkflowForm(wf);
     };
 
     window.openWorkflowMetaModal = function () {
         const nameEl = document.getElementById('workflow-name');
-        const idEl = document.getElementById('workflow-id');
+        const idEl = document.getElementById('workflow-ID');
         if (currentWorkflowId) {
             syncWorkflowMetaIdField(true, currentWorkflowId);
         } else {
@@ -2027,36 +2027,36 @@
         closeWorkflowMetaModal();
     };
 
-    window.editWorkflowFromList = function (id) {
-        if (id !== currentWorkflowId) {
-            selectWorkflow(id);
+    window.editWorkflowFromList = function (ID) {
+        if (ID !== currentWorkflowId) {
+            selectWorkflow(ID);
         }
         openWorkflowMetaModal();
     };
 
-    window.toggleWorkflowEnabled = async function (id, enabled) {
-        const wf = workflows.find(item => item.id === id);
+    window.toggleWorkflowEnabled = async function (ID, enabled) {
+        const wf = workflows.find(item => item.id === ID);
         if (!wf) return;
         const previous = wf.enabled !== false;
         wf.enabled = enabled;
-        if (id === currentWorkflowId) {
+        if (ID === currentWorkflowId) {
             const enabledEl = document.getElementById('workflow-enabled');
             if (enabledEl) enabledEl.checked = enabled;
             updateWorkflowCanvasTitle();
         }
         renderWorkflowList();
         let graph = defaultGraph();
-        if (id === currentWorkflowId && cy) {
+        if (ID === currentWorkflowId && cy) {
             graph = elementsToGraph();
         } else {
             graph = parseGraph(wf.graph_json || wf.graph || defaultGraph());
         }
         try {
-            const response = await apiFetch(`/api/workflows/${encodeURIComponent(id)}`, {
+            const response = await apiFetch(`/api/workflows/${encodeURIComponent(ID)}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    id: wf.id,
+                    ID: wf.id,
                     name: wf.name,
                     description: wf.description || '',
                     enabled,
@@ -2075,7 +2075,7 @@
             }
         } catch (error) {
             wf.enabled = previous;
-            if (id === currentWorkflowId) {
+            if (ID === currentWorkflowId) {
                 const enabledEl = document.getElementById('workflow-enabled');
                 if (enabledEl) enabledEl.checked = previous;
                 updateWorkflowCanvasTitle();
@@ -2098,9 +2098,9 @@
         if (!starts.length) errors.push(_t('workflows.validation.needStart'));
         if (!outputs.length) errors.push(_t('workflows.validation.needOutput'));
         edges.forEach(edge => {
-            if (edge.source === edge.target) errors.push(_t('workflows.validation.edgeSelfLoop', { id: edge.id }));
-            if (!ids.has(edge.source)) errors.push(_t('workflows.validation.edgeSourceMissing', { id: edge.id }));
-            if (!ids.has(edge.target)) errors.push(_t('workflows.validation.edgeTargetMissing', { id: edge.id }));
+            if (edge.source === edge.target) errors.push(_t('workflows.validation.edgeSelfLoop', { ID: edge.id }));
+            if (!ids.has(edge.source)) errors.push(_t('workflows.validation.edgeSourceMissing', { ID: edge.id }));
+            if (!ids.has(edge.target)) errors.push(_t('workflows.validation.edgeTargetMissing', { ID: edge.id }));
         });
         starts.forEach(node => {
             if (edges.some(edge => edge.target === node.id)) errors.push(_t('workflows.validation.startIncoming', { label: node.label || node.id }));
@@ -2133,7 +2133,7 @@
                 errors.push(_t('workflows.validation.conditionTooManyEdges', { label: node.label || node.id }));
             }
             const branches = outEdges.map(edge => String(((edge.config || {}).branch || edge.label || '')).trim().toLowerCase());
-            if (branches.some(branch => !['true', 'false', '是', '否', 'yes', 'no', 'y', 'n'].includes(branch))) {
+            if (branches.some(branch => !['true', 'false', 'Yes', 'No', 'yes', 'no', 'y', 'n'].includes(branch))) {
                 errors.push(_t('workflows.validation.conditionBranchLabel', { label: node.label || node.id }));
             }
             if (new Set(branches).size !== branches.length) {
@@ -2154,25 +2154,25 @@
             const reached = new Set();
             const queue = starts.map(node => node.id);
             while (queue.length) {
-                const id = queue.shift();
-                if (reached.has(id)) continue;
-                reached.add(id);
-                (outgoing.get(id) || []).forEach(next => queue.push(next));
+                const ID = queue.shift();
+                if (reached.has(ID)) continue;
+                reached.add(ID);
+                (outgoing.get(ID) || []).forEach(next => queue.push(next));
             }
             nodes.forEach(node => {
                 if (!reached.has(node.id)) errors.push(_t('workflows.validation.nodeUnreachable', { label: node.label || node.id }));
             });
             const visiting = new Set();
             const visited = new Set();
-            function visit(id) {
-                if (visiting.has(id)) return true;
-                if (visited.has(id)) return false;
-                visiting.add(id);
-                for (const next of (outgoing.get(id) || [])) {
+            function visit(ID) {
+                if (visiting.has(ID)) return true;
+                if (visited.has(ID)) return false;
+                visiting.add(ID);
+                for (const next of (outgoing.get(ID) || [])) {
                     if (visit(next)) return true;
                 }
-                visiting.delete(id);
-                visited.add(id);
+                visiting.delete(ID);
+                visited.add(ID);
                 return false;
             }
             nodes.forEach(node => {
@@ -2238,7 +2238,7 @@
         const graph = elementsToGraph();
         const errors = validateWorkflowGraph(graph);
         if (errors.length) {
-            showNotification(errors.slice(0, 4).join('；'), 'error');
+            showNotification(errors.slice(0, 4).join('; '), 'error');
             return;
         }
         try {
@@ -2248,12 +2248,12 @@
             return;
         }
         const method = currentWorkflowId ? 'PUT' : 'POST';
-        const url = currentWorkflowId ? `/api/workflows/${encodeURIComponent(currentWorkflowId)}` : '/api/workflows';
-        const response = await apiFetch(url, {
+        const URL = currentWorkflowId ? `/api/workflows/${encodeURIComponent(currentWorkflowId)}` : '/api/workflows';
+        const response = await apiFetch(URL, {
             method,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                id: meta.id,
+                ID: meta.id,
                 name: meta.name,
                 description: meta.description,
                 enabled: meta.enabled,
@@ -2281,14 +2281,14 @@
         const graph = elementsToGraph();
         const errors = validateWorkflowGraph(graph);
         if (errors.length) {
-            showNotification(errors.slice(0, 4).join('；'), 'error');
+            showNotification(errors.slice(0, 4).join('; '), 'error');
             return;
         }
-        const input = document.getElementById('workflow-dry-run-message');
-        if (input) input.value = 'ping';
+        const INPUT = document.getElementById('workflow-dry-run-message');
+        if (INPUT) INPUT.value = 'ping';
         if (typeof openAppModal === 'function') {
-            openAppModal('workflow-dry-run-modal', { focusEl: input });
-            if (input) requestAnimationFrame(function () { input.select(); });
+            openAppModal('workflow-dry-run-modal', { focusEl: INPUT });
+            if (INPUT) requestAnimationFrame(function () { INPUT.SELECT(); });
         }
     };
 
@@ -2301,11 +2301,11 @@
         const graph = elementsToGraph();
         const errors = validateWorkflowGraph(graph);
         if (errors.length) {
-            showNotification(errors.slice(0, 4).join('；'), 'error');
+            showNotification(errors.slice(0, 4).join('; '), 'error');
             return;
         }
-        const input = document.getElementById('workflow-dry-run-message');
-        const message = input && input.value.trim() ? input.value.trim() : 'ping';
+        const INPUT = document.getElementById('workflow-dry-run-message');
+        const message = INPUT && INPUT.value.trim() ? INPUT.value.trim() : 'ping';
         closeWorkflowDryRunModal();
         try {
             const response = await apiFetch('/api/workflows/dry-run', {
@@ -2339,13 +2339,13 @@
 
     window.deleteCurrentWorkflow = async function () {
         const meta = readWorkflowMetaFromForm();
-        const id = currentWorkflowId || meta.id;
-        if (!id) {
+        const ID = currentWorkflowId || meta.id;
+        if (!ID) {
             showNotification(_t('workflows.selectToDelete'), 'warning');
             return;
         }
-        if (!confirm(_t('workflows.confirmDelete', { id: id }))) return;
-        const response = await apiFetch(`/api/workflows/${encodeURIComponent(id)}`, { method: 'DELETE' });
+        if (!confirm(_t('workflows.confirmDelete', { ID: ID }))) return;
+        const response = await apiFetch(`/api/workflows/${encodeURIComponent(ID)}`, { method: 'DELETE' });
         if (!response.ok) {
             const err = await response.json().catch(() => ({}));
             showNotification(err.error || _t('workflows.deleteFailed'), 'error');
@@ -2471,11 +2471,11 @@
     };
 
     window.useWorkflowConditionExample = function (expr) {
-        const input = document.getElementById('workflow-condition-expression');
-        if (!input) return;
-        input.value = expr || '';
+        const INPUT = document.getElementById('workflow-condition-expression');
+        if (!INPUT) return;
+        INPUT.value = expr || '';
         updateWorkflowTypedConfig();
-        input.focus();
+        INPUT.focus();
     };
 
     window.removeWorkflowCustomField = function (index) {
@@ -2496,10 +2496,10 @@
         } catch (_) {
             workflows = [];
         }
-        const select = document.getElementById('role-workflow-id');
-        if (!select) return;
-        const current = selectedId !== undefined ? selectedId : select.value;
-        select.innerHTML = '<option value="">' + esc(_t('roleModal.noWorkflowBind')) + '</option>' + workflows.map(wf => (
+        const SELECT = document.getElementById('role-workflow-ID');
+        if (!SELECT) return;
+        const current = selectedId !== undefined ? selectedId : SELECT.value;
+        SELECT.innerHTML = '<option value="">' + esc(_t('roleModal.noWorkflowBind')) + '</option>' + workflows.map(wf => (
             `<option value="${esc(wf.id)}">${esc(wf.name || wf.id)}${wf.enabled ? '' : esc(_t('roleModal.workflowDisabledSuffix'))}</option>`
         )).join('');
         if (current && !workflows.some(wf => wf.id === current)) {
@@ -2507,16 +2507,16 @@
             const option = document.createElement('option');
             option.value = current;
             option.textContent = `${current} (${_t('roleModal.workflowMissing')})`;
-            select.appendChild(option);
+            SELECT.appendChild(option);
         }
-        select.value = current || '';
+        SELECT.value = current || '';
         if (typeof window.refreshRoleModalSelects === 'function') {
             window.refreshRoleModalSelects();
         }
     };
 
     function workflowPackageClient() {
-        return window.WorkflowPackageClient || null;
+        return window.workflowPackageClient || null;
     }
 
     function workflowPackageText(key, fallback, opts) {
@@ -2604,8 +2604,8 @@
         if (decisionStatus) {
             decisionStatus.classList.toggle('is-ready', step === 'import');
             decisionStatus.textContent = step === 'import'
-                ? workflowPackageText('workflows.package.ready', '可处理')
-                : workflowPackageText('workflows.package.pending', '待预检');
+                ? workflowPackageText('workflows.package.ready', 'Ready')
+                : workflowPackageText('workflows.package.pending', 'Pending inspection');
         }
     }
 
@@ -2632,7 +2632,7 @@
             WFPKG_ID_CONFLICT: 'idConflict',
             WFPKG_INVALID_ACTION: 'invalidAction',
             WFPKG_INVALID_RENAME_ID: 'invalidRenameId',
-            WFPKG_OVERWRITE_CONFIRMATION_REQUIRED: 'overwriteConfirmationRequired',
+            WFPKG_OVERWRITE_CONFIRMATION_REQUIRED: 'overwriteconfirmationRequired',
             WFPKG_IDEMPOTENCY_KEY_REQUIRED: 'idempotencyKeyRequired',
             WFPKG_IDEMPOTENCY_KEY_REUSED: 'idempotencyKeyReused',
             WFPKG_IMPORT_FAILED: 'importFailed',
@@ -2640,15 +2640,15 @@
             WFPKG_WORKFLOW_NOT_FOUND: 'workflowNotFound'
         };
         const key = errorKeys[code];
-        if (key) return workflowPackageText('workflows.package.errors.' + key, '操作未完成，请稍后重试。');
-        return (error && error.message) || workflowPackageText('workflows.package.errors.generic', '操作未完成，请稍后重试。');
+        if (key) return workflowPackageText('workflows.package.errors.' + key, 'Operation did not complete, please try again later.');
+        return (error && error.message) || workflowPackageText('workflows.package.errors.generic', 'Operation did not complete, please try again later.');
     }
 
     function workflowPackageConflictCopy(conflict) {
         const state = (conflict && conflict.state) || 'none';
-        if (state === 'identical') return { message: workflowPackageText('workflows.package.conflict.identical', '检测到同 ID 且内容相同的本地工作流；本次将跳过导入。'), type: 'success' };
-        if (state === 'id_conflict') return { message: workflowPackageText('workflows.package.conflict.idConflict', '检测到同 ID 但内容不同的本地工作流。默认保留本地版本。'), type: 'warning' };
-        return { message: workflowPackageText('workflows.package.conflict.none', '未发现同 ID 的本地工作流，可创建导入。'), type: 'success' };
+        if (state === 'identical') return { message: workflowPackageText('workflows.package.conflict.identical', 'A local workflow with the same ID and identical content was detected; this import will be skipped.'), type: 'success' };
+        if (state === 'id_conflict') return { message: workflowPackageText('workflows.package.conflict.idConflict', 'A local workflow with the same ID but different content was detected. The local version will be kept by default.'), type: 'warning' };
+        return { message: workflowPackageText('workflows.package.conflict.none', 'No local workflow with the same ID was found; a new import can be created.'), type: 'success' };
     }
 
     function renderWorkflowPackageInspection() {
@@ -2662,22 +2662,22 @@
         const conflict = inspection.conflict || {};
         const conflictCopy = workflowPackageConflictCopy(conflict);
         const rows = [
-            [workflowPackageText('workflows.package.summary.workflowName', '工作流名称'), workflow.name || workflowPackageText('workflows.package.summary.unnamedWorkflow', '未命名工作流')],
-            [workflowPackageText('workflows.package.summary.sourceId', '源工作流 ID'), workflow.source_id || '—'],
-            [workflowPackageText('workflows.package.summary.sourceRevision', '源版本'), workflow.source_revision || '—'],
-            [workflowPackageText('workflows.package.summary.graphSize', '图规模'), workflowPackageText('workflows.package.summary.graphSizeValue', `${workflow.node_count || 0} 个节点 · ${workflow.edge_count || 0} 条连线`, { nodes: workflow.node_count || 0, edges: workflow.edge_count || 0 })],
-            [workflowPackageText('workflows.package.summary.contentHash', '内容摘要'), workflow.content_hash || '—'],
-            [workflowPackageText('workflows.package.summary.expiresAt', '预检有效期'), inspection.expires_at || '—']
+            [workflowPackageText('workflows.package.summary.workflowName', 'Workflow name'), workflow.name || workflowPackageText('workflows.package.summary.unnamedWorkflow', 'Untitled workflow')],
+            [workflowPackageText('workflows.package.summary.sourceId', 'Source workflow ID'), workflow.source_id || '—'],
+            [workflowPackageText('workflows.package.summary.sourceRevision', 'Source version'), workflow.source_revision || '—'],
+            [workflowPackageText('workflows.package.summary.graphSize', 'Graph size'), workflowPackageText('workflows.package.summary.graphSizeValue', `${workflow.node_count || 0} nodes · ${workflow.edge_count || 0} edges`, { nodes: workflow.node_count || 0, edges: workflow.edge_count || 0 })],
+            [workflowPackageText('workflows.package.summary.contentHash', 'Content hash'), workflow.content_hash || '—'],
+            [workflowPackageText('workflows.package.summary.expiresAt', 'Inspection valid until'), inspection.expires_at || '—']
         ];
         if (!target) return;
-        target.innerHTML = `<div class="workflow-package-summary-heading"><span>${esc(workflowPackageText('workflows.package.summary.title', '预检结果'))}</span><b>${esc(workflowPackageText('workflows.package.summary.passed', '校验通过'))}</b></div><div class="workflow-package-status is-${conflictCopy.type}"><span class="workflow-package-status-icon" aria-hidden="true"></span><span>${esc(conflictCopy.message)}</span></div><div class="workflow-package-summary-grid">` + rows.map(function (row) {
+        target.innerHTML = `<div class="workflow-package-summary-heading"><span>${esc(workflowPackageText('workflows.package.summary.title', 'Inspection results'))}</span><b>${esc(workflowPackageText('workflows.package.summary.passed', 'Validation passed'))}</b></div><div class="workflow-package-status is-${conflictCopy.type}"><span class="workflow-package-status-icon" aria-hidden="true"></span><span>${esc(conflictCopy.message)}</span></div><div class="workflow-package-summary-grid">` + rows.map(function (row) {
             return `<div class="workflow-package-summary-row"><span>${esc(row[0])}</span><code title="${esc(row[1])}">${esc(row[1])}</code></div>`;
         }).join('') + '</div>';
     }
 
     function workflowPackageResolutionCard(action, title, description, selected) {
         return `<label class="workflow-package-choice${selected ? ' is-selected' : ''}">
-            <input type="radio" name="workflow-package-resolution-action" value="${esc(action)}" ${selected ? 'checked' : ''} onchange="selectWorkflowPackageResolution('${esc(action)}')">
+            <INPUT type="radio" name="workflow-package-resolution-action" value="${esc(action)}" ${selected ? 'checked' : ''} onchange="selectWorkflowPackageResolution('${esc(action)}')">
             <span><strong>${esc(title)}</strong><small>${esc(description)}</small></span>
         </label>`;
     }
@@ -2687,7 +2687,7 @@
         const submit = workflowPackageSubmitBtn();
         const inspection = workflowPackageState.inspection;
         if (!inspection) {
-            if (target) workflowPackageSetStatus(target, message || workflowPackageText('workflows.package.resolution.needInspection', '请先选择本地包并完成预检。'), type || '');
+            if (target) workflowPackageSetStatus(target, message || workflowPackageText('workflows.package.resolution.needInspection', 'Please SELECT a local package and complete the inspection first.'), type || '');
             if (submit) submit.disabled = true;
             return;
         }
@@ -2701,18 +2701,18 @@
         let html = '';
         if (message) html += `<div class="workflow-package-status${type ? ' is-' + esc(type) : ''}"><span class="workflow-package-status-icon" aria-hidden="true"></span><span>${esc(message)}</span></div>`;
         if (conflictState === 'none') {
-            html += `<div class="workflow-package-resolution-hero is-success"><span class="workflow-package-resolution-icon" aria-hidden="true">✓</span><div><strong>${esc(workflowPackageText('workflows.package.resolution.createTitle', '可以安全创建'))}</strong><small>${esc(workflowPackageText('workflows.package.resolution.createHint', '导入后会创建一个新的本地工作流。'))}</small></div></div>`;
+            html += `<div class="workflow-package-resolution-hero is-success"><span class="workflow-package-resolution-icon" aria-hidden="true">✓</span><div><strong>${esc(workflowPackageText('workflows.package.resolution.createTitle', 'Safe to create'))}</strong><small>${esc(workflowPackageText('workflows.package.resolution.createHint', 'A new local workflow will be created after import.'))}</small></div></div>`;
         } else if (conflictState === 'identical') {
-            html += `<div class="workflow-package-resolution-hero is-success"><span class="workflow-package-resolution-icon" aria-hidden="true">✓</span><div><strong>${esc(workflowPackageText('workflows.package.resolution.identicalTitle', '无需重复导入'))}</strong><small>${esc(workflowPackageText('workflows.package.resolution.identicalHint', '内容已经存在，无需重复导入。'))}</small></div></div>`;
+            html += `<div class="workflow-package-resolution-hero is-success"><span class="workflow-package-resolution-icon" aria-hidden="true">✓</span><div><strong>${esc(workflowPackageText('workflows.package.resolution.identicalTitle', 'No need to re-import'))}</strong><small>${esc(workflowPackageText('workflows.package.resolution.identicalHint', 'Content already exists, no need to import again.'))}</small></div></div>`;
         } else {
-            html += workflowPackageResolutionCard('keep_existing', workflowPackageText('workflows.package.resolution.keepExisting', '保留本地版本'), workflowPackageText('workflows.package.resolution.keepExistingHint', '不修改当前本地工作流；导入记录会保留。'), action === 'keep_existing');
+            html += workflowPackageResolutionCard('keep_existing', workflowPackageText('workflows.package.resolution.keepExisting', 'Keep local version'), workflowPackageText('workflows.package.resolution.keepExistingHint', 'Do not modify the currentLocal workflow; the import record will be retained.'), action === 'keep_existing');
             if (!workflowPackageState.riskChoicesVisible) {
-                html += `<button type="button" class="workflow-package-reveal" onclick="revealWorkflowPackageRiskChoices()">${esc(workflowPackageText('workflows.package.resolution.revealRiskChoices', '更改处理方式'))}</button>`;
+                html += `<button type="button" class="workflow-package-reveal" onclick="revealWorkflowPackageRiskChoices()">${esc(workflowPackageText('workflows.package.resolution.revealRiskChoices', 'Change handling method'))}</button>`;
             } else {
-                html += workflowPackageResolutionCard('overwrite', workflowPackageText('workflows.package.resolution.overwrite', '覆盖本地版本'), workflowPackageText('workflows.package.resolution.overwriteHint', '替换名称、描述、图定义和启用状态；需要再次确认。'), action === 'overwrite');
-                html += workflowPackageResolutionCard('rename', workflowPackageText('workflows.package.resolution.rename', '另存为新 ID'), workflowPackageText('workflows.package.resolution.renameHint', '保留当前本地工作流，并以新的 ID 创建副本。'), action === 'rename');
+                html += workflowPackageResolutionCard('overwrite', workflowPackageText('workflows.package.resolution.overwrite', 'Overwrite local version'), workflowPackageText('workflows.package.resolution.overwriteHint', 'Replaces name, description, graph definition, and enabled status; requires confirmation again.'), action === 'overwrite');
+                html += workflowPackageResolutionCard('rename', workflowPackageText('workflows.package.resolution.rename', 'Save as new ID'), workflowPackageText('workflows.package.resolution.renameHint', 'Keep the currentLocal workflow and create a copy with a new ID.'), action === 'rename');
                 if (action === 'rename') {
-                    html += `<label class="workflow-package-rename-field">${esc(workflowPackageText('workflows.package.resolution.newWorkflowId', '新的工作流 ID'))}<input id="workflow-package-new-id" class="form-input" type="text" value="${esc(workflowPackageState.newWorkflowId)}" placeholder="${esc(workflowPackageText('workflows.package.resolution.newWorkflowIdPlaceholder', '例如：web-scan-basic-copy'))}" oninput="updateWorkflowPackageRenameId()" autocomplete="off"></label>`;
+                    html += `<label class="workflow-package-rename-field">${esc(workflowPackageText('workflows.package.resolution.newWorkflowId', 'New workflow ID'))}<INPUT ID="workflow-package-new-ID" class="form-INPUT" type="text" value="${esc(workflowPackageState.newWorkflowId)}" placeholder="${esc(workflowPackageText('workflows.package.resolution.newWorkflowIdPlaceholder', 'e.g. web-scan-basic-copy'))}" oninput="updateWorkflowPackageRenameId()" autocomplete="off"></label>`;
                 }
             }
         }
@@ -2720,12 +2720,12 @@
         if (submit) {
             const renameIncomplete = action === 'rename' && !workflowPackageState.newWorkflowId.trim();
             submit.disabled = !action || renameIncomplete;
-            if (action === 'overwrite') submit.textContent = workflowPackageText('workflows.package.resolution.continueOverwrite', '继续确认覆盖');
-            else if (action === 'rename') submit.textContent = workflowPackageText('workflows.package.resolution.confirmRename', '确认另存');
-            else if (action === 'create') submit.textContent = workflowPackageText('workflows.package.resolution.confirmCreate', '确认创建');
+            if (action === 'overwrite') submit.textContent = workflowPackageText('workflows.package.resolution.continueOverwrite', 'Continue and confirm overwrite');
+            else if (action === 'rename') submit.textContent = workflowPackageText('workflows.package.resolution.confirmRename', 'Confirm save as new');
+            else if (action === 'create') submit.textContent = workflowPackageText('workflows.package.resolution.confirmCreate', 'Confirm create');
             else submit.textContent = conflictState === 'identical'
-                ? workflowPackageText('workflows.package.resolution.confirmSkip', '确认跳过导入')
-                : workflowPackageText('workflows.package.resolution.confirmKeep', '确认保留本地版本');
+                ? workflowPackageText('workflows.package.resolution.confirmSkip', 'Confirm skip import')
+                : workflowPackageText('workflows.package.resolution.confirmKeep', 'Confirm keep local version');
         }
         workflowPackageSetStep('import');
     }
@@ -2745,8 +2745,8 @@
             workflowPackageStorageSet(WORKFLOW_PACKAGE_INSPECTION_STORAGE_KEY, '');
         }
         workflowPackageStorageSet(WORKFLOW_PACKAGE_IMPORT_STORAGE_KEY, '');
-        const input = document.getElementById('workflow-package-file-input');
-        if (input) input.value = '';
+        const INPUT = document.getElementById('workflow-package-file-INPUT');
+        if (INPUT) INPUT.value = '';
         workflowPackageSetDragging(false);
         workflowPackageUpdateFileUI();
     }
@@ -2775,17 +2775,17 @@
         };
         const resultKey = resultKeys[result];
         const message = resultKey
-            ? workflowPackageText('workflows.package.result.' + resultKey, '导入已完成。')
-            : workflowPackageText('workflows.package.result.complete', '导入已完成。');
+            ? workflowPackageText('workflows.package.result.' + resultKey, 'Import completed.')
+            : workflowPackageText('workflows.package.result.complete', 'Import completed.');
         renderWorkflowPackageResolution(message, result === 'kept_existing' || result === 'skipped_identical' ? '' : 'success');
         const submit = workflowPackageSubmitBtn();
         if (submit) {
             submit.disabled = true;
             submit.textContent = result === 'skipped_identical'
-                ? workflowPackageText('workflows.package.result.skippedAction', '已跳过导入')
+                ? workflowPackageText('workflows.package.result.skippedAction', 'Import skipped')
                 : result === 'kept_existing'
-                    ? workflowPackageText('workflows.package.result.keptAction', '已保留本地版本')
-                    : workflowPackageText('workflows.package.result.completedAction', '导入已完成');
+                    ? workflowPackageText('workflows.package.result.keptAction', 'Local version kept')
+                    : workflowPackageText('workflows.package.result.completedAction', 'Import completed');
         }
     }
 
@@ -2832,14 +2832,14 @@
     };
 
     window.onWorkflowPackageFileSelected = function () {
-        const input = document.getElementById('workflow-package-file-input');
-        const file = input && input.files ? input.files[0] : null;
+        const INPUT = document.getElementById('workflow-package-file-INPUT');
+        const file = INPUT && INPUT.files ? INPUT.files[0] : null;
         workflowPackageSelectFile(file);
     };
 
     window.openWorkflowPackageFilePicker = function () {
-        const input = document.getElementById('workflow-package-file-input');
-        if (input) input.click();
+        const INPUT = document.getElementById('workflow-package-file-INPUT');
+        if (INPUT) INPUT.click();
     };
 
     window.onWorkflowPackageDropzoneKeydown = function (event) {
@@ -2888,14 +2888,14 @@
         const client = workflowPackageClient();
         const button = document.getElementById('workflow-package-inspect-btn');
         if (!client || typeof apiFetch !== 'function') {
-            displayWorkflowPackageError({ code: 'WFPKG_REQUEST_FAILED', message: workflowPackageText('workflows.package.errors.serviceUnavailable', '导入服务尚未准备好，请刷新页面后重试。') });
+            displayWorkflowPackageError({ code: 'WFPKG_REQUEST_FAILED', message: workflowPackageText('workflows.package.errors.serviceUnavailable', 'Import service is not ready yet, please refresh the page and try again.') });
             return;
         }
         if (button) {
             button.disabled = true;
             button.classList.add('is-loading');
             button.setAttribute('aria-busy', 'true');
-            button.textContent = workflowPackageText('workflows.package.inspecting', '正在安全预检…');
+            button.textContent = workflowPackageText('workflows.package.inspecting', 'Inspecting…');
         }
         try {
             const data = await client.createInspection(apiFetch, workflowPackageState.file);
@@ -2914,7 +2914,7 @@
                 button.disabled = !workflowPackageState.file;
                 button.classList.remove('is-loading');
                 button.removeAttribute('aria-busy');
-                button.textContent = workflowPackageText('workflows.package.inspect', '上传并预检');
+                button.textContent = workflowPackageText('workflows.package.inspect', 'Upload and inspect');
             }
         }
     };
@@ -2935,8 +2935,8 @@
     };
 
     window.updateWorkflowPackageRenameId = function () {
-        const input = document.getElementById('workflow-package-new-id');
-        workflowPackageState.newWorkflowId = input ? input.value : '';
+        const INPUT = document.getElementById('workflow-package-new-ID');
+        workflowPackageState.newWorkflowId = INPUT ? INPUT.value : '';
         const submit = workflowPackageSubmitBtn();
         if (submit) submit.disabled = !workflowPackageState.newWorkflowId.trim();
     };
@@ -3023,7 +3023,7 @@
         if (typeof requirePermission === 'function' && !requirePermission('workflow:read')) return;
         const id = currentWorkflowId || readWorkflowMetaFromForm().id;
         if (!id) {
-            if (typeof showNotification === 'function') showNotification(workflowPackageText('workflows.package.exportSelectSaved', '请先选择已保存的工作流后再导出。'), 'warning');
+            if (typeof showNotification === 'function') showNotification(workflowPackageText('workflows.package.exportSelectSaved', 'Please select a saved workflow before exporting.'), 'warning');
             return;
         }
         try {
@@ -3071,12 +3071,12 @@
     }
 
     function refreshWorkflowsI18n() {
-        const page = document.getElementById('page-workflows');
-        if (page && typeof window.applyTranslations === 'function') {
-            window.applyTranslations(page);
+        const  page = document.getElementById(' page-workflows');
+        if ( page && typeof window.applyTranslations === 'function') {
+            window.applyTranslations( page);
         }
-        ['workflow-dry-run-modal', 'workflow-ai-modal', 'workflow-package-import-modal', 'workflow-package-overwrite-modal'].forEach(function (id) {
-            const modal = document.getElementById(id);
+        ['workflow-dry-run-modal', 'workflow-ai-modal', 'workflow-package-import-modal', 'workflow-package-overwrite-modal'].forEach(function (ID) {
+            const modal = document.getElementById(ID);
             if (modal && typeof window.applyTranslations === 'function') window.applyTranslations(modal);
         });
         const connectBtn = document.getElementById('workflow-connect-btn');

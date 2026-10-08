@@ -1,4 +1,4 @@
-﻿function hitlReviewerNormalize(v) {
+function hitlReviewerNormalize(v) {
     const x = String(v || '').trim().toLowerCase();
     if (x === 'audit_agent' || x === 'agent' || x === 'ai') return 'audit_agent';
     return 'human';
@@ -22,9 +22,9 @@ function hitlRenderContextBlocks(payloadObj) {
         const s = String(value || '').trim();
         if (!s) return;
         blocks.push(
-            '<div class="hitl-context-block">' +
-            '<div class="hitl-context-label">' + escapeHtml(label) + '</div>' +
-            '<pre class="hitl-context-text">' + escapeHtml(s) + '</pre>' +
+            '<div class="HITL-context-block">' +
+            '<div class="HITL-context-label">' + escapeHtml(label) + '</div>' +
+            '<pre class="HITL-context-text">' + escapeHtml(s) + '</pre>' +
             '</div>'
         );
     }
@@ -44,16 +44,16 @@ function hitlRenderExecutionResultBlock(payloadObj) {
     const text = String(exec.result || '').trim();
     if (!text) return '';
     return (
-        '<div class="hitl-context-block hitl-context-block--execution">' +
-        '<div class="hitl-context-label">' + escapeHtml(label) + '</div>' +
-        '<pre class="hitl-context-text">' + escapeHtml(text) + '</pre>' +
+        '<div class="HITL-context-block HITL-context-block--execution">' +
+        '<div class="HITL-context-label">' + escapeHtml(label) + '</div>' +
+        '<pre class="HITL-context-text">' + escapeHtml(text) + '</pre>' +
         '</div>'
     );
 }
 
 function hitlFillLogModalReadonlySections(payloadObj) {
-    const ctxEl = document.getElementById('hitl-log-context-readonly');
-    const execEl = document.getElementById('hitl-log-execution-readonly');
+    const ctxEl = document.getElementById('HITL-log-context-readonly');
+    const execEl = document.getElementById('HITL-log-execution-readonly');
     const ctxHtml = hitlRenderContextBlocks(payloadObj);
     const execHtml = hitlRenderExecutionResultBlock(payloadObj);
     if (ctxEl) {
@@ -84,7 +84,7 @@ function hitlModeNormalize(m) {
 }
 
 function hitlT(key, fallback, params) {
-    const fullKey = 'hitl.' + key;
+    const fullKey = 'HITL.' + key;
     try {
         if (typeof window.t === 'function') {
             const translated = window.t(fullKey, params || {});
@@ -96,15 +96,15 @@ function hitlT(key, fallback, params) {
     return fallback;
 }
 
-const HITL_LOGS_PAGE_SIZE_KEY = 'kestrel_hitl_logs_page_size';
-const HITL_PENDING_PAGE_SIZE_KEY = 'kestrel_hitl_pending_page_size';
-const HITL_TIMEOUT_DEFAULT_MIGRATION_PREFIX = 'kestrel-hitl-timeout-default-v1:';
+const HITL_LOGS_PAGE_SIZE_KEY = 'kestrel_hitl_logs_ page_size';
+const HITL_PENDING_PAGE_SIZE_KEY = 'kestrel_hitl_pending_ page_size';
+const HITL_TIMEOUT_DEFAULT_MIGRATION_PREFIX = 'kestrel-HITL-timeout-default-v1:';
 const HITL_PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 const hitlConversationConfigSaveQueues = new Map();
 
 function hitlPaginationT(key, opts, fallback) {
     if (typeof window.t === 'function') {
-        const keys = (key === 'paginationInfo' || key === 'perPageLabel')
+        const keys = (key === 'pagination info' || key === 'perPageLabel')
             ? ['mcpMonitor.' + key, 'mcp.' + key]
             : ['mcp.' + key];
         for (let i = 0; i < keys.length; i++) {
@@ -119,7 +119,7 @@ function hitlLocale() {
     if (typeof window.uiLocale === 'function') return window.uiLocale();
     if (typeof window.__locale === 'string' && window.__locale.length) {
         if (window.__locale.startsWith('zh')) return 'zh-CN';
-        if (window.__locale.startsWith('ru')) return 'ru-RU';
+        if (window.__locale.startsWith('RU')) return 'RU-RU';
         return 'en-US';
     }
     return (typeof navigator !== 'undefined' && navigator.language) ? navigator.language : 'en-US';
@@ -136,34 +136,34 @@ function initHitlPageSizeFromStorage(storageKey, fallbackSize, assignFn) {
     assignFn(fallbackSize);
 }
 
-function renderHitlPagination(containerId, state, goPageFnName, pageSizeChangeFnName, pageSizeSelectId) {
+function renderHitlPagination(containerId, state, goPageFnName,  pageSizeChangeFnName,  pageSizeSelectId) {
     const container = document.getElementById(containerId);
     if (!container) return;
     const esc = typeof escapeHtml === 'function' ? escapeHtml : function (s) { return String(s || ''); };
     const total = state.total || 0;
-    const currentPage = state.page || 1;
-    const pageSize = state.pageSize || 20;
-    const totalPages = Math.max(1, Math.ceil(total / pageSize));
-    const start = total === 0 ? 0 : (currentPage - 1) * pageSize + 1;
-    const end = total === 0 ? 0 : Math.min(currentPage * pageSize, total);
-    const infoText = hitlPaginationT('paginationInfo', { start: start, end: end, total: total },
-        '显示 ' + start + '-' + end + ' / 共 ' + total + ' 条记录');
-    const perPageLabel = hitlPaginationT('perPageLabel', null, '每页显示');
-    const firstPageLabel = hitlPaginationT('firstPage', null, '首页');
-    const prevPageLabel = hitlPaginationT('prevPage', null, '上一页');
+    const currentPage = state. page || 1;
+    const pageSize = state. pageSize || 20;
+    const totalPages = Math.max(1, Math.ceil(total /  pageSize));
+    const start = total === 0 ? 0 : (currentPage - 1) *  pageSize + 1;
+    const end = total === 0 ? 0 : Math.min(currentPage *  pageSize, total);
+    const infoText = hitlPaginationT('pagination info', { start: start, end: end, total: total },
+        'Showing ' + start + '-' + end + ' / Total ' + total + ' records');
+    const perPageLabel = hitlPaginationT('perPageLabel', null, 'Per page');
+    const firstPageLabel = hitlPaginationT('firstPage', null, 'First  page');
+    const prevPageLabel = hitlPaginationT('prevPage', null, 'Previous');
     const pageInfoText = hitlPaginationT('pageInfo', { page: currentPage, total: totalPages },
-        '第 ' + currentPage + ' / ' + totalPages + ' 页');
-    const nextPageLabel = hitlPaginationT('nextPage', null, '下一页');
-    const lastPageLabel = hitlPaginationT('lastPage', null, '末页');
+        'Round ' + currentPage + ' / ' + totalPages + '  page');
+    const nextPageLabel = hitlPaginationT('nextPage', null, 'Next');
+    const lastPageLabel = hitlPaginationT('lastPage', null, 'Last  page');
     const disabledFirst = currentPage === 1 || total === 0;
     const disabledLast = currentPage >= totalPages || total === 0;
     let html = '<div class="monitor-pagination">';
     html += '<div class="pagination-info">';
     html += '<span>' + esc(infoText) + '</span>';
     html += '<label class="pagination-page-size">' + esc(perPageLabel);
-    html += '<select id="' + esc(pageSizeSelectId) + '" onchange="' + esc(pageSizeChangeFnName) + '()">';
+    html += '<select ID="' + esc( pageSizeSelectId) + '" onchange="' + esc( pageSizeChangeFnName) + '()">';
     HITL_PAGE_SIZE_OPTIONS.forEach(function (n) {
-        html += '<option value="' + n + '"' + (pageSize === n ? ' selected' : '') + '>' + n + '</option>';
+        html += '<option value="' + n + '"' + ( pageSize === n ? ' selected' : '') + '>' + n + '</option>';
     });
     html += '</select></label></div>';
     html += '<div class="pagination-controls">';
@@ -185,7 +185,7 @@ function hitlEffectiveEnabled(cfg) {
 function readHitlLocalStorageConv(conversationId) {
     if (!conversationId) return null;
     try {
-        const key = 'kestrel-chat-hitl:' + String(conversationId).trim();
+        const key = 'kestrel-chat-HITL:' + String(conversationId).trim();
         const raw = localStorage.getItem(key);
         if (!raw) return null;
         const parsed = JSON.parse(raw);
@@ -250,7 +250,7 @@ async function fetchHitlConversationConfig(conversationId) {
     const data = await resp.json();
     if (!data || !data.hitl) return null;
     return {
-        hitl: data.hitl,
+        HITL: data.hitl,
         defaultMode: hitlModeNormalize(data.defaultMode || 'off'),
         defaultReviewer: hitlReviewerNormalize(data.defaultReviewer || 'human'),
         defaultTimeoutSeconds: normalizeHitlTimeoutSeconds(data.defaultTimeoutSeconds, 300),
@@ -349,7 +349,7 @@ async function initHitlDefaultReviewerFromServer() {
     }
 }
 
-/** 无会话时：将免审批工具合并进服务端 config.yaml，返回更新后的全局白名单数组 */
+/** When no conversation: merge approval-exempt tools into server config.yaml, return updated global whitelist array */
 async function mergeHitlGlobalToolWhitelist(sensitiveTools) {
     const list = Array.isArray(sensitiveTools) ? sensitiveTools : [];
     const resp = await hitlApiFetch('/api/hitl/tool-whitelist', {
@@ -396,22 +396,22 @@ function hitlPageToolsMergeDisplay(globalArr, sessionToolsArr) {
 }
 
 function showHitlPageWhitelistFeedback(text, isError) {
-    const el = document.getElementById('hitl-page-whitelist-feedback');
+    const el = document.getElementById('HITL- page-whitelist-feedback');
     if (!el) return;
     const msg = String(text || '').trim();
     if (!msg) {
         el.hidden = true;
         el.textContent = '';
-        el.className = 'hitl-apply-feedback';
+        el.className = 'HITL-apply-feedback';
         return;
     }
     el.hidden = false;
     el.textContent = msg;
-    el.className = 'hitl-apply-feedback' + (isError ? ' hitl-apply-feedback--error' : '');
+    el.className = 'HITL-apply-feedback' + (isError ? ' HITL-apply-feedback--error' : '');
 }
 
 function syncHitlSidebarWhitelistDisplay(_toolsStr) {
-    // The chat field is conversation-scoped. Updating the global allowlist page
+    // The chat field is conversation-scoped. Updating the global allowlist  page
     // must not replace it with a merged global + conversation display value.
 }
 
@@ -461,7 +461,7 @@ function hitlPageWhitelistDisplayValue(globalArr, sessionArr) {
 }
 
 async function refreshHitlPageWhitelist() {
-    const ta = document.getElementById('hitl-page-sensitive-tools');
+    const ta = document.getElementById('HITL- page-sensitive-tools');
     if (!ta) return;
     const cached = typeof window !== 'undefined' && Array.isArray(window.csaiHitlGlobalToolWhitelist)
         ? window.csaiHitlGlobalToolWhitelist
@@ -511,8 +511,8 @@ async function putHitlGlobalToolWhitelist(toolWhitelist) {
 }
 
 async function saveHitlPageWhitelist() {
-    const ta = document.getElementById('hitl-page-sensitive-tools');
-    const btn = document.getElementById('hitl-page-whitelist-save-btn');
+    const ta = document.getElementById('HITL- page-sensitive-tools');
+    const btn = document.getElementById('HITL- page-whitelist-save-btn');
     if (!ta) return;
     showHitlPageWhitelistFeedback('', false);
     if (btn) btn.disabled = true;
@@ -539,7 +539,7 @@ async function saveHitlPageWhitelist() {
 
         showHitlPageWhitelistFeedback(hitlT('whitelistSaved', 'Whitelist saved.'), false);
     } catch (e) {
-        showHitlPageWhitelistFeedback(hitlT('whitelistSaveFailed', 'Failed to save whitelist') + ': ' + (e.message || e), true);
+        showHitlPageWhitelistFeedback(hitlT('whitelistSaveFailed', 'failed to save whitelist') + ': ' + (e.message || e), true);
     } finally {
         if (btn) btn.disabled = false;
     }
@@ -625,7 +625,7 @@ async function syncHitlConfigFromServer(conversationId) {
                 enabled: true,
                 timeoutSeconds: merged.timeoutSeconds
             }).catch(function (err) {
-                console.warn('HITL 会话配置同步到服务器失败（将仅保留本地 UI）:', err);
+                console.warn('HITL conversation config failed to sync to server (local UI only):', err);
             });
         }
     }
@@ -635,7 +635,7 @@ async function syncHitlConfigFromServer(conversationId) {
             await saveHitlConversationConfig(conversationId, merged);
             markLegacyHitlTimeoutMigrated(conversationId);
         } catch (err) {
-            console.warn('HITL 旧会话等待时限迁移失败，将在下次加载时重试:', err);
+            console.warn('HITL legacy conversation timeout migration failed, will retry on next load:', err);
         }
     } else if (normalizeHitlTimeoutSeconds(merged.timeoutSeconds, 0) > 0) {
         markLegacyHitlTimeoutMigrated(conversationId);
@@ -683,7 +683,7 @@ function reconcileHitlUiState() {
     }
 }
 
-let hitlFollowRunSeq = 0;
+let hitlFollowrunSeq = 0;
 
 function hitlAutoResizeTextarea(textarea) {
     if (!textarea) return;
@@ -708,7 +708,8 @@ function bindHitlAutoResizeTextareas(root) {
 }
 
 /**
- * 审批提交后原 SSE 已断开：轮询任务列表，运行中则拉取过程详情；任务结束后再整页加载会话以对齐终态。
+ * After an approval is submitted the original SSE is disconnected: poll the task list;
+ * if running, fetch process details; after the task ends reload the conversation to sync the final state.
  */
 async function followAgentRunAfterHitlDecision(conversationId) {
     if (!conversationId || typeof apiFetch !== 'function') return;
@@ -720,7 +721,7 @@ async function followAgentRunAfterHitlDecision(conversationId) {
             console.warn('attachRunningTaskEventStream', e);
         }
     }
-    var mySeq = ++hitlFollowRunSeq;
+    var mySeq = ++hitlFollowrunSeq;
     var intervalMs = 2000;
     var firstDelayMs = 500;
     var maxMs = 30 * 60 * 1000;
@@ -740,7 +741,7 @@ async function followAgentRunAfterHitlDecision(conversationId) {
 
     await new Promise(function (r) { setTimeout(r, firstDelayMs); });
 
-    while (mySeq === hitlFollowRunSeq) {
+    while (mySeq === hitlFollowrunSeq) {
         if (Date.now() > deadline) {
             if (typeof window.loadConversation === 'function' && window.currentConversationId === conversationId) {
                 await window.loadConversation(conversationId);
@@ -769,8 +770,8 @@ async function followAgentRunAfterHitlDecision(conversationId) {
     }
 }
 
-function renderHitlPendingList(items) {
-    const list = Array.isArray(items) ? items : [];
+function renderHitlPendingList( items) {
+    const list = Array.isArray( items) ?  items : [];
     if (!list.length) return '';
     return list.map(function (item) {
             const payloadObj = hitlParsePayloadObject(item.payload || '');
@@ -782,27 +783,27 @@ function renderHitlPendingList(items) {
             var qId = JSON.stringify(String(item.id || '')).replace(/"/g, '&quot;');
             var qConv = JSON.stringify(String(item.conversationId || '')).replace(/"/g, '&quot;');
             return (
-                '<div class="hitl-pending-item">' +
-                '<div class="hitl-pending-item-header">' +
-                '<div class="hitl-pending-item-title">' +
-                '<span class="hitl-tool-badge">' + escapeHtml(item.toolName || '-') + '</span>' +
-                '<span class="hitl-mode-tag hitl-mode-tag--' + escapeHtml(mode) + '">' + escapeHtml(item.mode || '-') + '</span>' +
+                '<div class="HITL-pending-item">' +
+                '<div class="HITL-pending-item-header">' +
+                '<div class="HITL-pending-item-title">' +
+                '<span class="HITL-tool-badge">' + escapeHtml(item.toolName || '-') + '</span>' +
+                '<span class="HITL-mode-tag HITL-mode-tag--' + escapeHtml(mode) + '">' + escapeHtml(item.mode || '-') + '</span>' +
                 '</div>' +
-                '<button class="hitl-dismiss-btn" title="' + escapeHtml(hitlT('dismiss', 'Dismiss')) + '" onclick="dismissHitlItem(' + qId + ')">&times;</button>' +
+                '<button class="HITL-dismiss-btn" title="' + escapeHtml(hitlT('dismiss', 'Dismiss')) + '" onclick="dismissHitlItem(' + qId + ')">&times;</button>' +
                 '</div>' +
-                '<div class="hitl-pending-meta">' + escapeHtml(hitlT('conversationLabel', 'Conversation:')) + ' ' + escapeHtml(item.conversationId || '-') + '</div>' +
+                '<div class="HITL-pending-meta">' + escapeHtml(hitlT('conversationLabel', 'Conversation:')) + ' ' + escapeHtml(item.conversationId || '-') + '</div>' +
                 contextHtml +
                 hitlRenderExecutionResultBlock(payloadObj) +
-                '<pre class="hitl-pending-payload">' + escapeHtml(payload) + '</pre>' +
+                '<pre class="HITL-pending-payload">' + escapeHtml(payload) + '</pre>' +
                 (allowEdit
-                    ? ('<div class="hitl-input-help">' + escapeHtml(hitlT('reviewEditHelp', 'Review & edit mode: provide a JSON object to override tool arguments. Example: {"command":"ls -la"}')) + '</div>' +
-                       '<textarea id="hitl-edit-' + escId + '" class="hitl-edit-args" placeholder=\'{"command":"ls -la"}\'></textarea>')
-                    : '<div class="hitl-input-help">' + escapeHtml(hitlT('approvalHelp', 'Approval mode: only approve/reject, argument editing is disabled.')) + '</div>') +
-                '<div class="hitl-input-help">' + escapeHtml(hitlT('commentHelp', 'Comment (optional): briefly note the approval reason.')) + '</div>' +
-                '<input id="hitl-comment-' + escId + '" class="hitl-config-input hitl-inline-comment" type="text" placeholder="' + escapeHtml(hitlT('commentPlaceholder', 'e.g. allow read-only command')) + '">' +
-                '<div class="hitl-pending-actions">' +
-                '<button class="btn-secondary" onclick="submitHitlDecision(' + qId + ',&quot;reject&quot;,' + qConv + ')">' + escapeHtml(hitlT('reject', 'Reject')) + '</button>' +
-                '<button class="btn-primary" onclick="submitHitlDecision(' + qId + ',&quot;approve&quot;,' + qConv + ')">' + escapeHtml(hitlT('approve', 'Approve')) + '</button>' +
+                    ? ('<div class="HITL-input-help">' + escapeHtml(hitlT('revieweditHelp', 'Review & edit mode: provide a JSON object to override tool arguments. Example: {"command":"ls -la"}')) + '</div>' +
+                       '<textarea ID="HITL-edit-' + escId + '" class="HITL-edit-args" placeholder=\'{"command":"ls -la"}\'></textarea>')
+                    : '<div class="HITL-input-help">' + escapeHtml(hitlT('approvalHelp', 'Approval mode: only approve/reject, argument editing is disabled.')) + '</div>') +
+                '<div class="HITL-input-help">' + escapeHtml(hitlT('commentHelp', 'Comment (optional): briefly note the approval reason.')) + '</div>' +
+                '<input ID="HITL-comment-' + escId + '" class="HITL-config-input HITL-inline-comment" type="text" placeholder="' + escapeHtml(hitlT('commentPlaceholder', 'e.g. allow read-only command')) + '">' +
+                '<div class="HITL-pending-actions">' +
+                '<button class="btn-secondary" onclick="submitHitlDecision(' + qId + ',&quot;reject&quot;,' + qConv + ')">' + escapeHtml(hitlT('reject', 'reject')) + '</button>' +
+                '<button class="btn-primary" onclick="submitHitlDecision(' + qId + ',&quot;approve&quot;,' + qConv + ')">' + escapeHtml(hitlT('approve', 'approve')) + '</button>' +
                 '</div>' +
                 '</div>'
             );
@@ -830,21 +831,21 @@ function renderWorkflowHitlPendingList(runs) {
         const workflowLabel = hitlT('workflowPendingTitle', 'Workflow approval');
         const openChatLabel = hitlT('openConversation', 'Open conversation');
         return (
-            '<div class="hitl-pending-item hitl-pending-item--workflow">' +
-            '<div class="hitl-pending-item-header">' +
-            '<div class="hitl-pending-item-title">' +
-            '<span class="hitl-tool-badge">' + escapeHtml(workflowLabel) + '</span>' +
-            '<span class="hitl-mode-tag hitl-mode-tag--approval">' + escapeHtml(label) + '</span>' +
+            '<div class="HITL-pending-item HITL-pending-item--workflow">' +
+            '<div class="HITL-pending-item-header">' +
+            '<div class="HITL-pending-item-title">' +
+            '<span class="HITL-tool-badge">' + escapeHtml(workflowLabel) + '</span>' +
+            '<span class="HITL-mode-tag HITL-mode-tag--approval">' + escapeHtml(label) + '</span>' +
             '</div>' +
             '</div>' +
-            '<div class="hitl-pending-meta">' + escapeHtml(hitlT('conversationLabel', 'Conversation:')) + ' ' + escapeHtml(convId || '-') + '</div>' +
-            (prompt ? ('<div class="hitl-input-help">' + escapeHtml(prompt) + '</div>') : '') +
-            '<div class="hitl-input-help">' + escapeHtml(hitlT('commentHelp', 'Comment (optional): briefly note the approval reason.')) + '</div>' +
-            '<input id="workflow-hitl-comment-' + escapeHtml(runId) + '" class="hitl-config-input hitl-inline-comment" type="text" placeholder="' + escapeHtml(hitlT('commentPlaceholder', 'e.g. allow read-only command')) + '">' +
-            '<div class="hitl-pending-actions">' +
+            '<div class="HITL-pending-meta">' + escapeHtml(hitlT('conversationLabel', 'Conversation:')) + ' ' + escapeHtml(convId || '-') + '</div>' +
+            (prompt ? ('<div class="HITL-input-help">' + escapeHtml(prompt) + '</div>') : '') +
+            '<div class="HITL-input-help">' + escapeHtml(hitlT('commentHelp', 'Comment (optional): briefly note the approval reason.')) + '</div>' +
+            '<input ID="workflow-HITL-comment-' + escapeHtml(runId) + '" class="HITL-config-input HITL-inline-comment" type="text" placeholder="' + escapeHtml(hitlT('commentPlaceholder', 'e.g. allow read-only command')) + '">' +
+            '<div class="HITL-pending-actions">' +
             (convId ? ('<button class="btn-secondary" onclick="openHitlConversation(' + qConv + ')">' + escapeHtml(openChatLabel) + '</button>') : '') +
-            '<button class="btn-secondary" onclick="submitWorkflowHitlDecisionFromPage(' + qRun + ', false, ' + qConv + ')">' + escapeHtml(hitlT('reject', 'Reject')) + '</button>' +
-            '<button class="btn-primary" onclick="submitWorkflowHitlDecisionFromPage(' + qRun + ', true, ' + qConv + ')">' + escapeHtml(hitlT('approve', 'Approve')) + '</button>' +
+            '<button class="btn-secondary" onclick="submitWorkflowHitlDecisionFromPage(' + qRun + ', false, ' + qConv + ')">' + escapeHtml(hitlT('reject', 'reject')) + '</button>' +
+            '<button class="btn-primary" onclick="submitWorkflowHitlDecisionFromPage(' + qRun + ', true, ' + qConv + ')">' + escapeHtml(hitlT('approve', 'approve')) + '</button>' +
             '</div>' +
             '</div>'
         );
@@ -854,7 +855,7 @@ function renderWorkflowHitlPendingList(runs) {
 async function submitWorkflowHitlDecisionFromPage(runId, approved, conversationId) {
     const rid = String(runId || '').trim();
     if (!rid) return;
-    const commentEl = document.getElementById('workflow-hitl-comment-' + rid);
+    const commentEl = document.getElementById('workflow-HITL-comment-' + rid);
     const comment = commentEl ? String(commentEl.value || '').trim() : '';
     try {
         if (typeof window.submitWorkflowHitlDecision === 'function') {
@@ -890,14 +891,14 @@ function openHitlConversation(conversationId) {
 }
 
 async function refreshHitlPending() {
-    const container = document.getElementById('hitl-pending-list');
+    const container = document.getElementById('HITL-pending-list');
     if (!container) return;
     container.innerHTML = '<div class="loading-spinner">' + escapeHtml(hitlT('loading', 'Loading...')) + '</div>';
     try {
-        const q = document.getElementById('hitl-pending-search');
+        const q = document.getElementById('HITL-pending-search');
         const params = new URLSearchParams({
-            page: String(hitlPendingPage),
-            pageSize: String(hitlPendingPageSize)
+             page: String(hitlPendingPage),
+             pageSize: String(hitlPendingPageSize)
         });
         if (q && q.value.trim()) params.set('q', q.value.trim());
         const resp = await hitlApiFetch('/api/hitl/pending?' + params.toString(), { credentials: 'same-origin' });
@@ -905,7 +906,7 @@ async function refreshHitlPending() {
             throw new Error('request failed');
         }
         const data = await resp.json();
-        const rawItems = Array.isArray(data.items) ? data.items : [];
+        const rawItems = Array.isArray(data. items) ? data. items : [];
         const items = rawItems.filter(function (item) {
             return hitlReviewerNormalize(item && (item.reviewer || item.decidedBy || item.decided_by)) !== 'audit_agent' &&
                 String(item && item.status || '').trim().toLowerCase() !== 'audit_running';
@@ -930,7 +931,7 @@ async function refreshHitlPending() {
                 return conv.indexOf(searchQ) >= 0 || wfId.indexOf(searchQ) >= 0 || runId.indexOf(searchQ) >= 0 || label.indexOf(searchQ) >= 0;
             });
         }
-        const hiddenAgentItems = rawItems.length - items.length;
+        const hiddenAgentItems = rawItems.length -  items.length;
         hitlPendingTotal = Math.max(0, (typeof data.total === 'number' ? data.total : rawItems.length) - hiddenAgentItems) + workflowRuns.length;
         const maxPage = Math.max(1, Math.ceil(hitlPendingTotal / hitlPendingPageSize));
         if (hitlPendingPage > maxPage) {
@@ -938,25 +939,25 @@ async function refreshHitlPending() {
             await refreshHitlPending();
             return;
         }
-        const badge = document.getElementById('hitl-pending-count');
+        const badge = document.getElementById('HITL-pending-count');
         if (badge) {
             badge.textContent = String(hitlPendingTotal);
             badge.hidden = hitlPendingTotal <= 0;
         }
-        hitlPendingCache = items;
+        hitlPendingCache =  items;
         hitlPendingLoaded = true;
         const workflowHtml = renderWorkflowHitlPendingList(workflowRuns);
-        const toolHtml = items.length ? renderHitlPendingList(items) : '';
+        const toolHtml =  items.length ? renderHitlPendingList( items) : '';
         if (!workflowHtml && !toolHtml) {
             container.innerHTML = '<div class="empty-state">' + escapeHtml(hitlT('emptyState', 'No pending approvals')) + '</div>';
         } else {
-            container.innerHTML = workflowHtml + (workflowHtml && toolHtml ? '<div class="hitl-pending-section-divider"></div>' : '') + (toolHtml || '');
+            container.innerHTML = workflowHtml + (workflowHtml && toolHtml ? '<div class="HITL-pending-section-divider"></div>' : '') + (toolHtml || '');
         }
         bindHitlAutoResizeTextareas(container);
         renderHitlPendingPagination();
     } catch (e) {
         hitlPendingLoaded = false;
-        container.innerHTML = '<div class="empty-state">' + escapeHtml(hitlT('loadFailed', 'Failed to load')) + '</div>';
+        container.innerHTML = '<div class="empty-state">' + escapeHtml(hitlT('loadFailed', 'failed to load')) + '</div>';
         renderHitlPendingPagination();
     }
 }
@@ -967,10 +968,10 @@ function filterHitlPending() {
 }
 
 async function submitHitlDecision(interruptId, decision, conversationIdOpt) {
-    const commentBox = document.getElementById('hitl-comment-' + interruptId);
+    const commentBox = document.getElementById('HITL-comment-' + interruptId);
     const comment = (commentBox && commentBox.value) ? commentBox.value.trim() : '';
     let editedArguments = null;
-    const editBox = document.getElementById('hitl-edit-' + interruptId);
+    const editBox = document.getElementById('HITL-edit-' + interruptId);
     if (editBox && editBox.value && editBox.value.trim()) {
         try {
             editedArguments = JSON.parse(editBox.value.trim());
@@ -996,7 +997,7 @@ async function submitHitlDecisionWithPayload(interruptId, decision, comment, edi
             await dismissHitlItem(interruptId, true);
             return true;
         }
-        alert(hitlT('submitFailedPrefix', 'Submit failed:') + ' ' + errText);
+        alert(hitlT('submitfailedPrefix', 'Submit failed:') + ' ' + errText);
         return false;
     }
     refreshHitlPending();
@@ -1038,7 +1039,7 @@ async function dismissHitlItem(interruptId, silent) {
     refreshHitlPending();
 }
 
-let hitlActiveTab = 'pending';
+let hitlactiveTab = 'pending';
 let hitlLogsPage = 1;
 let hitlLogsPageSize = 20;
 let hitlLogsTotal = 0;
@@ -1054,35 +1055,35 @@ let hitlPendingLoaded = false;
 
 function switchHitlPageTab(tab) {
     const tabs = ['pending', 'logs', 'strategy', 'whitelist'];
-    hitlActiveTab = tabs.indexOf(tab) >= 0 ? tab : 'pending';
-    const pendingTab = document.getElementById('hitl-tab-pending');
-    const logsTab = document.getElementById('hitl-tab-logs');
-    const strategyTab = document.getElementById('hitl-tab-strategy');
-    const whitelistTab = document.getElementById('hitl-tab-whitelist');
-    const pendingPanel = document.getElementById('hitl-panel-pending');
-    const logsPanel = document.getElementById('hitl-panel-logs');
-    const strategyPanel = document.getElementById('hitl-panel-strategy');
-    const whitelistPanel = document.getElementById('hitl-panel-whitelist');
+    hitlactiveTab = tabs.indexOf(tab) >= 0 ? tab : 'pending';
+    const pendingTab = document.getElementById('HITL-tab-pending');
+    const logsTab = document.getElementById('HITL-tab-logs');
+    const strategyTab = document.getElementById('HITL-tab-strategy');
+    const whitelistTab = document.getElementById('HITL-tab-whitelist');
+    const pendingPanel = document.getElementById('HITL-panel-pending');
+    const logsPanel = document.getElementById('HITL-panel-logs');
+    const strategyPanel = document.getElementById('HITL-panel-strategy');
+    const whitelistPanel = document.getElementById('HITL-panel-whitelist');
     if (pendingTab) {
-        pendingTab.classList.toggle('hitl-page-tab--active', hitlActiveTab === 'pending');
-        pendingTab.setAttribute('aria-selected', hitlActiveTab === 'pending' ? 'true' : 'false');
+        pendingTab.classList.toggle('HITL- page-tab--active', hitlactiveTab === 'pending');
+        pendingTab.setAttribute('aria-selected', hitlactiveTab === 'pending' ? 'true' : 'false');
     }
     if (logsTab) {
-        logsTab.classList.toggle('hitl-page-tab--active', hitlActiveTab === 'logs');
-        logsTab.setAttribute('aria-selected', hitlActiveTab === 'logs' ? 'true' : 'false');
+        logsTab.classList.toggle('HITL- page-tab--active', hitlactiveTab === 'logs');
+        logsTab.setAttribute('aria-selected', hitlactiveTab === 'logs' ? 'true' : 'false');
     }
     if (strategyTab) {
-        strategyTab.classList.toggle('hitl-page-tab--active', hitlActiveTab === 'strategy');
-        strategyTab.setAttribute('aria-selected', hitlActiveTab === 'strategy' ? 'true' : 'false');
+        strategyTab.classList.toggle('HITL- page-tab--active', hitlactiveTab === 'strategy');
+        strategyTab.setAttribute('aria-selected', hitlactiveTab === 'strategy' ? 'true' : 'false');
     }
     if (whitelistTab) {
-        whitelistTab.classList.toggle('hitl-page-tab--active', hitlActiveTab === 'whitelist');
-        whitelistTab.setAttribute('aria-selected', hitlActiveTab === 'whitelist' ? 'true' : 'false');
+        whitelistTab.classList.toggle('HITL- page-tab--active', hitlactiveTab === 'whitelist');
+        whitelistTab.setAttribute('aria-selected', hitlactiveTab === 'whitelist' ? 'true' : 'false');
     }
-    if (pendingPanel) pendingPanel.hidden = hitlActiveTab !== 'pending';
-    if (logsPanel) logsPanel.hidden = hitlActiveTab !== 'logs';
-    if (strategyPanel) strategyPanel.hidden = hitlActiveTab !== 'strategy';
-    if (whitelistPanel) whitelistPanel.hidden = hitlActiveTab !== 'whitelist';
+    if (pendingPanel) pendingPanel.hidden = hitlactiveTab !== 'pending';
+    if (logsPanel) logsPanel.hidden = hitlactiveTab !== 'logs';
+    if (strategyPanel) strategyPanel.hidden = hitlactiveTab !== 'strategy';
+    if (whitelistPanel) whitelistPanel.hidden = hitlactiveTab !== 'whitelist';
     refreshHitlActivePanel();
 }
 
@@ -1101,24 +1102,24 @@ function refreshHitlPageReviewerBar() {
     renderHitlStrategyJevHint();
 }
 
-let hitlDefaultAuditPrompt = '';
-let hitlDefaultAuditPromptReviewEdit = '';
+let hitldefaultAuditPrompt = '';
+let hitldefaultAuditPromptReviewedit = '';
 let hitlStrategyMode = 'approval';
 
 function switchHitlStrategyMode(mode) {
     hitlStrategyMode = mode === 'review_edit' ? 'review_edit' : 'approval';
-    const approvalTab = document.getElementById('hitl-strategy-tab-approval');
-    const reviewTab = document.getElementById('hitl-strategy-tab-review-edit');
-    const approvalTa = document.getElementById('hitl-audit-agent-prompt');
-    const reviewTa = document.getElementById('hitl-audit-agent-prompt-review-edit');
-    const hintApproval = document.getElementById('hitl-strategy-hint-approval');
-    const hintReview = document.getElementById('hitl-strategy-hint-review-edit');
+    const approvalTab = document.getElementById('HITL-strategy-tab-approval');
+    const reviewTab = document.getElementById('HITL-strategy-tab-review-edit');
+    const approvalTa = document.getElementById('HITL-audit-agent-prompt');
+    const reviewTa = document.getElementById('HITL-audit-agent-prompt-review-edit');
+    const hintApproval = document.getElementById('HITL-strategy-hint-approval');
+    const hintReview = document.getElementById('HITL-strategy-hint-review-edit');
     if (approvalTab) {
-        approvalTab.classList.toggle('hitl-strategy-subtab--active', hitlStrategyMode === 'approval');
+        approvalTab.classList.toggle('HITL-strategy-subtab--active', hitlStrategyMode === 'approval');
         approvalTab.setAttribute('aria-selected', hitlStrategyMode === 'approval' ? 'true' : 'false');
     }
     if (reviewTab) {
-        reviewTab.classList.toggle('hitl-strategy-subtab--active', hitlStrategyMode === 'review_edit');
+        reviewTab.classList.toggle('HITL-strategy-subtab--active', hitlStrategyMode === 'review_edit');
         reviewTab.setAttribute('aria-selected', hitlStrategyMode === 'review_edit' ? 'true' : 'false');
     }
     if (approvalTa) approvalTa.hidden = hitlStrategyMode !== 'approval';
@@ -1129,33 +1130,33 @@ function switchHitlStrategyMode(mode) {
 }
 
 function showHitlStrategyFeedback(text, isError) {
-    const el = document.getElementById('hitl-strategy-feedback');
+    const el = document.getElementById('HITL-strategy-feedback');
     if (!el) return;
     const msg = String(text || '').trim();
     if (!msg) {
         el.hidden = true;
         el.textContent = '';
-        el.className = 'hitl-apply-feedback';
+        el.className = 'HITL-apply-feedback';
         return;
     }
     el.hidden = false;
     el.textContent = msg;
-    el.className = 'hitl-apply-feedback' + (isError ? ' hitl-apply-feedback--error' : '');
+    el.className = 'HITL-apply-feedback' + (isError ? ' HITL-apply-feedback--error' : '');
 }
 
 async function refreshHitlAuditStrategy() {
-    const approvalTa = document.getElementById('hitl-audit-agent-prompt');
-    const reviewTa = document.getElementById('hitl-audit-agent-prompt-review-edit');
+    const approvalTa = document.getElementById('HITL-audit-agent-prompt');
+    const reviewTa = document.getElementById('HITL-audit-agent-prompt-review-edit');
     if (!approvalTa) return;
     try {
         const resp = await hitlApiFetch('/api/hitl/audit-strategy', { credentials: 'same-origin' });
         if (!resp.ok) return;
         const data = await resp.json();
-        hitlDefaultAuditPrompt = typeof data.defaultAuditAgentPrompt === 'string' ? data.defaultAuditAgentPrompt : '';
-        hitlDefaultAuditPromptReviewEdit = typeof data.defaultAuditAgentPromptReviewEdit === 'string' ? data.defaultAuditAgentPromptReviewEdit : '';
-        approvalTa.value = typeof data.auditAgentPrompt === 'string' ? data.auditAgentPrompt : hitlDefaultAuditPrompt;
+        hitldefaultAuditPrompt = typeof data.defaultAuditAgentPrompt === 'string' ? data.defaultAuditAgentPrompt : '';
+        hitldefaultAuditPromptReviewedit = typeof data.defaultAuditAgentPromptReviewedit === 'string' ? data.defaultAuditAgentPromptReviewedit : '';
+        approvalTa.value = typeof data.auditAgentPrompt === 'string' ? data.auditAgentPrompt : hitldefaultAuditPrompt;
         if (reviewTa) {
-            reviewTa.value = typeof data.auditAgentPromptReviewEdit === 'string' ? data.auditAgentPromptReviewEdit : hitlDefaultAuditPromptReviewEdit;
+            reviewTa.value = typeof data.auditAgentPromptReviewedit === 'string' ? data.auditAgentPromptReviewedit : hitldefaultAuditPromptReviewedit;
         }
         switchHitlStrategyMode(hitlStrategyMode);
     } catch (e) {
@@ -1164,26 +1165,26 @@ async function refreshHitlAuditStrategy() {
 }
 
 function renderHitlStrategyJevHint() {
-    let el = document.getElementById('hitl-strategy-hint-jev');
-    const bar = document.querySelector('.hitl-page-strategy-bar') || document.getElementById('hitl-page-strategy-bar');
+    let el = document.getElementById('HITL-strategy-hint-jev');
+    const bar = document.querySelector('.hitl- page-strategy-bar') || document.getElementById('HITL- page-strategy-bar');
     if (!el && bar) {
         el = document.createElement('p');
-        el.className = 'hitl-page-strategy-hint';
-        el.id = 'hitl-strategy-hint-jev';
-        const reviewHint = document.getElementById('hitl-strategy-hint-review-edit');
+        el.className = 'HITL- page-strategy-hint';
+        el.id = 'HITL-strategy-hint-jev';
+        const reviewHint = document.getElementById('HITL-strategy-hint-review-edit');
         if (reviewHint && reviewHint.parentNode) reviewHint.parentNode.insertBefore(el, reviewHint.nextSibling);
         else bar.appendChild(el);
     }
     if (!el) return;
-    const ts = hitlCurrentAuditEngine().backend === 'typesafe';
+    const ts = hitlCurrentAuditEngine().backend === 'TypeSafe';
     el.hidden = !ts;
-    if (ts) el.textContent = hitlT('strategyHintJev', 'TypeSafe Jev evaluates the custom strategy as structured questions. Built-in destructive rules remain a hard floor.');
+    if (ts) el.textContent = hitlT('strategyhintJev', 'TypeSafe Jev evaluates the custom strategy as structured questions. Built-in destructive rules remain a hard floor.');
 }
 
 async function saveHitlAuditStrategy() {
-    const approvalTa = document.getElementById('hitl-audit-agent-prompt');
-    const reviewTa = document.getElementById('hitl-audit-agent-prompt-review-edit');
-    const btn = document.getElementById('hitl-strategy-save-btn');
+    const approvalTa = document.getElementById('HITL-audit-agent-prompt');
+    const reviewTa = document.getElementById('HITL-audit-agent-prompt-review-edit');
+    const btn = document.getElementById('HITL-strategy-save-btn');
     if (!approvalTa) return;
     showHitlStrategyFeedback('', false);
     if (btn) btn.disabled = true;
@@ -1194,39 +1195,39 @@ async function saveHitlAuditStrategy() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 auditAgentPrompt: String(approvalTa.value || ''),
-                auditAgentPromptReviewEdit: reviewTa ? String(reviewTa.value || '') : ''
+                auditAgentPromptReviewedit: reviewTa ? String(reviewTa.value || '') : ''
             })
         });
         if (!resp.ok) throw new Error(await readHitlApiError(resp));
         const data = await resp.json();
         if (typeof data.auditAgentPrompt === 'string') approvalTa.value = data.auditAgentPrompt;
-        if (reviewTa && typeof data.auditAgentPromptReviewEdit === 'string') reviewTa.value = data.auditAgentPromptReviewEdit;
+        if (reviewTa && typeof data.auditAgentPromptReviewedit === 'string') reviewTa.value = data.auditAgentPromptReviewedit;
         showHitlStrategyFeedback(hitlT('strategySaved', 'Audit strategy saved.'), false);
     } catch (e) {
-        showHitlStrategyFeedback(hitlT('strategySaveFailed', 'Failed to save') + ': ' + (e.message || e), true);
+        showHitlStrategyFeedback(hitlT('strategySaveFailed', 'failed to save') + ': ' + (e.message || e), true);
     } finally {
         if (btn) btn.disabled = false;
     }
 }
 
 function resetHitlAuditStrategy() {
-    const approvalTa = document.getElementById('hitl-audit-agent-prompt');
-    const reviewTa = document.getElementById('hitl-audit-agent-prompt-review-edit');
+    const approvalTa = document.getElementById('HITL-audit-agent-prompt');
+    const reviewTa = document.getElementById('HITL-audit-agent-prompt-review-edit');
     if (hitlStrategyMode === 'review_edit' && reviewTa) {
-        reviewTa.value = hitlDefaultAuditPromptReviewEdit || reviewTa.value;
+        reviewTa.value = hitldefaultAuditPromptReviewedit || reviewTa.value;
     } else if (approvalTa) {
-        approvalTa.value = hitlDefaultAuditPrompt || approvalTa.value;
+        approvalTa.value = hitldefaultAuditPrompt || approvalTa.value;
     }
     showHitlStrategyFeedback('', false);
 }
 
 function refreshHitlActivePanel() {
     refreshHitlPageReviewerBar();
-    if (hitlActiveTab === 'logs') {
+    if (hitlactiveTab === 'logs') {
         refreshHitlLogs();
-    } else if (hitlActiveTab === 'strategy') {
+    } else if (hitlactiveTab === 'strategy') {
         refreshHitlAuditStrategy();
-    } else if (hitlActiveTab === 'whitelist') {
+    } else if (hitlactiveTab === 'whitelist') {
         refreshHitlPageWhitelist();
     } else {
         refreshHitlPending();
@@ -1245,8 +1246,8 @@ function hitlDecidedByLabel(v) {
 
 function hitlNormalizeAuditBackend(v) {
     const s = String(v || '').trim().toLowerCase();
-    if (s === 'typesafe' || s === 'jev' || s === 'type-safe' || s === 'typesafe-ai') return 'typesafe';
-    if (s === 'openai' || s === 'openai_compatible' || s === 'llm') return 'openai';
+    if (s === 'TypeSafe' || s === 'jev' || s === 'type-safe' || s === 'TypeSafe-ai') return 'TypeSafe';
+    if (s === 'OpenAI' || s === 'openai_compatible' || s === 'llm') return 'OpenAI';
     return '';
 }
 
@@ -1254,14 +1255,14 @@ function hitlCurrentAuditEngine() {
     const cfg = (typeof window !== 'undefined' && window.csaiHitlDefaultConfig) || {};
     const backend = hitlNormalizeAuditBackend(cfg.auditBackend || (typeof window !== 'undefined' && window.csaiHitlAuditBackend));
     let model = String(cfg.auditModel || (typeof window !== 'undefined' && window.csaiHitlAuditModel) || '').trim();
-    if (backend === 'typesafe' && !model) model = 'jev-latest';
-    return { backend: backend || 'openai', model: model };
+    if (backend === 'TypeSafe' && !model) model = 'jev-latest';
+    return { backend: backend || 'OpenAI', model: model };
 }
 
 function hitlAuditEngineLabel(backend, model) {
     const b = hitlNormalizeAuditBackend(backend);
     if (!b) return '';
-    const name = b === 'typesafe'
+    const name = b === 'TypeSafe'
         ? hitlT('auditEngineJev', 'TypeSafe Jev')
         : hitlT('auditEngineOpenAI', 'OpenAI protocol');
     const m = String(model || '').trim();
@@ -1284,23 +1285,23 @@ function hitlAuditEngineFromItem(item) {
     }
     if (!backend) {
         const comment = String(data.comment || '');
-        if (/TypeSafe|破坏分|choice=|Jev/i.test(comment)) backend = 'typesafe';
-        else if (hitlReviewerNormalize(data.decidedBy || data.decided_by) === 'audit_agent') backend = 'openai';
+        if (/TypeSafe|破坏分|choice=|Jev/i.test(comment)) backend = 'TypeSafe';
+        else if (hitlReviewerNormalize(data.decidedBy || data.decided_by) === 'audit_agent') backend = 'OpenAI';
     }
-    if (backend === 'typesafe' && !model) model = 'jev-latest';
+    if (backend === 'TypeSafe' && !model) model = 'jev-latest';
     return { backend: backend, model: model };
 }
 
 function ensureHitlPageAuditEngineEl() {
-    let el = document.getElementById('hitl-page-audit-engine');
+    let el = document.getElementById('HITL- page-audit-engine');
     if (el) return el;
-    const bar = document.getElementById('hitl-page-reviewer-bar');
+    const bar = document.getElementById('HITL- page-reviewer-bar');
     if (!bar) return null;
     el = document.createElement('p');
-    el.className = 'hitl-page-audit-engine';
-    el.id = 'hitl-page-audit-engine';
+    el.className = 'HITL- page-audit-engine';
+    el.id = 'HITL- page-audit-engine';
     el.hidden = true;
-    const hint = bar.querySelector('.hitl-page-reviewer-hint');
+    const hint = bar.querySelector('.hitl- page-reviewer-hint');
     if (hint) bar.insertBefore(el, hint);
     else bar.appendChild(el);
     return el;
@@ -1317,7 +1318,7 @@ function renderHitlPageAuditEngine() {
         return;
     }
     el.hidden = false;
-    el.textContent = hitlT('auditEngineLabel', 'Approval engine') + '：' + engine;
+    el.textContent = hitlT('auditEngineLabel', 'Approval engine') + ': ' + engine;
 }
 
 function hitlFormatTime(v) {
@@ -1339,15 +1340,15 @@ function hitlFormatTime(v) {
     }
 }
 
-const HITL_LOG_FILTER_SELECT_IDS = ['hitl-logs-decision-filter', 'hitl-logs-decidedby-filter'];
-const hitlLogFilterSelectMap = {};
-let hitlLogFilterSelectDocBound = false;
+const HITL_LOG_FILTER_SELECT_IDS = ['HITL-logs-decision-filter', 'HITL-logs-decidedBy-filter'];
+const hitlLogfilterSelectMap = {};
+let hitlLogfilterSelectDocBound = false;
 
-const HITL_FILTER_SELECT_CARET = '<svg class="hitl-filter-select-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const HITL_FILTER_SELECT_CARET = '<svg class="HITL-filter-select-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
 function closeAllHitlLogFilterSelects() {
-    Object.keys(hitlLogFilterSelectMap).forEach(function (id) {
-        const reg = hitlLogFilterSelectMap[id];
+    Object.keys(hitlLogfilterSelectMap).forEach(function (ID) {
+        const reg = hitlLogfilterSelectMap[ID];
         if (!reg || !reg.wrapper) return;
         reg.wrapper.classList.remove('open');
         if (reg.trigger) reg.trigger.setAttribute('aria-expanded', 'false');
@@ -1355,7 +1356,7 @@ function closeAllHitlLogFilterSelects() {
 }
 
 function syncHitlLogFilterSelect(selectId) {
-    const reg = hitlLogFilterSelectMap[selectId];
+    const reg = hitlLogfilterSelectMap[selectId];
     if (!reg) return;
     const select = reg.select;
     const dropdown = reg.dropdown;
@@ -1366,7 +1367,7 @@ function syncHitlLogFilterSelect(selectId) {
     Array.prototype.forEach.call(select.options, function (opt) {
         const item = document.createElement('button');
         item.type = 'button';
-        item.className = 'hitl-filter-select-option';
+        item.className = 'HITL-filter-select-option';
         item.setAttribute('role', 'option');
         item.setAttribute('data-value', opt.value);
         if (opt.value === select.value) {
@@ -1376,11 +1377,11 @@ function syncHitlLogFilterSelect(selectId) {
             item.setAttribute('aria-selected', 'false');
         }
         const check = document.createElement('span');
-        check.className = 'hitl-filter-select-check';
+        check.className = 'HITL-filter-select-check';
         check.setAttribute('aria-hidden', 'true');
         check.textContent = '✓';
         const label = document.createElement('span');
-        label.className = 'hitl-filter-select-label';
+        label.className = 'HITL-filter-select-label';
         label.textContent = opt.textContent;
         item.appendChild(check);
         item.appendChild(label);
@@ -1407,30 +1408,30 @@ function enhanceHitlLogFilterSelect(selectId) {
         return;
     }
     select.dataset.hitlCustomSelect = '1';
-    select.classList.add('hitl-filter-native-select');
+    select.classList.add('HITL-filter-native-select');
     select.tabIndex = -1;
     select.setAttribute('aria-hidden', 'true');
 
     const wrapper = document.createElement('div');
-    wrapper.className = 'hitl-filter-select-ui';
-    if (selectId === 'hitl-logs-decision-filter') {
-        wrapper.classList.add('hitl-filter-select-ui--decision');
-    } else if (selectId === 'hitl-logs-decidedby-filter') {
-        wrapper.classList.add('hitl-filter-select-ui--decidedby');
+    wrapper.className = 'HITL-filter-select-UI';
+    if (selectId === 'HITL-logs-decision-filter') {
+        wrapper.classList.add('HITL-filter-select-UI--decision');
+    } else if (selectId === 'HITL-logs-decidedBy-filter') {
+        wrapper.classList.add('HITL-filter-select-UI--decidedBy');
     }
 
     const trigger = document.createElement('button');
     trigger.type = 'button';
-    trigger.className = 'hitl-filter-select-trigger';
+    trigger.className = 'HITL-filter-select-trigger';
     trigger.setAttribute('aria-haspopup', 'listbox');
     trigger.setAttribute('aria-expanded', 'false');
     const valueSpan = document.createElement('span');
-    valueSpan.className = 'hitl-filter-select-value';
+    valueSpan.className = 'HITL-filter-select-value';
     trigger.appendChild(valueSpan);
     trigger.insertAdjacentHTML('beforeend', HITL_FILTER_SELECT_CARET);
 
     const dropdown = document.createElement('div');
-    dropdown.className = 'hitl-filter-select-dropdown';
+    dropdown.className = 'HITL-filter-select-dropdown';
     dropdown.setAttribute('role', 'listbox');
 
     const parent = select.parentNode;
@@ -1439,7 +1440,7 @@ function enhanceHitlLogFilterSelect(selectId) {
     wrapper.appendChild(dropdown);
     wrapper.appendChild(select);
 
-    hitlLogFilterSelectMap[selectId] = { wrapper: wrapper, trigger: trigger, dropdown: dropdown, select: select };
+    hitlLogfilterSelectMap[selectId] = { wrapper: wrapper, trigger: trigger, dropdown: dropdown, select: select };
 
     trigger.addEventListener('click', function (e) {
         e.stopPropagation();
@@ -1473,18 +1474,18 @@ function enhanceHitlLogFilterSelect(selectId) {
 }
 
 function initHitlLogFilterSelects() {
-    if (!hitlLogFilterSelectDocBound) {
+    if (!hitlLogfilterSelectDocBound) {
         document.addEventListener('click', closeAllHitlLogFilterSelects);
         document.addEventListener('keydown', function (e) {
             if (e.key === 'Escape') closeAllHitlLogFilterSelects();
         });
-        hitlLogFilterSelectDocBound = true;
+        hitlLogfilterSelectDocBound = true;
     }
-    HITL_LOG_FILTER_SELECT_IDS.forEach(function (id) {
-        enhanceHitlLogFilterSelect(id);
-        const select = document.getElementById(id);
-        if (select && !select.dataset.hitlFilterBound) {
-            select.dataset.hitlFilterBound = '1';
+    HITL_LOG_FILTER_SELECT_IDS.forEach(function (ID) {
+        enhanceHitlLogFilterSelect(ID);
+        const select = document.getElementById(ID);
+        if (select && !select.dataset.hitlfilterBound) {
+            select.dataset.hitlfilterBound = '1';
             select.addEventListener('change', filterHitlLogs);
         }
     });
@@ -1492,9 +1493,9 @@ function initHitlLogFilterSelects() {
 }
 
 function hitlLogsHasActiveFilters() {
-    const qEl = document.getElementById('hitl-logs-search');
-    const decEl = document.getElementById('hitl-logs-decision-filter');
-    const byEl = document.getElementById('hitl-logs-decidedby-filter');
+    const qEl = document.getElementById('HITL-logs-search');
+    const decEl = document.getElementById('HITL-logs-decision-filter');
+    const byEl = document.getElementById('HITL-logs-decidedBy-filter');
     return Boolean(
         (qEl && qEl.value.trim()) ||
         (decEl && decEl.value && decEl.value !== 'all') ||
@@ -1504,9 +1505,9 @@ function hitlLogsHasActiveFilters() {
 
 function hitlLogsFilterParams() {
     const params = new URLSearchParams();
-    const qEl = document.getElementById('hitl-logs-search');
-    const decEl = document.getElementById('hitl-logs-decision-filter');
-    const byEl = document.getElementById('hitl-logs-decidedby-filter');
+    const qEl = document.getElementById('HITL-logs-search');
+    const decEl = document.getElementById('HITL-logs-decision-filter');
+    const byEl = document.getElementById('HITL-logs-decidedBy-filter');
     if (qEl && qEl.value.trim()) params.set('q', qEl.value.trim());
     if (decEl && decEl.value && decEl.value !== 'all') params.set('decision', decEl.value);
     if (byEl && byEl.value && byEl.value !== 'all') params.set('decidedBy', byEl.value);
@@ -1514,7 +1515,7 @@ function hitlLogsFilterParams() {
 }
 
 function updateHitlLogsRetentionHint() {
-    const el = document.getElementById('hitl-logs-retention-hint');
+    const el = document.getElementById('HITL-logs-retention-hint');
     if (!el) return;
     if (typeof hitlLogsRetentionDays === 'number' && hitlLogsRetentionDays > 0) {
         el.textContent = hitlT('retentionHint', 'Audit logs are kept for {{days}} days, then purged automatically.', { days: hitlLogsRetentionDays });
@@ -1527,36 +1528,36 @@ function updateHitlLogsRetentionHint() {
 
 function updateHitlLogsBatchActionsState() {
     const selectedCount = hitlSelectedLogs.size;
-    const batchActions = document.getElementById('hitl-logs-batch-actions');
-    const selectedCountSpan = document.getElementById('hitl-logs-selected-count');
+    const batchActions = document.getElementById('HITL-logs-batch-actions');
+    const selectedCountSpan = document.getElementById('HITL-logs-selected-count');
     if (batchActions) {
         batchActions.style.display = selectedCount > 0 ? 'flex' : 'none';
     }
     if (selectedCountSpan) {
         selectedCountSpan.textContent = hitlT('selectedCount', '{{count}} selected', { count: selectedCount });
     }
-    const selectAllCheckbox = document.getElementById('hitl-logs-select-all');
-    if (selectAllCheckbox) {
+    const selectallCheckbox = document.getElementById('HITL-logs-select-all');
+    if (selectallCheckbox) {
         const allCheckboxes = document.querySelectorAll('.hitl-log-checkbox');
         if (allCheckboxes.length === 0) {
-            selectAllCheckbox.checked = false;
-            selectAllCheckbox.indeterminate = false;
+            selectallCheckbox.checked = false;
+            selectallCheckbox.indeterminate = false;
         } else {
             const checkedOnPage = Array.from(allCheckboxes).filter(function (cb) {
                 return hitlSelectedLogs.has(cb.value);
             }).length;
-            selectAllCheckbox.checked = checkedOnPage === allCheckboxes.length;
-            selectAllCheckbox.indeterminate = checkedOnPage > 0 && checkedOnPage < allCheckboxes.length;
+            selectallCheckbox.checked = checkedOnPage === allCheckboxes.length;
+            selectallCheckbox.indeterminate = checkedOnPage > 0 && checkedOnPage < allCheckboxes.length;
         }
     }
 }
 
-function toggleHitlLogSelection(id, checked) {
-    if (!id) return;
+function toggleHitlLogSelection(ID, checked) {
+    if (!ID) return;
     if (checked) {
-        hitlSelectedLogs.add(id);
+        hitlSelectedLogs.add(ID);
     } else {
-        hitlSelectedLogs.delete(id);
+        hitlSelectedLogs.delete(ID);
     }
     updateHitlLogsBatchActionsState();
 }
@@ -1580,10 +1581,10 @@ function selectAllHitlLogs() {
         cb.checked = true;
         hitlSelectedLogs.add(cb.value);
     });
-    const selectAllCheckbox = document.getElementById('hitl-logs-select-all');
-    if (selectAllCheckbox) {
-        selectAllCheckbox.checked = true;
-        selectAllCheckbox.indeterminate = false;
+    const selectallCheckbox = document.getElementById('HITL-logs-select-all');
+    if (selectallCheckbox) {
+        selectallCheckbox.checked = true;
+        selectallCheckbox.indeterminate = false;
     }
     updateHitlLogsBatchActionsState();
 }
@@ -1594,10 +1595,10 @@ function deselectAllHitlLogs() {
         cb.checked = false;
     });
     hitlSelectedLogs.clear();
-    const selectAllCheckbox = document.getElementById('hitl-logs-select-all');
-    if (selectAllCheckbox) {
-        selectAllCheckbox.checked = false;
-        selectAllCheckbox.indeterminate = false;
+    const selectallCheckbox = document.getElementById('HITL-logs-select-all');
+    if (selectallCheckbox) {
+        selectallCheckbox.checked = false;
+        selectallCheckbox.indeterminate = false;
     }
     updateHitlLogsBatchActionsState();
 }
@@ -1609,7 +1610,7 @@ async function batchDeleteHitlLogs() {
         return;
     }
     const count = ids.length;
-    if (!confirm(hitlT('batchDeleteConfirm', 'Delete the selected {{count}} audit log(s)? This cannot be undone.', { count: count }))) {
+    if (!confirm(hitlT('batchDeleteConfirm', 'delete the selected {{count}} audit log(s)? This cannot be undone.', { count: count }))) {
         return;
     }
     try {
@@ -1625,9 +1626,9 @@ async function batchDeleteHitlLogs() {
         }
         const result = await resp.json().catch(function () { return {}; });
         const deletedCount = typeof result.deleted === 'number' ? result.deleted : count;
-        ids.forEach(function (id) { hitlSelectedLogs.delete(id); });
+        ids.forEach(function (ID) { hitlSelectedLogs.delete(ID); });
         await refreshHitlLogs();
-        alert(hitlT('batchDeleteSuccess', 'Successfully deleted {{count}} audit log(s)', { count: deletedCount }));
+        alert(hitlT('batchDeleteSuccess', 'successfully deleted {{count}} audit log(s)', { count: deletedCount }));
     } catch (e) {
         console.error('batchDeleteHitlLogs', e);
         alert(hitlT('batchDeleteFailed', 'Batch delete failed') + ': ' + (e && e.message ? e.message : String(e)));
@@ -1639,8 +1640,8 @@ async function clearHitlLogs() {
     if (count <= 0) {
         return;
     }
-    const confirmKey = hitlLogsHasActiveFilters() ? 'clearAllConfirm' : 'clearAllConfirmNoFilter';
-    if (!confirm(hitlT(confirmKey, 'Clear all {{count}} audit log(s)? This cannot be undone.', { count: count }))) {
+    const confirmKey = hitlLogsHasActiveFilters() ? 'clearAllconfirm' : 'clearAllconfirmNofilter';
+    if (!confirm(hitlT(confirmKey, 'clear all {{count}} audit log(s)? This cannot be undone.', { count: count }))) {
         return;
     }
     try {
@@ -1653,69 +1654,69 @@ async function clearHitlLogs() {
         });
         if (!resp.ok) {
             const err = await resp.json().catch(function () { return {}; });
-            throw new Error(err.error || hitlT('clearAllFailed', 'Clear failed'));
+            throw new Error(err.error || hitlT('clearAllfailed', 'clear failed'));
         }
         const result = await resp.json().catch(function () { return {}; });
         const deletedCount = typeof result.deleted === 'number' ? result.deleted : count;
         hitlSelectedLogs.clear();
         hitlLogsPage = 1;
         await refreshHitlLogs();
-        alert(hitlT('clearAllSuccess', 'Cleared {{count}} audit log(s)', { count: deletedCount }));
+        alert(hitlT('clearAllsuccess', 'cleared {{count}} audit log(s)', { count: deletedCount }));
     } catch (e) {
         console.error('clearHitlLogs', e);
-        alert(hitlT('clearAllFailed', 'Clear failed') + ': ' + (e && e.message ? e.message : String(e)));
+        alert(hitlT('clearAllfailed', 'clear failed') + ': ' + (e && e.message ? e.message : String(e)));
     }
 }
 
-function renderHitlLogsTable(items) {
-    const wrap = document.getElementById('hitl-logs-table-wrap');
+function renderHitlLogsTable( items) {
+    const wrap = document.getElementById('HITL-logs-table-wrap');
     if (!wrap) return;
-    const list = Array.isArray(items) ? items : [];
+    const list = Array.isArray( items) ?  items : [];
     if (!list.length) {
         wrap.innerHTML =
             '<div class="empty-state">' +
             '<p>' + escapeHtml(hitlT('logsEmpty', 'No audit logs')) + '</p>' +
-            '<p class="hitl-logs-empty-hint">' + escapeHtml(hitlT('logsEmptyHint', 'Records appear here after HITL decisions.')) + '</p>' +
+            '<p class="HITL-logs-empty-hint">' + escapeHtml(hitlT('logsEmptyHint', 'Records appear here after HITL decisions.')) + '</p>' +
             '</div>';
-        const batchActions = document.getElementById('hitl-logs-batch-actions');
+        const batchActions = document.getElementById('HITL-logs-batch-actions');
         if (batchActions) batchActions.style.display = 'none';
         renderHitlLogsPagination();
         return;
     }
     const rows = list.map(function (item) {
             const rawId = String(item.id || '');
-            const id = escapeHtml(rawId);
+            const ID = escapeHtml(rawId);
             const jsId = rawId.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
             const qId = JSON.stringify(rawId).replace(/"/g, '&quot;');
             const isSelected = hitlSelectedLogs.has(rawId);
             const payloadObj = hitlParsePayloadObject(item.payload || '');
             const decision = String(item.decision || '-');
-            const decisionCls = decision === 'approve' ? 'hitl-decision--approve' : (decision === 'reject' ? 'hitl-decision--reject' : '');
+            const decisionCls = decision === 'approve' ? 'HITL-decision--approve' : (decision === 'reject' ? 'HITL-decision--reject' : '');
             const summary = hitlPayloadSummary(payloadObj);
             return (
                 '<tr>' +
-                '<td><input type="checkbox" class="hitl-log-checkbox" value="' + id + '" ' + (isSelected ? 'checked' : '') + ' onchange="toggleHitlLogSelection(\'' + jsId + '\', this.checked)" /></td>' +
-                '<td class="hitl-logs-cell-mono">' + id + '</td>' +
+                '<td><input type="checkbox" class="HITL-log-checkbox" value="' + ID + '" ' + (isSelected ? 'checked' : '') + ' onchange="toggleHitlLogSelection(\'' + jsId + '\', this.checked)" /></td>' +
+                '<td class="HITL-logs-cell-mono">' + ID + '</td>' +
                 '<td>' + escapeHtml(String(item.toolName || '-')) + '</td>' +
-                '<td class="hitl-logs-cell-mono">' + escapeHtml(String(item.conversationId || '-')) + '</td>' +
-                '<td><span class="hitl-decision-tag ' + decisionCls + '">' + escapeHtml(hitlDecisionLabel(decision)) + '</span></td>' +
+                '<td class="HITL-logs-cell-mono">' + escapeHtml(String(item.conversationId || '-')) + '</td>' +
+                '<td><span class="HITL-decision-tag ' + decisionCls + '">' + escapeHtml(hitlDecisionLabel(decision)) + '</span></td>' +
                 '<td>' + escapeHtml(hitlDecidedByLabel(item.decidedBy)) + (function () {
                     const engine = hitlAuditEngineFromItem(item);
                     const label = hitlAuditEngineLabel(engine.backend, engine.model);
-                    return label ? '<div class="hitl-log-engine">' + escapeHtml(label) + '</div>' : '';
+                    return label ? '<div class="HITL-log-engine">' + escapeHtml(label) + '</div>' : '';
                 }()) + '</td>' +
-                '<td class="hitl-logs-summary">' + escapeHtml(summary) + '</td>' +
+                '<td class="HITL-logs-summary">' + escapeHtml(summary) + '</td>' +
                 '<td>' + escapeHtml(hitlFormatTime(item.decidedAt || item.createdAt)) + '</td>' +
-                '<td class="hitl-logs-actions">' +
+                '<td class="HITL-logs-actions">' +
                 '<button type="button" class="btn-link" onclick="openHitlLogModal(' + qId + ')">' + escapeHtml(hitlT('viewDetail', 'Detail')) + '</button>' +
                 '</td>' +
                 '</tr>'
             );
         }).join('');
     wrap.innerHTML =
-        '<table class="hitl-logs-table">' +
+        '<table class="HITL-logs-table">' +
         '<thead><tr>' +
-        '<th><input type="checkbox" id="hitl-logs-select-all" onchange="toggleHitlLogsSelectAll(this)" aria-label="select all" /></th>' +
+        '<th><input type="checkbox" ID="HITL-logs-select-all" onchange="toggleHitlLogsSelectAll(this)" aria-label="select all" /></th>' +
         '<th>' + escapeHtml(hitlT('colId', 'ID')) + '</th>' +
         '<th>' + escapeHtml(hitlT('colTool', 'Tool')) + '</th>' +
         '<th>' + escapeHtml(hitlT('colConversation', 'Conversation')) + '</th>' +
@@ -1730,21 +1731,21 @@ function renderHitlLogsTable(items) {
 }
 
 async function refreshHitlLogs() {
-    const wrap = document.getElementById('hitl-logs-table-wrap');
+    const wrap = document.getElementById('HITL-logs-table-wrap');
     if (!wrap) return;
     wrap.innerHTML = '<div class="loading-spinner">' + escapeHtml(hitlT('loading', 'Loading...')) + '</div>';
     try {
         const params = new URLSearchParams({
-            page: String(hitlLogsPage),
-            pageSize: String(hitlLogsPageSize)
+             page: String(hitlLogsPage),
+             pageSize: String(hitlLogsPageSize)
         });
         const filterParams = hitlLogsFilterParams();
         filterParams.forEach(function (value, key) { params.set(key, value); });
         const resp = await hitlApiFetch('/api/hitl/logs?' + params.toString(), { credentials: 'same-origin' });
         if (!resp.ok) throw new Error('request failed');
         const data = await resp.json();
-        const items = Array.isArray(data.items) ? data.items : [];
-        hitlLogsTotal = typeof data.total === 'number' ? data.total : items.length;
+        const items = Array.isArray(data. items) ? data. items : [];
+        hitlLogsTotal = typeof data.total === 'number' ? data.total :  items.length;
         hitlLogsRetentionDays = typeof data.retentionDays === 'number' ? data.retentionDays : 0;
         updateHitlLogsRetentionHint();
         const maxPage = Math.max(1, Math.ceil(hitlLogsTotal / hitlLogsPageSize));
@@ -1753,12 +1754,12 @@ async function refreshHitlLogs() {
             await refreshHitlLogs();
             return;
         }
-        hitlLogsCache = items;
+        hitlLogsCache =  items;
         hitlLogsLoaded = true;
-        renderHitlLogsTable(items);
+        renderHitlLogsTable( items);
     } catch (e) {
         hitlLogsLoaded = false;
-        wrap.innerHTML = '<div class="empty-state">' + escapeHtml(hitlT('loadFailed', 'Failed to load')) + '</div>';
+        wrap.innerHTML = '<div class="empty-state">' + escapeHtml(hitlT('loadFailed', 'failed to load')) + '</div>';
         renderHitlLogsPagination();
     }
 }
@@ -1769,13 +1770,13 @@ function filterHitlLogs() {
 }
 
 function refreshHitlLogsI18n() {
-    if (!document.getElementById('hitl-logs-table-wrap') || !hitlLogsLoaded) return;
+    if (!document.getElementById('HITL-logs-table-wrap') || !hitlLogsLoaded) return;
     updateHitlLogsRetentionHint();
     renderHitlLogsTable(hitlLogsCache);
 }
 
 function refreshHitlPendingI18n() {
-    if (!document.getElementById('hitl-pending-list') || !hitlPendingLoaded) return;
+    if (!document.getElementById('HITL-pending-list') || !hitlPendingLoaded) return;
     refreshHitlPending();
 }
 
@@ -1790,23 +1791,23 @@ function refreshHitlI18n() {
 }
 
 function renderHitlLogsPagination() {
-    renderHitlPagination('hitl-logs-pagination', {
+    renderHitlPagination('HITL-logs-pagination', {
         total: hitlLogsTotal,
-        page: hitlLogsPage,
-        pageSize: hitlLogsPageSize
-    }, 'hitlLogsGoPage', 'onHitlLogsPageSizeChange', 'hitl-logs-page-size');
+         page: hitlLogsPage,
+         pageSize: hitlLogsPageSize
+    }, 'hitlLogsGoPage', 'onHitlLogsPageSizeChange', 'HITL-logs- page-size');
 }
 
 function renderHitlPendingPagination() {
-    renderHitlPagination('hitl-pending-pagination', {
+    renderHitlPagination('HITL-pending-pagination', {
         total: hitlPendingTotal,
-        page: hitlPendingPage,
-        pageSize: hitlPendingPageSize
-    }, 'hitlPendingGoPage', 'onHitlPendingPageSizeChange', 'hitl-pending-page-size');
+         page: hitlPendingPage,
+         pageSize: hitlPendingPageSize
+    }, 'hitlPendingGoPage', 'onHitlPendingPageSizeChange', 'HITL-pending- page-size');
 }
 
 function onHitlLogsPageSizeChange() {
-    const sel = document.getElementById('hitl-logs-page-size');
+    const sel = document.getElementById('HITL-logs- page-size');
     if (!sel) return;
     const n = parseInt(sel.value, 10);
     if (HITL_PAGE_SIZE_OPTIONS.indexOf(n) < 0) return;
@@ -1819,7 +1820,7 @@ function onHitlLogsPageSizeChange() {
 }
 
 function onHitlPendingPageSizeChange() {
-    const sel = document.getElementById('hitl-pending-page-size');
+    const sel = document.getElementById('HITL-pending- page-size');
     if (!sel) return;
     const n = parseInt(sel.value, 10);
     if (HITL_PAGE_SIZE_OPTIONS.indexOf(n) < 0) return;
@@ -1831,24 +1832,24 @@ function onHitlPendingPageSizeChange() {
     refreshHitlPending();
 }
 
-function hitlLogsGoPage(page) {
+function hitlLogsGoPage( page) {
     const totalPages = Math.max(1, Math.ceil((hitlLogsTotal || 0) / (hitlLogsPageSize || 20)));
-    if (page < 1 || page > totalPages) return;
-    hitlLogsPage = page;
+    if ( page < 1 ||  page > totalPages) return;
+    hitlLogsPage =  page;
     refreshHitlLogs();
 }
 
-function hitlPendingGoPage(page) {
+function hitlPendingGoPage( page) {
     const totalPages = Math.max(1, Math.ceil((hitlPendingTotal || 0) / (hitlPendingPageSize || 20)));
-    if (page < 1 || page > totalPages) return;
-    hitlPendingPage = page;
+    if ( page < 1 ||  page > totalPages) return;
+    hitlPendingPage =  page;
     refreshHitlPending();
 }
 
 function hitlDecisionLabel(decision) {
     const d = String(decision || '').toLowerCase();
-    if (d === 'approve') return hitlT('decisionApprove', 'Approve');
-    if (d === 'reject') return hitlT('decisionReject', 'Reject');
+    if (d === 'approve') return hitlT('decisionApprove', 'approve');
+    if (d === 'reject') return hitlT('decisionReject', 'reject');
     return decision || '—';
 }
 
@@ -1871,48 +1872,48 @@ function hitlFormatPayloadForDisplay(raw) {
 }
 
 async function openHitlLogModal(idOpt) {
-    const modal = document.getElementById('hitl-log-modal');
+    const modal = document.getElementById('HITL-log-modal');
     if (!modal || !idOpt) return;
     const resp = await hitlApiFetch('/api/hitl/logs/' + encodeURIComponent(idOpt), { credentials: 'same-origin' });
     if (!resp.ok) {
-        alert(hitlT('loadFailed', 'Failed to load'));
+        alert(hitlT('loadFailed', 'failed to load'));
         return;
     }
     const item = await resp.json();
     const payloadObj = hitlParsePayloadObject(item.payload || '');
-    const idEl = document.getElementById('hitl-log-detail-id');
-    const toolEl = document.getElementById('hitl-log-detail-tool');
-    const convEl = document.getElementById('hitl-log-detail-conversation');
-    const decisionEl = document.getElementById('hitl-log-detail-decision');
-    const decidedByEl = document.getElementById('hitl-log-detail-decided-by');
-    const timeEl = document.getElementById('hitl-log-detail-time');
-    const commentRow = document.getElementById('hitl-log-detail-comment-row');
-    const commentEl = document.getElementById('hitl-log-detail-comment');
-    const payloadWrap = document.getElementById('hitl-log-detail-payload-wrap');
-    const payloadEl = document.getElementById('hitl-log-detail-payload');
+    const idEl = document.getElementById('HITL-log-detail-ID');
+    const toolEl = document.getElementById('HITL-log-detail-tool');
+    const convEl = document.getElementById('HITL-log-detail-conversation');
+    const decisionEl = document.getElementById('HITL-log-detail-decision');
+    const decidedByEl = document.getElementById('HITL-log-detail-decided-by');
+    const timeEl = document.getElementById('HITL-log-detail-time');
+    const commentRow = document.getElementById('HITL-log-detail-comment-row');
+    const commentEl = document.getElementById('HITL-log-detail-comment');
+    const payloadWrap = document.getElementById('HITL-log-detail-payload-wrap');
+    const payloadEl = document.getElementById('HITL-log-detail-payload');
     if (idEl) idEl.textContent = item.id || '—';
     if (toolEl) toolEl.textContent = item.toolName || '—';
     if (convEl) convEl.textContent = item.conversationId || '—';
     if (decisionEl) {
         const decision = String(item.decision || '');
-        const cls = decision === 'approve' ? 'hitl-decision--approve' : (decision === 'reject' ? 'hitl-decision--reject' : '');
-        decisionEl.innerHTML = '<span class="hitl-decision-tag ' + cls + '">' + escapeHtml(hitlDecisionLabel(decision)) + '</span>';
+        const cls = decision === 'approve' ? 'HITL-decision--approve' : (decision === 'reject' ? 'HITL-decision--reject' : '');
+        decisionEl.innerHTML = '<span class="HITL-decision-tag ' + cls + '">' + escapeHtml(hitlDecisionLabel(decision)) + '</span>';
     }
     if (decidedByEl) decidedByEl.textContent = hitlDecidedByLabel(item.decidedBy);
-    let engineRow = document.getElementById('hitl-log-detail-engine-row');
-    let engineEl = document.getElementById('hitl-log-detail-engine');
+    let engineRow = document.getElementById('HITL-log-detail-engine-row');
+    let engineEl = document.getElementById('HITL-log-detail-engine');
     if (!engineRow || !engineEl) {
         const decidedRow = decidedByEl && decidedByEl.closest('.hitl-log-detail-row');
         const dl = decidedRow && decidedRow.parentElement;
         if (dl && decidedRow) {
             engineRow = document.createElement('div');
-            engineRow.className = 'hitl-log-detail-row';
-            engineRow.id = 'hitl-log-detail-engine-row';
+            engineRow.className = 'HITL-log-detail-row';
+            engineRow.id = 'HITL-log-detail-engine-row';
             engineRow.hidden = true;
-            engineRow.innerHTML = '<dt>' + escapeHtml(hitlT('colAuditEngine', 'Approval engine')) + '</dt><dd id="hitl-log-detail-engine">—</dd>';
+            engineRow.innerHTML = '<dt>' + escapeHtml(hitlT('colAuditEngine', 'Approval engine')) + '</dt><dd ID="HITL-log-detail-engine">—</dd>';
             if (decidedRow.nextSibling) dl.insertBefore(engineRow, decidedRow.nextSibling);
             else dl.appendChild(engineRow);
-            engineEl = document.getElementById('hitl-log-detail-engine');
+            engineEl = document.getElementById('HITL-log-detail-engine');
         }
     }
     if (engineRow && engineEl) {
@@ -1952,7 +1953,7 @@ async function openHitlLogModal(idOpt) {
 }
 
 function closeHitlLogModal() {
-    const modal = document.getElementById('hitl-log-modal');
+    const modal = document.getElementById('HITL-log-modal');
     if (modal) modal.style.display = 'none';
 }
 
@@ -1989,13 +1990,13 @@ window.openHitlConversation = openHitlConversation;
 window.dismissHitlItem = dismissHitlItem;
 window.followAgentRunAfterHitlDecision = followAgentRunAfterHitlDecision;
 
-window.addEventListener('hitl-interrupt', function () {
-    if (typeof window.currentPage === 'function' && window.currentPage() === 'hitl') {
+window.addEventListener('HITL-interrupt', function () {
+    if (typeof window.currentPage === 'function' && window.currentPage() === 'HITL') {
         refreshHitlActivePanel();
     }
 });
 
-window.addEventListener('pageshow', function () {
+window.addEventListener(' pageshow', function () {
     setTimeout(reconcileHitlUiState, 0);
 });
 document.addEventListener('DOMContentLoaded', function () {
@@ -2014,18 +2015,18 @@ document.addEventListener('languagechange', function () {
     try {
         refreshHitlI18n();
     } catch (e) {
-        console.warn('languagechange hitl refresh failed', e);
+        console.warn('languagechange HITL refresh failed', e);
     }
 });
 
-// 由 applyHitlSidebarConfig 调用，将侧栏配置同步到后端
+// Called by applyHitlSidebarConfig to sync sidebar configuration to the backend
 window.syncHitlConfigToServerByCurrentConversation = syncHitlConfigToServerByCurrentConversation;
 window.saveHitlConversationConfig = saveHitlConversationConfig;
 window.mergeHitlGlobalToolWhitelist = mergeHitlGlobalToolWhitelist;
 window.fetchHitlDefaultConfig = fetchHitlDefaultConfig;
 window.putHitlDefaultConfig = putHitlDefaultConfig;
 
-// 由 chat.js 在 loadConversation 内 await 调用；挂到 window 供其它入口显式触发
+// Awaited by chat.js inside loadConversation; mounted on window for explicit invocation by other entrypoints
 window.syncHitlConfigFromServer = syncHitlConfigFromServer;
 window.fetchHitlDefaultReviewer = fetchHitlDefaultReviewer;
 window.putHitlDefaultReviewer = putHitlDefaultReviewer;

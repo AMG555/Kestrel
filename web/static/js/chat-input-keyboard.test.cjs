@@ -1,4 +1,4 @@
-﻿const fs = require('node:fs');
+const fs = require('node:fs');
 const vm = require('node:vm');
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -66,7 +66,7 @@ test('聊天输入框按 Shift+Enter 只换行且不发送', () => {
     assert.equal(context.sendCount, 0);
 });
 
-test('输入法确认候选词时按 Enter 不会发送', () => {
+test('输入法Confirm候选词时按 Enter 不会发送', () => {
     const context = createKeydownHarness();
 
     context.handleChatInputKeydown({

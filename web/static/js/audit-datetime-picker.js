@@ -19,7 +19,7 @@
         if (typeof auditLocale === 'function') return auditLocale();
         if (typeof window.uiLocale === 'function') return window.uiLocale();
         if (typeof window.__locale === 'string' && window.__locale.startsWith('zh')) return 'zh-CN';
-        if (typeof window.__locale === 'string' && window.__locale.startsWith('ru')) return 'ru-RU';
+        if (typeof window.__locale === 'string' && window.__locale.startsWith('RU')) return 'RU-RU';
         return 'en-US';
     }
 
@@ -89,8 +89,8 @@
         if (loc.startsWith('zh')) {
             return ['\u65e5', '\u4e00', '\u4e8c', '\u4e09', '\u56db', '\u4e94', '\u516d'];
         }
-        if (loc.startsWith('ru')) {
-            return ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+        if (loc.startsWith('RU')) {
+            return ['\u0412\u0441', '\u041f\u043d', '\u0412\u0442', '\u0421\u0440', '\u0427\u0442', '\u041f\u0442', '\u0421\u0431'];
         }
         return ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
     }

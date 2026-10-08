@@ -1,4 +1,4 @@
-﻿name: "zoomeye_search"
+name: "zoomeye_search"
 command: "python3"
 args:
   - "-c"
@@ -252,19 +252,19 @@ description: |
 
   **Syntax keywords:**
 
-  **Geolocation:** `country="CN"`、`subdivisions="beijing"`、`city="changsha"`
+  **Geolocation:** `country="CN"`, `subdivisions="beijing"`, `city="changsha"`
 
-  **IP/Domain:** `ip="8.8.8.8"`、`cidr="52.2.254.36/24"`、`domain="baidu.com"`、`hostname="google.com"`、`port=80`、`asn=42893`、`org="Stanford University"`、`isp="China Mobile"`
+  **IP/Domain:** `ip="8.8.8.8"`, `cidr="52.2.254.36/24"`, `domain="baidu.com"`, `hostname="google.com"`, `port=80`, `asn=42893`, `org="Stanford University"`, `isp="China Mobile"`
 
-  **Fingerprinting:** `app="Cisco ASA SSL VPN"`、`service="ssh"`、`device="router"`、`os="RouterOS"`、`title="Cisco"`、`product="Cisco"`、`protocol="TCP"`、`industry="government"`、`is_honeypot="True"`
+  **Fingerprinting:** `app="Cisco ASA SSL VPN"`, `service="ssh"`, `device="router"`, `os="RouterOS"`, `title="Cisco"`, `product="Cisco"`, `protocol="TCP"`, `industry="government"`, `is_honeypot="True"`
 
-  **Certificate search:** `ssl="google"`、`ssl.cert.fingerprint="..."`、`ssl.jarm="..."`、`ssl.ja3s=...`、`ssl.version="TLSv1.3"`、`ssl.cert.subject.cn="example.com"`
+  **Certificate search:** `ssl="google"`, `ssl.cert.fingerprint="..."`, `ssl.jarm="..."`, `ssl.ja3s=...`, `ssl.version="TLSv1.3"`, `ssl.cert.subject.cn="example.com"`
 
-  **HTTP related:** `banner="FTP"`、`http.header="http"`、`http.header_hash="..."`、`http.header.server="Nginx"`、`http.header.status_code="200"`、`http.body="document"`、`http.body_hash="..."`
+  **HTTP related:** `banner="FTP"`, `http.header="http"`, `http.header_hash="..."`, `http.header.server="Nginx"`, `http.header.status_code="200"`, `http.body="document"`, `http.body_hash="..."`
 
-  **Time-based search:** `after="2020-01-01"`、`before="2020-01-01"`(must be combined with other conditions)
+  **Time-based search:** `after="2020-01-01"`, `before="2020-01-01"` (must be combined with other conditions)
 
-  **Other:** `dig="baidu.com 220.181.38.148"`、`iconhash="f3418a443e7d841097c714d69ec4bcb8"`、`filehash="0b5ce08db7fb8fffe4e14d05588d49d9"`、`is_ipv4=true`、`is_ipv6=true`、`is_domain=true`
+  **Other:** `dig="baidu.com 220.181.38.148"`, `iconhash="f3418a443e7d841097c714d69ec4bcb8"`, `filehash="0b5ce08db7fb8fffe4e14d05588d49d9"`, `is_ipv4=true`, `is_ipv6=true`, `is_domain=true`
 
   **Query examples:**
   - `port=80 && service="http"` - search for network devices running HTTP on port 80

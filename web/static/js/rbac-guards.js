@@ -1,12 +1,12 @@
-﻿/**
- * 全局写操作权限守卫：为各页面 onclick 绑定的 window/C2 方法统一包一层 requirePermission。
- * 在全部业务脚本加载完成后执行（见 index.html 引用顺序）。
+/**
+ * Global write-operation permission guard: wraps all window/C2 methods bound via page onclick
+ * with a requirePermission check. Executed after all business scripts have loaded (see index.html load order).
  */
 (function () {
     'use strict';
 
     const GLOBAL_WRITE_HANDLER_PERMISSIONS = {
-        // 对话
+        // Chat
         sendMessage: 'chat:write',
         startNewConversation: 'chat:write',
         deleteConversation: 'chat:delete',
@@ -17,7 +17,7 @@
         renameConversation: 'chat:write',
         pinConversation: 'chat:write',
 
-        // 人机协同
+        // Human-in-the-loop
         applyHitlSidebarConfig: 'hitl:write',
         saveHitlPageWhitelist: 'hitl:write',
         saveHitlAuditStrategy: 'hitl:write',
@@ -30,7 +30,7 @@
         batchDeleteHitlLogs: 'hitl:write',
         clearHitlLogs: 'hitl:write',
 
-        // 项目
+        //  target
         showNewProjectModal: 'project:write',
         showNewProjectModalFromChat: 'project:write',
         showNewProjectModalFromChatSidebar: 'project:write',
@@ -57,7 +57,7 @@
         createVulnerabilityFromCurrentFact: 'vulnerability:write',
         unbindConversationFromProject: 'project:write',
 
-        // 漏洞
+        // vulnerability
         showAddVulnerabilityModal: 'vulnerability:write',
         saveVulnerability: 'vulnerability:write',
         deleteVulnerability: 'vulnerability:delete',
@@ -66,7 +66,7 @@
         changeVulnerabilityStatus: 'vulnerability:write',
         bindVulnerabilityProject: 'vulnerability:write',
 
-        // 角色 / Skills / Agents
+        // Role / Skills / Agents
         showAddRoleModal: 'roles:write',
         saveRole: 'roles:write',
         deleteRole: 'roles:delete',
@@ -77,7 +77,7 @@
         saveMarkdownAgent: 'agents:write',
         deleteMarkdownAgent: 'agents:delete',
 
-        // 知识库
+        // Knowledge base
         buildKnowledgeIndex: 'knowledge:write',
         rebuildKnowledgeIndexFull: 'knowledge:write',
         showAddKnowledgeItemModal: 'knowledge:write',
@@ -86,17 +86,17 @@
         deleteKnowledgeItem: 'knowledge:delete',
         deleteRetrievalLog: 'knowledge:delete',
 
-        // 设置 / MCP
+        // Settings / MCP
         saveToolGuardConfig: 'config:write',
         addToolGuardRule: 'config:write',
         resetToolGuardConfig: 'config:write',
         changeToolGuardEnabled: 'config:write',
         applySettings: 'config:write',
         saveToolsConfig: 'config:write',
-        saveExternalMCP: 'mcp:write',
-        showAddExternalMCPModal: 'mcp:write',
-        deleteExternalMCP: 'mcp:write',
-        toggleExternalMCP: 'mcp:write',
+        saveExternalMCP: 'MCP:write',
+        showAddExternalMCPModal: 'MCP:write',
+        deleteExternalMCP: 'MCP:write',
+        toggleExternalMCP: 'MCP:write',
         changePassword: 'auth:self',
         testOpenAIConnection: 'config:write',
         testVisionConnection: 'config:write',
@@ -104,11 +104,11 @@
         submitMcpToolAbortModal: 'monitor:write',
         cancelMCPToolExecution: 'monitor:write',
 
-        // FOFA / 信息收集
-        submitFofaSearch: 'fofa:execute',
-        scanFofaRow: 'fofa:execute',
-        batchScanSelectedFofaRows: 'fofa:execute',
-        exportFofaResults: 'fofa:execute',
+        // FOFA /  info collection
+        submitFofaSearch: 'FOFA:execute',
+        scanFofaRow: 'FOFA:execute',
+        batchScanSelectedFofaRows: 'FOFA:execute',
+        exportFofaResults: 'FOFA:execute',
         importSelectedFofaAssets: 'asset:write',
         importFofaRowAsset: 'asset:write',
         openAssetImport: 'asset:write',
@@ -116,7 +116,7 @@
         saveAsset: 'asset:write',
         deleteAsset: 'asset:delete',
 
-        // 任务队列
+        // Task queue
         showBatchImportModal: 'tasks:write',
         deleteBatchQueue: 'tasks:delete',
         deleteBatchQueueFromList: 'tasks:delete',
@@ -140,7 +140,7 @@
         cancelActiveTask: 'tasks:write',
         cancelProgressTask: 'tasks:write',
 
-        // 工作流
+        // Workflows
         saveWorkflowDraft: 'workflow:write',
         applyWorkflowMetaModal: 'workflow:write',
         deleteCurrentWorkflow: 'workflow:delete',
@@ -151,7 +151,7 @@
         toggleWorkflowConnectMode: 'workflow:write',
         addWorkflowCustomField: 'workflow:write',
 
-        // 文件管理
+        // Files
         saveChatFilesEdit: 'files:write',
         deleteChatFile: 'files:delete',
         deleteChatFileIdx: 'files:delete',
@@ -164,56 +164,56 @@
         chatFilesUploadToFolderClick: 'files:write',
         chatFilesDeleteFolderFromBtn: 'files:delete',
 
-        // 监控
+        // Monitor
         deleteExecution: 'monitor:delete',
         batchDeleteExecutions: 'monitor:delete',
 
-        // 攻击链
+        // Attack chain
         regenerateAttackChain: 'attackchain:write',
         exportAttackChain: 'attackchain:read',
 
-        // 通知
+        // notification
         markAllNotificationsSeen: 'notification:write',
 
         // RBAC
-        saveRbacUser: 'rbac:write',
-        deleteSelectedRbacUser: 'rbac:write',
-        saveRbacRole: 'rbac:write',
-        deleteRbacRole: 'rbac:write',
-        createRbacAssignment: 'rbac:write',
-        deleteRbacAssignment: 'rbac:write',
-        saveSelectedUserRoles: 'rbac:write',
+        saveRbacUser: 'RBAC:write',
+        deleteSelectedRbacUser: 'RBAC:write',
+        saveRbacRole: 'RBAC:write',
+        deleteRbacRole: 'RBAC:write',
+        createRbacAssignment: 'RBAC:write',
+        deleteRbacAssignment: 'RBAC:write',
+        saveSelectedUserRoles: 'RBAC:write',
 
         // WebShell
-        showAddWebshellModal: 'webshell:write',
-        showEditWebshellModal: 'webshell:write',
-        saveWebshellConnection: 'webshell:write',
-        deleteWebshell: 'webshell:delete',
-        testWebshellConnection: 'webshell:write',
+        showAddWebshellModal: 'WebShell:write',
+        showEditWebshellModal: 'WebShell:write',
+        saveWebshellConnection: 'WebShell:write',
+        deleteWebshell: 'WebShell:delete',
+        testWebshellConnection: 'WebShell:write',
 
-        // 机器人
+        // Bot
         openRobotCreateModal: 'robot:write',
         openRobotEditor: 'robot:write',
         startWechatRobotBind: 'robot:write',
         submitWechatVerifyCode: 'robot:write',
 
-        // 审计
+        // Audit
         exportAuditLogs: 'audit:read',
         exportAuditLogsCsv: 'audit:read',
         runAuditExport: 'audit:read',
 
-        // Agent 中断
+        // Agent interrupt
         submitUserInterruptContinue: 'agent:execute',
         submitUserInterruptHardCancel: 'agent:execute',
 
-        // 终端（多会话）
+        // Terminal (multi-session)
         addTerminalTab: 'terminal:execute',
         removeTerminalTab: 'terminal:execute',
     };
 
     const NAMESPACE_WRITE_HANDLER_PERMISSIONS = {
         C2: {
-            showCreateListenerModal: 'c2:write',
+            showcreateListenerModal: 'c2:write',
             createListener: 'c2:write',
             saveListener: 'c2:write',
             editListener: 'c2:write',
@@ -222,20 +222,20 @@
             deleteListener: 'c2:delete',
             deleteSessionRecord: 'c2:delete',
             deleteSelectedSessions: 'c2:delete',
-            deleteFilteredSessions: 'c2:delete',
+            deletefilteredSessions: 'c2:delete',
             killSession: 'c2:write',
             setSessionSleep: 'c2:write',
             submitSessionSleep: 'c2:write',
             uploadFileToImplant: 'c2:write',
-            onC2FileUploadPick: 'c2:write',
-            openFileUploadPicker: 'c2:write',
+            onC2FileuploadPick: 'c2:write',
+            openFileuploadPicker: 'c2:write',
             deleteTaskById: 'c2:delete',
             deleteSelectedTasks: 'c2:delete',
             cancelTask: 'c2:write',
             buildBeacon: 'c2:write',
             generateOneliner: 'c2:write',
             createProfile: 'c2:write',
-            showCreateProfileModal: 'c2:write',
+            showcreateProfileModal: 'c2:write',
             deleteProfile: 'c2:delete',
             deleteEventById: 'c2:delete',
             deleteSelectedEvents: 'c2:delete',

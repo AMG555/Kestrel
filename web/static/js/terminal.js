@@ -1,5 +1,5 @@
-﻿/**
- * 系统设置 - 终端：多标签、流式输出、命令历史、Ctrl+L 清屏、长时间可取消
+/**
+ * Settings - Terminal: multiple tabs, streaming output, command history, Ctrl+L clear screen, long-running cancel support
  */
 (function () {
     var getContext = HTMLCanvasElement.prototype.getContext;
@@ -15,7 +15,7 @@
     var currentTabId = 1;
     var inited = false;
     var tabIdCounter = 1;
-    var PROMPT = ''; // 真实 Shell 自己输出提示符，这里不再自定义
+    var PROMPT = ''; // The real shell outputs its own PROMPT; no custom PROMPT here
     var HISTORY_MAX = 100;
     var CANCEL_AFTER_MS = 125000;
 
@@ -30,16 +30,16 @@
         if (typeof window !== 'undefined' && typeof window.t === 'function') {
             return window.t(key, opts);
         }
-        // i18n 未就绪时的后备（与 zh-CN 一致）
+        // Fallback strings when i18n is not yet ready
         var fallbacks = {
-            'settingsTerminal.welcomeLine': 'Kestrel 终端 - 真实 Shell 会话，直接输入命令；Ctrl+L 清屏',
-            'settingsTerminal.sessionClosed': '[会话已关闭]',
-            'settingsTerminal.connectionError': '[终端连接出错]',
-            'settingsTerminal.connectFailed': '[无法连接终端服务: {{msg}}]',
-            'settingsTerminal.closeTabTitle': '关闭',
-            'settingsTerminal.containerClickTitle': '点击此处后输入命令',
-            'settingsTerminal.xtermNotLoaded': '未加载 xterm.js，请刷新页面或检查网络。',
-            'settingsTerminal.terminalTab': '终端 {{n}}'
+            'settingsTerminal.welcomeLine': 'Kestrel Terminal - real shell session, type commands directly; Ctrl+L to clear',
+            'settingsTerminal.sessionClosed': '[Session closed]',
+            'settingsTerminal.connectionError': '[Terminal connection error]',
+            'settingsTerminal.connectFailed': '[Cannot connect to terminal service: {{msg}}]',
+            'settingsTerminal.closeTabTitle': 'Close',
+            'settingsTerminal.containerClickTitle': 'Click here to enter commands',
+            'settingsTerminal.xtermNotLoaded': 'xterm.js not loaded, please refresh the page or check your network.',
+            'settingsTerminal.terminalTab': 'Terminal {{n}}'
         };
         var s = fallbacks[key] || key;
         if (opts && typeof opts === 'object') {
@@ -55,7 +55,7 @@
     }
 
     function writePrompt(tab) {
-        // 提示符交由后端 Shell 自行输出，这里仅保留占位函数，避免旧代码报错
+        // The PROMPT is output by the backend shell itself; this is a placeholder to avoid errors in old code
     }
 
     function redrawTabDisplay(t) {
@@ -98,7 +98,7 @@
         t.term.write(suffix);
     }
 
-    // 从本地存储中获取当前登录 token（与 auth.js 使用的结构保持一致）
+    // Retrieve the currentAuth token from local storage (matches the structure used in auth.js)
     function getStoredAuthToken() {
         try {
             var raw = localStorage.getItem('kestrel-auth');
@@ -109,7 +109,7 @@
         return null;
     }
 
-    // WebSocket 地址构造（兼容 http/https，并通过 query 传递 token 以通过后端鉴权）
+    // Build the WebSocket URL (compatible with http/https; passes token via query string for backend auth)
     function buildTerminalWSURL() {
         var proto = (window.location.protocol === 'https:') ? 'wss://' : 'ws://';
         var url = proto + window.location.host + '/api/terminal/ws';
@@ -132,7 +132,7 @@
             ws.onopen = function () {
                 if (tab.term) {
                     tab.term.focus();
-                    // Send the actual terminal dimensions to the backend immediately
+                    // send the actual terminal dimensions to the backend immediately
                     // so the PTY size matches what xterm.js is displaying.
                     if (tab.term.cols && tab.term.rows) {
                         try {
@@ -144,12 +144,12 @@
 
             ws.onmessage = function (ev) {
                 if (!tab.term) return;
-                // 处理二进制消息和文本消息
+                // Handle binary and text messages
                 if (ev.data instanceof ArrayBuffer) {
                     var decoder = new TextDecoder('utf-8');
                     writeTermData(tab, decoder.decode(ev.data));
                 } else if (ev.data instanceof Blob) {
-                    // Blob 类型，需要异步读取
+                    // Blob type — needs async reading
                     var reader = new FileReader();
                     reader.onload = function () {
                         var decoder = new TextDecoder('utf-8');
@@ -157,7 +157,7 @@
                     };
                     reader.readAsArrayBuffer(ev.data);
                 } else {
-                    // 字符串类型
+                    // String type
                     writeTermData(tab, ev.data);
                 }
             };
@@ -223,12 +223,12 @@
             }
         });
         var fitAddon = null;
-        if (typeof FitAddon !== 'undefined') {
-            var FitCtor = (FitAddon.FitAddon || FitAddon);
+        if (typeof Fitaddon !== 'undefined') {
+            var FitCtor = (Fitaddon.Fitaddon || Fitaddon);
             fitAddon = new FitCtor();
             term.loadAddon(fitAddon);
         }
-        term.open(container);
+        term.OPEN(container);
         term.write(getWelcomeLine());
         container.addEventListener('click', function () {
             switchTerminalTab(tab.id);
@@ -255,7 +255,7 @@
         }
 
         term.onData(function (data) {
-            // Ctrl+L：本地清屏，同时把 ^L 也发给后端
+            // Ctrl+L: clear screen locally and also forward ^L to the backend
             if (data === '\x0c') {
                 term.clear();
                 sendToWS(data);
@@ -285,8 +285,8 @@
             });
             tab.resizeObserver.observe(container);
         }
-        // 立即建立 WebSocket，让后端 PTY/Shell 马上启动并输出提示符；
-        // 若等到首次按键才 connect，用户会感觉必须先按回车才能输入（实为连接尚未建立）。
+        // Connect the WebSocket immediately so the backend PTY/Shell starts and outputs its PROMPT right away;
+        // if we wait until the first keypress, the user would need to press Enter first (connection not yet established).
         ensureTerminalWS(tab);
         return term;
     }
@@ -389,8 +389,8 @@
         for (var i = 0; i < terminals.length; i++) { if (terminals[i].id === id) { idx = i; break; } }
         if (idx < 0) return;
 
-        var deletingCurrent = (currentTabId === id);
-        var switchToIndex = deletingCurrent ? (idx > 0 ? idx - 1 : 0) : -1;
+        var deletingCurrent  = (currentTabId === id);
+        var switchToIndex = deletingCurrent  ? (idx > 0 ? idx - 1 : 0) : -1;
 
         var tab = terminals[idx];
         if (tab.resizeObserver && tab.resizeObserver.disconnect) tab.resizeObserver.disconnect();
@@ -406,7 +406,7 @@
         if (paneDiv && paneDiv.parentNode) paneDiv.parentNode.removeChild(paneDiv);
 
         var curIdxBeforeRenumber = -1;
-        if (!deletingCurrent) {
+        if (!deletingCurrent ) {
             for (var i = 0; i < terminals.length; i++) {
                 if (terminals[i].id === currentTabId) { curIdxBeforeRenumber = i; break; }
             }
@@ -447,7 +447,7 @@
 
         updateTerminalTabCloseVisibility();
 
-        if (deletingCurrent && terminals.length > 0) {
+        if (deletingCurrent  && terminals.length > 0) {
             currentTabId = terminals[switchToIndex].id;
             switchTerminalTab(currentTabId);
         }
@@ -462,7 +462,7 @@
     }
 
     function refreshTerminalI18n() {
-        // 语言切换后更新标签与容器 title；已打开的终端内容不强制清屏，以免丢失会话输出
+        // After a language switch, update tabs and container title; do not force-clear OPEN terminals to avoid losing session output
         try {
             var tabsEl = document.querySelector('.terminal-tabs');
             if (tabsEl) {

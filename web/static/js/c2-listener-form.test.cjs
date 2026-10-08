@@ -1,4 +1,4 @@
-﻿const fs = require('node:fs');
+const fs = require('node:fs');
 const vm = require('node:vm');
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -9,7 +9,8 @@ function harness(overrides = {}, failure) {
     let closed = false;
     const c = vm.createContext({ document: { getElementById: id => fields[id] }, C2: { listeners: [], closeModal() { closed = true; }, loadListeners() {} }, API_BASE: '/api/c2', c2t: key => key, showToast: (message, type) => messages.push({ message, type }), apiRequest: async (...args) => { requests.push(args); if (failure) throw Error(failure); return {}; } });
     vm.runInContext(source.slice(source.indexOf('    function validateListenerForm('), source.indexOf('    C2.startListener =')), c);
-    vm.runInContext(source.slice(source.indexOf('    C2.saveListener ='), source.indexOf('    // ============================================================================\n    // 会话管理')), c);
+    const endIdx = source.search(/\/\/\s*={20,}[\r\n]+\s*\/\/\s*(?:Session management|会话管理)/);
+    vm.runInContext(source.slice(source.indexOf('    C2.saveListener ='), endIdx), c);
     return { c, fields, requests, messages, closed: () => closed };
 }
 test('creation and editing reject invalid fields and identify the field', async () => {

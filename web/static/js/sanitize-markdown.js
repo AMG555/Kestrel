@@ -1,6 +1,6 @@
-﻿/**
- * 统一的 Markdown → 安全 HTML 渲染（DOMPurify + marked）。
- * 时间线/过程详情使用 stricter profile，整页 HTML 回退为转义 <pre>。
+/**
+ * Unified Markdown → safe HTML rendering (DOMPurify + marked).
+ * Timeline/process-details use a stricter profile; full-page HTML falls back to an escaped <pre>.
  */
 (function (global) {
     'use strict';
@@ -13,7 +13,7 @@
         ALLOW_DATA_ATTR: false,
     };
 
-    /** 过程详情时间线：禁止 img，减少外连与恶意资源 */
+    /** Process-details timeline: disallow img to reduce external connections and malicious resources */
     const TIMELINE_SANITIZE_CONFIG = {
         ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 's', 'code', 'pre', 'blockquote',
             'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'a',
@@ -25,7 +25,7 @@
     const DANGEROUS_URL_PREFIXES = [
         'javascript:',
         'vbscript:',
-        'data:text/html',
+        'data:text/HTML',
         'data:text/javascript',
         'data:application/javascript',
     ];
@@ -68,7 +68,7 @@
         domPurifyHooksInstalled = true;
     }
 
-    /** 明显 Markdown 结构时，不应因零散 HTML 标签误判为整页 HTML */
+    /** When clear Markdown structure is present, scattered HTML tags should not cause it to be misidentified as full-page HTML */
     function looksLikeMarkdown(src) {
         const s = String(src);
         return /^#{1,6}\s/m.test(s)
@@ -81,13 +81,13 @@
             || /^\s*>\s/m.test(s);
     }
 
-    /** 探测工具返回的整页 HTML，不宜当作富文本渲染 */
+    /** Detect full-page HTML returned by tools, which should not be rendered as rich text */
     function isHeavyRawHtml(src) {
         const s = String(src);
         if (looksLikeMarkdown(s)) {
             return false;
         }
-        if (/<!DOCTYPE\s+html/i.test(s) || /<\s*html\b/i.test(s)) {
+        if (/<!DOCTYPE\s+HTML/i.test(s) || /<\s*HTML\b/i.test(s)) {
             return true;
         }
         if (/<\s*(head|body|iframe|object|embed|form|script|style|meta|link|base)\b/i.test(s)) {
@@ -102,7 +102,7 @@
     }
 
     function formatHtmlAsEscapedPre(text) {
-        return '<pre class="tool-result sanitized-raw-html-fallback">' + escapeHtmlLocal(text) + '</pre>';
+        return '<pre class="tool-result sanitized-raw-HTML-fallback">' + escapeHtmlLocal(text) + '</pre>';
     }
 
     function normalizeSource(text) {
@@ -121,7 +121,7 @@
             marked.setOptions({ breaks: true, gfm: true });
             return marked.parse(src, { async: false });
         } catch (e) {
-            console.error('Markdown 解析失败:', e);
+            console.error('Markdown parse failed:', e);
             return null;
         }
     }
@@ -133,7 +133,7 @@
     /**
      * @param {string|null|undefined} text
      * @param {{ profile?: 'chat'|'timeline' }} [options]
-     * @returns {string} 安全 HTML
+     * @returns {string} Safe HTML
      */
     function buildRichHtmlFromSource(src) {
         const hasHtmlTags = /<[a-z][\s\S]*>/i.test(src);
@@ -161,7 +161,7 @@
         }
 
         if (typeof DOMPurify === 'undefined') {
-            console.warn('DOMPurify 未加载，Markdown 已降级为纯文本渲染（已转义，防 XSS）');
+            console.warn('DOMPurify not loaded; Markdown degraded to plain-text rendering (escaped, XSS-safe)');
             return escapePlainTextAsHtml(src);
         }
 
@@ -170,12 +170,12 @@
         return DOMPurify.sanitize(buildRichHtmlFromSource(src), config);
     }
 
-    function sanitizeRichHtml(html, profile) {
+    function sanitizeRichHtml(HTML, profile) {
         if (typeof DOMPurify === 'undefined') {
             return null;
         }
         installDomPurifyHooks();
-        return DOMPurify.sanitize(html, sanitizeConfigForProfile(profile || 'chat'));
+        return DOMPurify.sanitize(HTML, sanitizeConfigForProfile(profile || 'chat'));
     }
 
     function stripSuspiciousImages(root) {

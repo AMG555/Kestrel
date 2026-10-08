@@ -1,4 +1,4 @@
-﻿const fs=require('node:fs');
+const fs=require('node:fs');
 const vm=require('node:vm');
 const test=require('node:test');
 const assert=require('node:assert/strict');
@@ -22,7 +22,7 @@ function harness(values={}) {
  start=auth.indexOf('function clearLoginFormError(');
  vm.runInContext(auth.slice(start,auth.indexOf('\nfunction ',start)),ctx);
  start=settings.indexOf('function setPasswordFieldError(');
- vm.runInContext(settings.slice(start,settings.indexOf('// ==================== 外部MCP管理',start)),ctx);
+ vm.runInContext(settings.slice(start,settings.indexOf('// ==================== External MCP',start)),ctx);
  return {ctx,fields,button,calls:() => calls};
 }
 test('empty login password explains the error and never calls the server',async () => {

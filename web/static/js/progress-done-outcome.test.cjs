@@ -1,4 +1,4 @@
-﻿const fs=require('node:fs'),vm=require('node:vm'),test=require('node:test'),assert=require('node:assert/strict');
+const fs=require('node:fs'),vm=require('node:vm'),test=require('node:test'),assert=require('node:assert/strict');
 const source=fs.readFileSync('web/static/js/monitor.js','utf8');const c=vm.createContext({});vm.runInContext(source.slice(source.indexOf('function progressDoneOutcome('),source.indexOf('function finalizeOutstandingToolCallsForProgress(')),c);
 test('done preserves cancelled and failed outcomes instead of showing success',()=>{
  for(const status of ['cancelled','canceled','failed','timeout','cleanup_failed','cleanup_unconfirmed']){
@@ -13,6 +13,6 @@ test('actual done branch cancels its progress control and outstanding tools',()=
   const ctx=vm.createContext({event:{type:'done',data:{status}},progressId:'p',window:{},document:{querySelector:()=>title},timeline:null,progressTaskState:new Map([['p',{}]]),stopProgressElapsedClock(){},responseStreamStateByProgressId:new Map(),mainIterationStateByProgressId:new Map(),thinkingStreamStateByProgressId:new Map(),einoAgentReplyStreamStateByProgressId:new Map(),toolResultStreamStateByKey:new Map(),loadActiveTasks(){},setTimeout(){},finalizeProgressTask:(_,value)=>{label=value},finalizeOutstandingToolCallsForProgress:(_,value)=>{toolStatus=value}});
   vm.runInContext(source.slice(source.indexOf('function progressDoneOutcome('),source.indexOf('function finalizeOutstandingToolCallsForProgress(')),ctx);
   vm.runInContext('function run(){switch(event.type){'+source.slice(start,end)+'}}',ctx);ctx.run();
-  assert.equal(title.textContent.startsWith('✅'),status==='completed');assert.equal(label,status==='cancelled'?'任务已取消':status==='failed'?'任务执行失败':'渗透测试完成');assert.equal(toolStatus,status==='cancelled'?'cancelled':'failed');
+  assert.equal(title.textContent.startsWith('✅'),status==='completed');assert.equal(label,status==='cancelled'?'Task cancelled':status==='failed'?'Task execution failed':'Penetration test complete');assert.equal(toolStatus,status==='cancelled'?'cancelled':'failed');
  }
 });

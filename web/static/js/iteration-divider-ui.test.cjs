@@ -1,4 +1,4 @@
-﻿const fs = require('node:fs');
+const fs = require('node:fs');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
@@ -23,7 +23,7 @@ test('主代理迭代节点获得可访问的分割线语义', () => {
     assert.match(source, /setAttribute\('aria-label', String\(options\.title \|\| ''\)\)/);
 });
 
-test('迭代分割线只在主对话时间线中使用轻量渐变横线', () => {
+test('迭代分割线只在主Chat时间线中使用轻量渐变横线', () => {
     assert.match(styles, /\.timeline-item-iteration\.timeline-iteration-divider::after/);
     assert.match(styles, /linear-gradient\(/);
     assert.match(styles, /color-mix\(in srgb, var\(--border-color\) 88%, transparent\)/);

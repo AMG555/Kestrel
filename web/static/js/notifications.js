@@ -9,7 +9,7 @@
         timerId: null,
         dropdownOpen: false,
         lastSeenAt: readLastSeenAt(),
-        items: [],
+         items: [],
         unreadCount: 0,
     };
 
@@ -19,7 +19,7 @@
             const n = Number(raw);
             if (Number.isFinite(n) && n > 0) return n;
         } catch (e) {
-            console.warn('读取通知已读时间失败:', e);
+            console.warn('Failed to read notification last-seen time:', e);
         }
         return 0;
     }
@@ -28,7 +28,7 @@
         try {
             localStorage.setItem(STORAGE_LAST_SEEN_KEY, String(ts));
         } catch (e) {
-            console.warn('保存通知已读时间失败:', e);
+            console.warn('Failed to save notification last-seen time:', e);
         }
     }
 
@@ -48,7 +48,7 @@
                 return window.currentLang;
             }
         }
-        return 'zh-CN';
+        return 'en-US';
     }
 
     function formatTime(value) {
@@ -111,16 +111,16 @@
         btn.classList.add('has-alert');
     }
 
-    function countP0(items) {
-        return (Array.isArray(items) ? items : []).reduce((acc, item) => {
+    function countP0( items) {
+        return (Array.isArray( items) ?  items : []).reduce((acc, item) => {
             if (!item || item.level !== 'p0') return acc;
             if (typeof item.count === 'number' && item.count > 0) return acc + item.count;
             return acc + 1;
         }, 0);
     }
 
-    function markableItems(items) {
-        return (Array.isArray(items) ? items : []).filter(item => item && item.actionable !== true && item.id);
+    function markableItems( items) {
+        return (Array.isArray( items) ?  items : []).filter(item => item && item.actionable !== true && item.id);
     }
 
     function hasAction(item) {
@@ -140,8 +140,9 @@
             return;
         }
         if ((item.type === 'task_completed' || item.type === 'long_running_tasks') && item.conversationId) {
-            // 统一走路由提供的会话导航入口。直接修改 hash 会先触发 hashchange
-            // 切页，再由路由延迟加载会话，视觉上会多闪一次。
+            // Use the Router navigation entry point for conversation routing.
+            // Directly modifying the hash would first trigger a hashchange page switch,
+            // then lazily load the conversation, causing an extra visual flash.
             if (typeof window.navigateToConversation === 'function') {
                 window.navigateToConversation(item.conversationId);
             } else {
@@ -196,12 +197,12 @@
         }
     }
 
-    function renderNotificationList(items) {
+    function renderNotificationList( items) {
         const list = document.getElementById('notification-list');
         if (!list) return;
-        const renderItems = Array.isArray(items) ? items.slice(0, MAX_RENDER_ITEMS) : [];
+        const renderItems = Array.isArray( items) ?  items.slice(0, MAX_RENDER_ITEMS) : [];
         if (!renderItems.length) {
-            list.innerHTML = '<div class="notification-empty">' + htmlEscape(t('notifications.empty', '暂无新事件')) + '</div>';
+            list.innerHTML = '<div class="notification-empty">' + htmlEscape(t('notifications.empty', 'No new events')) + '</div>';
             return;
         }
         const html = renderItems.map(item => {
@@ -210,10 +211,10 @@
             return `
                 <div class="notification-item notification-level-${htmlEscape(item.level || 'p2')}">
                     <div class="notification-item-header">
-                        <div class="notification-item-title">${htmlEscape(item.title || t('notifications.itemDefaultTitle', '通知'))}</div>
+                        <div class="notification-item-title">${htmlEscape(item.title || t('notifications.itemDefaultTitle', 'notification'))}</div>
                         <div class="notification-item-actions">
-                            ${canView ? `<button class="notification-item-action-btn notification-item-view-btn" type="button" data-action-id="${htmlEscape(item.id || '')}">${htmlEscape(t('common.view', '查看'))}</button>` : ''}
-                            ${canMarkRead ? `<button class="notification-item-action-btn notification-item-read-btn" type="button" data-notification-id="${htmlEscape(item.id)}">${htmlEscape(t('notifications.markSingleRead', '已读'))}</button>` : ''}
+                            ${canView ? `<button class="notification-item-action-btn notification-item-view-btn" type="button" data-action-id="${htmlEscape(item.id || '')}">${htmlEscape(t('common.view', 'view'))}</button>` : ''}
+                            ${canMarkRead ? `<button class="notification-item-action-btn notification-item-read-btn" type="button" data-notification-id="${htmlEscape(item.id)}">${htmlEscape(t('notifications.markSingleRead', 'Mark read'))}</button>` : ''}
                         </div>
                     </div>
                     <div class="notification-item-desc">${htmlEscape(item.desc || '')}</div>
@@ -229,7 +230,7 @@
                 event.stopPropagation();
                 const eventID = btn.getAttribute('data-action-id') || '';
                 if (!eventID) return;
-                const item = state.items.find(it => it && it.id === eventID);
+                const item = state. items.find(it => it && it.id === eventID);
                 if (!item) return;
                 openNotificationTarget(item);
                 closeDropdown();
@@ -271,16 +272,16 @@
         state.inFlight = true;
         try {
             const summary = await fetchNotificationSummary();
-            const items = summary && Array.isArray(summary.items) ? summary.items : [];
-            state.items = items;
+            const items = summary && Array.isArray(summary. items) ? summary. items : [];
+            state. items =  items;
             const unreadCount = summary && Number.isFinite(Number(summary.unreadCount))
                 ? Number(summary.unreadCount)
-                : countP0(items);
+                : countP0( items);
             state.unreadCount = Math.max(0, unreadCount);
             renderBadge(state.unreadCount);
-            renderNotificationList(items);
+            renderNotificationList( items);
         } catch (e) {
-            console.warn('刷新通知失败:', e);
+            console.warn('Failed to refresh notifications:', e);
         } finally {
             state.inFlight = false;
         }
@@ -315,8 +316,9 @@
             closeDropdown();
             return;
         }
-        // 从仪表盘「查看全部」等容器外入口打开时，同一 click 会冒泡到 document，
-        // handleDocumentClick 会误判为「点在外面」并立刻关掉。推迟到宏任务再展开即可。
+        // When opened from outside the container (e.g. Dashboard "view all"), the same
+        // click event bubbles to document and handleDocumentClick would incorrectly treat
+        // it as an outside click, closing it immediately. Defer to a macro-task to avoid this.
         const runOpen = async function () {
             if (dropdown.style.display !== 'none') return;
             dropdown.style.display = 'block';
@@ -330,7 +332,7 @@
     }
 
     async function markAllSeen() {
-        const ids = markableItems(state.items).map(item => item.id);
+        const ids = markableItems(state. items).map(item => item.id);
         const ok = await markItemsRead(ids);
         if (ok) {
             markSeenNow();

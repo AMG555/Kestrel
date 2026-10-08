@@ -1,26 +1,28 @@
-﻿/**
- * 内置工具名称常量
- * 所有前端代码中使用内置工具名称的地方都应该使用这些常量，而不是硬编码字符串
- * 
- * 注意：这些常量必须与后端的 internal/mcp/builtin/constants.go 中的常量保持一致
+/**
+ * Built-in tool name constants.
+ * All places in frontend code that use built-in tool names should use these constants
+ * instead of hard-coded strings.
+ *
+ * Note: These constants must stay in sync with the backend constants in
+ * internal/mcp/builtin/constants.go
  */
 
-// 内置工具名称常量
+// Built-in tool name constants
 const BuiltinTools = {
-    // 漏洞管理工具
-    RECORD_VULNERABILITY: 'record_vulnerability',
-    
-    // 知识库工具
-    LIST_KNOWLEDGE_RISK_TYPES: 'list_knowledge_risk_types',
-    SEARCH_KNOWLEDGE_BASE: 'search_knowledge_base'
+    // Vulnerability tool
+    RECORD_VULNERABILITY: 'RECORD_VULNERABILITY',
+
+    // Knowledge base tools
+    LIST_KNOWLEDGE_RISK_TYPES: 'LIST_KNOWLEDGE_RISK_TYPES',
+    SEARCH_KNOWLEDGE_BASE: 'SEARCH_KNOWLEDGE_BASE'
 };
 
-// 检查是否是内置工具
+// Check whether a tool is a built-in tool
 function isBuiltinTool(toolName) {
     return Object.values(BuiltinTools).includes(toolName);
 }
 
-// 获取所有内置工具名称列表
+// Get list of all built-in tool names
 function getAllBuiltinTools() {
     return Object.values(BuiltinTools);
 }

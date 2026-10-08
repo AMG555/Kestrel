@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -1214,7 +1214,7 @@
                                                 <button type="button" class="role-selection-item-main agent-mode-option" data-value="deep" role="option" onclick="selectAgentMode('deep')" data-agent-mode-detail="Eino DeepAgent, suitable for complex security testing, multi-stage task delegation and synthesis" data-i18n="chat.agentModeDeepHint" data-i18n-attr="data-agent-mode-detail" data-i18n-skip-text="true">
                                                     <div class="role-selection-item-icon-main agent-mode-logo agent-mode-logo--deep" aria-hidden="true"><svg class="agent-mode-logo__svg" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><path d="M8 16h.01"/><path d="M16 16h.01"/></svg></div>
                                                     <div class="role-selection-item-content-main">
-                                                        <div class="role-selection-item-name-main" data-i18n="chat.agentModeDeep">Deep（DeepAgent）</div>
+                                                        <div class="role-selection-item-name-main" data-i18n="chat.agentModeDeep">Deep (DeepAgent)</div>
                                                         <div class="role-selection-item-description-main" data-i18n="chat.agentModeDeepHint">Eino DeepAgent for complex security testing, multi-stage task delegation, and synthesis</div>
                                                     </div>
                                                     <div class="role-selection-checkmark-main agent-mode-check" data-agent-mode-check="deep">✓</div>
@@ -1389,7 +1389,7 @@
                                     <div class="tool-guard-heading-line"><h3 id="tool-guard-rules-title" data-i18n="toolGuard.rulesTitle">Blocking rules</h3><span id="tool-guard-rule-count" class="tool-guard-rule-count" aria-live="polite"></span></div>
                                     <p data-i18n="toolGuard.listHint">Select a rule to view or edit. Rules are checked in list order.</p>
                                 </div>
-                                <button type="button" id="tool-guard-add" class="btn-secondary tool-guard-add" data-require-permission="config:write" onclick="addToolGuardRule()" disabled><span aria-hidden="true">＋</span><span data-i18n="toolGuard.addRule">Add rule</span></button>
+                                <button type="button" id="tool-guard-add" class="btn-secondary tool-guard-add" data-require-permission="config:write" onclick="addToolGuardRule()" disabled><span aria-hidden="true">+</span><span data-i18n="toolGuard.addRule">Add rule</span></button>
                             </div>
                             <div id="tool-guard-rules" class="tool-guard-rules"></div>
                             <details class="tool-guard-help">
@@ -2219,7 +2219,7 @@
                                         <div id="info-collect-syntax-panel" class="info-collect-query-mode-panel is-active">
                                             <label for="fofa-query" id="info-collect-query-label" class="info-collect-inner-label">Query syntax (editable, can query directly)</label>
                                             <div class="info-collect-query-row">
-                                                <textarea id="fofa-query" class="info-collect-query-input" rows="1" placeholder='例如：app="Apache" && country="CN"'></textarea>
+                                                <textarea id="fofa-query" class="info-collect-query-input" rows="1" placeholder='e.g.: app="Apache" && country="CN"'></textarea>
                                                 <button id="fofa-query-submit-btn" class="btn-primary" data-require-permission="fofa:execute" type="button" onclick="submitFofaSearch()">Search</button>
                                             </div>
                                             <small class="form-hint" id="info-collect-query-hint">Query syntax hints will appear after selecting a data source.</small>
@@ -3912,7 +3912,7 @@
                                             <label for="multi-agent-robot-mode" data-i18n="settingsBasic.multiAgentRobotMode">Default conversation mode for bots</label>
                                             <select id="multi-agent-robot-mode" class="form-select">
                                                 <option value="eino_single" data-i18n="chat.agentModeEinoSingle">Eino single (ADK)</option>
-                                                <option value="deep" data-i18n="chat.agentModeDeep">Deep（DeepAgent）</option>
+                                                <option value="deep" data-i18n="chat.agentModeDeep">Deep (DeepAgent)</option>
                                                 <option value="plan_execute" data-i18n="chat.agentModePlanExecuteLabel">Plan-Execute</option>
                                                 <option value="supervisor" data-i18n="chat.agentModeSupervisorLabel">Supervisor</option>
                                             </select>
@@ -4533,7 +4533,7 @@
                                             </div>
                                             <div class="form-group">
                                                 <label for="robot-allowed-external-users">Allowed platform sender IDs</label>
-                                                <textarea id="robot-allowed-external-users" rows="4" placeholder="每行一个；在机器人中发送"identity"或 whoami 获取"></textarea>
+                                                <textarea id="robot-allowed-external-users" rows="4" placeholder="One per line; send &quot;identity&quot; or whoami in the bot to get your ID"></textarea>
                                                 <small class="form-hint">Wildcard * is not supported. In service account mode, only senders listed here can execute commands.</small>
                                             </div>
                                         </div>
@@ -5995,7 +5995,7 @@
         </div>
     </div>
     <!-- Knowledge item edit modal -->
-    <!-- Skill模态框 -->
+    <!-- Skill modal -->
     <div id="skill-modal" class="modal">
         <div class="modal-content" style="max-width: 1100px;">
             <div class="modal-header">
@@ -6048,26 +6048,26 @@
     <div id="knowledge-item-modal" class="modal">
         <div class="modal-content" style="max-width: 900px;">
             <div class="modal-header">
-                <h2 id="knowledge-item-modal-title">添加知识</h2>
+                <h2 id="knowledge-item-modal-title">Add Knowledge</h2>
                 <span class="modal-close" onclick="closeKnowledgeItemModal()">&times;</span>
             </div>
             <div class="modal-body">
                 <div class="form-group">
-                    <label for="knowledge-item-category">分类（风险类型）<span style="color: red;">*</span></label>
+                    <label for="knowledge-item-category">Category (risk type)<span style="color: red;">*</span></label>
                     <input type="text" id="knowledge-item-category" placeholder="e.g. SQL Injection" required />
                 </div>
                 <div class="form-group">
-                    <label for="knowledge-item-title">标题<span style="color: red;">*</span></label>
+                    <label for="knowledge-item-title">Title<span style="color: red;">*</span></label>
                     <input type="text" id="knowledge-item-title" placeholder="Knowledge item title" required />
                 </div>
                 <div class="form-group">
-                    <label for="knowledge-item-content">内容（Markdown格式）<span style="color: red;">*</span></label>
+                    <label for="knowledge-item-content">Content (Markdown format)<span style="color: red;">*</span></label>
                     <textarea id="knowledge-item-content" rows="20" placeholder="Enter knowledge content, Markdown supported..." style="font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; font-size: 0.875rem; line-height: 1.5;" required></textarea>
                 </div>
             </div>
             <div class="modal-footer">
-                <button class="btn-secondary" onclick="closeKnowledgeItemModal()">取消</button>
-                <button class="btn-primary" data-require-permission="knowledge:write" onclick="saveKnowledgeItem()">保存</button>
+                <button class="btn-secondary" onclick="closeKnowledgeItemModal()">Cancel</button>
+                <button class="btn-primary" data-require-permission="knowledge:write" onclick="saveKnowledgeItem()">Save</button>
             </div>
         </div>
     </div>
@@ -6076,7 +6076,7 @@
     <div id="batch-manage-modal" class="modal">
         <div class="modal-content batch-manage-modal-content">
             <div class="modal-header">
-                <h2 id="batch-manage-title">管理对话记录·共<span id="batch-manage-count">0</span>条</h2>
+                <h2 id="batch-manage-title">Manage conversations · <span id="batch-manage-count">0</span> total</h2>
                 <div class="batch-manage-header-actions">
                     <select id="batch-project-filter" class="conversation-project-filter-native" onchange="applyBatchConversationFilters()" data-i18n="batchManageModal.filterByProject" data-i18n-attr="title" title="Filter by project">
                         <option value="" data-i18n="chat.filterAllProjects">All projects</option>
@@ -6230,7 +6230,7 @@
                     <label for="batch-queue-agent-mode" data-i18n="batchImportModal.agentMode">Agent mode</label>
                     <select id="batch-queue-agent-mode">
                         <option value="eino_single" data-i18n="chat.agentModeEinoSingle">Eino single (ADK)</option>
-                        <option value="deep" data-i18n="chat.agentModeDeep">Deep（DeepAgent）</option>
+                        <option value="deep" data-i18n="chat.agentModeDeep">Deep (DeepAgent)</option>
                         <option value="plan_execute" data-i18n="chat.agentModePlanExecuteLabel">Plan-Execute</option>
                         <option value="supervisor" data-i18n="chat.agentModeSupervisorLabel">Supervisor</option>
                     </select>
@@ -6430,7 +6430,7 @@ Enumerate subdomains of example.com" style="font-family: 'Monaco', 'Menlo', 'Ubu
         </div>
     </div>
 
-    <!-- WebShell 添加连接模态框 -->
+    <!-- WebShell add connection modal -->
     <div id="webshell-modal" class="modal">
         <div class="modal-content" style="max-width: 560px;">
             <div class="modal-header">
@@ -6715,7 +6715,7 @@ Enumerate subdomains of example.com" style="font-family: 'Monaco', 'Menlo', 'Ubu
             </div>
             <div class="projects-modal-body">
                 <div class="projects-form-field">
-                    <label for="project-modal-name" data-i18n="projects.projectName">项目名称 <span class="required">*</span></label>
+                    <label for="project-modal-name" data-i18n="projects.projectName">Project name <span class="required">*</span></label>
                     <input type="text" id="project-modal-name" class="form-input" maxlength="200" placeholder="e.g. Client A Web pentest" autocomplete="off" data-i18n="projects.projectNamePlaceholder" data-i18n-attr="placeholder">
                 </div>
                 <div class="projects-form-field">
@@ -6745,40 +6745,40 @@ Enumerate subdomains of example.com" style="font-family: 'Monaco', 'Menlo', 'Ubu
             <div class="projects-modal-body">
                 <div class="projects-form-field">
                     <label for="fact-modal-key">fact_key</label>
-                    <input type="text" id="fact-modal-key" class="form-input" placeholder="target/primary_domain 或 finding/sqli-login" oninput="updateFactFormHints()">
-                    <p class="projects-field-hint">环境类：target/、auth/、infra/、business/；发现/利用：finding/、chain/、exploit/、poc/</p>
+                    <input type="text" id="fact-modal-key" class="form-input" placeholder="target/primary_domain or finding/sqli-login" oninput="updateFactFormHints()">
+                    <p class="projects-field-hint">Environment: target/, auth/, infra/, business/; Discovery/Exploit: finding/, chain/, exploit/, poc/</p>
                 </div>
                 <div class="projects-form-row">
                     <div class="projects-form-field">
                         <label for="fact-modal-category" data-i18n="projects.category">Category</label>
                         <select id="fact-modal-category" class="form-input" onchange="updateFactFormHints()">
-                            <option value="target">target（目标）</option>
-                            <option value="auth">auth（认证）</option>
-                            <option value="infra">infra（基础设施）</option>
-                            <option value="business">business（业务）</option>
-                            <option value="finding">finding（发现）</option>
-                            <option value="chain">chain（攻击链）</option>
-                            <option value="exploit">exploit（利用）</option>
-                            <option value="poc">poc（POC）</option>
-                            <option value="note" selected>note（备注）</option>
+                            <option value="target">target (Target)</option>
+                            <option value="auth">auth (Auth)</option>
+                            <option value="infra">infra (Infrastructure)</option>
+                            <option value="business">business (Business)</option>
+                            <option value="finding">finding (Finding)</option>
+                            <option value="chain">chain (Attack chain)</option>
+                            <option value="exploit">exploit (Exploit)</option>
+                            <option value="poc">poc (POC)</option>
+                            <option value="note" selected>note (Note)</option>
                         </select>
                     </div>
                     <div class="projects-form-field">
                         <label for="fact-modal-confidence" data-i18n="projects.confidence">Confidence</label>
                         <select id="fact-modal-confidence" class="form-input">
-                            <option value="tentative">待确认</option>
+                            <option value="tentative">Tentative</option>
                             <option value="confirmed">Confirmed</option>
-                            <option value="deprecated">已废弃</option>
+                            <option value="deprecated">Deprecated</option>
                         </select>
                     </div>
                 </div>
                 <div class="projects-form-field">
-                    <label for="fact-modal-summary">摘要（索引一行）</label>
+                    <label for="fact-modal-summary">Summary (one-line index)</label>
                     <input type="text" id="fact-modal-summary" class="form-input" maxlength="400" placeholder="What + where + how to verify (do not just write 'XSS exists')" oninput="updateFactFormHints()">
                 </div>
                 <div class="projects-form-field">
                     <div class="projects-form-label-row">
-                        <label for="fact-modal-body">body（可复现详情）</label>
+                        <label for="fact-modal-body">body (reproducible details)</label>
                         <div class="projects-form-label-actions">
                             <button type="button" class="btn-link btn-small" onclick="insertFactBodyTemplate('attack')">Insert attack chain template</button>
                             <button type="button" class="btn-link btn-small" onclick="insertFactBodyTemplate('env')">Insert environment template</button>
@@ -6845,7 +6845,7 @@ Enumerate subdomains of example.com" style="font-family: 'Monaco', 'Menlo', 'Ubu
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
                     </span>
                     <div>
-                        <h2 id="robot-account-binding-title">绑定机器人账号</h2>
+                        <h2 id="robot-account-binding-title">Bind Bot Account</h2>
                         <p>Securely link your IM platform identity to the current RBAC user</p>
                     </div>
                 </div>
@@ -6884,7 +6884,7 @@ Enumerate subdomains of example.com" style="font-family: 'Monaco', 'Menlo', 'Ubu
                     </div>
                     <p class="robot-binding-security-note">
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" stroke="currentColor" stroke-width="2"/><path d="m9 12 2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-                        绑定码仅保存哈希、只能使用一次，新码会使旧码立即失效
+                        Binding code is stored as a hash, can only be used once; a new code immediately invalidates the old one
                     </p>
                 </section>
 
@@ -6904,7 +6904,7 @@ Enumerate subdomains of example.com" style="font-family: 'Monaco', 'Menlo', 'Ubu
                     <span class="robot-binding-service-hint-icon" aria-hidden="true">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.09a2 2 0 0 1 1 1.74v.5a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/></svg>
                     </span>
-                    <span>如需配置专用服务账号，请前往“系统设置 → 机器人设置”。</span>
+                    <span>To configure a dedicated service account, go to "System Settings → Bot Settings".</span>
                 </div>
                 <button type="button" class="btn-secondary" onclick="closeRobotAccountBinding()">Close</button>
             </div>

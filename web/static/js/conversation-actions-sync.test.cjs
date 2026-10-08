@@ -1,4 +1,4 @@
-﻿const fs = require('node:fs');
+const fs = require('node:fs');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
@@ -19,12 +19,12 @@ function functionSource(source, name, nextName) {
 test('全局置顶检查接口结果并即时通知项目文件夹', () => {
     const source = functionSource(chat, 'pinConversation');
 
-    assert.match(source, /assertConversationActionResponse\(updateResponse, '更新置顶状态失败'\)/);
+    assert.match(source, /assertConversationActionResponse\(updateResponse, (?:'更新置顶状态失败'|'Failed to update pinned status')\)/);
     assert.match(source, /notifyConversationPinnedChanged\(convId, newPinned\)/);
     assert.match(source, /loadConversations\(\)/);
 });
 
-test('项目文件夹内置顶对话优先排序并显示图钉', () => {
+test('项目文件夹内置顶Chat优先Sort并显示图钉', () => {
     const sortSource = functionSource(projects, 'sortProjectFolderConversations', 'updateChatProjectConversationPinnedState');
     const itemSource = functionSource(projects, 'appendChatProjectConversationItem', 'selectChatProjectConversationItem');
 
@@ -33,7 +33,7 @@ test('项目文件夹内置顶对话优先排序并显示图钉', () => {
     assert.match(itemSource, /project-conversation-pinned/);
 });
 
-test('删除事件立即移除项目缓存并触发权威刷新', () => {
+test('Delete事件立即移除项目缓存并触发权威Refresh', () => {
     const removeSource = functionSource(projects, 'removeChatProjectConversation', 'refreshChatProjectFoldersAfterAction');
 
     assert.match(removeSource, /chatProjectFolderContext\.conversations = chatProjectFolderContext\.conversations\.filter/);
@@ -48,7 +48,7 @@ test('较旧的项目文件夹请求不能覆盖较新的操作结果', () => {
     assert.match(source, /if \(loadSeq !== chatProjectFolderContextLoadSeq\) return false/);
 });
 
-test('项目文件夹菜单可以置顶并立即更新排序', () => {
+test('项目文件夹菜单可以置顶并立即更新Sort', () => {
     const toggleSource = functionSource(projects, 'toggleProjectPinnedFromListMenu', 'initProjectListActionMenu');
     const folderSource = functionSource(projects, 'appendChatProjectFolderItem', 'appendChatProjectConversationItem');
 
@@ -60,12 +60,12 @@ test('项目文件夹菜单可以置顶并立即更新排序', () => {
     assert.match(projects, /\[\.\.\.pinnedProjects, unassignedProject, \.\.\.regularProjects\]/);
 });
 
-test('对话侧栏只保留最近对话区域', () => {
+test('Chat侧栏只保留最近Chat区域', () => {
     assert.doesNotMatch(template, /class="conversation-groups-section"/);
     assert.doesNotMatch(template, /id="conversation-groups-list"/);
 });
 
-test('对话三点菜单仍绑定打开上下文菜单', () => {
+test('Chat三点菜单仍绑定打开上下文菜单', () => {
     const itemSource = functionSource(chat, 'createConversationListItemWithMenu', 'openConversationContextMenuForId');
     const menuSource = functionSource(chat, 'showConversationContextMenu', 'ensureConversationRenameModal');
 

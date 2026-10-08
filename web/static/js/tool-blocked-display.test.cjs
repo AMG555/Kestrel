@@ -1,10 +1,10 @@
-﻿const test = require('node:test');
+const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const monitor = fs.readFileSync('web/static/js/monitor.js', 'utf8');
 const chat = fs.readFileSync('web/static/js/chat.js', 'utf8');
-const reason = '工具调用已被安全规则拦截：识别到 example.gov，禁止访问。\n规则: 政府网站保护';
+const reason = '工具调用已被Safe规则Block：识别到 example.gov，禁止访问。\n规则: 政府网站保护';
 
 function sourceFunction(source, name) {
     const start = source.indexOf(`function ${name}(`);
@@ -87,7 +87,7 @@ test('legacy guard failures are recognized in raw, nested, serialized and deferr
 
 test('quoted mentions, prefix lookalikes and explicitly successful output stay ordinary results', () => {
     const ctx = runtime();
-    for (const result of ['示例：' + reason, '"' + reason + '"', '工具调用已被安全规则拦截说明文档']) {
+    for (const result of ['示例：' + reason, '"' + reason + '"', '工具调用已被Safe规则Block说明文档']) {
         assert.equal(ctx.getToolResultDisplayState({ result, success: false }).kind, 'error');
     }
     for (const data of [{ success: true, result: reason }, { isError: false, content: [{ text: reason }] }, { status: 'completed', result: reason }]) {
@@ -108,7 +108,7 @@ test('live merge replaces a red failure badge with the distinct block badge and 
     assert.equal(item.classList.contains('tool-call-blocked'), true);
     assert.equal(item.classList.contains('tool-call-failed'), false);
     assert.equal(item.title.children.length, 1);
-    assert.match(item.title.children[0].textContent, /已拦截/);
+    assert.match(item.title.children[0].textContent, /Blocked/);
     assert.equal(ctx.toolCallDetailStateByItemId.get(item.id).rawText, reason);
 });
 
@@ -134,6 +134,6 @@ test('execution summary buttons and raw detail preserve the separate blocked sta
     const ctx = runtime();
     assert.equal(ctx.normalizeToolExecutionSummary({ toolName: 'http_request', status: 'blocked' }).status, 'blocked');
     assert.equal(ctx.normalizeToolExecutionSummary({ toolName: 'http_request', status: 'failed', error: reason }).status, 'blocked');
-    assert.equal(ctx.getToolExecutionStatusLabel('blocked'), '已拦截');
+    assert.equal(ctx.getToolExecutionStatusLabel('blocked'), 'Blocked');
     assert.equal(JSON.parse(ctx.formatMCPResultJsonForDisplay({ blocked: true, isError: true, content: [] })).blocked, true);
 });

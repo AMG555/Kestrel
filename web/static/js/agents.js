@@ -1,10 +1,10 @@
-﻿// 多代理子 Agent Markdown（agents/*.md）管理
+// Multi-Agent sub-agent Markdown (agents/*.md) management
 function _agentsT(key, opts) {
     return typeof window.t === 'function' ? window.t(key, opts) : key;
 }
 
-let markdownAgentsEditingFilename = null;
-let markdownAgentsEditingIsOrchestrator = false;
+let markdownAgentseditingFilename = null;
+let markdownAgentseditingIsOrchestrator = false;
 
 function bindAgentsMdListDelegation() {
     const listEl = document.getElementById('agents-md-list');
@@ -70,7 +70,7 @@ async function loadMarkdownAgents() {
                 '<div class="skill-card">' +
                 '<div class="skill-card-header">' +
                 '<h3 class="skill-card-title">' + name + '<span class="' + badgeClass + '">' + escapeHtml(badgeLabel) + '</span></h3>' +
-                '<div class="skill-card-description"><code>' + fn + '</code> · id: <code>' + id + '</code><br>' + desc + '</div>' +
+                '<div class="skill-card-description"><code>' + fn + '</code> &middot; id: <code>' + id + '</code><br>' + desc + '</div>' +
                 '</div>' +
                 '<div class="skill-card-actions">' +
                 '<button type="button" class="btn-secondary btn-small" data-action="edit-agent-md" data-agent-file="' + encodeURIComponent(rawFn) + '">' + escapeHtml(_agentsT('common.edit')) + '</button>' +
@@ -87,8 +87,8 @@ async function loadMarkdownAgents() {
 
 function showAddMarkdownAgentModal() {
     if (typeof requirePermission === 'function' && !requirePermission('agents:write')) return;
-    markdownAgentsEditingFilename = null;
-    markdownAgentsEditingIsOrchestrator = false;
+    markdownAgentseditingFilename = null;
+    markdownAgentseditingIsOrchestrator = false;
     const modal = document.getElementById('agent-md-modal');
     const title = document.getElementById('agent-md-modal-title');
     const row = document.getElementById('agent-md-filename-row');
@@ -113,8 +113,8 @@ async function editMarkdownAgent(filename) {
     if (!filename) return;
     const title = document.getElementById('agent-md-modal-title');
     const row = document.getElementById('agent-md-filename-row');
-    markdownAgentsEditingFilename = null;
-    markdownAgentsEditingIsOrchestrator = false;
+    markdownAgentseditingFilename = null;
+    markdownAgentseditingIsOrchestrator = false;
     if (title) title.textContent = _agentsT('agentsPage.editTitle');
     if (row) row.style.display = 'none';
     document.getElementById('agent-md-instruction').value = '';
@@ -123,8 +123,8 @@ async function editMarkdownAgent(filename) {
         const r = await apiFetch('/api/multi-agent/markdown-agents/' + encodeURIComponent(filename));
         const data = await r.json();
         if (!r.ok) throw new Error(data.error || r.statusText);
-        markdownAgentsEditingFilename = data.filename || filename;
-        markdownAgentsEditingIsOrchestrator = !!data.is_orchestrator;
+        markdownAgentseditingFilename = data.filename || filename;
+        markdownAgentseditingIsOrchestrator = !!data.is_orchestrator;
         deferModalContent(function () {
             document.getElementById('agent-md-filename-current').value = data.filename || filename;
             document.getElementById('agent-md-filename').value = data.filename || filename;
@@ -148,8 +148,8 @@ async function editMarkdownAgent(filename) {
 
 function closeMarkdownAgentModal() {
     closeAppModal('agent-md-modal');
-    markdownAgentsEditingFilename = null;
-    markdownAgentsEditingIsOrchestrator = false;
+    markdownAgentseditingFilename = null;
+    markdownAgentseditingIsOrchestrator = false;
 }
 
 function parseToolsInput(s) {
@@ -167,7 +167,7 @@ async function saveMarkdownAgent() {
     const roleSel = document.getElementById('agent-md-role');
     const roleVal = roleSel ? roleSel.value : 'sub';
     const fnDraft = (document.getElementById('agent-md-filename') && document.getElementById('agent-md-filename').value.trim().toLowerCase()) || '';
-    const isOrchestratorAgent = markdownAgentsEditingIsOrchestrator ||
+    const isOrchestratorAgent = markdownAgentseditingIsOrchestrator ||
         roleVal === 'orchestrator' ||
         fnDraft === 'orchestrator.md';
     const instruction = document.getElementById('agent-md-instruction').value.trim();
@@ -185,11 +185,11 @@ async function saveMarkdownAgent() {
         max_iterations: parseInt(document.getElementById('agent-md-max-iter').value, 10) || 0,
         kind: roleVal === 'orchestrator' ? 'orchestrator' : ''
     };
-    const isEdit = !!markdownAgentsEditingFilename;
+    const isEdit = !!markdownAgentseditingFilename;
     let url;
     let method;
     if (isEdit) {
-        url = '/api/multi-agent/markdown-agents/' + encodeURIComponent(markdownAgentsEditingFilename);
+        url = '/api/multi-agent/markdown-agents/' + encodeURIComponent(markdownAgentseditingFilename);
         method = 'PUT';
     } else {
         url = '/api/multi-agent/markdown-agents';

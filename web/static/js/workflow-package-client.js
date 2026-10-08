@@ -1,7 +1,7 @@
-﻿(function (root, factory) {
+(function (root, factory) {
     const client = factory(root);
     if (typeof module === 'object' && module.exports) module.exports = client;
-    if (root) root.WorkflowPackageClient = client;
+    if (root) root.workflowPackageClient = client;
 })(typeof globalThis !== 'undefined' ? globalThis : this, function (root) {
     const ACTIONS_BY_CONFLICT = {
         none: ['create'],
@@ -28,18 +28,18 @@
         const action = String(data.action || '').trim();
         const newWorkflowId = String(data.newWorkflowId || '').trim();
         const confirmOverwrite = data.confirmOverwrite === true;
-        if (!inspectionId) throw new WorkflowPackageError('WFPKG_INSPECTION_REQUIRED', '缺少预检记录');
+        if (!inspectionId) throw new WorkflowPackageError('WFPKG_INSPECTION_REQUIRED', 'Missing pre-inspection record');
         if (!['create', 'keep_existing', 'overwrite', 'rename'].includes(action)) {
-            throw new WorkflowPackageError('WFPKG_INVALID_ACTION', '导入处理方式无效');
+            throw new WorkflowPackageError('WFPKG_INVALID_ACTION', 'Invalid import action');
         }
         if (action === 'rename' && !newWorkflowId) {
-            throw new WorkflowPackageError('WFPKG_INVALID_RENAME_ID', '请输入新的工作流 ID');
+            throw new WorkflowPackageError('WFPKG_INVALID_RENAME_ID', 'Please enter a new Workflow ID');
         }
         if (action !== 'rename' && newWorkflowId) {
-            throw new WorkflowPackageError('WFPKG_INVALID_ACTION', '当前处理方式不允许填写新的工作流 ID');
+            throw new WorkflowPackageError('WFPKG_INVALID_ACTION', 'Current action does not allow specifying a new Workflow ID');
         }
         if (action === 'overwrite' && !confirmOverwrite) {
-            throw new WorkflowPackageError('WFPKG_OVERWRITE_CONFIRMATION_REQUIRED', '请确认覆盖本地工作流');
+            throw new WorkflowPackageError('WFPKG_OVERWRITE_CONFIRMATION_REQUIRED', 'Please confirm overwriting the local workflow');
         }
         return {
             inspection_id: inspectionId,
@@ -54,7 +54,7 @@
     function createIdempotencyKey() {
         const cryptoApi = root && root.crypto;
         if (!cryptoApi || typeof cryptoApi.randomUUID !== 'function') {
-            throw new WorkflowPackageError('WFPKG_IDEMPOTENCY_KEY_REQUIRED', '浏览器无法生成导入请求标识');
+            throw new WorkflowPackageError('WFPKG_IDEMPOTENCY_KEY_REQUIRED', 'Browser cannot generate import request idempotency key');
         }
         return cryptoApi.randomUUID();
     }
@@ -76,7 +76,7 @@
     }
 
     async function createInspection(apiFetch, file) {
-        if (!file) throw new WorkflowPackageError('WFPKG_FILE_REQUIRED', '请选择本地工作流包');
+        if (!file) throw new WorkflowPackageError('WFPKG_FILE_REQUIRED', 'Please select a local workflow package');
         const body = new FormData();
         body.append('file', file, file.name || 'workflow.csapkg.zip');
         const response = await apiFetch('/api/workflow-package-inspections', { method: 'POST', body: body });
@@ -89,7 +89,7 @@
     }
 
     async function applyImport(apiFetch, request, idempotencyKey) {
-        if (!idempotencyKey) throw new WorkflowPackageError('WFPKG_IDEMPOTENCY_KEY_REQUIRED', '缺少导入请求标识');
+        if (!idempotencyKey) throw new WorkflowPackageError('WFPKG_IDEMPOTENCY_KEY_REQUIRED', 'Missing import request idempotency key');
         const response = await apiFetch('/api/workflow-package-imports', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey },

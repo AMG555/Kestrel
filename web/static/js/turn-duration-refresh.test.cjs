@@ -1,4 +1,4 @@
-﻿const fs = require('node:fs');
+const fs = require('node:fs');
 const vm = require('node:vm');
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -72,7 +72,7 @@ function createHarness(nowMs) {
     return context;
 }
 
-test('刷新运行中任务时忽略摘要中的零耗时并按开始时间恢复', () => {
+test('RefreshRunning任务时Ignore摘要中的零耗时并按开始时间Resume', () => {
     const startedAt = '2026-08-12T02:00:00.000Z';
     const startedMs = Date.parse(startedAt);
     const context = createHarness(startedMs + 65_000);
@@ -85,10 +85,10 @@ test('刷新运行中任务时忽略摘要中的零耗时并按开始时间恢�
     });
 
     assert.equal(message.dataset.turnDurationMs, undefined);
-    assert.match(message.label.innerHTML, /已处理 1 分钟 5 秒/);
+    assert.match(message.label.innerHTML, /(?:已处理 1 分钟 5 秒|Processed 1\s+minutes?\s+5\s+sec)/);
 });
 
-test('已完成任务仍优先使用持久化耗时', () => {
+test('Completed任务仍优先使用持久化耗时', () => {
     const context = createHarness(Date.parse('2026-08-12T02:05:00.000Z'));
     const message = createMessage();
 
@@ -100,7 +100,7 @@ test('已完成任务仍优先使用持久化耗时', () => {
     });
 
     assert.equal(message.dataset.turnDurationMs, '65000');
-    assert.match(message.label.innerHTML, /耗时 1 分钟 5 秒/);
+    assert.match(message.label.innerHTML, /(?:耗时 1 分钟 5 秒|耗时 1\s+minutes?\s+5\s+sec|Elapsed 1\s+minutes?\s+5\s+sec)/);
 });
 
 test('助手轮次摘要会显示持久化 token 用量', () => {
@@ -127,7 +127,7 @@ test('助手轮次摘要会显示持久化 token 用量', () => {
     assert.match(message.label.innerHTML, /turn-process-token-chip/);
 });
 
-test('助手轮次可从 Eino usage summary 过程详情提取 token 用量', () => {
+test('助手轮次可从 Eino usage summary 过程Details提取 token 用量', () => {
     const context = createHarness(Date.parse('2026-08-12T02:05:00.000Z'));
 
     const usage = context.extractAssistantTurnTokenUsage([
@@ -142,7 +142,7 @@ test('助手轮次可从 Eino usage summary 过程详情提取 token 用量', ()
     assert.equal(usage.modelCalls, 2);
 });
 
-test('已中断任务使用固定终态耗时且不再按当前时间增长', () => {
+test('已中断任务使用固定终态耗时且不再按Current时间增长', () => {
     const context = createHarness(Date.parse('2026-08-13T12:00:00.000Z'));
     const message = createMessage();
 
@@ -154,17 +154,17 @@ test('已中断任务使用固定终态耗时且不再按当前时间增长', ()
     });
 
     assert.equal(message.dataset.turnDurationMs, '265000');
-    assert.match(message.label.innerHTML, /已中断 · 耗时 4 分钟 25 秒/);
-    assert.doesNotMatch(message.label.innerHTML, /已处理/);
+    assert.match(message.label.innerHTML, /(?:已中断 · 耗时 4 分钟 25 秒|已中断 · 耗时 4\s+minutes?\s+25\s+sec|Interrupted · 4\s+minutes?\s+25\s+sec)/);
+    assert.doesNotMatch(message.label.innerHTML, /已处理|Processed/);
 });
 
-test('历史占位消息存在取消事件时不会再判定为运行中', () => {
+test('历史占位消息存在Cancel事件时不会再判定为Running', () => {
     assert.match(chat, /function assistantTurnTerminalState\(processDetails\)/);
     assert.match(chat, /const isRunning = isAssistantPlaceholder && !terminalState/);
     assert.match(chat, /status: status/);
 });
 
-test('过程详情隐藏 Eino 内部诊断但保留真实工具调用', () => {
+test('过程Details隐藏 Eino 内部诊断但保留真实工具调用', () => {
     const context = {};
     vm.runInNewContext(
         `${processDetailFilterSource(chat)}; this.filterNoiseProcessDetails = filterNoiseProcessDetails;`,
@@ -186,7 +186,7 @@ test('过程详情隐藏 Eino 内部诊断但保留真实工具调用', () => {
         },
         {
             eventType: 'model_output_rejected',
-            message: '模型工具调用不完整或参数不安全，已阻止执行并要求重写。',
+            message: 'Model工具调用不完整或参数不Safe，已阻止Execute并要求重写。',
             data: { reason: 'invalid_tool_arguments_json' },
         },
         {

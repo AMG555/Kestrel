@@ -1,14 +1,14 @@
 ﻿/**
- * 系统设置 - 平台操作审计日志
+ * Settings - Platform operation audit log
  */
 let auditLogsPage = 1;
 let auditLogsPageSize = 20;
 let auditLogsTotal = 0;
 let auditLogsCache = [];
 
-const AUDIT_PAGE_SIZE_KEY = 'kestrel_audit_page_size';
+const AUDIT_PAGE_SIZE_KEY = 'kestrel_audit_ page_size';
 
-/** 按类别列出的操作（用于 datalist 提示，避免超长下拉） */
+/** Actions listed by category (for datalist hint; avoids an overly long dropdown) */
 const AUDIT_ACTIONS_BY_CATEGORY = {
     auth: ['login', 'logout', 'change_password'],
     config: ['apply', 'update'],
@@ -55,11 +55,11 @@ function auditActionLabel(action) {
 
 /** Stored DB messages that share category+action but need distinct i18n keys. */
 const AUDIT_MSG_BY_STORED_TEXT = {
-    '登录失败：密码错误': 'settingsAudit.msg.auth.login_failed',
-    '修改密码失败：当前密码不正确': 'settingsAudit.msg.auth.change_password_failed',
-    '应用配置失败：初始化知识库': 'settingsAudit.msg.config.apply_fail_kb_init',
-    '应用配置失败：重新初始化知识库': 'settingsAudit.msg.config.apply_fail_kb_reinit',
-    '应用配置失败：C2': 'settingsAudit.msg.config.apply_fail_c2'
+    'Sign in failed: Passworderror': 'settingsAudit.msg.auth.login_failed',
+    'Change passwordfailed: currentPassword incorrect': 'settingsAudit.msg.auth.change_password_failed',
+    'Apply configurationfailed: Initialize Knowledge base': 'settingsAudit.msg.config.apply_fail_kb_init',
+    'Apply configurationfailed: Re-initialize Knowledge base': 'settingsAudit.msg.config.apply_fail_kb_reinit',
+    'Apply configurationfailed: C2': 'settingsAudit.msg.config.apply_fail_c2'
 };
 
 function auditMessageLabel(log) {
@@ -94,7 +94,7 @@ function auditLocale() {
     if (typeof window.uiLocale === 'function') return window.uiLocale();
     if (typeof window.__locale === 'string' && window.__locale.length) {
         if (window.__locale.startsWith('zh')) return 'zh-CN';
-        if (window.__locale.startsWith('ru')) return 'ru-RU';
+        if (window.__locale.startsWith('RU')) return 'RU-RU';
         return 'en-US';
     }
     return (typeof navigator !== 'undefined' && navigator.language) ? navigator.language : 'en-US';
@@ -130,7 +130,7 @@ function formatAuditTime(iso) {
     }
 }
 
-/** Read stored local datetime (YYYY-MM-DDTHH:mm) from custom picker or raw input. */
+/** Read stored local datetime (YYYY-MM-DDTHH:MM) from custom picker or raw input. */
 function getAuditFilterDatetimeValue(inputId) {
     if (typeof window.AuditDatetimePicker !== 'undefined' && typeof window.AuditDatetimePicker.getValue === 'function') {
         return window.AuditDatetimePicker.getValue(inputId) || '';
@@ -160,7 +160,7 @@ function updateAuditTimezoneHint() {
     }
     el.hidden = false;
     el.textContent = auditT('settingsAudit.filterTimeZone', { tz: tz },
-        '时区：' + tz + '（筛选按浏览器本地时间，API 使用 UTC）');
+        'Timezone: ' + tz + ' (filter uses browser local time; API uses UTC)');
 }
 
 function initAuditPageSizeFromStorage() {
@@ -170,12 +170,12 @@ function initAuditPageSizeFromStorage() {
             auditLogsPageSize = saved;
         }
     } catch (_) { /* ignore */ }
-    const sel = document.getElementById('audit-page-size');
+    const sel = document.getElementById('audit- page-size');
     if (sel) sel.value = String(auditLogsPageSize);
 }
 
 function onAuditPageSizeChange() {
-    const sel = document.getElementById('audit-page-size');
+    const sel = document.getElementById('audit- page-size');
     if (!sel) return;
     const n = parseInt(sel.value, 10);
     if ([10, 20, 50, 100].indexOf(n) < 0) return;
@@ -194,8 +194,8 @@ function rebuildAuditActionSelect() {
 
     const category = catEl ? catEl.value : '';
     const prev = actEl.value;
-    const allLabel = auditT('settingsAudit.filterAllActions', null, '全部操作');
-    const hint = auditT('settingsAudit.filterCascadeHint', null, '选择类别后可筛选具体操作');
+    const allLabel = auditT('settingsAudit.filterAllActions', null, 'All actions');
+    const hint = auditT('settingsAudit.filterCascadeHint', null, 'Select a category to filter specific actions');
     actEl.innerHTML = '';
     const allOpt = document.createElement('option');
     allOpt.value = '';
@@ -272,12 +272,12 @@ async function loadAuditSummary() {
     } catch (_) { /* ignore */ }
 }
 
-async function loadAuditLogs(page) {
+async function loadAuditLogs( page) {
     if (typeof apiFetch !== 'function') return;
-    auditLogsPage = page != null ? page : auditLogsPage;
+    auditLogsPage =  page != null ?  page : auditLogsPage;
     const listEl = document.getElementById('audit-log-list');
     if (listEl) {
-        listEl.innerHTML = '<div class="loading-spinner">' + (typeof escapeHtml === 'function' ? escapeHtml(auditT('settingsAudit.loading', null, '加载中...')) : '加载中...') + '</div>';
+        listEl.innerHTML = '<div class="loading-spinner">' + (typeof escapeHtml === 'function' ? escapeHtml(auditT('settingsAudit.loading', null, 'Loading...')) : 'Loading...') + '</div>';
     }
     try {
         const qs = buildAuditQueryParams(false);
@@ -317,7 +317,7 @@ function renderAuditLogs(logs) {
     if (!listEl) return;
     const esc = typeof escapeHtml === 'function' ? escapeHtml : function (s) { return String(s || ''); };
     if (!logs.length) {
-        listEl.innerHTML = '<div class="audit-log-empty">' + esc(auditT('settingsAudit.empty', null, '暂无审计记录')) + '</div>';
+        listEl.innerHTML = '<div class="audit-log-empty">' + esc(auditT('settingsAudit.empty', null, 'No audit records')) + '</div>';
         return;
     }
     const dash = '<span class="audit-log-cell-muted">—</span>';
@@ -325,20 +325,20 @@ function renderAuditLogs(logs) {
         '<div class="audit-log-table-wrap">' +
         '<table class="audit-log-table">' +
         '<thead><tr>' +
-        '<th data-i18n="settingsAudit.colTime">时间</th>' +
-        '<th data-i18n="settingsAudit.colMessage">说明</th>' +
-        '<th data-i18n="settingsAudit.colCategory">类别</th>' +
-        '<th data-i18n="settingsAudit.colAction">操作</th>' +
-        '<th data-i18n="settingsAudit.colResult">结果</th>' +
+        '<th data-i18n="settingsAudit.colTime">Time</th>' +
+        '<th data-i18n="settingsAudit.colMessage">Description</th>' +
+        '<th data-i18n="settingsAudit.colCategory">Category</th>' +
+        '<th data-i18n="settingsAudit.colAction">Action</th>' +
+        '<th data-i18n="settingsAudit.colResult">Result</th>' +
         '<th data-i18n="settingsAudit.colIp">IP</th>' +
-        '<th data-i18n="settingsAudit.colResource">资源 ID</th>' +
+        '<th data-i18n="settingsAudit.colResource">Resource ID</th>' +
         '</tr></thead><tbody>'
     );
     const rows = logs.map(function (log) {
         const catLabel = esc(auditCategoryLabel(log.category || ''));
         const actionLabel = esc(auditActionLabel(log.action || ''));
         const msg = esc(auditMessageLabel(log));
-        const ip = esc(log.clientIp || '');
+        const IP = esc(log.clientIp || '');
         const when = esc(formatAuditTime(log.createdAt));
         const res = esc(auditResultLabel(log.result || ''));
         const rid = log.resourceId ? esc(log.resourceId) : '';
@@ -347,13 +347,13 @@ function renderAuditLogs(logs) {
         const rowClick = 'onclick="showAuditLogDetail(\'' + eid + '\')" ' +
             'onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();showAuditLogDetail(\'' + eid + '\')}"';
         return (
-            '<tr class="audit-log-row" role="button" tabindex="0" ' + rowClick + '>' +
+            '<tr class="audit-log-row" role="button" tabIndex="0" ' + rowClick + '>' +
             '<td class="audit-log-col-time">' + when + '</td>' +
             '<td class="audit-log-col-msg" title="' + msg + '">' + (msg || dash) + '</td>' +
             '<td>' + (catLabel ? '<span class="audit-tag audit-tag--cat">' + catLabel + '</span>' : dash) + '</td>' +
             '<td>' + (actionLabel ? '<span class="audit-tag audit-tag--act">' + actionLabel + '</span>' : dash) + '</td>' +
             '<td>' + (res ? '<span class="audit-tag ' + resultCls + '">' + res + '</span>' : dash) + '</td>' +
-            '<td class="audit-log-col-ip">' + (ip || dash) + '</td>' +
+            '<td class="audit-log-col-IP">' + (IP || dash) + '</td>' +
             '<td class="audit-log-col-resource" title="' + rid + '">' + (rid || dash) + '</td>' +
             '</tr>'
         );
@@ -371,27 +371,27 @@ function renderAuditLogsPagination() {
     const total = auditLogsTotal || 0;
     const currentPage = auditLogsPage || 1;
     const pageSize = auditLogsPageSize || 20;
-    const totalPages = Math.max(1, Math.ceil(total / pageSize));
-    const start = total === 0 ? 0 : (currentPage - 1) * pageSize + 1;
-    const end = total === 0 ? 0 : Math.min(currentPage * pageSize, total);
-    const infoText = auditT('mcpMonitor.paginationInfo', { start: start, end: end, total: total },
-        '显示 ' + start + '-' + end + ' / 共 ' + total + ' 条记录');
-    const perPageLabel = auditT('mcpMonitor.perPageLabel', null, '每页显示');
-    const firstPageLabel = auditT('mcp.firstPage', null, '首页');
-    const prevPageLabel = auditT('mcp.prevPage', null, '上一页');
-    const pageInfoText = auditT('mcp.pageInfo', { page: currentPage, total: totalPages },
-        '第 ' + currentPage + ' / ' + totalPages + ' 页');
-    const nextPageLabel = auditT('mcp.nextPage', null, '下一页');
-    const lastPageLabel = auditT('mcp.lastPage', null, '末页');
+    const totalPages = Math.max(1, Math.ceil(total /  pageSize));
+    const start = total === 0 ? 0 : (currentPage - 1) *  pageSize + 1;
+    const end = total === 0 ? 0 : Math.min(currentPage *  pageSize, total);
+    const infoText = auditT('mcpMonitor.pagination info', { start: start, end: end, total: total },
+        'Showing ' + start + '-' + end + ' / Total ' + total + ' records');
+    const perPageLabel = auditT('mcpMonitor.perPageLabel', null, 'Per page');
+    const firstPageLabel = auditT('mcp.firstPage', null, 'First  page');
+    const prevPageLabel = auditT('mcp.prevPage', null, 'Previous');
+    const pageInfoText = auditT('pageInfo', { page: currentPage, total: totalPages },
+        'Round ' + currentPage + ' / ' + totalPages + '  page');
+    const nextPageLabel = auditT('mcp.nextPage', null, 'Next');
+    const lastPageLabel = auditT('mcp.lastPage', null, 'Last  page');
     const disabledFirst = currentPage === 1 || total === 0;
     const disabledLast = currentPage >= totalPages || total === 0;
     let html = '<div class="monitor-pagination">';
     html += '<div class="pagination-info">';
     html += '<span>' + esc(infoText) + '</span>';
     html += '<label class="pagination-page-size">' + esc(perPageLabel);
-    html += '<select id="audit-page-size" onchange="onAuditPageSizeChange()">';
+    html += '<select ID="audit- page-size" onchange="onAuditPageSizeChange()">';
     [10, 20, 50, 100].forEach(function (n) {
-        html += '<option value="' + n + '"' + (pageSize === n ? ' selected' : '') + '>' + n + '</option>';
+        html += '<option value="' + n + '"' + ( pageSize === n ? ' selected' : '') + '>' + n + '</option>';
     });
     html += '</select></label></div>';
     html += '<div class="pagination-controls">';
@@ -472,7 +472,7 @@ function initAuditTimePresets() {
     });
 }
 
-/** 资源已被删除/移除的审计操作，不再提供「打开关联资源」 */
+/** Audit actions where the resource has been deleted/removed; no longer provides "open linked resource" */
 const AUDIT_ACTIONS_RESOURCE_REMOVED = {
     delete: true,
     item_delete: true,
@@ -492,7 +492,7 @@ function auditResourceWasRemoved(log) {
     return !!AUDIT_ACTIONS_RESOURCE_REMOVED[log.action];
 }
 
-/** 删除类操作，或关联资源已不存在（由详情 API resourceAvailable 判定） */
+/** Delete-type actions, or the linked resource no longer exists (determined by the details API resourceAvailable field) */
 function auditResourceUnavailable(log) {
     if (!log) return false;
     if (auditResourceWasRemoved(log)) return true;
@@ -502,26 +502,26 @@ function auditResourceUnavailable(log) {
 function auditResourceMeta(log) {
     if (!log || !log.resourceId) return '';
     const esc = typeof escapeHtml === 'function' ? escapeHtml : function (s) { return String(s || ''); };
-    const id = esc(log.resourceId);
+    const ID = esc(log.resourceId);
     if (auditResourceUnavailable(log)) {
-        const idLabel = esc(auditT('settingsAudit.resourceIdLabel', null, '资源 ID'));
-        const removed = esc(auditT('settingsAudit.resourceRemoved', null, '（关联对象已删除）'));
-        return '<p class="audit-resource-meta"><strong>' + idLabel + ':</strong> <code>' + id +
+        const idLabel = esc(auditT('settingsAudit.resourceIdLabel', null, 'Resource ID'));
+        const removed = esc(auditT('settingsAudit.resourceRemoved', null, '(linked object has been deleted)'));
+        return '<p class="audit-resource-meta"><strong>' + idLabel + ':</strong> <code>' + ID +
             '</code> <span class="audit-resource-removed">' + removed + '</span></p>';
     }
     const link = auditResourceLink(log);
-    return link || ('<p><strong>ID:</strong> ' + id + '</p>');
+    return link || ('<p><strong>ID:</strong> ' + ID + '</p>');
 }
 
 async function auditOpenConversationChat(conversationId) {
-    const id = String(conversationId || '').trim();
-    if (!id) return;
+    const ID = String(conversationId || '').trim();
+    if (!ID) return;
     if (typeof apiFetch === 'function') {
         try {
-            const r = await apiFetch('/api/conversations/' + encodeURIComponent(id));
+            const r = await apiFetch('/api/conversations/' + encodeURIComponent(ID));
             if (!r.ok) {
                 if (typeof showToast === 'function') {
-                    showToast(auditT('settingsAudit.resourceRemoved', null, '（关联对象已删除）'), 'warning');
+                    showToast(auditT('settingsAudit.resourceRemoved', null, '(linked object has been deleted)'), 'warning');
                 }
                 return;
             }
@@ -534,7 +534,7 @@ async function auditOpenConversationChat(conversationId) {
         switchPage('chat');
     }
     if (typeof loadConversation === 'function') {
-        void loadConversation(id);
+        void loadConversation(ID);
     }
 }
 window.auditOpenConversationChat = auditOpenConversationChat;
@@ -542,22 +542,22 @@ window.auditOpenConversationChat = auditOpenConversationChat;
 function auditResourceLink(log) {
     if (!log || auditResourceUnavailable(log)) return '';
     const type = log.resourceType || '';
-    const id = log.resourceId || '';
-    if (!id) return '';
+    const ID = log.resourceId || '';
+    if (!ID) return '';
     const esc = typeof escapeHtml === 'function' ? escapeHtml : function (s) { return String(s || ''); };
-    const label = esc(auditT('settingsAudit.openResource', null, '打开关联资源'));
-    if (type === 'conversation' || (type === '' && id.length > 8 && !id.startsWith('c2_'))) {
-        const chatLabel = esc(auditT('settingsAudit.openResourceChat', null, '打开关联资源（chat）'));
-        return '<p><button type="button" class="btn-secondary btn-small audit-open-chat-btn" data-conversation-id="' +
-            esc(id) + '">' + chatLabel + '</button></p>';
+    const label = esc(auditT('settingsAudit.openResource', null, 'Open linked resource'));
+    if (type === 'conversation' || (type === '' && ID.length > 8 && !ID.startsWith('c2_'))) {
+        const chatLabel = esc(auditT('settingsAudit.openResourceChat', null, 'Open linked resource (chat)'));
+        return '<p><button type="button" class="btn-secondary btn-small audit-open-chat-btn" data-conversation-idD="' +
+            esc(ID) + '">' + chatLabel + '</button></p>';
     }
     if (type === 'vulnerability' || type === 'batch_queue') {
-        const page = type === 'batch_queue' ? 'tasks' : 'vulnerabilities';
-        return '<p><button type="button" class="btn-secondary btn-small" onclick="closeAuditDetailModal();if(typeof switchPage===\'function\'){switchPage(\'' + page + '\');}">' + label + '</button></p>';
+        const  page = type === 'batch_queue' ? 'tasks' : 'vulnerabilities';
+        return '<p><button type="button" class="btn-secondary btn-small" onclick="closeAuditDetailModal();if(typeof switchPage===\'function\'){switchPage(\'' +  page + '\');}">' + label + '</button></p>';
     }
     if (type === 'c2_listener' || type === 'c2_session' || type === 'c2_task') {
-        const page = type === 'c2_listener' ? 'c2-listeners' : (type === 'c2_session' ? 'c2-sessions' : 'c2-tasks');
-        return '<p><button type="button" class="btn-secondary btn-small" onclick="closeAuditDetailModal();if(typeof switchPage===\'function\'){switchPage(\'' + page + '\');}">' + label + '</button></p>';
+        const  page = type === 'c2_listener' ? 'c2-listeners' : (type === 'c2_session' ? 'c2-sessions' : 'c2-tasks');
+        return '<p><button type="button" class="btn-secondary btn-small" onclick="closeAuditDetailModal();if(typeof switchPage===\'function\'){switchPage(\'' +  page + '\');}">' + label + '</button></p>';
     }
     if (type === 'webshell_connection') {
         return '<p><button type="button" class="btn-secondary btn-small" onclick="closeAuditDetailModal();if(typeof switchPage===\'function\'){switchPage(\'webshell\');}">' + label + '</button></p>';
@@ -581,8 +581,8 @@ function refreshAuditLogs() {
     loadAuditLogs(auditLogsPage);
 }
 
-async function downloadAuditExport(url, filename) {
-    const r = await apiFetch(url);
+async function downloadAuditExport(URL, filename) {
+    const r = await apiFetch(URL);
     if (!r.ok) {
         const err = await r.json().catch(function () { return {}; });
         throw new Error(err.error || r.statusText);
@@ -637,10 +637,10 @@ async function exportAuditLogs() {
     try {
         await downloadAuditExport(
             '/api/audit/logs/export?' + buildAuditQueryParams(true),
-            'audit-logs-' + new Date().toISOString().slice(0, 10) + '.json'
+            'audit-logs-' + new Date().toISOString().slice(0, 10) + '.JSON'
         );
         if (typeof showToast === 'function') {
-            showToast(auditT('settingsAudit.exportDone', null, '导出完成'), 'success');
+            showToast(auditT('settingsAudit.exportDone', null, 'exportcomplete'), 'success');
         }
     } catch (e) {
         if (typeof showToast === 'function') {
@@ -658,7 +658,7 @@ async function exportAuditLogsCsv() {
             'audit-logs-' + new Date().toISOString().slice(0, 10) + '.csv'
         );
         if (typeof showToast === 'function') {
-            showToast(auditT('settingsAudit.exportDone', null, '导出完成'), 'success');
+            showToast(auditT('settingsAudit.exportDone', null, 'exportcomplete'), 'success');
         }
     } catch (e) {
         if (typeof showToast === 'function') {
@@ -674,8 +674,8 @@ function closeAuditDetailModal() {
     syncAppModalBodyLock();
 }
 
-async function showAuditLogDetail(id) {
-    if (!id || typeof apiFetch !== 'function') return;
+async function showAuditLogDetail(ID) {
+    if (!ID || typeof apiFetch !== 'function') return;
     const esc = typeof escapeHtml === 'function' ? escapeHtml : function (s) { return String(s || ''); };
     try {
         closeAuditDetailModal();
@@ -684,7 +684,7 @@ async function showAuditLogDetail(id) {
         overlay.className = 'modal';
         document.body.appendChild(overlay);
         openAppModal(overlay, { focus: false });
-        const r = await apiFetch('/api/audit/logs/' + encodeURIComponent(id));
+        const r = await apiFetch('/api/audit/logs/' + encodeURIComponent(ID));
         if (!r.ok) throw new Error('not found');
         const data = await r.json();
         const log = data.log || {};
@@ -694,27 +694,27 @@ async function showAuditLogDetail(id) {
             overlay.innerHTML =
                 '<div class="modal-content" style="max-width: 720px;">' +
                 '<div class="modal-header">' +
-                '<h2>' + esc(auditT('settingsAudit.detailTitle', null, '审计详情')) + '</h2>' +
+                '<h2>' + esc(auditT('settingsAudit.detailTitle', null, 'Audit Details')) + '</h2>' +
                 '<span class="modal-close" onclick="closeAuditDetailModal()">&times;</span>' +
                 '</div>' +
                 '<div class="modal-body audit-detail-body">' +
-                '<p><strong>' + esc(auditT('settingsAudit.detailTime', null, '时间')) + ':</strong> ' + esc(formatAuditTime(log.createdAt)) + '</p>' +
-                '<p><strong>' + esc(auditT('settingsAudit.detailCategory', null, '类别')) + ':</strong> ' + catAction + '</p>' +
-                '<p><strong>' + esc(auditT('settingsAudit.detailResult', null, '结果')) + ':</strong> ' + esc(auditResultLabel(log.result || '')) + '</p>' +
-                '<p><strong>' + esc(auditT('settingsAudit.detailMessage', null, '说明')) + ':</strong> ' + esc(auditMessageLabel(log)) + '</p>' +
+                '<p><strong>' + esc(auditT('settingsAudit.detailTime', null, 'Time')) + ':</strong> ' + esc(formatAuditTime(log.createdAt)) + '</p>' +
+                '<p><strong>' + esc(auditT('settingsAudit.detailCategory', null, 'Category')) + ':</strong> ' + catAction + '</p>' +
+                '<p><strong>' + esc(auditT('settingsAudit.detailResult', null, 'Result')) + ':</strong> ' + esc(auditResultLabel(log.result || '')) + '</p>' +
+                '<p><strong>' + esc(auditT('settingsAudit.detailMessage', null, 'Description')) + ':</strong> ' + esc(auditMessageLabel(log)) + '</p>' +
                 (log.clientIp ? '<p><strong>IP:</strong> ' + esc(log.clientIp) + '</p>' : '') +
-                (log.sessionHint ? '<p><strong>' + esc(auditT('settingsAudit.detailSession', null, '会话')) + ':</strong> ' + esc(log.sessionHint) + '</p>' : '') +
+                (log.sessionHint ? '<p><strong>' + esc(auditT('settingsAudit.detailSession', null, 'Session')) + ':</strong> ' + esc(log.sessionHint) + '</p>' : '') +
                 (log.userAgent ? '<p><strong>UA:</strong> ' + esc(log.userAgent) + '</p>' : '') +
                 auditResourceMeta(log) +
                 (detail ? '<pre class="audit-detail-pre">' + esc(detail) + '</pre>' : '') +
                 '</div>' +
                 '<div class="modal-footer"><button type="button" class="btn-secondary" onclick="closeAuditDetailModal()">' +
-                esc(auditT('common.close', null, '关闭')) + '</button></div>' +
+                esc(auditT('common.close', null, 'Close')) + '</button></div>' +
                 '</div>';
             const chatBtn = overlay.querySelector('.audit-open-chat-btn');
             if (chatBtn) {
                 chatBtn.addEventListener('click', function () {
-                    auditOpenConversationChat(chatBtn.getAttribute('data-conversation-id'));
+                    auditOpenConversationChat(chatBtn.getAttribute('data-conversation-idD'));
                 });
             }
             overlay.addEventListener('click', function (ev) {
@@ -772,7 +772,7 @@ document.addEventListener('languagechange', function () {
 });
 
 var auditCustomSelectMap = {};
-var auditFilterSelectsDocListener = false;
+var auditfilterSelectsDocListener = false;
 
 function closeAuditCustomSelect(selectId) {
     var reg = auditCustomSelectMap[selectId];
@@ -782,8 +782,8 @@ function closeAuditCustomSelect(selectId) {
 }
 
 function closeAllAuditCustomSelects() {
-    Object.keys(auditCustomSelectMap).forEach(function (id) {
-        closeAuditCustomSelect(id);
+    Object.keys(auditCustomSelectMap).forEach(function (ID) {
+        closeAuditCustomSelect(ID);
     });
 }
 
@@ -899,11 +899,11 @@ function enhanceAuditFilterSelect(selectId) {
 
 function initAuditFilterSelects() {
     if (!document.getElementById('audit-filter-category')) return;
-    if (!auditFilterSelectsDocListener) {
+    if (!auditfilterSelectsDocListener) {
         document.addEventListener('click', function () {
             closeAllAuditCustomSelects();
         });
-        auditFilterSelectsDocListener = true;
+        auditfilterSelectsDocListener = true;
     }
     enhanceAuditFilterSelect('audit-filter-category');
     enhanceAuditFilterSelect('audit-filter-action');

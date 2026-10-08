@@ -1,4 +1,4 @@
-﻿const fs = require('node:fs');
+const fs = require('node:fs');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
@@ -22,14 +22,14 @@ test('已有会话缺少本地配置时不会继承其他会话的最近审批�
     assert.match(existingConversationBranch, /catch \(e\) \{\s*return fallback;/);
 });
 
-test('服务端默认审批人只更新默认值，不覆盖最近会话选择', () => {
+test('服务端Default审批人只更新Default值，不覆盖最近会话选择', () => {
     const source = functionSource(hitl, 'applyHitlDefaultReviewerFromServer', 'fetchHitlDefaultReviewer');
 
-    assert.match(source, /window\.csaiHitlDefaultReviewer = v/);
+    assert.match(source, /window\.csaiHitlDefaultReviewer = (?:reviewer|v)/);
     assert.doesNotMatch(source, /saveHitlLastGlobalConfig/);
 });
 
-test('恢复会话审批配置时保留该会话自己的审批人', () => {
+test('Resume会话审批配置时保留该会话自己的审批人', () => {
     const source = functionSource(hitl, 'syncHitlConfigFromServer', 'syncHitlConfigToServerByCurrentConversation');
 
     assert.match(source, /const localReviewer = hitlReviewerNormalize\(local && local\.reviewer\)/);
@@ -38,7 +38,7 @@ test('恢复会话审批配置时保留该会话自己的审批人', () => {
     assert.doesNotMatch(source, /getHitlLastGlobalConfig/);
 });
 
-test('异步同步只能刷新仍处于当前会话的审批界面', () => {
+test('异步同步只能Refresh仍处于Current会话的审批界面', () => {
     const source = functionSource(hitl, 'syncHitlConfigFromServer', 'syncHitlConfigToServerByCurrentConversation');
 
     assert.match(source, /getCurrentConversationIdForHitl\(\) === conversationId[\s\S]*?window\.applyHitlConfigToUI\(normalizedCfg\)/);

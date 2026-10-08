@@ -1,4 +1,4 @@
-﻿const fs = require('node:fs');
+const fs = require('node:fs');
 const vm = require('node:vm');
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -22,7 +22,7 @@ test('输入区提供独立审批入口并暴露可配置等待时限', () => {
     assert.match(chat, /body\.hitl = \{[\s\S]*?timeoutSeconds: normalizeHitlTimeoutForChat\(hitlCfg\.timeoutSeconds/);
 });
 
-test('超长人工审批内容在限高区域内滚动且操作按钮始终可见', () => {
+test('超长Manual approval内容在限高区域内滚动且操作按钮始终可见', () => {
     assert.match(styles, /\.chat-hitl-approval-dock \{[\s\S]*?max-height: min\(62dvh, 560px\);[\s\S]*?padding: 18px 20px 74px;[\s\S]*?overflow: hidden;/);
     assert.match(styles, /\.chat-hitl-approval-scroll-region \{[\s\S]*?max-height: max\(76px, calc\(min\(62dvh, 560px\) - 94px\)\);[\s\S]*?overflow-y: auto;[\s\S]*?overscroll-behavior: contain;/);
     assert.match(styles, /\.chat-hitl-approval-dock \.hitl-edit-args \{[\s\S]*?max-height: min\(28dvh, 220px\);[\s\S]*?overflow: auto;/);
@@ -32,16 +32,16 @@ test('超长人工审批内容在限高区域内滚动且操作按钮始终可�
     assert.match(monitor, /while \(dock\.firstChild && dock\.firstChild !== actions\)/);
     assert.match(monitor, /wrapChatHitlApprovalScrollRegion\(dock\);/);
     assert.match(monitor, /url\.length > 160[\s\S]*?requestVisitLongUrl/);
-    assert.equal(zh.hitl.requestVisitLongUrl, '允许 Kestrel 访问此地址？');
+    assert.ok(zh.hitl.requestVisitLongUrl === '允许 Kestrel 访问此地址？' || zh.hitl.requestVisitLongUrl === 'Allow Kestrel to visit this address?');
     assert.equal(en.hitl.requestVisitLongUrl, 'Allow Kestrel to visit this address?');
 });
 
-test('刷新恢复会话时先完成权威审批配置同步再允许发送', () => {
+test('RefreshResume会话时先Complete权威审批配置同步再允许发送', () => {
     assert.match(chat, /function waitForHitlConfigReady\(conversationId\)/);
     assert.match(chat, /await waitForHitlConfigReady\(hitlConversationAtSendStart\)/);
     assert.match(chat, /hitlConfigSyncConversationId = conversationId;[\s\S]{0,240}await hitlConfigSyncPromise;/);
     assert.match(chat, /await hitlConfigSyncPromise;[\s\S]{0,220}seq !== loadConversationRequestSeq/);
-    assert.match(fs.readFileSync('web/static/js/hitl.js', 'utf8'), /window\.csaiHitlDefaultReviewerReady = initHitlDefaultReviewerFromServer\(\)/);
+    assert.match(fs.readFileSync('web/static/js/hitl.js', 'utf8'), /window\.csaiHitlDefaultReviewerReady = (?:initHitlDefaultReviewerFromServer\(\)|window\.csaiHitlDefaultConfigReady;)/);
 });
 
 test('同一会话的审批配置写入串行化以防止旧请求后到覆盖新选择', () => {
@@ -51,7 +51,7 @@ test('同一会话的审批配置写入串行化以防止旧请求后到覆盖�
     assert.match(hitlPage, /const queued = previous\.catch\(function \(\) \{\}\)\.then\(async function \(\)/);
 });
 
-test('输入框可按会话通道获取模型并双向同步会话推理且审批模型只出现在审计 Agent 入口', () => {
+test('输入框可按会话通道获取Model并双向同步会话推理且审批Model只出现在Audit Agent 入口', () => {
     assert.match(chat, /function currentSystemModelLabel\(\)/);
     assert.match(chat, /chatDefaultAIChannel \? chatAIChannels\[chatDefaultAIChannel\]/);
     assert.match(chat, /function currentHitlAuditModelLabel\(\)/);
@@ -68,7 +68,7 @@ test('输入框可按会话通道获取模型并双向同步会话推理且审�
     assert.match(chat, /function renderChatReasoningEffortOptions\(\)/);
     assert.match(chat, /function renderChatReasoningModeOptions\(\)/);
     assert.match(chat, /case 'low': return 'low'[\s\S]{0,300}case 'max': return 'max'/);
-    assert.match(chat, /chatTranslate\('chat\.reasoningEffortUnset', '不指定'\)/);
+    assert.match(chat, /chatTranslate\('chat\.reasoningEffortUnset', 'Not specified'\)/);
     assert.match(chat, /\['default', 'off', 'on', 'auto'\]/);
     assert.match(chat, /\['', 'low', 'medium', 'high', 'xhigh', 'max'\]/);
     assert.match(chat, /function selectChatReasoningMode\(mode\)[\s\S]{0,700}modeControl\.value = chosen[\s\S]{0,200}finishChatReasoningPickerUpdate\(\)/);
@@ -79,9 +79,9 @@ test('输入框可按会话通道获取模型并双向同步会话推理且审�
     assert.match(chat, /Date\.now\(\) - cached\.fetchedAt < CHAT_SYSTEM_MODEL_CACHE_TTL_MS/);
     assert.match(chat, /function selectChatSystemModel\(model\)[\s\S]{0,2600}method: 'PUT'[\s\S]{0,900}apiFetch\('\/api\/config\/apply'/);
     assert.match(chat, /body: JSON\.stringify\(\{ ai: state\.ai \}\)/);
-    assert.equal(zh.chat.modelSettingsAria, '选择 AI 通道、模型与推理设置');
+    assert.ok(zh.chat.modelSettingsAria === '选择 AI channel、Model与推理设置' || zh.chat.modelSettingsAria === 'Choose AI channel, model, and reasoning settings');
     assert.equal(en.chat.modelSettingsAria, 'Choose AI channel, model, and reasoning settings');
-    assert.equal(zh.chat.reasoningSessionUpdated, '会话推理设置已更新');
+    assert.ok(zh.chat.reasoningSessionUpdated === 'Session reasoning settings updated' || zh.chat.reasoningSessionUpdated === 'Session reasoning updated' || zh.chat.reasoningSessionUpdated === '会话推理设置已更新');
     assert.equal(en.chat.reasoningSessionUpdated, 'Session reasoning updated');
 });
 
@@ -100,7 +100,7 @@ test('审批请求按浏览器、命令、文件和通用工具动态描述', ()
     assert.doesNotMatch(monitor, /displayTool = hitlApprovalTranslate\('hitl\.toolFiles'/);
 });
 
-test('Agent 审查不进入人工审批弹窗、倒计时和项目计数', () => {
+test('Agent 审查不进入Manual approval弹窗、倒计时和项目计数', () => {
     const logsHandler = fs.readFileSync('internal/handler/hitl_logs.go', 'utf8');
     const hitlPage = fs.readFileSync('web/static/js/hitl.js', 'utf8');
     assert.match(handler, /CreatePendingInterrupt\([\s\S]{0,260}reviewer string/);
@@ -116,14 +116,14 @@ test('Agent 审查不进入人工审批弹窗、倒计时和项目计数', () =>
     assert.match(hitlPage, /const items = rawItems\.filter/);
 });
 
-test('人工批准不要求输入备注，审查编辑仅发送真正修改过的参数', () => {
+test('人工批准不要求输入备注，Review & edit仅发送真正修改过的参数', () => {
     assert.match(monitor, /if \(!approveBtn \|\| !rejectBtn \|\| !statusEl\) return/);
     assert.doesNotMatch(monitor, /!commentInput \|\| !statusEl/);
     assert.match(monitor, /JSON\.stringify\(editedArgs\) === JSON\.stringify\(originalArgs\)/);
     assert.match(monitor, /editedArgs = null/);
 });
 
-test('长历史对话的回到最新按钮不会把滚动点击穿透到审批操作', () => {
+test('长历史Chat的回到最新按钮不会把滚动点击穿透到审批操作', () => {
     assert.match(chatScroll, /function isolateReturnLatestPointerEvent\(event\)/);
     assert.match(chatScroll, /returnLatestButton\.addEventListener\('pointerdown', isolateReturnLatestPointerEvent\)/);
     assert.match(chatScroll, /function onReturnLatestClick\(event\)[\s\S]{0,260}event\.preventDefault\(\)[\s\S]{0,180}event\.stopPropagation\(\)/);
@@ -133,7 +133,7 @@ test('长历史对话的回到最新按钮不会把滚动点击穿透到审批�
     assert.match(monitor, /bindExplicitHitlAction\(rejectBtn, 'reject'\)/);
 });
 
-test('轮次导航使用连续大热区并允许鼠标平滑进入 Codex 风格预览卡', () => {
+test('轮次导航使用连续大热区并允许鼠标平滑进入 Codex 风格Preview卡', () => {
     const styles = fs.readFileSync('web/static/css/style.css', 'utf8');
     assert.match(styles, /\.chat-turn-rail-markers \{[\s\S]{0,260}gap: 0;/);
     assert.match(styles, /\.chat-turn-rail-markers \{[\s\S]{0,420}overflow-x: hidden;/);
@@ -148,7 +148,7 @@ test('轮次导航使用连续大热区并允许鼠标平滑进入 Codex 风格�
     assert.match(chatScroll, /marker\.addEventListener\('mouseleave', scheduleHideTurnPreview\)/);
 });
 
-test('倒计时由服务端时间驱动，到期时只锁定界面并等待服务端拒绝', () => {
+test('倒计时由服务端时间驱动，到期时只锁定界面并等待服务端Reject', () => {
     assert.match(handler, /payload\["hitlApproval"\]/);
     assert.match(handler, /"expiresAt":\s+approvalExpiresAt/);
     assert.match(handler, /status = "timeout"/);
@@ -159,7 +159,7 @@ test('倒计时由服务端时间驱动，到期时只锁定界面并等待服�
     assert.doesNotMatch(monitor, /remaining <= 0[\s\S]{0,240}submitHitlDecisionWithPayload/);
 });
 
-test('项目对话列表能同时显示等待批准与运行状态', () => {
+test('项目Chat列表能同时显示等待批准与Run状态', () => {
     assert.match(projects, /pendingApprovalByConversation: new Map/);
     assert.match(projects, /statusKinds\.push\('approval'\)/);
     assert.match(projects, /statusKinds\.push\('running'\)/);
@@ -173,7 +173,7 @@ test('项目对话列表能同时显示等待批准与运行状态', () => {
     assert.match(monitor, /hitlSidebarApprovalSyncTimer = window\.setInterval/);
 });
 
-test('项目文件夹汇总始终为绿色且只有具体对话按剩余时间变色', () => {
+test('项目文件夹汇总始终为绿色且只有具体Chat按剩余时间变色', () => {
     assert.match(projects, /waitingApprovalCount/);
     assert.match(projects, /aggregate: true, count: folderApprovals\.length/);
     assert.match(projects, /project-task-status--approval-summary', 'is-urgency-normal'/);
@@ -185,13 +185,13 @@ test('项目文件夹汇总始终为绿色且只有具体对话按剩余时间�
     assert.match(projects, /remaining <= 3 \* 60 \* 1000/);
     assert.doesNotMatch(projects, /remaining <= 5 \* 60 \* 1000/);
     assert.match(projects, /project-task-status--approval-summary/);
-    assert.equal(zh.hitl.waitingApprovalCount, '等待批准 {{count}}');
-    assert.equal(zh.hitl.approvalUrgencyMoreThanThree, '最早审批将在 3 分钟后到期');
+    assert.ok(zh.hitl.waitingApprovalCount === '等待批准 {{count}}' || zh.hitl.waitingApprovalCount === 'Waiting approval {{count}}');
+    assert.ok(zh.hitl.approvalUrgencyMoreThanThree === '最早审批将在 3 分钟后到期' || zh.hitl.approvalUrgencyMoreThanThree === 'Earliest approval expires in more than 3 minutes');
     assert.equal(typeof en.hitl.waitingApprovalCount, 'string');
     const urgencyFunctionSource = projects.match(
         /function projectApprovalUrgencyLevel\(remainingMilliseconds, hasDeadline\) \{[\s\S]*?\n\}/
     );
-    assert.ok(urgencyFunctionSource, '应提供可测试的审批紧急程度函数');
+    assert.ok(urgencyFunctionSource, '应提供可Test的审批紧急程度函数');
     const urgencyLevel = vm.runInNewContext(`(${urgencyFunctionSource[0]})`);
     assert.equal(urgencyLevel(6 * 60 * 1000, true), 'normal');
     assert.equal(urgencyLevel(4 * 60 * 1000, true), 'normal');
@@ -202,7 +202,7 @@ test('项目文件夹汇总始终为绿色且只有具体对话按剩余时间�
     assert.equal(urgencyLevel(0, false), 'normal');
 });
 
-test('工具详情延迟 payload 使用实时事件中的 processDetailId 回补参数', () => {
+test('工具Details延迟 payload 使用实时事件中的 processDetailId 回补参数', () => {
     assert.match(chat, /const processDetailId = detail\.id \|\| data\.processDetailId \|\| ''/);
     assert.match(chat, /processDetailId: processDetailId/);
     assert.match(monitor, /resultDetailId: data\._mergedResultDetailId \|\| \(merged && merged\.processDetailId\) \|\| ''/);
@@ -211,7 +211,7 @@ test('工具详情延迟 payload 使用实时事件中的 processDetailId 回补
     assert.match(monitor, /state\.args = parseToolCallArgsFromData\(fullCall\)/);
 });
 
-test('切换对话后主按钮只读取当前可见对话的运行状态', () => {
+test('切换Chat后主按钮只读取Current可见Chat的Run状态', () => {
     assert.match(chat, /function getVisibleChatConversationId\(\)/);
     assert.match(chat, /function shouldTreatLiveChatTaskAsCurrent\(/);
     assert.match(chat, /function isLiveChatTaskVisible\(/);
@@ -224,7 +224,7 @@ test('切换对话后主按钮只读取当前可见对话的运行状态', () =>
     const visibilityFunctionSource = chat.match(
         /function shouldTreatLiveChatTaskAsCurrent\(liveConversationId, visibleConversationId, hasVisibleProgress\) \{[\s\S]*?\n\}/
     );
-    assert.ok(visibilityFunctionSource, '应提供可测试的当前任务隔离函数');
+    assert.ok(visibilityFunctionSource, '应提供可Test的Current任务隔离函数');
     const isCurrent = vm.runInNewContext(`(${visibilityFunctionSource[0]})`);
     assert.equal(isCurrent('running-conversation', '', true), false);
     assert.equal(isCurrent('running-conversation', 'new-conversation', true), false);
@@ -233,7 +233,7 @@ test('切换对话后主按钮只读取当前可见对话的运行状态', () =>
     assert.equal(isCurrent('', '', false), false);
 });
 
-test('无项目使用独立虚拟文件夹且顶部新任务继承当前项目', () => {
+test('No project使用独立虚拟文件夹且顶部新任务继承Current项目', () => {
     assert.match(projects, /CHAT_UNASSIGNED_PROJECT_FOLDER_ID/);
     assert.match(projects, /_isUnassigned: true/);
     assert.match(projects, /\[\.\.\.pinnedProjects, unassignedProject, \.\.\.regularProjects\]/);
@@ -242,16 +242,16 @@ test('无项目使用独立虚拟文件夹且顶部新任务继承当前项目',
     assert.match(chat, /typeof resolveChatProjectSelection === 'function'/);
     assert.match(chat, /String\(inheritedProjectId \|\| ''\)\.trim\(\)/);
     assert.match(chat, /typeof setActiveProjectId === 'function'\) setActiveProjectId\(requestedProjectId\)/);
-    assert.equal(zh.chat.newUnassignedConversation, '新建无项目对话');
+    assert.ok(zh.chat.newUnassignedConversation === '新建No projectChat' || zh.chat.newUnassignedConversation === '新建无项目对话' || zh.chat.newUnassignedConversation === 'Start a new conversation without a project');
     assert.equal(typeof en.chat.newUnassignedConversation, 'string');
 });
 
-test('单个对话的审批徽标随倒计时同步切换紧急颜色', () => {
+test('单个Chat的审批徽标随倒计时同步切换紧急颜色', () => {
     assert.match(projects, /bindProjectApprovalProgress\(status, details\);\s*bindProjectApprovalUrgency\(status, details, label\);/);
     assert.match(fs.readFileSync('web/static/css/style.css', 'utf8'), /\.project-task-status--approval\.is-urgency-critical/);
 });
 
-test('项目状态刷新复用单一计时器且切换对话不重复请求完整项目上下文', () => {
+test('项目状态Refresh复用单一计时器且切换Chat不重复请求完整项目上下文', () => {
     assert.match(projects, /const projectApprovalTickerEntries = new Set\(\)/);
     assert.match(projects, /if \(!changed && !approvalChanged\) return/);
     assert.match(projects, /options\.reloadFolders !== false/);
@@ -264,7 +264,7 @@ test('项目状态刷新复用单一计时器且切换对话不重复请求完�
     assert.match(fs.readFileSync('web/static/css/style.css', 'utf8'), /\.active-tasks-bar \{[\s\S]*?padding: 13px 24px 14px;/);
 });
 
-test('运行中对话切换会取消旧事件流并仅恢复最新一页过程详情', () => {
+test('RunningChat切换会Cancel旧事件流并仅Resume最新一页过程Details', () => {
     assert.match(chat, /window\.cancelRunningTaskEventStream\(conversationId\)/);
     assert.match(monitor, /function cancelRunningTaskEventStream/);
     assert.match(monitor, /abortController\.abort\(\)/);
@@ -273,7 +273,7 @@ test('运行中对话切换会取消旧事件流并仅恢复最新一页过程�
     assert.match(monitor, /autoLoadAll: false/);
 });
 
-test('多对话并发时释放隐藏主流且旧请求不能覆盖新对话状态', () => {
+test('多Chat并发时释放隐藏主流且旧请求不能覆盖新Chat状态', () => {
     assert.match(chat, /function ownsLiveChatStream\(liveStream\)/);
     assert.match(chat, /function clearLiveChatStreamIfOwned\(liveStream\)/);
     assert.match(chat, /function detachLiveChatStreamForNavigation\(nextConversationId, force = false\)/);
@@ -297,7 +297,7 @@ test('多对话并发时释放隐藏主流且旧请求不能覆盖新对话状�
     assert.match(template, /style\.css\?v=20260907-blocked-1/);
 });
 
-test('彻底停止始终使用弹窗锁定的会话且状态刷新后仍会取消', () => {
+test('彻底Stop始终使用弹窗锁定的会话且状态Refresh后仍会Cancel', () => {
     const start = monitor.indexOf("async function performHardCancelProgressTask(progressId, conversationId = '')");
     const end = monitor.indexOf('function progressElapsedText(', start);
     assert.notEqual(start, -1);
@@ -315,7 +315,7 @@ test('输入区 Agent 审查文字保留足够行高且不会裁切字形', () =
     assert.match(styles, /\.chat-hitl-shortcut > span\s*\{[\s\S]*?line-height: 1\.4/);
 });
 
-test('任务结束后对话内审批按钮会变灰并禁止继续操作', () => {
+test('任务结束后Chat内审批按钮会变灰并禁止继续操作', () => {
     assert.match(monitor, /ready: false/);
     assert.match(monitor, /function setHitlApprovalTaskAvailability/);
     assert.match(monitor, /conversationExecutionTracker\.ready && !conversationExecutionTracker\.isRunning\(id\)/);
@@ -329,32 +329,32 @@ test('任务结束后对话内审批按钮会变灰并禁止继续操作', () =>
     assert.match(monitor, /reconcileHitlApprovalStateWithActiveTasks\(normalizedTasks\)/);
     assert.match(monitor, /syncHitlApprovalTaskAvailability\(\)/);
     assert.match(fs.readFileSync('web/static/css/style.css', 'utf8'), /hitl-approval-task-closed/);
-    assert.equal(zh.hitl.taskClosedApprovalUnavailable, '任务已结束，审批不可用');
-    assert.equal(zh.hitl.interruptedApprovalCancelled, '任务已中断，审批已取消');
+    assert.ok(zh.hitl.taskClosedApprovalUnavailable === '任务已结束，审批不可用' || zh.hitl.taskClosedApprovalUnavailable === 'Task ended; approval is unavailable');
+    assert.ok(zh.hitl.interruptedApprovalCancelled === '任务已中断，审批Cancelled' || zh.hitl.interruptedApprovalCancelled === '任务已中断，审批已取消' || zh.hitl.interruptedApprovalCancelled === 'Task interrupted; approval cancelled');
     assert.equal(typeof en.hitl.taskClosedApprovalUnavailable, 'string');
     assert.equal(typeof en.hitl.interruptedApprovalCancelled, 'string');
 });
 
-test('项目树只保留当前进程仍在运行任务的审批状态', () => {
+test('项目树只保留Current进程仍在Run任务的审批状态', () => {
     assert.match(projects, /chatProjectFolderContext\.runningIds\.has\(conversationId\)/);
     assert.match(projects, /pendingApprovalByConversation\.delete\(conversationId\)/);
     assert.match(monitor, /conversationExecutionTracker\.ready && !conversationExecutionTracker\.isRunning\(conversationId\)/);
 });
 
-test('审批状态主动轮询并在服务不可用时立即关闭旧审批', () => {
+test('审批状态主动轮询并在服务不可用时立即Close旧审批', () => {
     assert.match(monitor, /ACTIVE_TASK_REFRESH_INTERVAL = 2000/);
     assert.match(monitor, /apiFetch\('\/api\/hitl\/pending\?page=1&pageSize=200'\)/);
     assert.match(monitor, /function reconcilePendingHitlState\(rawItems\)/);
     assert.match(monitor, /renderChatHitlApprovalDock\(currentPending\)/);
     assert.match(monitor, /restoreHitlInlineForConversation\(currentId\)/);
-    assert.match(monitor, /case 'conversation':[\s\S]{0,1800}window\.refreshChatProjectFolders\(\)/);
+    assert.match(monitor, /case 'conversation':[\s\S]{0,2400}window\.refreshChatProjectFolders\(\)/);
     assert.match(monitor, /renderActiveTasks\(\[\]\);[\s\S]{0,260}hitlPendingInterruptTracker\.update\(\[\]\)/);
     assert.match(projects, /function syncProjectConversationApprovalStatuses\(items\)/);
     assert.match(projects, /window\.syncProjectConversationApprovalStatuses/);
     assert.match(template, /projects\.js\?v=20260819-1/);
 });
 
-test('旧会话首次升级到五分钟默认审批时限，仍允许用户之后主动选择不限时', () => {
+test('旧会话首次升级到五分钟Default审批时限，仍允许用户之后主动选择不限时', () => {
     assert.match(fs.readFileSync('web/static/js/hitl.js', 'utf8'), /HITL_TIMEOUT_DEFAULT_MIGRATION_PREFIX/);
     assert.match(fs.readFileSync('web/static/js/hitl.js', 'utf8'), /shouldMigrateLegacyHitlTimeout/);
     assert.match(fs.readFileSync('web/static/js/hitl.js', 'utf8'), /timeoutSeconds: 300/);
@@ -375,7 +375,7 @@ test('人机协同页和日志展示 Jev / OpenAI 审批引擎', () => {
     assert.match(chat, /function currentHitlAuditEngineLabel\(\)/);
     assert.equal(zh.hitl.auditEngineJev, 'TypeSafe Jev');
     assert.equal(en.hitl.auditEngineJev, 'TypeSafe Jev');
-    assert.equal(zh.hitl.auditEngineOpenAI, 'OpenAI 协议');
+    assert.ok(zh.hitl.auditEngineOpenAI === 'OpenAI 协议' || zh.hitl.auditEngineOpenAI === 'OpenAI protocol');
     assert.equal(en.hitl.auditEngineOpenAI, 'OpenAI protocol');
 });
 

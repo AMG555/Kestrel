@@ -1,4 +1,4 @@
-﻿const AUTH_STORAGE_KEY = 'kestrel-auth';
+const AUTH_STORAGE_KEY = 'kestrel-auth';
 let authToken = null;
 let authTokenExpiry = null;
 let authUser = null;
@@ -8,10 +8,10 @@ let authScope = '';
 let authPromise = null;
 let authPromiseResolvers = [];
 let isAppInitialized = false;
-let robotBindingCountdownTimer = null;
-let robotBindingExpiresAt = 0;
-let robotBindingLifetimeMs = 5 * 60 * 1000;
-let activeRobotBindingCode = '';
+let robotbindingCountdownTimer = null;
+let robotbindingExpiresAt = 0;
+let robotbindingLifetimeMs = 5 * 60 * 1000;
+let activeRobotbindingCode = '';
 
 function isTokenValid() {
     return !!authToken && authTokenExpiry instanceof Date && authTokenExpiry.getTime() > Date.now();
@@ -35,7 +35,7 @@ function saveAuth(token, expiresAt, meta = {}) {
             scope: authScope,
         }));
     } catch (error) {
-        console.warn('无法持久化认证信息:', error);
+        console.warn('failed to persist authentication info:', error);
     }
     renderUserMenuProfile();
 }
@@ -51,7 +51,7 @@ function clearAuthStorage() {
     try {
         localStorage.removeItem(AUTH_STORAGE_KEY);
     } catch (error) {
-        console.warn('无法清除认证信息:', error);
+        console.warn('failed to clear authentication info:', error);
     }
     renderUserMenuProfile();
 }
@@ -80,7 +80,7 @@ function loadAuthFromStorage() {
         authScope = stored.scope || '';
         return isTokenValid();
     } catch (error) {
-        console.error('读取认证信息失败:', error);
+        console.error('failed to read authentication info:', error);
         clearAuthStorage();
         return false;
     }
@@ -100,7 +100,7 @@ function setLoginPasswordVisible(visible) {
         button.setAttribute('aria-pressed', String(visible));
         const key = visible ? 'login.hidePassword' : 'login.showPassword';
         button.setAttribute('data-i18n', key);
-        button.textContent = typeof window.t === 'function' ? window.t(key) : (visible ? '隐藏密码' : '显示密码');
+        button.textContent = typeof window.t === 'function' ? window.t(key) : (visible ? 'Hide password' : 'Show password');
     }
 }
 
@@ -185,7 +185,7 @@ function handleUnauthorized({ message = null, silent = false } = {}) {
         if (typeof window !== 'undefined' && typeof window.t === 'function') {
             finalMessage = window.t('auth.sessionExpired');
         } else {
-            finalMessage = '认证已过期，请重新登录';
+            finalMessage = 'Authentication expired, please sign in again';
         }
     }
     if (!silent) {
@@ -210,16 +210,16 @@ async function apiFetch(url, options = {}) {
         handleUnauthorized();
         const msg = (typeof window !== 'undefined' && typeof window.t === 'function')
             ? window.t('auth.unauthorized')
-            : '未授权访问';
+            : 'Unauthorized access';
         throw new Error(msg);
     }
-    // 403 属于可预期的 RBAC 拒绝，返回 Response 供调用方通过 res.ok / ensureApiOk 处理。
+    // 403 is an expected RBAC rejection; return the Response for the caller to handle via res.ok / ensureApiOk.
     return response;
 }
 
 /**
- * multipart POST with XMLHttpRequest so upload progress is available (fetch 无法可靠上报进度).
- * 返回与 fetch 类似的对象：ok、status、json()、text()
+ * multipart POST with XMLHttpRequest so upload progress is available (fetch cannot reliably report progress).
+ * Returns an object similar to fetch: ok, status, JSON(), text()
  */
 async function apiUploadWithProgress(url, formData, options = {}) {
     await ensureAuthenticated();
@@ -230,7 +230,7 @@ async function apiUploadWithProgress(url, formData, options = {}) {
         if (authToken) {
             xhr.setRequestHeader('Authorization', `Bearer ${authToken}`);
         }
-        xhr.upload.onprogress = (e) => {
+        xhr.upload.onProgress = (e) => {
             if (!onProgress || !e.lengthComputable) return;
             const percent = e.total > 0 ? Math.round((e.loaded / e.total) * 100) : 0;
             onProgress({ loaded: e.loaded, total: e.total, percent });
@@ -243,7 +243,7 @@ async function apiUploadWithProgress(url, formData, options = {}) {
                 handleUnauthorized();
                 const msg = (typeof window !== 'undefined' && typeof window.t === 'function')
                     ? window.t('auth.unauthorized')
-                    : '未授权访问';
+                    : 'Unauthorized access';
                 reject(new Error(msg));
                 return;
             }
@@ -252,7 +252,7 @@ async function apiUploadWithProgress(url, formData, options = {}) {
                 ok: xhr.status >= 200 && xhr.status < 300,
                 status: xhr.status,
                 text: async () => responseText,
-                json: async () => {
+                JSON: async () => {
                     try {
                         return responseText ? JSON.parse(responseText) : {};
                     } catch (err) {
@@ -291,7 +291,7 @@ async function submitLogin(event) {
     if (!username || Array.from(username).length > 64) {
         if (usernameInput) usernameInput.setAttribute('aria-invalid', 'true');
         if (errorBox) {
-            errorBox.textContent = typeof window.t === 'function' ? window.t('auth.usernameRequired') : '用户名不能为空，且不能超过 64 个字符';
+            errorBox.textContent = typeof window.t === 'function' ? window.t('auth.usernameRequired') : 'Username cannot be empty and must not exceed 64 characters';
             errorBox.style.display = 'block';
         }
         if (usernameInput) usernameInput.focus();
@@ -302,7 +302,7 @@ async function submitLogin(event) {
         if (errorBox) {
             const msgEmpty = (typeof window !== 'undefined' && typeof window.t === 'function')
                 ? window.t('auth.enterPassword')
-                : '请输入密码';
+                : 'Please enterPassword';
             errorBox.textContent = msgEmpty;
             errorBox.style.display = 'block';
         }
@@ -327,7 +327,7 @@ async function submitLogin(event) {
             if (errorBox) {
                 const fallback = (typeof window !== 'undefined' && typeof window.t === 'function')
                     ? window.t('auth.loginFailedCheck')
-                    : '登录失败，请检查密码';
+                    : 'Sign in failed, please check your password';
                 errorBox.textContent = result.error || fallback;
                 errorBox.style.display = 'block';
             }
@@ -349,11 +349,11 @@ async function submitLogin(event) {
             await refreshAppData();
         }
     } catch (error) {
-        console.error('登录失败:', error);
+        console.error('Sign in failed:', error);
         if (errorBox) {
             const fallback = (typeof window !== 'undefined' && typeof window.t === 'function')
                 ? window.t('auth.loginFailedRetry')
-                : '登录失败，请稍后重试';
+                : 'Sign in failed, please try again later';
             errorBox.textContent = fallback;
             errorBox.style.display = 'block';
         }
@@ -364,38 +364,38 @@ async function submitLogin(event) {
     }
 }
 
-async function refreshAppData(showTaskErrors = false) {
+async function refreshAppData(showTaskerrors = false) {
     if (typeof initChatAgentModeFromConfig === 'function') {
         try {
             await initChatAgentModeFromConfig();
         } catch (error) {
-            console.warn('刷新对话模式配置失败:', error);
+            console.warn('failed to refresh chat mode configuration:', error);
         }
     }
     await Promise.allSettled([
         loadConversations(),
-        loadActiveTasks(showTaskErrors),
+        loadActiveTasks(showTaskerrors),
     ]);
-    // 未登录首屏的项目侧栏可能先收到 401 并显示失败；认证完成后必须主动重试。
-    // 放在对话/任务刷新之后，确保最终渲染一定使用有效登录态且不会被早期失败覆盖。
+    // The project sidebar on the pre-login screen may receive 401 and show failure first; must actively retry after authentication completes.
+    // Placed after chat/task refresh to ensure final rendering always uses a valid sign-in state and is not overwritten by early failures.
     if (typeof window.refreshChatProjectSelector === 'function') {
         try {
             await window.refreshChatProjectSelector({ reloadFolders: true });
         } catch (error) {
-            console.warn('刷新项目侧栏失败:', error);
+            console.warn('failed to refresh project sidebar:', error);
         }
     }
 }
 
 async function bootstrapApp() {
     if (!isAppInitialized) {
-        // 等待 i18n 首包加载完成后再插系统就绪消息，避免清除缓存后语言显示 English 气泡仍是中文
+        // Wait for i18n initial bundle to load before inserting system-ready message, to avoid the bubble still showing Chinese after cache clear when language is English
         try {
             if (window.i18nReady && typeof window.i18nReady.then === 'function') {
                 await window.i18nReady;
             }
         } catch (e) {
-            console.warn('等待 i18n 就绪失败，继续初始化聊天', e);
+            console.warn('failed waiting for i18n ready, continuing chat initialization', e);
         }
         initializeChatUI();
         isAppInitialized = true;
@@ -442,7 +442,7 @@ const PAGE_PERMISSION_MAP = {
     'agents-management': 'agents:read',
     roles: 'roles:read',
     'roles-management': 'roles:read',
-    'platform-rbac': 'rbac:read',
+    'platform-RBAC': 'RBAC:read',
     settings: 'config:read',
 };
 
@@ -457,18 +457,18 @@ function hasAnyPermission(permissions) {
 
 async function readApiError(response, fallback) {
     if (!response) {
-        return fallback || authT('auth.requestFailed', '请求失败');
+        return fallback || authT('auth.requestFailed', 'Request failed');
     }
     try {
         const body = await response.clone().json();
-        return body.error || body.message || fallback || authT('auth.requestFailed', '请求失败');
+        return body.error || body.message || fallback || authT('auth.requestFailed', 'Request failed');
     } catch (error) {
-        return fallback || authT('auth.requestFailed', '请求失败');
+        return fallback || authT('auth.requestFailed', 'Request failed');
     }
 }
 
 function notifyApiError(message, type = 'error') {
-    const text = (message || '').trim() || authT('auth.requestFailed', '请求失败');
+    const text = (message || '').trim() || authT('auth.requestFailed', 'Request failed');
     if (typeof showNotification === 'function') {
         showNotification(text, type);
         return;
@@ -495,7 +495,7 @@ function requirePermission(permission, customMessage) {
         ? hasAnyPermission(permission)
         : hasPermission(permission);
     if (allowed) return true;
-    notifyApiError(customMessage || authT('auth.forbidden', '权限不足'));
+    notifyApiError(customMessage || authT('auth.forbidden', 'Insufficient permissions'));
     return false;
 }
 
@@ -518,7 +518,7 @@ function applyPermissionElement(el) {
     if (!anyOf && !permission) return;
     const allowed = permissionAllowedForElement(el);
     el.hidden = !allowed;
-    el.classList.toggle('rbac-permission-denied', !allowed);
+    el.classList.toggle('RBAC-permission-denied', !allowed);
     if ('disabled' in el) {
         el.disabled = !allowed;
     }
@@ -541,21 +541,21 @@ function installPermissionClickGuard() {
         if (typeof event.stopImmediatePropagation === 'function') {
             event.stopImmediatePropagation();
         }
-        notifyApiError(authT('auth.forbidden', '权限不足'));
+        notifyApiError(authT('auth.forbidden', 'Insufficient permissions'));
     }, true);
 }
 
 function applyRBACToUI(root) {
     installPermissionClickGuard();
-    document.querySelectorAll('[data-page]').forEach((el) => {
+    document.querySelectorAll('[data- page]').forEach((el) => {
         // Navigation permissions must also be refreshed during scoped renders.
-        // Explicit rules take precedence over the fallback page permission map.
+        // Explicit rules take precedence over the fallback  page permission map.
         if (el.hasAttribute('data-require-permission') || el.hasAttribute('data-require-permission-any')) {
             applyPermissionElement(el);
             return;
         }
-        const page = el.getAttribute('data-page');
-        const permission = PAGE_PERMISSION_MAP[page];
+        const  page = el.getAttribute('data- page');
+        const permission = PAGE_PERMISSION_MAP[ page];
         if (!permission) return;
         const allowed = hasPermission(permission);
         el.hidden = !allowed;
@@ -570,7 +570,7 @@ function applyRBACToUI(root) {
     if (userAvatar && authUser && authUser.username) {
         const displayName = getAuthDisplayName();
         userAvatar.setAttribute('title', displayName);
-        userAvatar.setAttribute('aria-label', authT('header.userMenuFor', '用户菜单：{{name}}', { name: displayName }));
+        userAvatar.setAttribute('aria-label', authT('header.userMenuFor', 'User menu: {{name}}', { name: displayName }));
     }
     renderUserMenuProfile();
 }
@@ -589,10 +589,10 @@ function authT(key, fallback, opts = {}) {
 
 function getAuthDisplayName() {
     if (!authUser) {
-        return authT('header.unknownUser', '未知用户');
+        return authT('header.unknownUser', 'Unknown user');
     }
     return String(authUser.display_name || authUser.displayName || authUser.username || '').trim()
-        || authT('header.unknownUser', '未知用户');
+        || authT('header.unknownUser', 'Unknown user');
 }
 
 function getAuthUsername() {
@@ -611,12 +611,12 @@ function getScopeLabel(scope) {
         own: 'header.scopeOwn',
     };
     const fallbackMap = {
-        all: '全部资源',
-        assigned: '指定资源',
-        own: '自己的资源',
+        all: 'all resources',
+        assigned: 'Specified resources',
+        own: 'Own resources',
     };
     const key = keyMap[normalized] || 'header.scopeUnknown';
-    const fallback = fallbackMap[normalized] || '资源范围未知';
+    const fallback = fallbackMap[normalized] || 'Resource scope unknown';
     return authT(key, fallback);
 }
 
@@ -635,13 +635,13 @@ function renderUserMenuProfile() {
     if (displayNameEl) displayNameEl.textContent = displayName;
     if (usernameEl) usernameEl.textContent = getAuthUsername();
     if (scopeEl) scopeEl.textContent = getScopeLabel(authScope);
-    if (rolesEl) rolesEl.textContent = authT('header.rolesCount', '{{count}} 个角色', { count: roleCount });
-    if (permissionsEl) permissionsEl.textContent = authT('header.permissionsCount', '{{count}} 项权限', { count: permissionCount });
+    if (rolesEl) rolesEl.textContent = authT('header.rolesCount', '{{count}} Role', { count: roleCount });
+    if (permissionsEl) permissionsEl.textContent = authT('header.permissionsCount', '{{count}} permissions', { count: permissionCount });
     if (avatarBtn && authUser) {
         avatarBtn.setAttribute('title', displayName);
-        avatarBtn.setAttribute('aria-label', authT('header.userMenuFor', '用户菜单：{{name}}', { name: displayName }));
+        avatarBtn.setAttribute('aria-label', authT('header.userMenuFor', 'User menu: {{name}}', { name: displayName }));
     } else if (avatarBtn) {
-        avatarBtn.setAttribute('aria-label', authT('header.userMenu', '用户菜单'));
+        avatarBtn.setAttribute('aria-label', authT('header.userMenu', 'User menu'));
     }
 }
 
@@ -659,11 +659,11 @@ function setUserMenuOpen(open) {
     }
 }
 
-// 通用工具函数
+// General utility functions
 function getStatusText(status) {
     const s = (status && String(status).toLowerCase()) || '';
     if (typeof window.t !== 'function') {
-        const fallback = { pending: '等待中', queued: '排队中', running: '执行中', background_running: '后台执行中', completed: '已完成', failed: '失败', blocked: '已拦截', cancelled: '已终止', hard_timeout: '硬超时', orphaned: '孤儿记录' };
+        const fallback = { pending: 'Waiting', queued: 'Queued', running: 'Executing', background_running: 'Background Executing', completed: 'Completed', failed: 'Failed', blocked: 'Blocked', cancelled: 'Terminated', hard_timeout: 'Hard Timeout', orphaned: 'Orphaned' };
         return fallback[s] || status;
     }
     const keyMap = { pending: 'mcpDetailModal.statusPending', queued: 'mcpDetailModal.statusQueued', running: 'mcpDetailModal.statusRunning', background_running: 'timeline.backgroundRunning', completed: 'mcpDetailModal.statusCompleted', failed: 'mcpDetailModal.statusFailed', blocked: 'mcpMonitor.statusBlocked', cancelled: 'mcpDetailModal.statusCancelled', hard_timeout: 'mcpMonitor.statusHardTimeout', orphaned: 'mcpMonitor.statusOrphaned' };
@@ -677,11 +677,11 @@ function formatDuration(ms) {
     const hours = Math.floor(minutes / 60);
     
     if (hours > 0) {
-        return `${hours}小时${minutes % 60}分钟`;
+        return `${hours} hours${minutes % 60} minutes`;
     } else if (minutes > 0) {
-        return `${minutes}分钟${seconds % 60}秒`;
+        return `${minutes} minutes${seconds % 60} sec`;
     } else {
-        return `${seconds}秒`;
+        return `${seconds} sec`;
     }
 }
 
@@ -744,7 +744,7 @@ async function initializeApp() {
                 return;
             }
         } catch (error) {
-            console.warn('本地会话已失效，需重新登录');
+            console.warn('Local session has expired, re-authentication required');
         }
     }
 
@@ -752,7 +752,7 @@ async function initializeApp() {
     showLoginOverlay();
 }
 
-// 用户菜单控制
+// User menu control
 function toggleUserMenu() {
     const dropdown = document.getElementById('user-menu-dropdown');
     if (!dropdown) return;
@@ -761,7 +761,7 @@ function toggleUserMenu() {
     setUserMenuOpen(!isVisible);
 }
 
-// 点击页面其他地方时关闭下拉菜单
+// Close dropdown when clicking elsewhere on the page
 document.addEventListener('click', function(event) {
     const dropdown = document.getElementById('user-menu-dropdown');
     const avatarBtn = document.querySelector('.user-avatar-btn');
@@ -780,7 +780,7 @@ document.addEventListener('languagechange', function () {
 async function openRobotAccountBinding() {
     setUserMenuOpen(false);
     openAppModal('robot-account-binding-modal');
-    if (robotBindingExpiresAt) updateRobotBindingCountdown();
+    if (robotbindingExpiresAt) updateRobotBindingCountdown();
     await loadRobotAccountBindings();
 }
 
@@ -795,7 +795,7 @@ async function generateRobotBindingCode() {
     const generateBtn = document.getElementById('robot-binding-generate-btn');
     if (generateBtn) {
         generateBtn.disabled = true;
-        generateBtn.textContent = '正在生成…';
+        generateBtn.textContent = 'Generating…';
     }
     let response;
     let data;
@@ -803,12 +803,12 @@ async function generateRobotBindingCode() {
         response = await apiFetch('/api/auth/robot-binding-code', { method: 'POST' });
         data = await response.json().catch(() => ({}));
     } catch (error) {
-        if (typeof showNotification === 'function') showNotification('生成绑定码失败，请检查网络连接', 'error');
+        if (typeof showNotification === 'function') showNotification('Failed to generate binding code, please check network connection', 'error');
         resetRobotBindingGenerateButton();
         return;
     }
     if (!response.ok || !data.code) {
-        if (typeof showNotification === 'function') showNotification(data.error || '生成绑定码失败', 'error');
+        if (typeof showNotification === 'function') showNotification(data.error || 'Generate binding codefailed', 'error');
         resetRobotBindingGenerateButton();
         return;
     }
@@ -817,19 +817,19 @@ async function generateRobotBindingCode() {
     const card = document.getElementById('robot-binding-code-card');
     const timer = document.getElementById('robot-binding-timer');
     const state = document.getElementById('robot-binding-code-state');
-    activeRobotBindingCode = data.code;
-    robotBindingLifetimeMs = Math.max(1000, Number(data.expires_in_seconds || 300) * 1000);
+    activeRobotbindingCode = data.code;
+    robotbindingLifetimeMs = Math.max(1000, Number(data.expires_in_seconds || 300) * 1000);
     // Use the server-provided duration instead of comparing wall clocks, so a
     // client machine with clock skew still gets an accurate countdown.
-    robotBindingExpiresAt = Date.now() + robotBindingLifetimeMs;
+    robotbindingExpiresAt = Date.now() + robotbindingLifetimeMs;
     if (codeEl) codeEl.textContent = data.code;
     if (copyBtn) copyBtn.disabled = false;
     if (card) card.className = 'robot-binding-code-card is-active';
     if (timer) timer.hidden = false;
-    if (state) state.textContent = '等待绑定';
+    if (state) state.textContent = 'Awaiting binding';
     if (generateBtn) {
         generateBtn.disabled = false;
-        generateBtn.textContent = '重新生成';
+        generateBtn.textContent = 'Regenerate';
     }
     startRobotBindingCountdown();
 }
@@ -838,19 +838,19 @@ function resetRobotBindingGenerateButton() {
     const generateBtn = document.getElementById('robot-binding-generate-btn');
     if (generateBtn) {
         generateBtn.disabled = false;
-        generateBtn.textContent = activeRobotBindingCode ? '重新生成' : '生成绑定码';
+        generateBtn.textContent = activeRobotbindingCode ? 'Regenerate' : 'Generate binding code';
     }
 }
 
 function startRobotBindingCountdown() {
-    if (robotBindingCountdownTimer) clearInterval(robotBindingCountdownTimer);
+    if (robotbindingCountdownTimer) clearInterval(robotbindingCountdownTimer);
     updateRobotBindingCountdown();
-    robotBindingCountdownTimer = setInterval(updateRobotBindingCountdown, 250);
+    robotbindingCountdownTimer = setInterval(updateRobotBindingCountdown, 250);
 }
 
 function updateRobotBindingCountdown() {
-    if (!robotBindingExpiresAt) return;
-    const remaining = Math.max(0, robotBindingExpiresAt - Date.now());
+    if (!robotbindingExpiresAt) return;
+    const remaining = Math.max(0, robotbindingExpiresAt - Date.now());
     const seconds = Math.ceil(remaining / 1000);
     const minutesPart = String(Math.floor(seconds / 60)).padStart(2, '0');
     const secondsPart = String(seconds % 60).padStart(2, '0');
@@ -858,16 +858,16 @@ function updateRobotBindingCountdown() {
     const progress = document.getElementById('robot-binding-progress-bar');
     const expiry = document.getElementById('robot-binding-expiry');
     if (countdown) countdown.textContent = `${minutesPart}:${secondsPart}`;
-    if (progress) progress.style.width = `${Math.max(0, Math.min(100, remaining / robotBindingLifetimeMs * 100))}%`;
-    if (expiry && activeRobotBindingCode) expiry.textContent = `请发送：绑定 ${activeRobotBindingCode}`;
+    if (progress) progress.style.width = `${Math.max(0, Math.min(100, remaining / robotbindingLifetimeMs * 100))}%`;
+    if (expiry && activeRobotbindingCode) expiry.textContent = `Send: bind ${activeRobotbindingCode}`;
     if (remaining <= 0) expireRobotBindingCode();
 }
 
 function expireRobotBindingCode() {
-    if (robotBindingCountdownTimer) clearInterval(robotBindingCountdownTimer);
-    robotBindingCountdownTimer = null;
-    robotBindingExpiresAt = 0;
-    activeRobotBindingCode = '';
+    if (robotbindingCountdownTimer) clearInterval(robotbindingCountdownTimer);
+    robotbindingCountdownTimer = null;
+    robotbindingExpiresAt = 0;
+    activeRobotbindingCode = '';
     const card = document.getElementById('robot-binding-code-card');
     const codeEl = document.getElementById('robot-binding-code');
     const state = document.getElementById('robot-binding-code-state');
@@ -876,21 +876,21 @@ function expireRobotBindingCode() {
     const progress = document.getElementById('robot-binding-progress-bar');
     const copyBtn = document.getElementById('robot-binding-copy-btn');
     if (card) card.className = 'robot-binding-code-card is-expired';
-    if (codeEl) codeEl.textContent = '已失效';
-    if (state) state.textContent = '已过期';
-    if (expiry) expiry.textContent = '绑定码已过期，请重新生成';
+    if (codeEl) codeEl.textContent = 'Expired';
+    if (state) state.textContent = 'Expired';
+    if (expiry) expiry.textContent = 'Binding code has expired, please regenerate';
     if (countdown) countdown.textContent = '00:00';
     if (progress) progress.style.width = '0%';
     if (copyBtn) copyBtn.disabled = true;
     resetRobotBindingGenerateButton();
     const generateBtn = document.getElementById('robot-binding-generate-btn');
-    if (generateBtn) generateBtn.textContent = '重新生成';
+    if (generateBtn) generateBtn.textContent = 'Regenerate';
     loadRobotAccountBindings();
 }
 
 async function copyRobotBindingCode() {
-    if (!activeRobotBindingCode || !robotBindingExpiresAt || robotBindingExpiresAt <= Date.now()) return;
-    const command = `绑定 ${activeRobotBindingCode}`;
+    if (!activeRobotbindingCode || !robotbindingExpiresAt || robotbindingExpiresAt <= Date.now()) return;
+    const command = `bind ${activeRobotbindingCode}`;
     try {
         await navigator.clipboard.writeText(command);
     } catch (_) {
@@ -905,9 +905,9 @@ async function copyRobotBindingCode() {
     }
     const copyBtn = document.getElementById('robot-binding-copy-btn');
     const label = copyBtn?.querySelector('span');
-    if (label) label.textContent = '已复制';
-    setTimeout(() => { if (label) label.textContent = '复制命令'; }, 1400);
-    if (typeof showNotification === 'function') showNotification('绑定命令已复制', 'success');
+    if (label) label.textContent = 'Copied';
+    setTimeout(() => { if (label) label.textContent = 'copy command'; }, 1400);
+    if (typeof showNotification === 'function') showNotification('Bind command copied', 'success');
 }
 
 async function loadRobotAccountBindings() {
@@ -916,26 +916,26 @@ async function loadRobotAccountBindings() {
     const response = await apiFetch('/api/auth/robot-bindings');
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-        list.textContent = data.error || '获取绑定失败';
+        list.textContent = data.error || 'Failed to fetch bindings';
         return;
     }
     const bindings = Array.isArray(data.bindings) ? data.bindings : [];
     if (!bindings.length) {
         list.innerHTML = `<div class="robot-binding-empty-state">
             <span class="robot-binding-empty-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" stroke="currentColor" stroke-width="2"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" stroke="currentColor" stroke-width="2"/></svg></span>
-            <div><strong>暂无绑定账号</strong><p>生成绑定码并在机器人中发送，即可完成首次绑定。</p></div>
+            <div><strong>No linked accounts</strong><p>Generate a binding code and send it in the bot to complete the first binding.</p></div>
         </div>`;
         return;
     }
-    const platformLabels = { wechat: '微信', wecom: '企业微信', dingtalk: '钉钉', lark: '飞书', telegram: 'Telegram', slack: 'Slack', discord: 'Discord', qq: 'QQ' };
+    const platformLabels = { wechat: 'WeChat', wecom: 'WeCom', dingtalk: 'DingTalk', lark: 'Lark', telegram: 'Telegram', slack: 'Slack', discord: 'Discord', QQ: 'QQ' };
     list.innerHTML = bindings.map(binding => `
         <div class="robot-binding-account-card">
             <span class="robot-binding-platform-icon">${escapeHtml((platformLabels[binding.platform] || binding.platform || '?').slice(0, 1).toUpperCase())}</span>
             <div class="robot-binding-account-main">
-                <div class="robot-binding-account-name"><strong>${escapeHtml(platformLabels[binding.platform] || binding.platform || '-')}</strong><span>已连接</span></div>
-                <small>账号标识 ${escapeHtml(binding.external_user_hint || '-')} · 更新于 ${escapeHtml(formatRobotBindingTime(binding.updated_at))}</small>
+                <div class="robot-binding-account-name"><strong>${escapeHtml(platformLabels[binding.platform] || binding.platform || '-')}</strong><span>Connected</span></div>
+                <small>Account ID: ${escapeHtml(binding.external_user_hint || '-')} &middot; Updated ${escapeHtml(formatRobotBindingTime(binding.updated_at))}</small>
             </div>
-            <button type="button" class="btn-secondary btn-small robot-binding-unbind-btn" onclick="deleteRobotAccountBinding(${escapeJsStringAttr(binding.id || '')})">解除绑定</button>
+            <button type="button" class="btn-secondary btn-small robot-binding-unbind-btn" onclick="deleteRobotAccountBinding(${escapeJsStringAttr(binding.id || '')})">Unlink</button>
         </div>`).join('');
 	if (typeof window.loadVulnerabilityAlertSubscription === 'function') {
 		window.loadVulnerabilityAlertSubscription();
@@ -944,28 +944,28 @@ async function loadRobotAccountBindings() {
 
 function formatRobotBindingTime(value) {
     const date = new Date(value || '');
-    if (Number.isNaN(date.getTime())) return '未知时间';
+    if (Number.isNaN(date.getTime())) return 'Unknown time';
     return date.toLocaleString([], { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
 async function deleteRobotAccountBinding(id) {
-    if (!id || !window.confirm('确定解除该机器人账号绑定吗？')) return;
+    if (!id || !window.confirm('Are you sure you want to unlink this bot account?')) return;
     const response = await apiFetch(`/api/auth/robot-bindings/${encodeURIComponent(id)}`, { method: 'DELETE' });
     if (!response.ok) {
         const data = await response.json().catch(() => ({}));
-        if (typeof showNotification === 'function') showNotification(data.error || '解绑失败', 'error');
+        if (typeof showNotification === 'function') showNotification(data.error || 'unbinding failed', 'error');
         return;
     }
     await loadRobotAccountBindings();
 }
 
-// 退出登录
+// Sign out
 async function logout() {
-    // 关闭下拉菜单
+    // Close dropdown menu
     setUserMenuOpen(false);
     
     try {
-        // 先尝试调用退出API（如果token有效）
+        // First attempt to call the logout API (if token is valid)
         if (authToken) {
             const headers = new Headers();
             headers.set('Authorization', `Bearer ${authToken}`);
@@ -973,20 +973,20 @@ async function logout() {
                 method: 'POST',
                 headers: headers,
             }).catch(() => {
-                // 忽略错误，继续清除本地认证信息
+                // Ignore error, proceed to clear local auth data
             });
         }
     } catch (error) {
-        console.error('退出登录API调用失败:', error);
+        console.error('Sign out API call failed:', error);
     } finally {
-        // 无论如何都清除本地认证信息
+        // Always clear local auth data regardless
         clearAuthStorage();
         hideLoginOverlay();
-        showLoginOverlay(typeof window.t === 'function' ? window.t('auth.loggedOut') : '已退出登录');
+        showLoginOverlay(typeof window.t === 'function' ? window.t('auth.loggedOut') : 'Signed out');
     }
 }
 
-// 导出函数供HTML使用
+// Export functions for use in HTML
 window.toggleUserMenu = toggleUserMenu;
 window.openRobotAccountBinding = openRobotAccountBinding;
 window.closeRobotAccountBinding = closeRobotAccountBinding;

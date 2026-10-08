@@ -1,4 +1,4 @@
-﻿name: "quake_search"
+name: "quake_search"
 command: "python3"
 args:
   - "-c"
@@ -228,7 +228,7 @@ description: |
   Quake (360 cyberspace mapping) asset search tool using the Quake API v3 to search internet assets in real time.
 
   **Key Features:**
-  - Supports Quake filter syntax（query）
+  - Supports Quake filter syntax (query)
   - Result count control (size)
   - Field trimming (fields, maps to Quake include)
   -   - Pagination offset (start)

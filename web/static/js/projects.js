@@ -1,17 +1,17 @@
-﻿/**
- * 项目管理与事实黑板
+/**
+ * Projects and Fact board
  */
 let projectsCache = [];
 let projectsCacheAll = [];
-const PROJECTS_LIST_PAGE_SIZE_KEY = 'kestrel.projects_list_page_size';
+const PROJECTS_LIST_PAGE_SIZE_KEY = 'kestrel.projects_list_ page_size';
 let currentProjectId = null;
-let currentProjectUpdatedAt = null;
+let currentProjectupdatedAt = null;
 let currentProjectTab = 'facts';
 let currentProjectAssets = [];
-const PROJECT_ASSETS_PAGE_SIZE_KEY = 'kestrel.project_assets_page_size';
+const PROJECT_ASSETS_PAGE_SIZE_KEY = 'kestrel.project_assets_ page_size';
 let projectAssetsPagination = {
-    page: 1,
-    pageSize: (() => {
+     page: 1,
+     pageSize: (() => {
         try {
             const size = Number(localStorage.getItem(PROJECT_ASSETS_PAGE_SIZE_KEY));
             return [10, 20, 50, 100].includes(size) ? size : 20;
@@ -45,7 +45,7 @@ function requireProjectWrite() {
     if (typeof requirePermission !== 'function') return true;
     return requirePermission(
         'project:write',
-        tpFmt('projects.writePermissionDenied', '当前账号仅有只读权限，无法创建或修改项目'),
+        tpFmt('projects.writePermissionDenied', 'Current account has read-only permissions, cannot create or modify project'),
     );
 }
 
@@ -53,7 +53,7 @@ function requireProjectDelete() {
     if (typeof requirePermission !== 'function') return true;
     return requirePermission(
         'project:delete',
-        tpFmt('projects.writePermissionDenied', '当前账号仅有只读权限，无法删除项目'),
+        tpFmt('projects.writePermissionDenied', 'Current account has read-only permissions, cannot delete project'),
     );
 }
 
@@ -72,15 +72,15 @@ const PROJECTS_FILTER_SELECT_HANDLERS = {
     'project-graph-view': function () { loadProjectFactGraph(); },
     'project-vulns-filter-severity': function () { loadProjectVulnerabilities(); },
     'project-vulns-filter-status': function () { loadProjectVulnerabilities(); },
-    'projects-page-size-pagination': function () { changeProjectsPageSize(); }
+    'projects- page-size-pagination': function () { changeProjectsPageSize(); }
 };
-const projectsFilterSelectMap = {};
-let projectsFilterSelectDocBound = false;
+const projectsfilterSelectMap = {};
+let projectsfilterSelectDocBound = false;
 const PROJECTS_FILTER_SELECT_CARET = '<svg class="projects-filter-select-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
 function closeAllProjectsFilterSelects() {
-    Object.keys(projectsFilterSelectMap).forEach(function (id) {
-        const reg = projectsFilterSelectMap[id];
+    Object.keys(projectsfilterSelectMap).forEach(function (ID) {
+        const reg = projectsfilterSelectMap[ID];
         if (!reg || !reg.wrapper) return;
         reg.wrapper.classList.remove('open');
         if (reg.trigger) reg.trigger.setAttribute('aria-expanded', 'false');
@@ -88,16 +88,16 @@ function closeAllProjectsFilterSelects() {
 }
 
 function pruneProjectsFilterSelectMap(root) {
-    Object.keys(projectsFilterSelectMap).forEach(function (id) {
-        const select = document.getElementById(id);
+    Object.keys(projectsfilterSelectMap).forEach(function (ID) {
+        const select = document.getElementById(ID);
         if (!select || (root && !root.contains(select))) {
-            delete projectsFilterSelectMap[id];
+            delete projectsfilterSelectMap[ID];
         }
     });
 }
 
 function syncProjectsFilterSelect(select) {
-    const reg = projectsFilterSelectMap[select.id];
+    const reg = projectsfilterSelectMap[select.id];
     if (!reg) return;
     const dropdown = reg.dropdown;
     const trigger = reg.trigger;
@@ -137,17 +137,17 @@ function syncProjectsFilterSelect(select) {
 }
 
 function syncAllProjectsFilterSelects() {
-    Object.keys(projectsFilterSelectMap).forEach(function (id) {
-        const select = document.getElementById(id);
+    Object.keys(projectsfilterSelectMap).forEach(function (ID) {
+        const select = document.getElementById(ID);
         if (select) syncProjectsFilterSelect(select);
     });
 }
 
 function enhanceProjectsFilterSelect(select) {
     if (!select || !select.id) return;
-    const existing = projectsFilterSelectMap[select.id];
+    const existing = projectsfilterSelectMap[select.id];
     if (existing && existing.select !== select) {
-        delete projectsFilterSelectMap[select.id];
+        delete projectsfilterSelectMap[select.id];
     }
     if (select.dataset.projectsCustomSelect === '1') {
         syncProjectsFilterSelect(select);
@@ -159,9 +159,9 @@ function enhanceProjectsFilterSelect(select) {
     select.setAttribute('aria-hidden', 'true');
 
     const wrapper = document.createElement('div');
-    wrapper.className = 'projects-filter-select-ui';
-    if (select.id === 'projects-page-size-pagination') {
-        wrapper.classList.add('projects-filter-select-ui--compact');
+    wrapper.className = 'projects-filter-select-UI';
+    if (select.id === 'projects- page-size-pagination') {
+        wrapper.classList.add('projects-filter-select-UI--compact');
     }
 
     const trigger = document.createElement('button');
@@ -184,7 +184,7 @@ function enhanceProjectsFilterSelect(select) {
     wrapper.appendChild(dropdown);
     wrapper.appendChild(select);
 
-    projectsFilterSelectMap[select.id] = { wrapper: wrapper, trigger: trigger, dropdown: dropdown, select: select };
+    projectsfilterSelectMap[select.id] = { wrapper: wrapper, trigger: trigger, dropdown: dropdown, select: select };
 
     trigger.addEventListener('click', function (e) {
         e.stopPropagation();
@@ -216,8 +216,8 @@ function enhanceProjectsFilterSelect(select) {
         syncProjectsFilterSelect(select);
     });
 
-    if (!select.dataset.projectsFilterBound) {
-        select.dataset.projectsFilterBound = '1';
+    if (!select.dataset.projectsfilterBound) {
+        select.dataset.projectsfilterBound = '1';
         const handler = PROJECTS_FILTER_SELECT_HANDLERS[select.id];
         if (typeof handler === 'function') {
             select.addEventListener('change', handler);
@@ -228,14 +228,14 @@ function enhanceProjectsFilterSelect(select) {
 }
 
 function refreshProjectsFilterSelects() {
-    const page = document.getElementById('page-projects');
-    if (!page) return;
-    pruneProjectsFilterSelectMap(page);
-    page.querySelectorAll('select.projects-filter-select-native, #projects-page-size-pagination').forEach(function (select) {
+    const  page = document.getElementById(' page-projects');
+    if (! page) return;
+    pruneProjectsFilterSelectMap( page);
+     page.querySelectorAll('select.projects-filter-select-native, #projects- page-size-pagination').forEach(function (select) {
         enhanceProjectsFilterSelect(select);
     });
-    if (!projectsFilterSelectDocBound) {
-        projectsFilterSelectDocBound = true;
+    if (!projectsfilterSelectDocBound) {
+        projectsfilterSelectDocBound = true;
         document.addEventListener('click', closeAllProjectsFilterSelects);
         document.addEventListener('keydown', function (e) {
             if (e.key === 'Escape') closeAllProjectsFilterSelects();
@@ -243,22 +243,22 @@ function refreshProjectsFilterSelects() {
     }
 }
 
-/** 与后端 internal/project/fact_template.go 对齐 */
-const FACT_ATTACK_CHAIN_BODY_TEMPLATE = `## 结论（可验证，一句话）
-<勿仅写「存在漏洞」；写明类型 + 位置 + 触发条件>
+/** Aligned with backend internal/project/fact_template.go */
+const FACT_ATTACK_CHAIN_BODY_TEMPLATE = `## Conclusion (verifiable, one sentence)
+<Do not just write "vulnerability exists"; specify type + location + trigger condition>
 
-## 目标与入口
-- 目标: <URL / IP:Port / 主机名>
-- 入口: <路径 / 接口 / 参数>
-- 前置条件: <匿名 / 角色 / Cookie / 其他依赖>
+## Target and Entry Point
+- Target: <URL / IP:Port / hostname>
+- Entry point: <path / endpoint / parameter>
+- Prerequisites: <anonymous / role / cookie / other dependencies>
 
-## 攻击链（逐步可复现）
-1. <侦察/发现>
-2. <利用/触发>
-3. <影响证明（读文件、RCE 回显、越权数据等）>
+## Attack Chain (step-by-step reproducible)
+1. <Reconnaissance/discovery>
+2. <Exploitation/trigger>
+3. <Impact proof (file read, RCE output, privilege escalation data, etc.)>
 
 ## Exploit / POC
-### 请求
+### Request
 \`\`\`http
 <METHOD> <path> HTTP/1.1
 Host: ...
@@ -267,40 +267,40 @@ Host: ...
 <body>
 \`\`\`
 
-### 响应 / 现象
-<关键响应片段、状态码、差异点>
+### Response / Observed Behavior
+<Key response fragments, status code, differences>
 
-### 命令 / 脚本（如有）
+### Command / Script (if any)
 \`\`\`bash
 <command>
 \`\`\`
 
-## 关键证据
-- <工具输出摘要 / 截图路径 / 会话或消息 ID>
+## Key Evidence
+- <Tool output summary / screenshot path / session or message ID>
 
-## 关联
-- related_vulnerability_id: <可选>
-- 依赖事实: <fact_key，如 auth/session_cookie>
-  - 结构化关系边（自动同步；links 文本格式 type: source_fact_key）:
+## Associations
+- related_vulnerability_id: <optional>
+- Dependent fact: <fact_key, e.g. auth/session_cookie>
+  - Structured relationship edges (auto sync; links text format type: source_fact_key):
   - discovered_on: target/primary_domain
 
-## 备注与不确定性
-<待验证假设、环境差异、绕过尝试记录>`;
+## Remarks and Open Questions
+<Pending validation hypotheses, environment differences, bypass attempt records>`;
 
-const FACT_ENV_BODY_TEMPLATE = `## 摘要
-<该事实的核心认知>
+const FACT_ENV_BODY_TEMPLATE = `## Summary
+<Core insight of this fact>
 
-## 细节
-<端口/版本/路径/凭据特征/业务规则等>
+## Details
+<port/version/path/credential characteristics/business rules/etc.>
 
-## 来源与证据
-<命令输出、响应片段、发现时间>
+## Source and Evidence
+<Command output, response snippet, discovery time>
 
-## 关联
-- 相关 fact_key: <可选>`;
+## Associations
+- Related fact_key: <optional>`;
 
-const FACT_ATTACK_CHAIN_PREFIXES = ['finding/', 'chain/', 'exploit/', 'poc/'];
-const FACT_ATTACK_CHAIN_CATEGORIES = new Set(['finding', 'chain', 'exploit', 'poc', 'vuln']);
+const FACT_ATTACK_CHAIN_PREFIXES = ['finding/', 'chain/', 'exploit/', 'POC/'];
+const FACT_ATTACK_CHAIN_CATEGORIES = new Set(['finding', 'chain', 'exploit', 'POC', 'vuln']);
 
 function requiresAttackChainFact(category, factKey) {
     const c = (category || '').trim().toLowerCase();
@@ -315,17 +315,17 @@ function isSparseFactBody(category, factKey, body) {
     if (!text) return true;
     const lower = text.toLowerCase();
     const hasSteps =
-        lower.includes('攻击链') ||
-        lower.includes('## 攻击') ||
+        lower.includes('Attack chain') ||
+        lower.includes('## attack_chain') || lower.includes('## attack') ||
         lower.includes('## exploit') ||
-        lower.includes('## poc');
+        lower.includes('## POC');
     const hasHTTP =
-        lower.includes('```http') ||
+        lower.includes('```HTTP') ||
         lower.includes('```bash') ||
         lower.includes('curl ') ||
         lower.includes('get ') ||
-        lower.includes('post ');
-    const hasReq = lower.includes('请求') || lower.includes('响应') || lower.includes('payload');
+        lower.includes('POST ');
+    const hasReq = lower.includes('request') || lower.includes('response') || lower.includes('payload');
     return !(hasSteps || hasHTTP || hasReq);
 }
 
@@ -376,9 +376,9 @@ function getActiveProjectId() {
     }
 }
 
-function setActiveProjectId(id) {
+function setActiveProjectId(ID) {
     try {
-        if (id) localStorage.setItem(PROJECT_ACTIVE_KEY, id);
+        if (ID) localStorage.setItem(PROJECT_ACTIVE_KEY, ID);
         else localStorage.removeItem(PROJECT_ACTIVE_KEY);
     } catch (e) { /* ignore */ }
 }
@@ -396,14 +396,14 @@ function rememberProjectsInNameMap(list) {
     });
 }
 
-/** 与后端 projectListSearchPattern 对齐：name / description / id 子串匹配（忽略大小写） */
+/** Aligned with backend projectListSearchPattern: name / description / ID substring match (case-insensitive) */
 function matchProjectSearchQuery(project, query) {
     const q = String(query || '').trim().toLowerCase();
     if (!q) return true;
     const name = String(project.name || '').toLowerCase();
     const desc = String(project.description || '').toLowerCase();
-    const id = String(project.id || '').toLowerCase();
-    return name.includes(q) || desc.includes(q) || id.includes(q);
+    const ID = String(project.id || '').toLowerCase();
+    return name.includes(q) || desc.includes(q) || ID.includes(q);
 }
 
 function sortProjectsForPicker(projects) {
@@ -417,7 +417,7 @@ function sortProjectsForPicker(projects) {
     });
 }
 
-/** 从已加载列表中筛选活跃项目（对话选择器 / 项目筛选下拉） */
+/** Filter active project from loaded list (chat selector / target filter dropdown) */
 function filterActiveProjectsLocal(projects, query) {
     const list = (projects || []).filter((p) => p && p.id && p.status !== 'archived');
     const q = String(query || '').trim();
@@ -435,14 +435,14 @@ async function searchActiveProjects(query, opts = {}) {
     const res = await apiFetch(`/api/projects?${params}`);
     if (!res.ok) throw new Error(tp('projects.loadProjectsFailed'));
     const parsed = parseProjectsListResponse(await res.json());
-    rememberProjectsInNameMap(parsed.items);
+    rememberProjectsInNameMap(parsed. items);
     return parsed;
 }
 
 async function fetchProjectSummary(projectId) {
-    const id = String(projectId || '').trim();
-    if (!id) return null;
-    const res = await apiFetch(`/api/projects/${encodeURIComponent(id)}`);
+    const ID = String(projectId || '').trim();
+    if (!ID) return null;
+    const res = await apiFetch(`/api/projects/${encodeURIComponent(ID)}`);
     if (!res.ok) return null;
     const project = await res.json();
     if (project && project.id) rememberProjectsInNameMap([project]);
@@ -457,17 +457,17 @@ function getProjectsListPageSize() {
     return 50;
 }
 
-let projectsListPagination = { page: 1, pageSize: getProjectsListPageSize(), total: 0 };
-let projectsListSearch = '';
-let _projectsListSearchDebounce = null;
+let projectsListPagination = {  page: 1,  pageSize: getProjectsListPageSize(), total: 0 };
+let projectsListsearch = '';
+let _projectsListsearchDebounce = null;
 
-function parseListTotalValue(raw, itemsLength) {
+function parseListTotalValue(raw,  itemsLength) {
     if (typeof raw === 'number' && Number.isFinite(raw) && raw >= 0) return raw;
     if (raw != null && raw !== '') {
         const n = parseInt(String(raw), 10);
         if (Number.isFinite(n) && n >= 0) return n;
     }
-    return itemsLength;
+    return  itemsLength;
 }
 
 function parseListOffsetValue(raw) {
@@ -481,12 +481,12 @@ function parseListOffsetValue(raw) {
 
 function parseProjectsListResponse(data) {
     if (Array.isArray(data)) {
-        return { items: data, total: data.length, limit: data.length, offset: 0, isLegacyArray: true };
+        return {  items: data, total: data.length, limit: data.length, offset: 0, isLegacyArray: true };
     }
-    const items = data.projects || data.items || [];
+    const items = data.projects || data. items || [];
     const arr = Array.isArray(items) ? items : [];
     return {
-        items: arr,
+         items: arr,
         total: parseListTotalValue(data.total, arr.length),
         limit: parseListTotalValue(data.limit, arr.length) || arr.length,
         offset: parseListOffsetValue(data.offset),
@@ -494,30 +494,30 @@ function parseProjectsListResponse(data) {
     };
 }
 
-async function resolveProjectsListTotal(params, parsed, pageSize, offset) {
+async function resolveProjectsListTotal(params, parsed,  pageSize, offset) {
     const serverTotal = parsed.total;
-    // 服务端 total 明确大于当前页末尾 → 直接信任
-    if (!parsed.isLegacyArray && serverTotal > offset + parsed.items.length) {
+    // Server total is clearly greater than current page end -> trust directly
+    if (!parsed.isLegacyArray && serverTotal > offset + parsed. items.length) {
         return serverTotal;
     }
-    // 不足一页 → 已是最后一页
-    if (parsed.items.length < pageSize) {
-        return Math.max(serverTotal, offset + parsed.items.length);
+    // Less than one page -> already on last page
+    if (parsed. items.length <  pageSize) {
+        return Math.max(serverTotal, offset + parsed. items.length);
     }
-    // 满页但 total 可能被误算为 items.length → 探测下一页
+    // Full page but total might be miscalculated as items.length -> probe next
     const probe = new URLSearchParams(params);
-    probe.set('offset', String(offset + pageSize));
+    probe.set('offset', String(offset +  pageSize));
     probe.set('limit', '1');
     try {
         const res = await apiFetch(`/api/projects?${probe}`);
-        if (!res.ok) return Math.max(serverTotal, offset + parsed.items.length);
+        if (!res.ok) return Math.max(serverTotal, offset + parsed. items.length);
         const probeParsed = parseProjectsListResponse(await res.json());
         if (probeParsed.total > serverTotal) return probeParsed.total;
-        if (probeParsed.items.length > 0) {
-            return Math.max(serverTotal, offset + pageSize + 1);
+        if (probeParsed. items.length > 0) {
+            return Math.max(serverTotal, offset +  pageSize + 1);
         }
     } catch (e) { /* ignore */ }
-    return Math.max(serverTotal, offset + parsed.items.length);
+    return Math.max(serverTotal, offset + parsed. items.length);
 }
 
 async function fetchAllProjects(includeArchived) {
@@ -527,40 +527,40 @@ async function fetchAllProjects(includeArchived) {
     let offset = 0;
     let total = Infinity;
     while (all.length < total) {
-        const params = new URLSearchParams({ limit: String(pageSize), offset: String(offset) });
+        const params = new URLSearchParams({ limit: String( pageSize), offset: String(offset) });
         if (!showArchived) params.set('status', 'active');
         const res = await apiFetch(`/api/projects?${params}`);
         if (!res.ok) throw new Error(tp('projects.loadProjectsFailed'));
         const parsed = parseProjectsListResponse(await res.json());
-        all = all.concat(parsed.items);
+        all = all.concat(parsed. items);
         total = parsed.total;
-        if (!parsed.items.length) break;
-        offset += parsed.items.length;
+        if (!parsed. items.length) break;
+        offset += parsed. items.length;
     }
     return all;
 }
 
 async function fetchProjectsList(includeArchived, opts = {}) {
     const showArchived = includeArchived || document.getElementById('projects-show-archived')?.checked;
-    const page = opts.page ?? projectsListPagination.page;
-    const pageSize = opts.pageSize ?? getProjectsListPageSize();
-    const search = opts.search !== undefined ? opts.search : projectsListSearch;
-    projectsListSearch = search;
-    const offset = (page - 1) * pageSize;
-    const params = new URLSearchParams({ limit: String(pageSize), offset: String(offset) });
+    const  page = opts. page ?? projectsListPagination. page;
+    const pageSize = opts. pageSize ?? getProjectsListPageSize();
+    const search = opts.search !== undefined ? opts.search : projectsListsearch;
+    projectsListsearch = search;
+    const offset = ( page - 1) *  pageSize;
+    const params = new URLSearchParams({ limit: String( pageSize), offset: String(offset) });
     if (search) params.set('search', search);
     if (!showArchived) params.set('status', 'active');
     const res = await apiFetch(`/api/projects?${params}`);
     if (!res.ok) throw new Error(tp('projects.loadProjectsFailed'));
     const parsed = parseProjectsListResponse(await res.json());
-    const total = await resolveProjectsListTotal(params, parsed, pageSize, offset);
-    projectsCache = parsed.items;
-    projectsListPagination = { page, pageSize: pageSize, total };
+    const total = await resolveProjectsListTotal(params, parsed,  pageSize, offset);
+    projectsCache = parsed. items;
+    projectsListPagination = {  page,  pageSize:  pageSize, total };
     rebuildProjectNameMap(projectsCacheAll.length ? projectsCacheAll : projectsCache);
     return projectsCache;
 }
 
-/** 对话页等项目选择器：确保全量列表已拉取（去重并发请求） */
+/** Chat page project selector: ensure full list is fetched (deduplicate concurrent requests) */
 async function ensureProjectsLoaded(force) {
     if (!force && _projectsListReady) return projectsCacheAll;
     if (!force && _projectsFetchPromise) return _projectsFetchPromise;
@@ -589,25 +589,25 @@ function isProjectsCacheReady() {
 }
 
 function prefetchProjectsForChat() {
-    const id = (resolveChatProjectSelection() || '').trim();
-    if (id && !projectNameById[id]) {
-        fetchProjectSummary(id).catch(() => {});
+    const ID = (resolveChatProjectSelection() || '').trim();
+    if (ID && !projectNameById[ID]) {
+        fetchProjectSummary(ID).catch(() => {});
     }
     ensureProjectsLoaded().catch(() => {});
 }
 
-/** 新对话沿用用户最近选择的项目；没有选择时才保持未绑定。 */
+/** New chat continues user recently selected project; keep unassigned only when none selected. */
 async function ensureDefaultActiveProjectForNewChat() {
-    const id = getActiveProjectId();
-    if (!id) return '';
-    const project = await fetchProjectSummary(id).catch(() => null);
+    const ID = getActiveProjectId();
+    if (!ID) return '';
+    const project = await fetchProjectSummary(ID).catch(() => null);
     if (project && project.id && project.status !== 'archived') return project.id;
     setActiveProjectId('');
     return '';
 }
 
-function getProjectName(id) {
-    return projectNameById[id] || id || '';
+function getProjectName(ID) {
+    return projectNameById[ID] || ID || '';
 }
 
 function initProjectsModalEscape() {
@@ -622,19 +622,19 @@ function initProjectsModalEscape() {
 }
 
 async function initProjectsPage() {
-    const page = document.getElementById('page-projects');
-    if (!page || page.style.display === 'none') return;
+    const  page = document.getElementById(' page-projects');
+    if (! page ||  page.style.display === 'none') return;
     initProjectsModalEscape();
     refreshProjectsFilterSelects();
     if (typeof syncAppModalBodyLock === 'function') {
         syncAppModalBodyLock();
     }
     updateProjectsDetailVisibility();
-    projectsListPagination.pageSize = getProjectsListPageSize();
+    projectsListPagination. pageSize = getProjectsListPageSize();
     renderProjectsPagination();
     await loadProjectsList();
     if (!currentProjectId && projectsCache.length) {
-        const fromHash = new URLSearchParams(window.location.hash.split('?')[1] || '').get('id');
+        const fromHash = new URLSearchParams(window.location.hash.split('?')[1] || '').get('ID');
         currentProjectId = fromHash || projectsCache[0].id;
     }
     renderProjectsSidebar();
@@ -646,7 +646,7 @@ async function initProjectsPage() {
 async function loadProjectsList() {
     _projectsListReady = false;
     projectsCacheAll = [];
-    projectsListPagination.pageSize = getProjectsListPageSize();
+    projectsListPagination. pageSize = getProjectsListPageSize();
     await fetchProjectsList();
     renderProjectsSidebar();
     renderProjectsPagination();
@@ -688,7 +688,7 @@ function updateProjectsListCount() {
     if (el) el.textContent = String(projectsListPagination.total || projectsCache.length);
 }
 
-/** 事实分类 → 徽章样式（与 fact_template.go 常量对齐） */
+/** Fact category -> badge style (aligned with fact_template.go constants) */
 const FACT_CATEGORY_BADGE = {
     target: 'projects-category--target',
     auth: 'projects-category--auth',
@@ -697,7 +697,7 @@ const FACT_CATEGORY_BADGE = {
     finding: 'projects-category--finding',
     chain: 'projects-category--chain',
     exploit: 'projects-category--exploit',
-    poc: 'projects-category--poc',
+    POC: 'projects-category--POC',
     note: 'projects-category--note',
     vuln: 'projects-category--exploit',
 };
@@ -734,7 +734,7 @@ function renderProjectFactActions(keyEsc, idEsc, confidence) {
         <button type="button" class="projects-action-btn projects-action-btn--edit" data-fact-key="${keyEsc}" onclick="showEditFactModal(this.dataset.factKey)" title="${escapeHtml(tp('projects.editTitle'))}">${escapeHtml(tp('common.edit'))}</button>
         <button type="button" class="projects-action-btn projects-action-btn--view" data-fact-key="${keyEsc}" onclick="viewProjectFactBody(this.dataset.factKey)" title="${escapeHtml(tp('projects.viewBodyTitle'))}">${escapeHtml(tp('projects.details'))}</button>
         ${toggleBtn}
-        <button type="button" class="projects-action-btn projects-action-btn--danger" data-fact-id="${idEsc}" onclick="deleteProjectFact(this.dataset.factId)" title="${escapeHtml(tp('projects.deleteForeverTitle'))}">${escapeHtml(tp('common.delete'))}</button>
+        <button type="button" class="projects-action-btn projects-action-btn--danger" data-fact-idD="${idEsc}" onclick="deleteProjectFact(this.dataset.factId)" title="${escapeHtml(tp('projects.deleteForeverTitle'))}">${escapeHtml(tp('common.delete'))}</button>
     </div>`;
 }
 
@@ -758,7 +758,7 @@ function formatVulnStatusBadge(status) {
     return `<span class="status-badge status-${escapeHtml(cls)}">${escapeHtml(label)}</span>`;
 }
 
-let _projectVulnsFilterDebounce = null;
+let _projectVulnsfilterDebounce = null;
 
 function buildProjectVulnsQueryParams() {
     const params = new URLSearchParams();
@@ -782,9 +782,9 @@ function projectVulnsHasActiveFilter() {
 }
 
 function debouncedLoadProjectVulnerabilities() {
-    if (_projectVulnsFilterDebounce) clearTimeout(_projectVulnsFilterDebounce);
-    _projectVulnsFilterDebounce = setTimeout(() => {
-        _projectVulnsFilterDebounce = null;
+    if (_projectVulnsfilterDebounce) clearTimeout(_projectVulnsfilterDebounce);
+    _projectVulnsfilterDebounce = setTimeout(() => {
+        _projectVulnsfilterDebounce = null;
         loadProjectVulnerabilities();
     }, 280);
 }
@@ -794,12 +794,12 @@ function getProjectsListFilter() {
 }
 
 function filterProjectsList() {
-    if (_projectsListSearchDebounce) clearTimeout(_projectsListSearchDebounce);
-    _projectsListSearchDebounce = setTimeout(() => {
-        _projectsListSearchDebounce = null;
+    if (_projectsListsearchDebounce) clearTimeout(_projectsListsearchDebounce);
+    _projectsListsearchDebounce = setTimeout(() => {
+        _projectsListsearchDebounce = null;
         const q = getProjectsListFilter();
-        projectsListPagination.page = 1;
-        fetchProjectsList(undefined, { page: 1, search: q })
+        projectsListPagination. page = 1;
+        fetchProjectsList(undefined, {  page: 1, search: q })
             .then(() => {
                 renderProjectsSidebar();
                 renderProjectsPagination();
@@ -808,11 +808,11 @@ function filterProjectsList() {
     }, 280);
 }
 
-function goProjectsPage(page) {
-    const totalPages = Math.max(1, Math.ceil((projectsListPagination.total || 0) / projectsListPagination.pageSize) || 1);
-    const next = Math.min(Math.max(1, page), totalPages);
-    if (next === projectsListPagination.page) return;
-    fetchProjectsList(undefined, { page: next })
+function goProjectsPage( page) {
+    const totalPages = Math.max(1, Math.ceil((projectsListPagination.total || 0) / projectsListPagination. pageSize) || 1);
+    const next = Math.min(Math.max(1,  page), totalPages);
+    if (next === projectsListPagination. page) return;
+    fetchProjectsList(undefined, {  page: next })
         .then(() => {
             renderProjectsSidebar();
             renderProjectsPagination();
@@ -823,15 +823,15 @@ function goProjectsPage(page) {
 }
 
 function changeProjectsPageSize() {
-    const sel = document.getElementById('projects-page-size-pagination');
+    const sel = document.getElementById('projects- page-size-pagination');
     const newSize = sel ? parseInt(sel.value, 10) : 50;
     if (![20, 50, 100].includes(newSize)) return;
     try {
         localStorage.setItem(PROJECTS_LIST_PAGE_SIZE_KEY, String(newSize));
     } catch (e) { /* ignore */ }
-    projectsListPagination.pageSize = newSize;
-    projectsListPagination.page = 1;
-    fetchProjectsList(undefined, { page: 1, pageSize: newSize })
+    projectsListPagination. pageSize = newSize;
+    projectsListPagination. page = 1;
+    fetchProjectsList(undefined, {  page: 1,  pageSize: newSize })
         .then(() => {
             renderProjectsSidebar();
             renderProjectsPagination();
@@ -842,28 +842,28 @@ function changeProjectsPageSize() {
 function renderProjectsPagination() {
     const el = document.getElementById('projects-pagination');
     if (!el) return;
-    const { page, pageSize, total } = projectsListPagination;
-    const totalPages = Math.max(1, Math.ceil(total / pageSize) || 1);
+    const {  page,  pageSize, total } = projectsListPagination;
+    const totalPages = Math.max(1, Math.ceil(total /  pageSize) || 1);
     const navDisabled = total === 0 || totalPages <= 1;
     el.hidden = false;
-    const start = total === 0 ? 0 : (page - 1) * pageSize + 1;
-    const end = total === 0 ? 0 : Math.min(page * pageSize, total);
+    const start = total === 0 ? 0 : ( page - 1) *  pageSize + 1;
+    const end = total === 0 ? 0 : Math.min( page *  pageSize, total);
     const infoText = tpFmt('projects.paginationRange', `${start}-${end}/${total}`, { start, end, total });
-    const pageText = tpFmt('projects.paginationPage', `${page}/${totalPages}`, { page, total: totalPages });
+    const  pageText = tpFmt('projects.paginationPage', `${ page}/${totalPages}`, {  page, total: totalPages });
     el.innerHTML = `
         <div class="sidebar-list-pagination-inner sidebar-list-pagination-inner--compact">
             <span class="pagination-info">${escapeHtml(infoText)}</span>
             <div class="pagination-controls">
-                <button type="button" class="btn-icon-pagination" onclick="goProjectsPage(${page - 1})" ${page <= 1 || navDisabled ? 'disabled' : ''} title="${escapeHtml(tp('projects.paginationPrev'))}" aria-label="${escapeHtml(tp('projects.paginationPrev'))}">‹</button>
-                <span class="pagination-page">${escapeHtml(pageText)}</span>
-                <button type="button" class="btn-icon-pagination" onclick="goProjectsPage(${page + 1})" ${page >= totalPages || navDisabled ? 'disabled' : ''} title="${escapeHtml(tp('projects.paginationNext'))}" aria-label="${escapeHtml(tp('projects.paginationNext'))}">›</button>
+                <button type="button" class="btn-icon-pagination" onclick="goProjectsPage(${ page - 1})" ${ page <= 1 || navDisabled ? 'disabled' : ''} title="${escapeHtml(tp('projects.paginationPrev'))}" aria-label="${escapeHtml(tp('projects.paginationPrev'))}">‹</button>
+                <span class="pagination-page">${escapeHtml( pageText)}</span>
+                <button type="button" class="btn-icon-pagination" onclick="goProjectsPage(${ page + 1})" ${ page >= totalPages || navDisabled ? 'disabled' : ''} title="${escapeHtml(tp('projects.paginationNext'))}" aria-label="${escapeHtml(tp('projects.paginationNext'))}">›</button>
             </div>
             <label class="pagination-page-size">
                 ${escapeHtml(tp('projects.paginationPerPage'))}
-                <select id="projects-page-size-pagination" class="projects-filter-select-native">
-                    <option value="20" ${pageSize === 20 ? 'selected' : ''}>20</option>
-                    <option value="50" ${pageSize === 50 ? 'selected' : ''}>50</option>
-                    <option value="100" ${pageSize === 100 ? 'selected' : ''}>100</option>
+                <select ID="projects- page-size-pagination" class="projects-filter-select-native">
+                    <option value="20" ${ pageSize === 20 ? 'selected' : ''}>20</option>
+                    <option value="50" ${ pageSize === 50 ? 'selected' : ''}>50</option>
+                    <option value="100" ${ pageSize === 100 ? 'selected' : ''}>100</option>
                 </select>
             </label>
         </div>`;
@@ -899,7 +899,7 @@ function renderProjectsSidebar() {
             p.pinned ? `<span class="projects-list-item-badge">${escapeHtml(tp('projects.pinned'))}</span>` : '',
             p.status === 'archived' ? `<span class="projects-list-item-badge">${escapeHtml(tp('projects.archived'))}</span>` : '',
         ].join('');
-        return `<div class="projects-list-item${active}${archived}" data-id="${escapeAttr(p.id)}" onclick="selectProject(${escapeJsStringAttr(p.id)})">
+        return `<div class="projects-list-item${active}${archived}" data-idD="${escapeAttr(p.id)}" onclick="selectProject(${escapeJsStringAttr(p.id)})">
             <div class="projects-list-item-body">
                 <div class="projects-list-item-name" title="${escapeAttr(fullName)}">${escapeHtml(displayName)}${badges}</div>
                 <div class="projects-list-item-meta">${formatProjectTime(p.updated_at)}</div>
@@ -952,14 +952,14 @@ function renderProjectDetailMeta(updatedAt) {
     const timeEl = document.getElementById('projects-detail-meta-time');
     if (!metaEl || !timeEl) return;
     const time = formatProjectTime(updatedAt);
-    const full = tpFmt('projects.updatedPrefix', `Updated ${time}`, { time });
+    const full = tpFmt('projects.updatedPrefix', `updated ${time}`, { time });
     timeEl.textContent = time;
     metaEl.title = full;
 }
 
 function refreshProjectDetailMetaI18n() {
     if (!currentProjectId) return;
-    let updatedAt = currentProjectUpdatedAt;
+    let updatedAt = currentProjectupdatedAt;
     if (updatedAt == null) {
         const source = projectsCacheAll.length ? projectsCacheAll : projectsCache;
         const p = source.find((x) => x.id === currentProjectId);
@@ -991,29 +991,29 @@ function updateProjectStats(stats) {
     }
 }
 
-async function selectProject(id) {
-    currentProjectId = id;
-    if (id) setActiveProjectId(id);
-    projectAssetsPagination.page = 1;
+async function selectProject(ID) {
+    currentProjectId = ID;
+    if (ID) setActiveProjectId(ID);
+    projectAssetsPagination. page = 1;
     const searchEl = document.getElementById('project-facts-search');
     const catEl = document.getElementById('project-facts-filter-category');
     const confEl = document.getElementById('project-facts-filter-confidence');
     const sparseEl = document.getElementById('project-facts-filter-sparse');
-    const vulnSearchEl = document.getElementById('project-vulns-search');
+    const vulnsearchEl = document.getElementById('project-vulns-search');
     const vulnSevEl = document.getElementById('project-vulns-filter-severity');
     const vulnStatusEl = document.getElementById('project-vulns-filter-status');
     if (searchEl) searchEl.value = '';
     if (catEl) catEl.value = '';
     if (confEl) confEl.value = '';
     if (sparseEl) sparseEl.checked = false;
-    if (vulnSearchEl) vulnSearchEl.value = '';
+    if (vulnsearchEl) vulnsearchEl.value = '';
     if (vulnSevEl) vulnSevEl.value = '';
     if (vulnStatusEl) vulnStatusEl.value = '';
     syncAllProjectsFilterSelects();
     renderProjectsSidebar();
     updateProjectsDetailVisibility();
     try {
-        const res = await apiFetch(`/api/projects/${id}`);
+        const res = await apiFetch(`/api/projects/${ID}`);
         if (!res.ok) throw new Error(tp('projects.projectNotFound'));
         const p = await res.json();
         renderProjectDetailTitle(p.name);
@@ -1026,8 +1026,8 @@ async function selectProject(id) {
         const pinEl = document.getElementById('project-edit-pinned');
         if (pinEl) pinEl.checked = !!p.pinned;
         updateProjectStatusPill(p.status || 'active');
-        currentProjectUpdatedAt = p.updated_at;
-        renderProjectDetailMeta(currentProjectUpdatedAt);
+        currentProjectupdatedAt = p.updated_at;
+        renderProjectDetailMeta(currentProjectupdatedAt);
         renderProjectDetailDesc(p.description);
         projectNameById[p.id] = p.name || p.id;
     } catch (e) {
@@ -1053,17 +1053,17 @@ function switchProjectTab(tab) {
     if (tab === 'vulns') loadProjectVulnerabilities();
 }
 
-async function loadProjectAssets(page) {
+async function loadProjectAssets( page) {
     const tbody = document.getElementById('project-assets-tbody');
     const countEl = document.getElementById('project-assets-count');
     if (!tbody || !currentProjectId) return;
-    const requestedPage = Math.max(1, Number(page || projectAssetsPagination.page || 1));
-    projectAssetsPagination.page = requestedPage;
-    tbody.innerHTML = `<tr class="is-empty-row"><td colspan="7">${escapeHtml(tpFmt('common.loading', '加载中...'))}</td></tr>`;
+    const requestedPage = Math.max(1, Number( page || projectAssetsPagination. page || 1));
+    projectAssetsPagination. page = requestedPage;
+    tbody.innerHTML = `<tr class="is-empty-row"><td colspan="7">${escapeHtml(tpFmt('common.loading', 'Loading...'))}</td></tr>`;
     const qs = new URLSearchParams({
         project_id: currentProjectId,
-        page: String(requestedPage),
-        page_size: String(projectAssetsPagination.pageSize),
+         page: String(requestedPage),
+         page_size: String(projectAssetsPagination. pageSize),
     });
     const res = await apiFetch(`/api/assets?${qs.toString()}`);
     if (!res.ok) {
@@ -1071,30 +1071,30 @@ async function loadProjectAssets(page) {
         projectAssetsPagination.total = 0;
         projectAssetsPagination.totalPages = 1;
         if (countEl) countEl.textContent = '0';
-        tbody.innerHTML = `<tr class="is-empty-row"><td colspan="7">${escapeHtml(tpFmt('common.loadFailed', '加载失败'))}</td></tr>`;
+        tbody.innerHTML = `<tr class="is-empty-row"><td colspan="7">${escapeHtml(tpFmt('common.loadFailed', 'Load failed'))}</td></tr>`;
         renderProjectAssetsPagination();
         return;
     }
     const data = await res.json();
     currentProjectAssets = data.assets || [];
-    projectAssetsPagination.page = Number(data.page || requestedPage);
+    projectAssetsPagination. page = Number(data. page || requestedPage);
     projectAssetsPagination.total = Number(data.total || 0);
     projectAssetsPagination.totalPages = Math.max(1, Number(data.total_pages || 1));
-    if (projectAssetsPagination.page > projectAssetsPagination.totalPages) {
+    if (projectAssetsPagination. page > projectAssetsPagination.totalPages) {
         return loadProjectAssets(projectAssetsPagination.totalPages);
     }
-    if (countEl) countEl.textContent = tpFmt('projects.assetCount', `${data.total || 0} 个资产`, { count: data.total || 0 });
+    if (countEl) countEl.textContent = tpFmt('projects.assetCount', `${data.total || 0} Asset`, { count: data.total || 0 });
     if (!currentProjectAssets.length) {
-        tbody.innerHTML = `<tr class="is-empty-row"><td colspan="7">${escapeHtml(tpFmt('projects.noBoundAssets', '暂无绑定到此项目的资产'))}</td></tr>`;
+        tbody.innerHTML = `<tr class="is-empty-row"><td colspan="7">${escapeHtml(tpFmt('projects.noBoundAssets', 'No assets bound to this project'))}</td></tr>`;
         renderProjectAssetsPagination();
         return;
     }
     tbody.innerHTML = currentProjectAssets.map((asset, index) => {
-        const target = asset.host || asset.domain || asset.ip || '-';
+        const target = asset.host || asset.domain || asset.IP || '-';
         const service = [asset.protocol, asset.port ? ':' + asset.port : ''].join('') || '-';
         const fingerprint = [asset.title, asset.server].filter(Boolean).join(' · ') || '-';
         const updated = asset.last_seen_at ? new Date(asset.last_seen_at).toLocaleString() : '-';
-        const status = asset.status === 'inactive' ? tpFmt('assets.statusInactive', '停用') : tpFmt('assets.statusActive', '活跃');
+        const status = asset.status === 'inactive' ? tpFmt('assets.statusInactive', 'inactive') : tpFmt('assets.statusActive', 'active');
         return `<tr>
             <td class="cell-summary"><button type="button" class="projects-asset-target" onclick="openProjectAssetDetail(${index})" title="${escapeHtml(target)}">${escapeHtml(target)}</button></td>
             <td><code>${escapeHtml(service)}</code></td>
@@ -1113,26 +1113,26 @@ async function loadProjectAssets(page) {
 function renderProjectAssetsPagination() {
     const root = document.getElementById('project-assets-pagination');
     if (!root) return;
-    const { page, pageSize, total, totalPages } = projectAssetsPagination;
-    const start = total === 0 ? 0 : (page - 1) * pageSize + 1;
-    const end = total === 0 ? 0 : Math.min(page * pageSize, total);
-    const atFirst = page <= 1 || total === 0;
-    const atLast = page >= totalPages || total === 0;
+    const {  page,  pageSize, total, totalPages } = projectAssetsPagination;
+    const start = total === 0 ? 0 : ( page - 1) *  pageSize + 1;
+    const end = total === 0 ? 0 : Math.min( page *  pageSize, total);
+    const atFirst =  page <= 1 || total === 0;
+    const atLast =  page >= totalPages || total === 0;
     root.innerHTML = `<div class="pagination">
         <div class="pagination-info">
-            <span>${escapeHtml(tpFmt('projects.paginationShow', `显示 ${start}-${end} / 共 ${total}`, { start, end, total }))}</span>
-            <label class="pagination-page-size">${escapeHtml(tpFmt('projects.paginationPerPage', '每页显示'))}
-                <select id="project-assets-page-size" onchange="changeProjectAssetsPageSize(this.value)">
-                    ${[10, 20, 50, 100].map(size => `<option value="${size}" ${size === pageSize ? 'selected' : ''}>${size}</option>`).join('')}
+            <span>${escapeHtml(tpFmt('projects.paginationShow', `Showing ${start}-${end} / Total ${total}`, { start, end, total }))}</span>
+            <label class="pagination-page-size">${escapeHtml(tpFmt('projects.paginationPerPage', 'Per page'))}
+                <select ID="project-assets- page-size" onchange="changeProjectAssetsPageSize(this.value)">
+                    ${[10, 20, 50, 100].map(size => `<option value="${size}" ${size ===  pageSize ? 'selected' : ''}>${size}</option>`).join('')}
                 </select>
             </label>
         </div>
         <div class="pagination-controls">
-            <button type="button" class="btn-secondary" onclick="loadProjectAssets(1)" ${atFirst ? 'disabled' : ''}>${escapeHtml(tpFmt('skillsPage.firstPage', '首页'))}</button>
-            <button type="button" class="btn-secondary" onclick="loadProjectAssets(${Math.max(1, page - 1)})" ${atFirst ? 'disabled' : ''}>${escapeHtml(tpFmt('projects.paginationPrev', '上一页'))}</button>
-            <span class="pagination-page">${escapeHtml(tpFmt('skillsPage.pageOf', `第 ${page} / ${totalPages} 页`, { current: page, total: totalPages }))}</span>
-            <button type="button" class="btn-secondary" onclick="loadProjectAssets(${Math.min(totalPages, page + 1)})" ${atLast ? 'disabled' : ''}>${escapeHtml(tpFmt('projects.paginationNext', '下一页'))}</button>
-            <button type="button" class="btn-secondary" onclick="loadProjectAssets(${totalPages})" ${atLast ? 'disabled' : ''}>${escapeHtml(tpFmt('skillsPage.lastPage', '尾页'))}</button>
+            <button type="button" class="btn-secondary" onclick="loadProjectAssets(1)" ${atFirst ? 'disabled' : ''}>${escapeHtml(tpFmt('skillsPage.firstPage', 'First  page'))}</button>
+            <button type="button" class="btn-secondary" onclick="loadProjectAssets(${Math.max(1,  page - 1)})" ${atFirst ? 'disabled' : ''}>${escapeHtml(tpFmt('projects.paginationPrev', 'Previous'))}</button>
+            <span class="pagination-page">${escapeHtml(tpFmt('skillsPage. pageOf', `Round ${ page} / ${totalPages}  page`, { current:  page, total: totalPages }))}</span>
+            <button type="button" class="btn-secondary" onclick="loadProjectAssets(${Math.min(totalPages,  page + 1)})" ${atLast ? 'disabled' : ''}>${escapeHtml(tpFmt('projects.paginationNext', 'Next'))}</button>
+            <button type="button" class="btn-secondary" onclick="loadProjectAssets(${totalPages})" ${atLast ? 'disabled' : ''}>${escapeHtml(tpFmt('skillsPage.lastPage', 'Last page'))}</button>
         </div>
     </div>`;
 }
@@ -1140,8 +1140,8 @@ function renderProjectAssetsPagination() {
 function changeProjectAssetsPageSize(value) {
     const size = Number(value);
     if (![10, 20, 50, 100].includes(size)) return;
-    projectAssetsPagination.pageSize = size;
-    projectAssetsPagination.page = 1;
+    projectAssetsPagination. pageSize = size;
+    projectAssetsPagination. page = 1;
     try {
         localStorage.setItem(PROJECT_ASSETS_PAGE_SIZE_KEY, String(size));
     } catch (e) { /* ignore */ }
@@ -1156,20 +1156,20 @@ function openProjectAssetDetail(index) {
 async function unbindAssetFromProject(index) {
     const asset = currentProjectAssets[Number(index)];
     if (!asset || !asset.id || !currentProjectId) return;
-    const target = asset.host || asset.domain || asset.ip || asset.id;
-    const message = tpFmt('projects.unbindAssetConfirm', `确定将“${target}”从当前项目解绑吗？资产不会被删除。`, { target });
+    const target = asset.host || asset.domain || asset.IP || asset.id;
+    const message = tpFmt('projects.unbindAssetConfirm', `Are you sure you want to unbind "${target}" from current project? Asset will not be deleted.`, { target });
     if (!confirm(message)) return;
     try {
         const res = await apiFetch('/api/assets/project-binding', {
-            method: 'PUT',
+            METHOD: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ asset_ids: [asset.id], project_id: '' })
         });
         if (!res.ok) throw new Error(await res.text());
         if (typeof showInlineToast === 'function') {
-            showInlineToast(tpFmt('projects.unbindAssetDone', '已从项目解绑资产', { target }));
+            showInlineToast(tpFmt('projects.unbindAssetDone', 'Asset unbound from project', { target }));
         }
-        await loadProjectAssets(projectAssetsPagination.page);
+        await loadProjectAssets(projectAssetsPagination. page);
         await refreshProjectHeaderStats();
     } catch (error) {
         alert(`${tp('projects.unbindFailed')}: ${error.message || error}`);
@@ -1202,7 +1202,7 @@ async function handleGraphConnectNodePick(factKey) {
     if (!_graphConnectSource) {
         _graphConnectSource = factKey;
         if (typeof showNotification === 'function') {
-            showNotification(tpFmt('projects.graphConnectPickTarget', `已选源节点 ${factKey}，请点击目标节点`, { source: factKey }), 'info');
+            showNotification(tpFmt('projects.graphConnectPickTarget', `Source node ${factKey} selected, please click target node`, { source: factKey }), 'info');
         }
         return;
     }
@@ -1213,7 +1213,7 @@ async function handleGraphConnectNodePick(factKey) {
         return;
     }
     const res = await apiFetch(`/api/projects/${currentProjectId}/fact-edges`, {
-        method: 'POST',
+        METHOD: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             source_fact_key: _graphConnectSource,
@@ -1222,7 +1222,7 @@ async function handleGraphConnectNodePick(factKey) {
         }),
     });
     _graphConnectSource = null;
-    if (!(await notifyProjectApiFailure(res, 'projects.graphConnectFailed', '创建边失败'))) return;
+    if (!(await notifyProjectApiFailure(res, 'projects.graphConnectFailed', 'Failed to create edge'))) return;
     if (typeof showNotification === 'function') showNotification(tp('projects.graphConnectSuccess'), 'success');
     loadProjectFactGraph();
     loadProjectFacts();
@@ -1261,7 +1261,7 @@ async function loadProjectFactGraph() {
                     tp('projects.graphEmptyStep3'),
                 ],
                 emptyActionLabel: tp('projects.graphEmptyCta'),
-                onEmptyAction: () => showAddFactModal(),
+                onemptyAction: () => showAddFactModal(),
                 onNodeSelect: (factKey) => showProjectFactGraphNode(factKey, _currentGraphData),
                 onEdgeSelect: (edgeId) => showProjectFactGraphEdge(edgeId, _currentGraphData),
             });
@@ -1300,9 +1300,9 @@ function closeProjectFactGraphSidebar() {
 
 function isSyntheticGraphEdge(edge) {
     if (!edge) return true;
-    const id = String(edge.id || '');
+    const ID = String(edge.id || '');
     const type = String(edge.type || '');
-    return id.startsWith('vuln-link:') || type === 'links_vuln';
+    return ID.startsWith('vuln-link:') || type === 'links_vuln';
 }
 
 function getGraphEdgesForFact(factKey, graphData) {
@@ -1325,8 +1325,8 @@ function renderGraphEdgesListHtml(factKey, graphData, selectedEdgeId) {
             const synthetic = isSyntheticGraphEdge(e);
             const deleteBtn = synthetic
                 ? `<span class="project-fact-graph-edge-synthetic" title="${escapeHtml(tp('projects.graphEdgeSynthetic'))}">—</span>`
-                : `<button type="button" class="project-fact-graph-edge-delete" data-edge-id="${escapeAttr(e.id)}" onclick="event.stopPropagation(); deleteProjectFactEdge(this.dataset.edgeId)" title="${escapeAttr(tp('projects.graphDeleteEdge'))}"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>`;
-            return `<div class="project-fact-graph-edge-item${selected}" data-edge-id="${escapeAttr(e.id)}" onclick="focusProjectFactGraphEdge(${escapeJsStringAttr(e.id)})">
+                : `<button type="button" class="project-fact-graph-edge-delete" data-edge-idD="${escapeAttr(e.id)}" onclick="event.stopPropagation(); deleteProjectFactEdge(this.dataset.edgeId)" title="${escapeAttr(tp('projects.graphDeleteEdge'))}"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>`;
+            return `<div class="project-fact-graph-edge-item${selected}" data-edge-idD="${escapeAttr(e.id)}" onclick="focusProjectFactGraphEdge(${escapeJsStringAttr(e.id)})">
                 <span class="project-fact-graph-edge-dir">${escapeHtml(dirLabel)}</span>
                 <span class="project-fact-graph-edge-type">${escapeHtml(e.type || '')}</span>
                 <span class="project-fact-graph-edge-peer" title="${escapeHtml(src + ' → ' + tgt)}">${escapeHtml(src)} → ${escapeHtml(tgt)}</span>
@@ -1344,8 +1344,8 @@ function renderProjectFactGraphEdges(factKey, graphData, selectedEdgeId) {
     wrap.hidden = false;
     list.innerHTML = renderGraphEdgesListHtml(factKey, graphData, selectedEdgeId);
     if (selectedEdgeId) {
-        const selectedEl = list.querySelector('[data-edge-id="' + String(selectedEdgeId).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"]');
-        if (selectedEl) selectedEl.scrollIntoView({ block: 'nearest' });
+        const selectedEl = list.querySelector('[data-edge-idD="' + String(selectedEdgeId).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"]');
+        if (selectedEl) selectedEl.scrollIntoview({ block: 'nearest' });
     }
     if (!edges.length) wrap.hidden = false;
 }
@@ -1442,9 +1442,9 @@ async function deleteProjectFactEdge(edgeId) {
     if (isSyntheticGraphEdge(edge)) return;
     if (!confirm(tp('projects.confirmDeleteGraphEdge'))) return;
     const res = await apiFetch(`/api/projects/${currentProjectId}/fact-edges/${encodeURIComponent(edgeId)}`, {
-        method: 'DELETE',
+        METHOD: 'DELETE',
     });
-    if (!(await notifyProjectApiFailure(res, 'projects.graphEdgeDeleteFailed', '删除边失败'))) return;
+    if (!(await notifyProjectApiFailure(res, 'projects.graphEdgeDeleteFailed', 'Failed to delete edge'))) return;
     if (typeof showNotification === 'function') showNotification(tp('projects.graphEdgeDeleteSuccess'), 'success');
     const keepKey = _selectedGraphFactKey;
     await loadProjectFactGraph();
@@ -1484,9 +1484,9 @@ function buildProjectFactsQueryParams() {
 }
 
 function debouncedLoadProjectFacts() {
-    if (_projectFactsFilterDebounce) clearTimeout(_projectFactsFilterDebounce);
-    _projectFactsFilterDebounce = setTimeout(() => {
-        _projectFactsFilterDebounce = null;
+    if (_projectFactsfilterDebounce) clearTimeout(_projectFactsfilterDebounce);
+    _projectFactsfilterDebounce = setTimeout(() => {
+        _projectFactsfilterDebounce = null;
         loadProjectFacts();
     }, 280);
 }
@@ -1565,14 +1565,14 @@ async function loadProjectConversations() {
     }
     const data = await res.json();
     const items = data.conversations || [];
-    if (!items.length) {
+    if (! items.length) {
         tbody.innerHTML = `<tr class="is-empty-row"><td colspan="3">${escapeHtml(tp('projects.noBoundConversations'))}</td></tr>`;
         return;
     }
-    tbody.innerHTML = items
+    tbody.innerHTML =  items
         .map((conv) => {
-            const id = conv.id;
-            const idEsc = escapeHtml(id);
+            const ID = conv.id;
+            const idEsc = escapeHtml(ID);
             const title = escapeHtml(conv.title || tp('projects.untitledConversation'));
             const updated = formatProjectTime(conv.updatedAt || conv.updated_at, conv.createdAt || conv.created_at);
             return `<tr>
@@ -1580,9 +1580,9 @@ async function loadProjectConversations() {
             <td>${escapeHtml(updated)}</td>
             <td class="col-actions">
                 <div class="projects-table-actions">
-                    <button type="button" class="projects-action-btn projects-action-btn--view" data-conv-id="${idEsc}" onclick="openProjectConversation(this.dataset.convId)">${escapeHtml(tp('projects.open'))}</button>
-                    <button type="button" class="projects-action-btn" data-conv-id="${idEsc}" onclick="promoteConversationAttackChain(this.dataset.convId)" title="${escapeHtml(tp('projects.promoteAttackChainTitle'))}">${escapeHtml(tp('projects.promoteAttackChain'))}</button>
-                    <button type="button" class="projects-action-btn projects-action-btn--mute" data-conv-id="${idEsc}" onclick="unbindConversationFromProject(this.dataset.convId)" title="${escapeHtml(tp('projects.unbindProjectTitle'))}">${escapeHtml(tp('projects.unbind'))}</button>
+                    <button type="button" class="projects-action-btn projects-action-btn--view" data-conv-idD="${idEsc}" onclick="openProjectConversation(this.dataset.convId)">${escapeHtml(tp('projects.open'))}</button>
+                    <button type="button" class="projects-action-btn" data-conv-idD="${idEsc}" onclick="promoteConversationAttackChain(this.dataset.convId)" title="${escapeHtml(tp('projects.promoteAttackChainTitle'))}">${escapeHtml(tp('projects.promoteAttackChain'))}</button>
+                    <button type="button" class="projects-action-btn projects-action-btn--mute" data-conv-idD="${idEsc}" onclick="unbindConversationFromProject(this.dataset.convId)" title="${escapeHtml(tp('projects.unbindProjectTitle'))}">${escapeHtml(tp('projects.unbind'))}</button>
                 </div>
             </td>
         </tr>`;
@@ -1608,15 +1608,15 @@ async function promoteConversationAttackChain(conversationId) {
     if (!confirm(tp('projects.confirmPromoteAttackChain'))) return;
     const res = await apiFetch(
         `/api/projects/${currentProjectId}/promote-attack-chain/${encodeURIComponent(conversationId)}`,
-        { method: 'POST' },
+        { METHOD: 'POST' },
     );
-    if (!(await notifyProjectApiFailure(res, 'projects.promoteAttackChainFailed', '沉淀失败'))) return;
+    if (!(await notifyProjectApiFailure(res, 'projects.promoteAttackChainFailed', 'Failed to consolidate attack chain'))) return;
     const data = await res.json();
     if (typeof showNotification === 'function') {
         showNotification(
             tpFmt(
                 'projects.promoteAttackChainSuccess',
-                `已沉淀 ${data.facts_created || 0} 新 / ${data.facts_updated || 0} 更新 / ${data.edges_created || 0} 边`,
+                `Consolidated ${data.facts_created || 0} new / ${data.facts_updated || 0} updated / ${data.edges_created || 0} edges`,
                 data,
             ),
             'success',
@@ -1629,7 +1629,7 @@ async function promoteConversationAttackChain(conversationId) {
 async function unbindConversationFromProject(conversationId) {
     if (!conversationId || !confirm(tp('projects.confirmUnbindConversation'))) return;
     const res = await apiFetch(`/api/conversations/${encodeURIComponent(conversationId)}/project`, {
-        method: 'PUT',
+        METHOD: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ projectId: '' }),
     });
@@ -1640,7 +1640,7 @@ async function unbindConversationFromProject(conversationId) {
 
 let _factDetailKey = null;
 let _factDetailFact = null;
-let _projectFactsFilterDebounce = null;
+let _projectFactsfilterDebounce = null;
 
 async function viewProjectFactBody(factKey) {
     document.getElementById('fact-detail-title').textContent = factKey;
@@ -1669,7 +1669,7 @@ async function viewProjectFactBody(factKey) {
         const metaParts = [
             tpFmt('projects.factMetaCategory', `Category: ${f.category}`, { value: f.category }),
             tpFmt('projects.factMetaConfidence', `Confidence: ${f.confidence}`, { value: f.confidence }),
-            tpFmt('projects.factMetaUpdated', `Updated: ${formatProjectTime(f.updated_at, f.created_at)}`, {
+            tpFmt('projects.factMetaUpdated', `updated: ${formatProjectTime(f.updated_at, f.created_at)}`, {
                 time: formatProjectTime(f.updated_at, f.created_at),
             }),
         ];
@@ -1709,9 +1709,9 @@ async function linkFactToExistingVulnerability() {
     const res = await apiFetch(`/api/vulnerabilities?project_id=${encodeURIComponent(currentProjectId)}&limit=50`);
     if (!res.ok) return alert(tp('projects.loadVulnerabilityListFailed'));
     const data = await res.json();
-    const items = data.Vulnerabilities || data.vulnerabilities || data.items || [];
-    if (!items.length) return alert(tp('projects.noVulnerabilitiesInProject'));
-    const lines = items.map((v, i) => `${i + 1}. [${v.severity}] ${v.title} (${v.id})`);
+    const items = data.vulnerabilities || data.vulnerabilities || data. items || [];
+    if (! items.length) return alert(tp('projects.noVulnerabilitiesInProject'));
+    const lines =  items.map((v, i) => `${i + 1}. [${v.severity}] ${v.title} (${v.id})`);
     const pick = prompt(
         tp('projects.promptLinkFactToVuln', {
             factKey: f.fact_key,
@@ -1721,10 +1721,10 @@ async function linkFactToExistingVulnerability() {
     );
     if (pick == null || pick === '') return;
     const idx = parseInt(pick, 10) - 1;
-    if (Number.isNaN(idx) || idx < 0 || idx >= items.length) return alert(tp('projects.invalidIndex'));
-    const vulnId = items[idx].id;
+    if (Number.isNaN(idx) || idx < 0 || idx >=  items.length) return alert(tp('projects.invalidIndex'));
+    const vulnId =  items[idx].id;
     const upd = await apiFetch(`/api/projects/${currentProjectId}/facts/${encodeURIComponent(f.id)}`, {
-        method: 'PUT',
+        METHOD: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             fact_key: f.fact_key,
@@ -1771,14 +1771,14 @@ async function createVulnerabilityFromCurrentFact() {
         recommendation: '',
     };
     const res = await apiFetch('/api/vulnerabilities', {
-        method: 'POST',
+        METHOD: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
     });
-    if (!(await notifyProjectApiFailure(res, 'projects.createVulnerabilityFailed', '创建漏洞失败'))) return;
+    if (!(await notifyProjectApiFailure(res, 'projects.createVulnerabilityFailed', 'Failed to create vulnerability'))) return;
     const vuln = await res.json();
     const upd = await apiFetch(`/api/projects/${currentProjectId}/facts/${encodeURIComponent(f.id)}`, {
-        method: 'PUT',
+        METHOD: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             fact_key: f.fact_key,
@@ -1789,13 +1789,13 @@ async function createVulnerabilityFromCurrentFact() {
             related_vulnerability_id: vuln.id,
         }),
     });
-    if (!(await notifyProjectApiFailure(upd, 'projects.linkFailed', '关联失败'))) return;
+    if (!(await notifyProjectApiFailure(upd, 'projects.linkFailed', 'Failed to associate'))) return;
     const createdVulnLabel = vuln.title || vuln.id;
     const successMsg = tp('projects.createVulnerabilityAndLinkSuccess', {
         value: createdVulnLabel,
         interpolation: { escapeValue: false },
     });
-    alert(successMsg || `Created and linked vulnerability: ${createdVulnLabel}`);
+    alert(successMsg || `created and linked vulnerability: ${createdVulnLabel}`);
     closeFactDetailModal();
     loadProjectFacts();
     if (currentProjectTab === 'vulns') loadProjectVulnerabilities();
@@ -1804,7 +1804,7 @@ async function createVulnerabilityFromCurrentFact() {
 function inferSeverityFromFact(f) {
     const c = (f.category || '').toLowerCase();
     const key = (f.fact_key || '').toLowerCase();
-    if (c === 'exploit' || c === 'poc' || key.includes('rce') || key.includes('sqli')) return 'high';
+    if (c === 'exploit' || c === 'POC' || key.includes('RCE') || key.includes('sqli')) return 'high';
     if (c === 'finding' || c === 'chain') return 'medium';
     return 'medium';
 }
@@ -1818,11 +1818,11 @@ async function deprecateProjectFactByKey(factKey) {
         }) || `Deprecate fact ${factKey}?`,
     )) return;
     const res = await apiFetch(`/api/projects/${currentProjectId}/facts/deprecate`, {
-        method: 'POST',
+        METHOD: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fact_key: factKey }),
     });
-    if (!(await notifyProjectApiFailure(res, 'projects.operationFailed', '操作失败'))) return;
+    if (!(await notifyProjectApiFailure(res, 'projects.operationFailed', 'Operation failed'))) return;
     loadProjectFacts();
 }
 
@@ -1835,11 +1835,11 @@ async function restoreProjectFactByKey(factKey) {
         }) || `Restore fact ${factKey}? It will re-enter the board index with tentative status.`,
     )) return;
     const res = await apiFetch(`/api/projects/${currentProjectId}/facts/restore`, {
-        method: 'POST',
+        METHOD: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fact_key: factKey, confidence: 'tentative' }),
     });
-    if (!(await notifyProjectApiFailure(res, 'projects.operationFailed', '操作失败'))) return;
+    if (!(await notifyProjectApiFailure(res, 'projects.operationFailed', 'Operation failed'))) return;
     loadProjectFacts();
 }
 
@@ -1867,15 +1867,15 @@ async function loadProjectVulnerabilities() {
         return;
     }
     const data = await res.json();
-    const items = data.Vulnerabilities || data.vulnerabilities || data.items || (Array.isArray(data) ? data : []);
-    if (!items.length) {
+    const items = data.vulnerabilities || data.vulnerabilities || data. items || (Array.isArray(data) ? data : []);
+    if (! items.length) {
         tbody.innerHTML = `<tr class="is-empty-row"><td colspan="4">${
             projectVulnsHasActiveFilter() ? tp('projects.noMatchingVulns') : tp('projects.noVulnerabilityRecords')
         }</td></tr>`;
         refreshProjectHeaderStats();
         return;
     }
-    tbody.innerHTML = items.map((v) => {
+    tbody.innerHTML =  items.map((v) => {
         const idEsc = escapeHtml(v.id);
         return `<tr>
             <td class="cell-summary" title="${escapeHtml(v.title)}">${escapeHtml(v.title)}</td>
@@ -1883,8 +1883,8 @@ async function loadProjectVulnerabilities() {
             <td>${formatVulnStatusBadge(v.status)}</td>
             <td class="col-actions">
                 <div class="projects-table-actions">
-                    <button type="button" class="projects-action-btn projects-action-btn--view" data-vuln-id="${idEsc}" onclick="openVulnerabilityDetail(this.dataset.vulnId)">${escapeHtml(tp('common.view'))}</button>
-                    <button type="button" class="projects-action-btn projects-action-btn--view" data-vuln-id="${idEsc}" onclick="viewFactsForVulnerability(this.dataset.vulnId)" title="${escapeHtml(tp('projects.viewRelatedFactsTitle'))}">${escapeHtml(tp('projects.facts'))}</button>
+                    <button type="button" class="projects-action-btn projects-action-btn--view" data-vuln-idD="${idEsc}" onclick="openVulnerabilityDetail(this.dataset.vulnId)">${escapeHtml(tp('common.view'))}</button>
+                    <button type="button" class="projects-action-btn projects-action-btn--view" data-vuln-idD="${idEsc}" onclick="viewFactsForVulnerability(this.dataset.vulnId)" title="${escapeHtml(tp('projects.viewRelatedFactsTitle'))}">${escapeHtml(tp('projects.facts'))}</button>
                 </div>
             </td>
         </tr>`;
@@ -1927,16 +1927,16 @@ async function viewFactsForVulnerability(vulnId) {
     if (facts[idx]) await viewProjectFactBody(facts[idx].fact_key);
 }
 
-function openProjectsOverlay(id, opts) {
-    openAppModal(id, opts);
+function openProjectsOverlay(ID, opts) {
+    openAppModal(ID, opts);
 }
 
-function isProjectsOverlayVisible(id) {
-    return isAppModalOpen(id);
+function isProjectsOverlayVisible(ID) {
+    return isAppModalOpen(ID);
 }
 
-function closeProjectsOverlay(id) {
-    closeAppModal(id);
+function closeProjectsOverlay(ID) {
+    closeAppModal(ID);
 }
 
 function showNewProjectModal() {
@@ -1990,14 +1990,14 @@ async function showEditProjectModal(projectId, options = {}) {
     });
 }
 
-/** 从对话区「选择项目」面板打开新建项目，创建成功后自动绑定当前对话 */
+/** Open new project modal from chat area "Select project" panel; auto bind to current chat after creation */
 function showNewProjectModalFromChat() {
     closeChatProjectPanel();
     window._projectModalFromChat = true;
     showNewProjectModal();
 }
 
-/** 从对话侧栏新建项目，保持当前对话的项目绑定不变。 */
+/** Create new project from chat sidebar; keep current chat project binding unchanged. */
 function showNewProjectModalFromChatSidebar() {
     if (!requireProjectWrite()) return;
     window._projectModalFromChat = false;
@@ -2018,9 +2018,9 @@ async function saveProjectModal() {
     if (submitBtn) submitBtn.disabled = true;
     try {
         const res = editId
-            ? await apiFetch(`/api/projects/${editId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-            : await apiFetch('/api/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-        if (!(await notifyProjectApiFailure(res, 'projects.saveFailed', '保存失败'))) return;
+            ? await apiFetch(`/api/projects/${editId}`, { METHOD: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+            : await apiFetch('/api/projects', { METHOD: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        if (!(await notifyProjectApiFailure(res, 'projects.saveFailed', 'save failed'))) return;
         const fromChat = !!window._projectModalFromChat;
         const fromChatSidebar = !!window._projectModalFromChatSidebar;
         const fromWebshellConnId = window._projectModalFromWebshellConnId || '';
@@ -2043,9 +2043,9 @@ async function saveProjectModal() {
         }
     } catch (error) {
         if (typeof notifyApiError === 'function') {
-            notifyApiError(error?.message || tpFmt('projects.saveFailed', '保存失败'));
+            notifyApiError(error?.message || tpFmt('projects.saveFailed', 'save failed'));
         } else {
-            alert(error?.message || tpFmt('projects.saveFailed', '保存失败'));
+            alert(error?.message || tpFmt('projects.saveFailed', 'save failed'));
         }
     } finally {
         if (submitBtn) submitBtn.disabled = false;
@@ -2104,11 +2104,11 @@ async function saveProjectSettings() {
         pinned: !!document.getElementById('project-edit-pinned')?.checked,
     };
     const res = await apiFetch(`/api/projects/${currentProjectId}`, {
-        method: 'PUT',
+        METHOD: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
     });
-    if (!(await notifyProjectApiFailure(res, 'projects.saveFailed', '保存失败'))) return;
+    if (!(await notifyProjectApiFailure(res, 'projects.saveFailed', 'save failed'))) return;
     await loadProjectsList();
     await selectProject(currentProjectId);
     if (typeof notifyApiError === 'function') {
@@ -2122,7 +2122,7 @@ function findProjectById(projectId) {
     return projectsCache.find((p) => p.id === projectId) || projectsCacheAll.find((p) => p.id === projectId);
 }
 
-let _projectListMenuTargetId = null;
+let _projectListMenutargetId = null;
 let _projectListMenuSource = '';
 let _projectListMenuDocClickBound = false;
 
@@ -2130,7 +2130,7 @@ function closeProjectListActionMenu() {
     const menu = document.getElementById('projects-list-action-menu');
     if (!menu) return;
     menu.style.display = 'none';
-    _projectListMenuTargetId = null;
+    _projectListMenutargetId = null;
     _projectListMenuSource = '';
 }
 
@@ -2161,14 +2161,14 @@ function showProjectListActionMenu(event, projectId, source = '') {
     event.preventDefault();
     const menu = document.getElementById('projects-list-action-menu');
     if (!menu) return;
-    if (_projectListMenuTargetId === projectId && menu.style.display === 'block') {
+    if (_projectListMenutargetId === projectId && menu.style.display === 'block') {
         closeProjectListActionMenu();
         return;
     }
     closeProjectListActionMenu();
     const p = findProjectById(projectId);
     if (!p) return;
-    _projectListMenuTargetId = projectId;
+    _projectListMenutargetId = projectId;
     _projectListMenuSource = source;
     const editText = document.getElementById('projects-list-menu-edit-text');
     const pinText = document.getElementById('projects-list-menu-pin-text');
@@ -2176,13 +2176,13 @@ function showProjectListActionMenu(event, projectId, source = '') {
     const deleteText = document.getElementById('projects-list-menu-delete-text');
     if (editText) {
         editText.textContent = source === 'chat'
-            ? pickerMessage(tp, 'projects.renameProject', '重命名')
+            ? pickerMessage(tp, 'projects.renameProject', 'Rename')
             : tp('projects.editProject');
     }
     if (pinText) {
         pinText.textContent = p.pinned
-            ? pickerMessage(tp, 'projects.unpinProjectAction', '取消置顶')
-            : pickerMessage(tp, 'projects.pinProjectAction', '置顶项目');
+            ? pickerMessage(tp, 'projects.unpinProjectAction', 'Unpin')
+            : pickerMessage(tp, 'projects.pinProjectAction', 'Pin project');
     }
     if (archiveText) {
         archiveText.textContent = p.status === 'archived'
@@ -2209,18 +2209,18 @@ function updateCachedProjectPinnedState(projectId, pinned) {
 
 async function toggleProjectPinnedFromListMenu() {
     if (!requireProjectWrite()) return;
-    const projectId = _projectListMenuTargetId;
+    const projectId = _projectListMenutargetId;
     const project = findProjectById(projectId);
     closeProjectListActionMenu();
     if (!projectId || !project) return;
 
     const nextPinned = !project.pinned;
     const res = await apiFetch(`/api/projects/${projectId}`, {
-        method: 'PUT',
+        METHOD: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pinned: nextPinned }),
     });
-    if (!(await notifyProjectApiFailure(res, 'projects.operationFailed', '操作失败'))) return;
+    if (!(await notifyProjectApiFailure(res, 'projects.operationFailed', 'Operation failed'))) return;
 
     updateCachedProjectPinnedState(projectId, nextPinned);
     await loadProjectsList();
@@ -2249,11 +2249,11 @@ async function toggleProjectArchiveById(projectId) {
     const next = cur === 'archived' ? 'active' : 'archived';
     if (!confirm(next === 'archived' ? tp('projects.confirmArchiveProject') : tp('projects.confirmRestoreProjectActive'))) return;
     const res = await apiFetch(`/api/projects/${projectId}`, {
-        method: 'PUT',
+        METHOD: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: next }),
     });
-    if (!(await notifyProjectApiFailure(res, 'projects.operationFailed', '操作失败'))) return;
+    if (!(await notifyProjectApiFailure(res, 'projects.operationFailed', 'Operation failed'))) return;
     await loadProjectsList();
     if (currentProjectId === projectId && projectsCache.some((item) => item.id === projectId)) {
         await selectProject(projectId);
@@ -2268,8 +2268,8 @@ async function deleteProjectById(projectId) {
     if (!requireProjectDelete()) return;
     if (!projectId || !confirm(tp('projects.confirmDeleteProject'))) return;
     const deletedIndex = projectsCache.findIndex((p) => p.id === projectId);
-    const res = await apiFetch(`/api/projects/${projectId}`, { method: 'DELETE' });
-    if (!(await notifyProjectApiFailure(res, 'projects.deleteFailed', '删除失败'))) return;
+    const res = await apiFetch(`/api/projects/${projectId}`, { METHOD: 'DELETE' });
+    if (!(await notifyProjectApiFailure(res, 'projects.deleteFailed', 'delete failed'))) return;
     if (getActiveProjectId() === projectId) setActiveProjectId('');
     if (currentProjectId === projectId) currentProjectId = null;
     await loadProjectsList();
@@ -2282,14 +2282,14 @@ async function deleteProjectById(projectId) {
 }
 
 async function toggleProjectArchiveFromListMenu() {
-    const projectId = _projectListMenuTargetId;
+    const projectId = _projectListMenutargetId;
     closeProjectListActionMenu();
     if (!projectId) return;
     await toggleProjectArchiveById(projectId);
 }
 
 function editProjectFromListMenu() {
-    const projectId = _projectListMenuTargetId;
+    const projectId = _projectListMenutargetId;
     const fromChatSidebar = _projectListMenuSource === 'chat';
     closeProjectListActionMenu();
     if (!projectId) return;
@@ -2297,7 +2297,7 @@ function editProjectFromListMenu() {
 }
 
 async function deleteProjectFromListMenu() {
-    const projectId = _projectListMenuTargetId;
+    const projectId = _projectListMenutargetId;
     closeProjectListActionMenu();
     if (!projectId) return;
     await deleteProjectById(projectId);
@@ -2427,26 +2427,26 @@ async function saveFactModal() {
     const editId = window._factModalEditId;
     const res = editId
         ? await apiFetch(`/api/projects/${currentProjectId}/facts/${editId}`, {
-              method: 'PUT',
+              METHOD: 'PUT',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(payload),
           })
         : await apiFetch(`/api/projects/${currentProjectId}/facts`, {
-              method: 'POST',
+              METHOD: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(payload),
           });
-    if (!(await notifyProjectApiFailure(res, 'projects.saveFailed', '保存失败'))) return;
+    if (!(await notifyProjectApiFailure(res, 'projects.saveFailed', 'save failed'))) return;
     closeFactModal();
     loadProjectFacts();
     if (currentProjectTab === 'graph') loadProjectFactGraph();
 }
 
-async function deleteProjectFact(id) {
+async function deleteProjectFact(ID) {
     if (!requireProjectWrite()) return;
     if (!confirm(tp('projects.confirmDeleteFact'))) return;
-    const res = await apiFetch(`/api/projects/${currentProjectId}/facts/${id}`, { method: 'DELETE' });
-    if (!(await notifyProjectApiFailure(res, 'projects.operationFailed', '操作失败'))) return;
+    const res = await apiFetch(`/api/projects/${currentProjectId}/facts/${ID}`, { METHOD: 'DELETE' });
+    if (!(await notifyProjectApiFailure(res, 'projects.operationFailed', 'Operation failed'))) return;
     loadProjectFacts();
     if (currentProjectTab === 'graph') loadProjectFactGraph();
 }
@@ -2528,14 +2528,14 @@ function getChatProjectSelection() {
     return getActiveProjectId();
 }
 
-/** 用于 UI：返回当前选中的项目 ID（有效性由 normalizeStaleChatProjectSelection 异步校验） */
+/** Used for UI: return currently selected project ID (validity checked asynchronously by normalizeStaleChatProjectSelection) */
 function resolveChatProjectSelection() {
     return getChatProjectSelection() || '';
 }
 
 let _normalizingStaleProject = false;
 
-/** 清除 localStorage 或对话上残留的失效项目 ID */
+/** Clear stale project ID from localStorage or chat */
 async function normalizeStaleChatProjectSelection() {
     if (_normalizingStaleProject) return;
     const raw = (getChatProjectSelection() || '').trim();
@@ -2551,7 +2551,7 @@ async function normalizeStaleChatProjectSelection() {
                 const res = await apiFetch(
                     `/api/conversations/${encodeURIComponent(window.currentConversationId)}/project`,
                     {
-                        method: 'PUT',
+                        METHOD: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ projectId: '' }),
                     }
@@ -2580,7 +2580,7 @@ let chatProjectFolderContextLoadSeq = 0;
 const CHAT_PROJECT_FOLDER_PAGE_SIZE = 6;
 let chatProjectFolderVisibleCount = CHAT_PROJECT_FOLDER_PAGE_SIZE;
 let chatProjectFolderLastQuery = '';
-const chatProjectFolderExpandedIds = new Set();
+const chatProjectFolderexpandedIds = new Set();
 let chatProjectFolderLastSelectionId = null;
 const CHAT_UNASSIGNED_PROJECT_FOLDER_ID = '__chat_unassigned_project__';
 const PROJECT_FOLDER_COMPLETION_SEEN_KEY = 'kestrel-project-folder-completion-seen';
@@ -2614,11 +2614,11 @@ function readProjectFolderCompletionSeen() {
 }
 
 function markProjectConversationViewed(conversationId, completedAt) {
-    const id = String(conversationId || '').trim();
-    if (!id) return;
+    const ID = String(conversationId || '').trim();
+    if (!ID) return;
     const seen = readProjectFolderCompletionSeen();
     const timestamp = completedAt || new Date().toISOString();
-    seen[id] = timestamp;
+    seen[ID] = timestamp;
     try {
         localStorage.setItem(PROJECT_FOLDER_COMPLETION_SEEN_KEY, JSON.stringify(seen));
     } catch (e) { /* ignore */ }
@@ -2637,7 +2637,7 @@ function markCurrentProjectConversationViewed() {
 
 function initProjectConversationReadTracking() {
     if (window._projectConversationReadTrackingInited) return;
-    const chatContainer = document.querySelector('#page-chat .chat-container');
+    const chatContainer = document.querySelector('# page-chat .chat-container');
     if (!chatContainer) return;
     window._projectConversationReadTrackingInited = true;
     const markViewed = () => markCurrentProjectConversationViewed();
@@ -2740,16 +2740,16 @@ function getProjectApprovalUrgency(details) {
     if (!timing.timeoutSeconds || !timing.expiresAt) {
         return {
             level: 'normal',
-            label: pickerMessage(tp, 'hitl.approvalUrgencyUnlimited', '审批不限时'),
+            label: pickerMessage(tp, 'hitl.approvalUrgencyUnlimited', 'Approval not time-limited'),
             remaining: 0,
         };
     }
     const remaining = Math.max(0, timing.expiresAt - Date.now());
     const level = projectApprovalUrgencyLevel(remaining, true);
     const urgencyLabels = {
-        critical: pickerMessage(tp, 'hitl.approvalUrgencyWithinOne', '最早审批将在 1 分钟内到期'),
-        warning: pickerMessage(tp, 'hitl.approvalUrgencyOneToThree', '最早审批将在 1–3 分钟内到期'),
-        normal: pickerMessage(tp, 'hitl.approvalUrgencyMoreThanThree', '最早审批将在 3 分钟后到期'),
+        critical: pickerMessage(tp, 'hitl.approvalUrgencyWithinOne', 'Earliest approval expires within 1 minute'),
+        warning: pickerMessage(tp, 'hitl.approvalUrgencyOneToThree', 'Earliest approval expires in 1–3 minutes'),
+        normal: pickerMessage(tp, 'hitl.approvalUrgencyMoreThanThree', 'Earliest approval expires in over 3 minutes'),
     };
     return {
         level,
@@ -2765,7 +2765,7 @@ function bindProjectApprovalUrgency(status, details, baseLabel) {
         status.classList.remove(...PROJECT_APPROVAL_URGENCY_CLASSES);
         status.classList.add(`is-urgency-${urgency.level}`);
         status.dataset.approvalUrgency = urgency.level;
-        status.setAttribute('aria-label', `${baseLabel}，${urgency.label}`);
+        status.setAttribute('aria-label', `${baseLabel}, ${urgency.label}`);
         status.title = `${baseLabel} · ${urgency.label}`;
         return !(timing.expiresAt && urgency.remaining <= 0);
     };
@@ -2784,12 +2784,12 @@ function createProjectTaskStatus(kind, details, options) {
     const status = document.createElement('span');
     status.className = `project-task-status project-task-status--${kind}`;
     const label = isApprovalSummary
-        ? tpFmt('hitl.waitingApprovalCount', `等待批准 ${approvalCount}`, { count: approvalCount })
+        ? tpFmt('hitl.waitingApprovalCount', `Waiting for approval ${approvalCount}`, { count: approvalCount })
         : (kind === 'approval'
-        ? pickerMessage(tp, 'hitl.waitingApprovalShort', '等待批准')
+        ? pickerMessage(tp, 'hitl.waitingApprovalShort', 'Waiting for approval')
         : (kind === 'running'
-            ? pickerMessage(tp, 'tasks.statusRunning', '运行中')
-            : pickerMessage(tp, 'chat.completedUnread', '已完成，尚未查看')));
+            ? pickerMessage(tp, 'tasks.statusRunning', 'running')
+            : pickerMessage(tp, 'chat.completedUnread', 'Completed, unread'));
     if (kind === 'approval') {
         const timing = getProjectApprovalTiming(details);
         status.innerHTML = '<span class="project-approval-label"></span>' +
@@ -2798,8 +2798,8 @@ function createProjectTaskStatus(kind, details, options) {
                 : '');
         status.querySelector('.project-approval-label').textContent = label;
         if (isApprovalSummary) {
-            // 项目文件夹只汇总待审批数量，始终使用绿色；
-            // 紧急程度仅属于具体对话，避免多个审批让项目颜色来回跳变。
+            // Target folder only summarizes pending approval count, always using green; 
+            // Urgency only belongs to specific chat, preventing multi-approval project color bouncing.
             status.classList.add('project-task-status--approval-summary', 'is-urgency-normal');
             status.dataset.approvalCount = String(approvalCount);
             status.dataset.approvalUrgency = 'normal';
@@ -2855,7 +2855,7 @@ function projectFolderDisclosureMarkup(isExpanded) {
 }
 
 function projectFolderIconMarkup(isExpanded) {
-    // Codex 风格：折叠时为闭合文件夹，展开时露出向前翻开的文件夹盖。
+    // Codex style: closed folder when collapsed, open folder when expanded.
     const path = isExpanded
         ? 'M3.5 18V6.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v1.25M3.5 18l1.75-6.25A2 2 0 0 1 7.18 10.3H20.5l-2 7.7H3.5Z'
         : 'M3.5 7a2 2 0 0 1 2-2h4l2 2H18.5a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2V7Zm0 2.5h17';
@@ -2902,7 +2902,7 @@ function ensureProjectFolderPreview() {
     preview.className = 'project-folder-preview';
     preview.hidden = true;
     preview.setAttribute('role', 'dialog');
-    preview.setAttribute('aria-label', pickerMessage(tp, 'chat.projectPreviewLabel', '项目信息'));
+    preview.setAttribute('aria-label', pickerMessage(tp, 'chat.projectPreviewLabel', 'Project info'));
     preview.innerHTML = `
         <div class="project-folder-preview-header">
             <span class="project-folder-preview-icon" aria-hidden="true">
@@ -2979,9 +2979,9 @@ function showProjectFolderPreview(project, row, conversations) {
     const title = project.name || tp('common.untitled');
     const total = conversations.length;
     const active = conversations.filter((conversation) => chatProjectFolderContext.runningIds.has(conversation.id)).length;
-    const fallbackStats = `${total} 个任务 · ${active} 个已开启`;
+    const fallbackStats = `${total} tasks · ${active} running`;
     const description = clampProjectPreviewText(project.description)
-        || pickerMessage(tp, 'chat.projectPreviewNoDescription', '暂无项目说明');
+        || pickerMessage(tp, 'chat.projectPreviewNoDescription', 'No project description');
     const scope = getProjectScopePreview(project);
 
     preview.dataset.projectId = project.id || '';
@@ -2998,13 +2998,13 @@ function showProjectFolderPreview(project, row, conversations) {
     const scopeRow = preview.querySelector('.project-folder-preview-scope');
     scopeRow.hidden = isUnassigned || !scope;
     scopeRow.querySelector('span').textContent = scope
-        ? tpFmt('chat.projectPreviewScope', `测试范围：${scope}`, { scope })
+        ? tpFmt('chat.projectPreviewScope', `Testing scope: ${scope}`, { scope })
         : '';
     const editButton = preview.querySelector('.project-folder-preview-edit');
     editButton.hidden = isUnassigned;
     editButton.querySelector('span').textContent = tpFmt(
         'chat.projectPreviewEdit',
-        '编辑项目'
+        'edit project'
     );
     preview.hidden = false;
     row.querySelector('.project-folder-item')?.setAttribute('aria-controls', preview.id);
@@ -3052,7 +3052,7 @@ function formatProjectConversationPreviewAge(value) {
     };
     return tpFmt(
         'chat.conversationPreviewDateTime',
-        `${parts.year}年${parts.month}月${parts.day}日 ${parts.hour}:${parts.minute}`,
+        `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}`,
         parts
     );
 }
@@ -3060,14 +3060,14 @@ function formatProjectConversationPreviewAge(value) {
 function getProjectConversationModeLabel(conversation) {
     const mode = String(conversation?.agentMode || conversation?.agent_mode || '').trim().toLowerCase();
     const labels = {
-        eino_single: ['chat.agentModeEinoSingle', 'Eino 单代理（ADK）'],
-        deep: ['chat.agentModeDeep', 'Deep（DeepAgent）'],
-        plan_execute: ['chat.agentModePlanExecuteLabel', 'Plan-Execute'],
-        supervisor: ['chat.agentModeSupervisorLabel', 'Supervisor（专家路由）'],
+        eino_single: ['chat.agentModeEinoSingle', 'Eino single-agent (ADK)'],
+        deep: ['chat.agentModeDeep', 'Deep (DeepAgent)'],
+        plan_execute: ['chat.agentModePlanExecuteLabel', 'Plan-execute'],
+        supervisor: ['chat.agentModeSupervisorLabel', 'Supervisor (Expert Router)'],
     };
     if (labels[mode]) return tpFmt(labels[mode][0], labels[mode][1]);
     return clampProjectPreviewText(
-        conversation?.roleName || conversation?.role_name || pickerMessage(tp, 'chat.conversationPreviewDefaultMode', '默认'),
+        conversation?.roleName || conversation?.role_name || pickerMessage(tp, 'chat.conversationPreviewDefaultMode', 'default'),
         80
     );
 }
@@ -3139,29 +3139,29 @@ function showProjectConversationPreview(conversation, project, row) {
     }
     projectConversationPreviewAnchor = row;
     const isRunning = chatProjectFolderContext.runningIds.has(conversation.id);
-    const isWaitingApproval = chatProjectFolderContext.pendingApprovalByConversation.has(conversation.id);
+    const iswaitingApproval = chatProjectFolderContext.pendingApprovalByConversation.has(conversation.id);
     const completed = chatProjectFolderContext.completedByConversation.get(conversation.id);
     const isUnread = !isRunning && isProjectConversationUnread(conversation.id);
-    const status = isWaitingApproval
-        ? pickerMessage(tp, 'hitl.waitingApprovalShort', '等待批准')
+    const status = iswaitingApproval
+        ? pickerMessage(tp, 'hitl.waitingApprovalShort', 'Waiting for approval')
         : (isRunning
-        ? pickerMessage(tp, 'tasks.statusRunning', '执行中')
+        ? pickerMessage(tp, 'tasks.statusRunning', 'Executing')
         : (isUnread
-            ? pickerMessage(tp, 'chat.conversationPreviewUnread', '有未读更新')
+            ? pickerMessage(tp, 'chat.conversationPreviewUnread', 'Unread updates')
             : (completed
-                ? pickerMessage(tp, 'chat.conversationPreviewViewed', '已查看')
-                : pickerMessage(tp, 'chat.conversationPreviewConversation', '对话'))));
+                ? pickerMessage(tp, 'chat.conversationPreviewViewed', 'Viewed')
+                : pickerMessage(tp, 'chat.conversationPreviewConversation', 'Chat'))));
     const statusEl = preview.querySelector('.project-conversation-preview-status');
 
     preview.querySelector('.project-conversation-preview-title').textContent = conversation.title
-        || pickerMessage(tp, 'projects.untitledConversation', '未命名对话');
+        || pickerMessage(tp, 'projects.untitledConversation', 'UntitledChat');
     const ageEl = preview.querySelector('.project-conversation-preview-age');
     ageEl.textContent = formatProjectConversationPreviewAge(
         conversation.updatedAt || conversation.updated_at || conversation.createdAt || conversation.created_at
     );
     ageEl.hidden = !ageEl.textContent;
     preview.querySelector('.project-conversation-preview-project').textContent = project?.name
-        || pickerMessage(tp, 'chat.conversationPreviewNoProject', '未绑定项目');
+        || pickerMessage(tp, 'chat.conversationPreviewNoProject', 'Unassigned project');
     const modeIcon = preview.querySelector('.project-conversation-preview-mode-icon');
     if (modeIcon) {
         modeIcon.className = 'project-conversation-preview-mode-icon agent-mode-logo agent-mode-logo--' + getProjectConversationModeIconClass(conversation);
@@ -3169,7 +3169,7 @@ function showProjectConversationPreview(conversation, project, row) {
     preview.querySelector('.project-conversation-preview-mode').textContent = getProjectConversationModeLabel(conversation);
     statusEl.textContent = status;
     statusEl.className = 'project-conversation-preview-status'
-        + (isWaitingApproval ? ' is-approval' : (isRunning ? ' is-running' : (isUnread ? ' is-unread' : '')));
+        + (iswaitingApproval ? ' is-approval' : (isRunning ? ' is-running' : (isUnread ? ' is-unread' : '')));
     preview.hidden = false;
     row.querySelector('.project-conversation-item')?.setAttribute('aria-describedby', preview.id);
     positionProjectConversationPreview(preview, row);
@@ -3237,7 +3237,7 @@ function appendChatProjectFolderItem(list, project, expandedIds, conversations) 
         const pinIcon = document.createElement('span');
         pinIcon.className = 'project-folder-pinned';
         pinIcon.textContent = '📌';
-        pinIcon.title = pickerMessage(tp, 'projects.pinned', '已置顶');
+        pinIcon.title = pickerMessage(tp, 'projects.pinned', 'Pinned');
         pinIcon.setAttribute('aria-label', pinIcon.title);
         label.appendChild(pinIcon);
     }
@@ -3257,9 +3257,9 @@ function appendChatProjectFolderItem(list, project, expandedIds, conversations) 
     button.appendChild(label);
     button.addEventListener('click', () => {
         if (isExpanded) {
-            chatProjectFolderExpandedIds.delete(folderId);
+            chatProjectFolderexpandedIds.delete(folderId);
         } else {
-            chatProjectFolderExpandedIds.add(folderId);
+            chatProjectFolderexpandedIds.add(folderId);
         }
         renderChatProjectFolders(projectsCacheAll);
     });
@@ -3294,15 +3294,15 @@ function appendChatProjectFolderItem(list, project, expandedIds, conversations) 
     newConversationButton.setAttribute(
         'aria-label',
         isUnassigned
-            ? pickerMessage(tp, 'chat.newUnassignedConversation', '新建无项目对话')
-            : pickerMessage(tp, 'chat.newConversationInProject', '在此项目中新建对话')
+            ? pickerMessage(tp, 'chat.newUnassignedConversation', 'New unassigned chat')
+            : pickerMessage(tp, 'chat.newConversationInProject', 'New chat in this project')
     );
     newConversationButton.title = newConversationButton.getAttribute('aria-label');
     newConversationButton.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
     newConversationButton.addEventListener('click', async (event) => {
         event.preventDefault();
         event.stopPropagation();
-        chatProjectFolderExpandedIds.add(folderId);
+        chatProjectFolderexpandedIds.add(folderId);
         if (typeof window.startNewConversation === 'function') {
             await window.startNewConversation({ projectId: isUnassigned ? '' : project.id });
         }
@@ -3320,7 +3320,7 @@ function appendChatProjectConversationItem(list, conversation, project) {
     const button = document.createElement('button');
     const isSelected = window.currentConversationId === conversation.id;
     const isRunning = chatProjectFolderContext.runningIds.has(conversation.id);
-    const isWaitingApproval = chatProjectFolderContext.pendingApprovalByConversation.has(conversation.id);
+    const iswaitingApproval = chatProjectFolderContext.pendingApprovalByConversation.has(conversation.id);
     const completed = chatProjectFolderContext.completedByConversation.get(conversation.id);
     const isUnread = !isRunning && isProjectConversationUnread(conversation.id);
     row.className = 'project-conversation-row' + (isSelected ? ' is-selected' : '');
@@ -3331,7 +3331,7 @@ function appendChatProjectConversationItem(list, conversation, project) {
 
     const title = document.createElement('span');
     title.className = 'project-conversation-title';
-    title.textContent = conversation.title || pickerMessage(tp, 'projects.untitledConversation', '未命名对话');
+    title.textContent = conversation.title || pickerMessage(tp, 'projects.untitledConversation', 'UntitledChat');
 
     const label = document.createElement('span');
     label.className = 'project-conversation-label';
@@ -3340,12 +3340,12 @@ function appendChatProjectConversationItem(list, conversation, project) {
         const pinIcon = document.createElement('span');
         pinIcon.className = 'conversation-item-pinned project-conversation-pinned';
         pinIcon.textContent = '📌';
-        pinIcon.title = pickerMessage(tp, 'projects.pinned', '已置顶');
+        pinIcon.title = pickerMessage(tp, 'projects.pinned', 'Pinned');
         pinIcon.setAttribute('aria-label', pinIcon.title);
         label.appendChild(pinIcon);
     }
     const statusKinds = [];
-    if (isWaitingApproval) statusKinds.push('approval');
+    if (iswaitingApproval) statusKinds.push('approval');
     if (isRunning) statusKinds.push('running');
     else if (isUnread) statusKinds.push('unread');
     if (statusKinds.length) appendProjectTaskStatuses(label, statusKinds, {
@@ -3379,7 +3379,7 @@ function appendChatProjectConversationItem(list, conversation, project) {
     menuButton.className = 'project-conversation-menu';
     menuButton.setAttribute(
         'aria-label',
-        pickerMessage(tp, 'chat.conversationActions', '对话操作')
+        pickerMessage(tp, 'chat.conversationActions', 'Chat actions')
     );
     menuButton.title = menuButton.getAttribute('aria-label');
     menuButton.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>';
@@ -3395,10 +3395,10 @@ function appendChatProjectConversationItem(list, conversation, project) {
 }
 
 function selectChatProjectConversationItem(conversationId) {
-    const id = String(conversationId || '').trim();
+    const ID = String(conversationId || '').trim();
     document.querySelectorAll('.project-conversation-row').forEach((row) => {
         const button = row.querySelector('.project-conversation-item');
-        const selected = !!id && button?.dataset.conversationId === id;
+        const selected = !!ID && button?.dataset.conversationId === ID;
         row.classList.toggle('is-selected', selected);
         if (!button) return;
         button.classList.toggle('is-selected', selected);
@@ -3422,11 +3422,11 @@ async function loadChatProjectFolderContext() {
     const conversationData = await conversationResponse.json();
     const activeData = activeResponse.ok ? await activeResponse.json() : { tasks: [] };
     const completedData = completedResponse.ok ? await completedResponse.json() : { tasks: [] };
-    const pendingData = pendingResponse.ok ? await pendingResponse.json() : { items: [] };
+    const pendingData = pendingResponse.ok ? await pendingResponse.json() : {  items: [] };
     if (loadSeq !== chatProjectFolderContextLoadSeq) return false;
     const conversations = Array.isArray(conversationData)
         ? conversationData
-        : (conversationData.conversations || conversationData.items || []);
+        : (conversationData.conversations || conversationData. items || []);
     chatProjectFolderContext.conversations = Array.isArray(conversations) ? conversations : [];
     chatProjectFolderContext.runningIds = new Set(
         (activeData.tasks || [])
@@ -3441,10 +3441,10 @@ async function loadChatProjectFolderContext() {
         }
     });
     chatProjectFolderContext.pendingApprovalByConversation = new Map();
-    (pendingData.items || []).filter(isHumanProjectPendingApproval).forEach((item) => {
+    (pendingData. items || []).filter(isHumanProjectPendingApproval).forEach((item) => {
         const conversationId = String(item?.conversationId || '').trim();
-        // pending 审批必须属于当前进程仍在运行的任务；服务重启/取消后的旧记录
-        // 即使在并发窗口内被读到，也不能重新显示倒计时徽标。
+        // Pending approval must belong to tasks still running in current process; old records after restart/cancellation
+        // must not re-display countdown badge even if read during concurrency window.
         if (conversationId && chatProjectFolderContext.runningIds.has(conversationId) &&
             !chatProjectFolderContext.pendingApprovalByConversation.has(conversationId)) {
             chatProjectFolderContext.pendingApprovalByConversation.set(conversationId, item);
@@ -3477,9 +3477,9 @@ function sortProjectFolderConversations(conversations) {
 }
 
 function updateChatProjectConversationPinnedState(conversationId, pinned) {
-    const id = String(conversationId || '').trim();
+    const ID = String(conversationId || '').trim();
     const conversation = chatProjectFolderContext.conversations.find(
-        (item) => String(item?.id || '').trim() === id
+        (item) => String(item?.id || '').trim() === ID
     );
     if (!conversation) return false;
     conversation.pinned = !!pinned;
@@ -3490,16 +3490,16 @@ function updateChatProjectConversationPinnedState(conversationId, pinned) {
 }
 
 function removeChatProjectConversation(conversationId) {
-    const id = String(conversationId || '').trim();
-    if (!id) return false;
+    const ID = String(conversationId || '').trim();
+    if (!ID) return false;
     const previousLength = chatProjectFolderContext.conversations.length;
     chatProjectFolderContext.conversations = chatProjectFolderContext.conversations.filter(
-        (item) => String(item?.id || '').trim() !== id
+        (item) => String(item?.id || '').trim() !== ID
     );
-    chatProjectFolderContext.runningIds.delete(id);
-    chatProjectFolderContext.completedByConversation.delete(id);
-    chatProjectFolderContext.pendingApprovalByConversation.delete(id);
-    if (projectConversationPreviewAnchor?.querySelector('.project-conversation-item')?.dataset.conversationId === id) {
+    chatProjectFolderContext.runningIds.delete(ID);
+    chatProjectFolderContext.completedByConversation.delete(ID);
+    chatProjectFolderContext.pendingApprovalByConversation.delete(ID);
+    if (projectConversationPreviewAnchor?.querySelector('.project-conversation-item')?.dataset.conversationId === ID) {
         hideProjectConversationPreview(true);
     }
     if (isProjectsCacheReady() && chatProjectFolderContext.ready) {
@@ -3510,7 +3510,7 @@ function removeChatProjectConversation(conversationId) {
 
 function refreshChatProjectFoldersAfterAction() {
     Promise.resolve().then(() => refreshChatProjectFolders()).catch((error) => {
-        console.warn('刷新项目对话列表失败:', error);
+        console.warn('refreshProjectChatList failed:', error);
     });
 }
 
@@ -3529,12 +3529,12 @@ function resolveChatProjectFolderSelection() {
 function appendChatProjectFoldersLoadMore(list, remainingCount) {
     if (!list || remainingCount <= 0) return;
     const button = document.createElement('button');
-    const label = pickerMessage(tp, 'common.loadMore', '加载更多');
+    const label = pickerMessage(tp, 'common.loadMore', 'Load more');
     button.type = 'button';
     button.className = 'project-folders-load-more';
     button.setAttribute('aria-label', tpFmt(
         'chat.projectFoldersLoadMoreRemaining',
-        `${label}，剩余 ${remainingCount} 个项目`,
+        `${label}, ${remainingCount} remaining`,
         { count: remainingCount }
     ));
     button.innerHTML = `<span>${escapeHtml(label)}</span><span class="project-folders-load-more-count">${remainingCount}</span>`;
@@ -3558,12 +3558,12 @@ function renderChatProjectFolders(projects) {
     hideProjectConversationPreview(true);
     const selectedId = resolveChatProjectFolderSelection();
     if (selectedId !== null && chatProjectFolderLastSelectionId !== selectedId) {
-        chatProjectFolderExpandedIds.add(selectedId || CHAT_UNASSIGNED_PROJECT_FOLDER_ID);
+        chatProjectFolderexpandedIds.add(selectedId || CHAT_UNASSIGNED_PROJECT_FOLDER_ID);
         chatProjectFolderLastSelectionId = selectedId;
     }
     const filtered = filterActiveProjectsLocal(projects, chatProjectFolderSearchQuery);
     const unassignedProject = {
-        id: '',
+        ID: '',
         name: tp('projects.noProject'),
         description: tp('projects.noProjectDescription'),
         _isUnassigned: true,
@@ -3596,8 +3596,8 @@ function renderChatProjectFolders(projects) {
         const empty = document.createElement('div');
         empty.className = 'project-folders-empty';
         empty.textContent = chatProjectFolderSearchQuery
-            ? pickerMessage(tp, 'chat.filterProjectSearchEmpty', '没有匹配的项目')
-            : pickerMessage(tp, 'projects.noProjects', '暂无项目');
+            ? pickerMessage(tp, 'chat.filterProjectSearchEmpty', 'No matching projects')
+            : pickerMessage(tp, 'projects.noProjects', 'No projects');
         list.appendChild(empty);
         return;
     }
@@ -3607,8 +3607,8 @@ function renderChatProjectFolders(projects) {
             chatProjectFolderContext.conversations
                 .filter((conversation) => (conversation.projectId || conversation.project_id || '') === project.id)
         );
-        appendChatProjectFolderItem(list, project, chatProjectFolderExpandedIds, conversations);
-        if (chatProjectFolderExpandedIds.has(folderId)) {
+        appendChatProjectFolderItem(list, project, chatProjectFolderexpandedIds, conversations);
+        if (chatProjectFolderexpandedIds.has(folderId)) {
             conversations.forEach((conversation) => appendChatProjectConversationItem(list, conversation, project));
         }
     });
@@ -3621,7 +3621,7 @@ async function refreshChatProjectFolders() {
     const seq = ++chatProjectFolderRenderSeq;
     if (!isProjectsCacheReady()) {
         list.innerHTML = '';
-        appendChatProjectPanelMessage(list, 'project-folders-empty', pickerMessage(tp, 'common.loading', '加载中…'));
+        appendChatProjectPanelMessage(list, 'project-folders-empty', pickerMessage(tp, 'common.loading', 'Loading…'));
     }
     try {
         const [projects] = await Promise.all([
@@ -3636,7 +3636,7 @@ async function refreshChatProjectFolders() {
         appendChatProjectPanelMessage(
             list,
             'project-folders-empty',
-            pickerMessage(tp, 'projects.loadProjectsFailed', '加载项目失败')
+            pickerMessage(tp, 'projects.loadProjectsFailed', 'Failed to load projects')
         );
     }
 }
@@ -3684,10 +3684,10 @@ function updateProjectFolderTaskStatuses(tasks) {
 }
 
 function setProjectConversationApprovalStatus(conversationId, pending, details) {
-    const id = String(conversationId || '').trim();
-    if (!id) return;
-    if (pending && isHumanProjectPendingApproval(details || {})) chatProjectFolderContext.pendingApprovalByConversation.set(id, details || { conversationId: id });
-    else chatProjectFolderContext.pendingApprovalByConversation.delete(id);
+    const ID = String(conversationId || '').trim();
+    if (!ID) return;
+    if (pending && isHumanProjectPendingApproval(details || {})) chatProjectFolderContext.pendingApprovalByConversation.set(ID, details || { conversationId: ID });
+    else chatProjectFolderContext.pendingApprovalByConversation.delete(ID);
     if (isProjectsCacheReady() && chatProjectFolderContext.ready) {
         renderChatProjectFolders(projectsCacheAll);
     }
@@ -3697,15 +3697,15 @@ function syncProjectConversationApprovalStatuses(items) {
     const next = new Map();
     (Array.isArray(items) ? items : []).forEach((details) => {
         if (!isHumanProjectPendingApproval(details)) return;
-        const id = String(details && details.conversationId || '').trim();
-        if (id && chatProjectFolderContext.runningIds.has(id) && !next.has(id)) {
-            next.set(id, details);
+        const ID = String(details && details.conversationId || '').trim();
+        if (ID && chatProjectFolderContext.runningIds.has(ID) && !next.has(ID)) {
+            next.set(ID, details);
         }
     });
     let changed = next.size !== chatProjectFolderContext.pendingApprovalByConversation.size;
     if (!changed) {
-        next.forEach((details, id) => {
-            const previous = chatProjectFolderContext.pendingApprovalByConversation.get(id);
+        next.forEach((details, ID) => {
+            const previous = chatProjectFolderContext.pendingApprovalByConversation.get(ID);
             const previousInterruptId = String(previous && (previous.interruptId || previous.id) || '');
             const nextInterruptId = String(details && (details.interruptId || details.id) || '');
             if (!previous || previousInterruptId !== nextInterruptId) changed = true;
@@ -3749,12 +3749,12 @@ if (!window._projectApprovalStatusEventsBound) {
 
 function appendChatProjectPanelItem(list, project, selectedId, onSelect, tFn) {
     const t = tFn || tp;
-    const isNone = !project.id;
-    const isSelected = isNone ? !selectedId : selectedId === project.id;
-    const fullDesc = isNone
+    const isno  = !project.id;
+    const isSelected = isno  ? !selectedId : selectedId === project.id;
+    const fullDesc = isno 
         ? (project.description || '')
         : (project.description || '').trim() || t('projects.sharedFactBoard');
-    const desc = isNone
+    const desc = isno 
         ? (project.description || '')
         : fullDesc.slice(0, 80);
     const fullName = project.name || t('common.untitled');
@@ -3767,7 +3767,7 @@ function appendChatProjectPanelItem(list, project, selectedId, onSelect, tFn) {
     btn.setAttribute('data-selection-detail', fullDesc);
     btn.onclick = () => onSelect(project.id || '');
     btn.innerHTML = `
-        <div class="role-selection-item-icon-main">${isNone ? '—' : '📁'}</div>
+        <div class="role-selection-item-icon-main">${isno  ? '—' : '📁'}</div>
         <div class="role-selection-item-content-main">
             <div class="role-selection-item-name-main" title="${escapeAttr(fullName)}">${escapeHtml(displayName)}</div>
             <div class="role-selection-item-description-main">${escapeHtml(desc)}</div>
@@ -3804,7 +3804,7 @@ async function renderProjectPickerPanel(panelKey, config) {
         appendChatProjectPanelItem(
             list,
             {
-                id: '',
+                ID: '',
                 name: t('projects.noProject'),
                 description: t('projects.noProjectDescription'),
             },
@@ -3822,7 +3822,7 @@ async function renderProjectPickerPanel(panelKey, config) {
         loadingEl = appendChatProjectPanelMessage(
             list,
             'chat-project-panel-loading',
-            pickerMessage(t, 'common.loading', '加载中…')
+            pickerMessage(t, 'common.loading', 'Loading…')
         );
     }
 
@@ -3841,7 +3841,7 @@ async function renderProjectPickerPanel(panelKey, config) {
             appendChatProjectPanelMessage(
                 list,
                 'chat-project-panel-empty',
-                pickerMessage(t, 'chat.filterProjectSearchEmpty', '没有匹配的项目')
+                pickerMessage(t, 'chat.filterProjectSearchEmpty', 'No matching projects')
             );
         }
     } catch (e) {
@@ -3851,7 +3851,7 @@ async function renderProjectPickerPanel(panelKey, config) {
         appendChatProjectPanelMessage(
             list,
             'chat-project-panel-empty',
-            pickerMessage(t, 'chat.filterProjectSearchFailed', '加载项目失败，请重试')
+            pickerMessage(t, 'chat.filterProjectSearchFailed', 'failed to load projects, please retry')
         );
     } finally {
         if (loadingEl && loadingEl.parentNode) loadingEl.remove();
@@ -3906,9 +3906,9 @@ async function loadChatProjectPanelList() {
 }
 
 async function ensureChatProjectButtonLabel() {
-    const id = (resolveChatProjectSelection() || '').trim();
-    if (id && !projectNameById[id]) {
-        await fetchProjectSummary(id);
+    const ID = (resolveChatProjectSelection() || '').trim();
+    if (ID && !projectNameById[ID]) {
+        await fetchProjectSummary(ID);
     }
     updateChatProjectButtonLabel();
 }
@@ -3916,10 +3916,10 @@ async function ensureChatProjectButtonLabel() {
 function updateChatProjectButtonLabel() {
     const textEl = document.getElementById('chat-project-text');
     if (!textEl) return;
-    const id = resolveChatProjectSelection();
+    const ID = resolveChatProjectSelection();
     window.applyProjectNameDisplay(
         textEl,
-        id && projectNameById[id] ? projectNameById[id] : tp('projects.noProject')
+        ID && projectNameById[ID] ? projectNameById[ID] : tp('projects.noProject')
     );
     if (typeof window.refreshChatWelcomeEmptyState === 'function') {
         window.refreshChatWelcomeEmptyState();
@@ -3983,7 +3983,7 @@ async function applyChatProjectSelection(projectId) {
     if (window.currentConversationId) {
         try {
             const res = await apiFetch(`/api/conversations/${encodeURIComponent(window.currentConversationId)}/project`, {
-                method: 'PUT',
+                METHOD: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ projectId }),
             });
@@ -4011,7 +4011,7 @@ async function applyChatProjectSelection(projectId) {
     }
 }
 
-/** 对话页项目选择器：同步按钮文案；若浮层已打开则刷新列表 */
+/** Chat page project selector: sync button text; refresh list if popover is open */
 async function refreshChatProjectSelector(options = {}) {
     if (!document.getElementById('chat-project-btn')) return;
     try {
@@ -4032,7 +4032,7 @@ async function refreshChatProjectSelector(options = {}) {
 }
 
 async function onChatProjectChange() {
-    /* 兼容旧调用；新 UI 使用 selectChatProject */
+    /* Compatible with legacy call; new UI uses selectChatProject */
     await applyChatProjectSelection(getChatProjectSelection());
 }
 

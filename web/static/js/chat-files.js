@@ -1,17 +1,17 @@
-﻿// 对话附件（chat_uploads）文件管理
+// Chat Attachments (chat_uploads) Files
 
 let chatFilesCache = [];
-/** 后端 GET /api/chat-uploads 返回的目录相对路径（含空文件夹），与 files 合并成树 */
+/** Relative directory paths returned by the backend GET /api/chat-uploads (including empty folders), merged with files into a tree */
 let chatFilesFoldersCache = [];
 const chatFilesProjectNameById = {};
 const chatFilesConversationTitleById = {};
 let chatFilesDisplayed = [];
-let chatFilesEditRelativePath = '';
+let chatFileseditRelativePath = '';
 let chatFilesRenameRelativePath = '';
 let chatFilesTotal = 0;
 let chatFilesPage = 1;
 let chatFilesPageSize = 20;
-let chatFilesSearchDebounceTimer = null;
+let chatFilessearchDebounceTimer = null;
 
 function chatFilesEscapeAttr(text) {
     return escapeHtml(text).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -19,27 +19,27 @@ function chatFilesEscapeAttr(text) {
 
 const CHAT_FILES_GROUP_STORAGE_KEY = 'csai_chat_files_group_by';
 const CHAT_FILES_BROWSE_PATH_KEY = 'csai_chat_files_browse_path';
-const CHAT_FILES_PAGE_SIZE_STORAGE_KEY = 'csai_chat_files_page_size';
+const CHAT_FILES_PAGE_SIZE_STORAGE_KEY = 'csai_chat_files_ page_size';
 const CHAT_FILES_TREE_UPLOAD_ROOT = 'uploads';
 const CHAT_FILES_TREE_REDUCTION_ROOT = 'tool_outputs';
 const CHAT_FILES_TREE_WORKSPACE_ROOT = 'workspace';
 const CHAT_FILES_TREE_ARTIFACT_ROOT = 'conversation_artifacts';
 
-/** 按文件夹浏览模式下的当前路径（虚拟根段数组），如 ['uploads','2024-03-21','uuid'] */
+/** Current path in folder-browse mode (virtual root segment array), e.g. ['uploads','2024-03-21','uuid'] */
 let chatFilesBrowsePath = [];
-/** 非空时，下一次上传文件落到此相对路径（chat_uploads 下目录），如 2026-03-21/uuid/sub */
-let chatFilesPendingUploadDir = '';
-/** 文件管理页面向服务器上传进行中，避免重复选择并禁用顶栏按钮 */
-let chatFilesXHRUploadBusy = false;
+/** When non-empty, the next uploaded file lands in this relative path (directory under chat_uploads), e.g. 2026-03-21/uuid/sub */
+let chatFilesPendinguploadDir = '';
+/** Files page is currently uploading to the server — prevents duplicate selection and disables toolbar buttons */
+let chatFilesXHRuploadBusy = false;
 
 const CHAT_FILES_FILTER_SELECT_IDS = ['chat-files-filter-source', 'chat-files-group-by'];
-const chatFilesFilterSelectMap = {};
-let chatFilesFilterSelectDocBound = false;
+const chatFilesfilterSelectMap = {};
+let chatFilesfilterSelectDocBound = false;
 const CHAT_FILES_FILTER_SELECT_CARET = '<svg class="chat-files-filter-select-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
 function closeAllChatFilesFilterSelects() {
-    Object.keys(chatFilesFilterSelectMap).forEach(function (id) {
-        const reg = chatFilesFilterSelectMap[id];
+    Object.keys(chatFilesfilterSelectMap).forEach(function (ID) {
+        const reg = chatFilesfilterSelectMap[ID];
         if (!reg || !reg.wrapper) return;
         reg.wrapper.classList.remove('open');
         if (reg.trigger) reg.trigger.setAttribute('aria-expanded', 'false');
@@ -60,7 +60,7 @@ function chatFilesRememberDisplayNames(files) {
 }
 
 function syncChatFilesFilterSelect(selectId) {
-    const reg = chatFilesFilterSelectMap[selectId];
+    const reg = chatFilesfilterSelectMap[selectId];
     if (!reg) return;
     const select = reg.select;
     const dropdown = reg.dropdown;
@@ -107,9 +107,9 @@ function syncAllChatFilesFilterSelects() {
 function enhanceChatFilesFilterSelect(selectId) {
     const select = document.getElementById(selectId);
     if (!select) return;
-    const existing = chatFilesFilterSelectMap[selectId];
+    const existing = chatFilesfilterSelectMap[selectId];
     if (existing && existing.select !== select) {
-        delete chatFilesFilterSelectMap[selectId];
+        delete chatFilesfilterSelectMap[selectId];
     }
     if (select.dataset.chatFilesCustomSelect === '1') {
         syncChatFilesFilterSelect(selectId);
@@ -143,7 +143,7 @@ function enhanceChatFilesFilterSelect(selectId) {
     wrapper.appendChild(dropdown);
     wrapper.appendChild(select);
 
-    chatFilesFilterSelectMap[selectId] = { wrapper: wrapper, trigger: trigger, dropdown: dropdown, select: select };
+    chatFilesfilterSelectMap[selectId] = { wrapper: wrapper, trigger: trigger, dropdown: dropdown, select: select };
 
     trigger.addEventListener('click', function (e) {
         e.stopPropagation();
@@ -175,8 +175,8 @@ function enhanceChatFilesFilterSelect(selectId) {
         syncChatFilesFilterSelect(selectId);
     });
 
-    if (!select.dataset.chatFilesFilterBound) {
-        select.dataset.chatFilesFilterBound = '1';
+    if (!select.dataset.chatFilesfilterBound) {
+        select.dataset.chatFilesfilterBound = '1';
         select.addEventListener('change', chatFilesGroupByChange);
     }
 
@@ -184,12 +184,12 @@ function enhanceChatFilesFilterSelect(selectId) {
 }
 
 function initChatFilesFilterSelects() {
-    if (!chatFilesFilterSelectDocBound) {
+    if (!chatFilesfilterSelectDocBound) {
         document.addEventListener('click', closeAllChatFilesFilterSelects);
         document.addEventListener('keydown', function (e) {
             if (e.key === 'Escape') closeAllChatFilesFilterSelects();
         });
-        chatFilesFilterSelectDocBound = true;
+        chatFilesfilterSelectDocBound = true;
     }
     CHAT_FILES_FILTER_SELECT_IDS.forEach(enhanceChatFilesFilterSelect);
     syncAllChatFilesFilterSelects();
@@ -293,7 +293,7 @@ function chatFilesCloseAllMenus() {
 }
 
 /**
- * 「更多」菜单使用 fixed 定位，避免表格外层 overflow 把菜单裁成一条细线。
+ * The "more" menu uses fixed positioning to prevent the table's outer overflow from clipping the menu into a thin sliver.
  */
 function chatFilesToggleMoreMenu(ev, idx) {
     if (ev) ev.stopPropagation();
@@ -364,11 +364,11 @@ function ensureChatFilesDocClickClose() {
 async function loadChatFilesPage() {
     const wrap = document.getElementById('chat-files-list-wrap');
     if (!wrap) return;
-    const pager = document.getElementById('chat-files-pagination');
-    if (pager) pager.hidden = true;
+    const  pager = document.getElementById('chat-files-pagination');
+    if ( pager)  pager.hidden = true;
     wrap.classList.remove('chat-files-table-wrap--grouped');
     wrap.classList.remove('chat-files-table-wrap--tree');
-    wrap.innerHTML = '<div class="loading-spinner" data-i18n="common.loading">加载中…</div>';
+    wrap.innerHTML = '<div class="loading-spinner" data-i18n="common.loading">Loading…</div>';
     if (typeof window.applyTranslations === 'function') {
         window.applyTranslations(wrap);
     }
@@ -396,13 +396,13 @@ async function loadChatFilesPage() {
         params.set('search', searchQ);
     }
     params.set('page', String(chatFilesPage));
-    params.set('pageSize', groupMode === 'folder' ? 'all' : String(chatFilesPageSize));
-    let url = '/api/chat-uploads';
+    params.set(' pageSize', groupMode === 'folder' ? 'all' : String(chatFilesPageSize));
+    let URL = '/api/chat-uploads';
     const query = params.toString();
-    if (query) url += '?' + query;
+    if (query) URL += '?' + query;
 
     try {
-        const res = await apiFetch(url);
+        const res = await apiFetch(URL);
         if (!res.ok) {
             const t = await res.text();
             throw new Error(t || res.status);
@@ -412,9 +412,9 @@ async function loadChatFilesPage() {
         chatFilesRememberDisplayNames(chatFilesCache);
         chatFilesFoldersCache = Array.isArray(data.folders) ? data.folders : [];
         chatFilesTotal = Number.isFinite(Number(data.total)) ? Number(data.total) : chatFilesCache.length;
-        chatFilesPage = Number.isFinite(Number(data.page)) ? Math.max(1, Number(data.page)) : chatFilesPage;
-        if (Number.isFinite(Number(data.pageSize)) && Number(data.pageSize) > 0) {
-            chatFilesPageSize = Number(data.pageSize);
+        chatFilesPage = Number.isFinite(Number(data. page)) ? Math.max(1, Number(data. page)) : chatFilesPage;
+        if (Number.isFinite(Number(data. pageSize)) && Number(data. pageSize) > 0) {
+            chatFilesPageSize = Number(data. pageSize);
         }
         if (groupMode !== 'folder' && chatFilesTotal > 0 && chatFilesCache.length === 0 && chatFilesPage > chatFilesTotalPages()) {
             chatFilesPage = chatFilesTotalPages();
@@ -426,7 +426,7 @@ async function loadChatFilesPage() {
         console.error(e);
         wrap.classList.remove('chat-files-table-wrap--grouped');
         wrap.classList.remove('chat-files-table-wrap--tree');
-        const msg = (typeof window.t === 'function') ? window.t('chatFilesPage.errorLoad') : '加载失败';
+        const msg = (typeof window.t === 'function') ? window.t('chatFilesPage.errorLoad') : 'Load failed';
         wrap.innerHTML = '<div class="error-message">' + escapeHtml(msg + ': ' + (e.message || String(e))) + '</div>';
         renderChatFilesPagination();
     }
@@ -446,9 +446,9 @@ async function exportChatFiles() {
     if (projectQ) params.set('project', projectQ);
     if (sourceQ && sourceQ !== 'all') params.set('source', sourceQ);
     if (searchQ) params.set('search', searchQ);
-    const url = '/api/chat-uploads/export' + (params.toString() ? ('?' + params.toString()) : '');
+    const URL = '/api/chat-uploads/export' + (params.toString() ? ('?' + params.toString()) : '');
     try {
-        const res = await apiFetch(url);
+        const res = await apiFetch(URL);
         if (!res.ok) {
             const raw = await res.text();
             let msg = raw;
@@ -459,21 +459,21 @@ async function exportChatFiles() {
                 /* keep raw */
             }
             if (res.status === 404) {
-                msg = (typeof window.t === 'function') ? window.t('chatFilesPage.exportEmpty') : '没有可导出的文件';
+                msg = (typeof window.t === 'function') ? window.t('chatFilesPage.exportEmpty') : 'No files to export';
             }
             throw new Error(msg || String(res.status));
         }
         const blob = await res.blob();
         const disposition = res.headers.get('Content-Disposition') || '';
-        let filename = 'chat-files-export.zip';
-        const m = disposition.match(/filename="?([^"]+)"?/i);
-        if (m && m[1]) filename = m[1];
+        let fileName = 'chat-files-export.zip';
+        const m = disposition.match(/fileName="?([^"]+)"?/i);
+        if (m && m[1]) fileName = m[1];
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
-        a.download = filename;
+        a.download = fileName;
         a.click();
         URL.revokeObjectURL(a.href);
-        const ok = (typeof window.t === 'function') ? window.t('chatFilesPage.exportStarted') : '已开始导出';
+        const ok = (typeof window.t === 'function') ? window.t('chatFilesPage.exportStarted') : 'Export started';
         chatFilesShowToast(ok);
     } catch (e) {
         alert((e && e.message) ? e.message : String(e));
@@ -490,9 +490,9 @@ function chatFilesResetToFirstPageAndLoad() {
 }
 
 function chatFilesFilterNameOnInput() {
-    if (chatFilesSearchDebounceTimer) clearTimeout(chatFilesSearchDebounceTimer);
-    chatFilesSearchDebounceTimer = setTimeout(function () {
-        chatFilesSearchDebounceTimer = null;
+    if (chatFilessearchDebounceTimer) clearTimeout(chatFilessearchDebounceTimer);
+    chatFilessearchDebounceTimer = setTimeout(function () {
+        chatFilessearchDebounceTimer = null;
         chatFilesResetToFirstPageAndLoad();
     }, 250);
 }
@@ -503,12 +503,12 @@ function chatFilesTotalPages() {
 }
 
 function renderChatFilesPagination() {
-    const pager = document.getElementById('chat-files-pagination');
-    if (!pager) return;
+    const  pager = document.getElementById('chat-files-pagination');
+    if (! pager) return;
     const groupMode = chatFilesGetGroupByMode();
     if (groupMode === 'folder' || chatFilesTotal <= 0) {
-        pager.hidden = true;
-        pager.innerHTML = '';
+         pager.hidden = true;
+         pager.innerHTML = '';
         return;
     }
     const totalPages = chatFilesTotalPages();
@@ -518,35 +518,35 @@ function renderChatFilesPagination() {
     const start = (chatFilesPage - 1) * chatFilesPageSize + 1;
     const end = Math.min(chatFilesTotal, chatFilesPage * chatFilesPageSize);
     const info = (typeof window.t === 'function')
-        ? window.t('chatFilesPage.paginationInfo', { start: start, end: end, total: chatFilesTotal })
-        : ('显示 ' + start + '-' + end + ' / ' + chatFilesTotal);
-    const pageText = (typeof window.t === 'function')
-        ? window.t('chatFilesPage.paginationPage', { page: chatFilesPage, totalPages: totalPages })
-        : ('第 ' + chatFilesPage + ' / ' + totalPages + ' 页');
-    const pageSizeLabel = (typeof window.t === 'function') ? window.t('chatFilesPage.pageSize') : '每页';
-    const prevLabel = (typeof window.t === 'function') ? window.t('chatFilesPage.prevPage') : '上一页';
-    const nextLabel = (typeof window.t === 'function') ? window.t('chatFilesPage.nextPage') : '下一页';
+        ? window.t('chatFilesPage.pagination info', { start: start, end: end, total: chatFilesTotal })
+        : ('Showing ' + start + '-' + end + ' / ' + chatFilesTotal);
+    const  pageText = (typeof window.t === 'function')
+        ? window.t('chatFilesPage.paginationPage', {  page: chatFilesPage, totalPages: totalPages })
+        : ('Round ' + chatFilesPage + ' / ' + totalPages + '  page');
+    const  pageSizeLabel = (typeof window.t === 'function') ? window.t('chatFilesPage. pageSize') : 'Per page';
+    const prevLabel = (typeof window.t === 'function') ? window.t('chatFilesPage.prevPage') : 'Previous';
+    const nextLabel = (typeof window.t === 'function') ? window.t('chatFilesPage.nextPage') : 'Next';
     const sizes = [10, 20, 50, 100].map(function (n) {
         return '<option value="' + n + '"' + (n === chatFilesPageSize ? ' selected' : '') + '>' + n + '</option>';
     }).join('');
-    pager.innerHTML = `
+     pager.innerHTML = `
         <div class="pagination-info">
             <span>${escapeHtml(info)}</span>
-            <label class="pagination-page-size">${escapeHtml(pageSizeLabel)}
+            <label class="pagination-page-size">${escapeHtml( pageSizeLabel)}
                 <select onchange="changeChatFilesPageSize(this.value)">${sizes}</select>
             </label>
         </div>
         <div class="pagination-controls">
             <button type="button" class="btn-secondary" ${chatFilesPage <= 1 ? 'disabled' : ''} onclick="changeChatFilesPage(${chatFilesPage - 1})">${escapeHtml(prevLabel)}</button>
-            <span class="pagination-page">${escapeHtml(pageText)}</span>
+            <span class="pagination-page">${escapeHtml( pageText)}</span>
             <button type="button" class="btn-secondary" ${chatFilesPage >= totalPages ? 'disabled' : ''} onclick="changeChatFilesPage(${chatFilesPage + 1})">${escapeHtml(nextLabel)}</button>
         </div>`;
-    pager.hidden = false;
+     pager.hidden = false;
 }
 
-function changeChatFilesPage(page) {
+function changeChatFilesPage( page) {
     const totalPages = chatFilesTotalPages();
-    const next = Math.min(totalPages, Math.max(1, parseInt(page, 10) || 1));
+    const next = Math.min(totalPages, Math.max(1, parseInt( page, 10) || 1));
     if (next === chatFilesPage) return;
     chatFilesPage = next;
     loadChatFilesPage();
@@ -617,15 +617,15 @@ async function copyChatFilePathIdx(idx) {
         : ('chat_uploads/' + String(f.relativePath || '').replace(/^\/+/, ''));
     const ok = await chatFilesCopyText(text);
     if (ok) {
-        const msg = (typeof window.t === 'function') ? window.t('chatFilesPage.pathCopied') : '路径已复制，可粘贴到对话中引用';
+        const msg = (typeof window.t === 'function') ? window.t('chatFilesPage.pathCopied') : 'Path copied — paste into chat to reference the file';
         chatFilesShowToast(msg);
     } else {
-        const fail = (typeof window.t === 'function') ? window.t('common.copyFailed') : '复制失败';
+        const fail = (typeof window.t === 'function') ? window.t('common.copyFailed') : 'copy failed';
         alert(fail);
     }
 }
 
-/** 常见二进制扩展名：此类文件无法在纯文本编辑器中打开 */
+/** Common binary extensions: these files cannot be opened in a plain-text editor */
 const CHAT_FILES_BINARY_EXT = new Set([
     'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'ico', 'tif', 'tiff', 'heic', 'heif', 'svgz',
     'pdf', 'zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz', 'zst',
@@ -634,7 +634,7 @@ const CHAT_FILES_BINARY_EXT = new Set([
     'exe', 'dll', 'so', 'dylib', 'bin', 'app', 'dmg', 'pkg',
     'woff', 'woff2', 'ttf', 'otf', 'eot',
     'sqlite', 'db', 'sqlite3',
-    'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'odt', 'ods',
+    'doc', 'docx', 'xls', 'XLSX', 'ppt', 'pptx', 'odt', 'ods',
     'class', 'jar', 'war', 'apk', 'ipa',
     'iso', 'img'
 ]);
@@ -650,7 +650,7 @@ function chatFileIsBinaryByName(fileName) {
 function chatFilesEditBlockedHint() {
     return (typeof window.t === 'function')
         ? window.t('chatFilesPage.editBinaryHint')
-        : '图片、压缩包等二进制文件无法在此以文本方式编辑，请使用「下载」。';
+        : 'Binary files such as images and archives cannot be edited as text here — please use download instead.';
 }
 
 function chatFilesAlertMessage(raw) {
@@ -660,9 +660,9 @@ function chatFilesAlertMessage(raw) {
         return chatFilesEditBlockedHint();
     }
     if (lower.includes('file too large') || lower.includes('entity too large') || lower.includes('413')) {
-        return (typeof window.t === 'function') ? window.t('chatFilesPage.editTooLarge') : '文件过大，无法在此编辑。';
+        return (typeof window.t === 'function') ? window.t('chatFilesPage.editTooLarge') : 'File too large — cannot edit here.';
     }
-    return s || ((typeof window.t === 'function') ? window.t('chatFilesPage.errorGeneric') : '操作失败');
+    return s || ((typeof window.t === 'function') ? window.t('chatFilesPage.errorGeneric') : 'Operation failed');
 }
 
 function chatFilesGetGroupByMode() {
@@ -692,7 +692,7 @@ function chatFilesCompareDateKeysDesc(a, b) {
     return bs.localeCompare(as);
 }
 
-/** 目录树节点：dirs[段名] -> 子节点；files: { idx, name }[] */
+/** Directory tree node: dirs[segment] -> child node; files: { idx, name }[] */
 function chatFilesTreeMakeNode() {
     return { dirs: {}, files: [] };
 }
@@ -740,7 +740,7 @@ function chatFilesTreePathForFile(f) {
     return CHAT_FILES_TREE_UPLOAD_ROOT + '/' + rp;
 }
 
-/** 将后端返回的目录相对路径（如 a/b/c）并入树，便于展示空文件夹 */
+/** Merge a relative directory path returned by the backend (e.g. a/b/c) into the tree so that empty folders are visible */
 function chatFilesTreeInsertFolderPath(root, relSlash) {
     const rp = String(relSlash || '').replace(/\\/g, '/').replace(/^\/+/, '');
     if (!rp) return;
@@ -807,15 +807,15 @@ function chatFilesIsInternalSource(f) {
 
 function chatFilesSourceLabel(source) {
     if (source === 'reduction') {
-        return (typeof window.t === 'function') ? window.t('chatFilesPage.sourceReduction') : '工具输出';
+        return (typeof window.t === 'function') ? window.t('chatFilesPage.sourceReduction') : 'tooloutput';
     }
     if (source === 'workspace') {
-        return (typeof window.t === 'function') ? window.t('chatFilesPage.sourceWorkspace') : '工作目录';
+        return (typeof window.t === 'function') ? window.t('chatFilesPage.sourceWorkspace') : 'Workspace';
     }
     if (source === 'conversation_artifact') {
-        return (typeof window.t === 'function') ? window.t('chatFilesPage.sourceConversationArtifact') : '会话产物';
+        return (typeof window.t === 'function') ? window.t('chatFilesPage.sourceConversationArtifact') : 'Conversation artifact';
     }
-    return (typeof window.t === 'function') ? window.t('chatFilesPage.sourceUpload') : '对话附件';
+    return (typeof window.t === 'function') ? window.t('chatFilesPage.sourceUpload') : 'Chat attachment';
 }
 
 function chatFilesBrowseCanMutateCurrentPath() {
@@ -832,22 +832,22 @@ function chatFilesBrowseCanDeleteFolderPath(path) {
 
 function chatFilesTreeDisplayName(name) {
     if (name === CHAT_FILES_TREE_UPLOAD_ROOT) {
-        return (typeof window.t === 'function') ? window.t('chatFilesPage.treeUploadsRoot') : '对话附件';
+        return (typeof window.t === 'function') ? window.t('chatFilesPage.treeUploadsRoot') : 'Chat attachments';
     }
     if (name === CHAT_FILES_TREE_REDUCTION_ROOT) {
-        return (typeof window.t === 'function') ? window.t('chatFilesPage.treeReductionRoot') : '工具输出';
+        return (typeof window.t === 'function') ? window.t('chatFilesPage.treeReductionRoot') : 'tooloutput';
     }
     if (name === CHAT_FILES_TREE_WORKSPACE_ROOT) {
-        return (typeof window.t === 'function') ? window.t('chatFilesPage.treeWorkspaceRoot') : '工作目录';
+        return (typeof window.t === 'function') ? window.t('chatFilesPage.treeWorkspaceRoot') : 'Workspace';
     }
     if (name === CHAT_FILES_TREE_ARTIFACT_ROOT) {
-        return (typeof window.t === 'function') ? window.t('chatFilesPage.treeArtifactsRoot') : '会话产物';
+        return (typeof window.t === 'function') ? window.t('chatFilesPage.treeArtifactsRoot') : 'Conversation artifacts';
     }
     return name;
 }
 
-function chatFilesIDDisplay(id, labelMap, emptyLabel) {
-    const raw = id == null ? '' : String(id);
+function chatFilesIDDisplay(ID, labelMap, emptyLabel) {
+    const raw = ID == null ? '' : String(ID);
     if (!raw || raw === '—') {
         return { text: emptyLabel || '—', title: '' };
     }
@@ -861,8 +861,8 @@ function chatFilesIDDisplay(id, labelMap, emptyLabel) {
     return { text: raw, title: raw };
 }
 
-function chatFilesConversationDisplay(id) {
-    const c = id == null ? '' : String(id);
+function chatFilesConversationDisplay(ID) {
+    const c = ID == null ? '' : String(ID);
     if (typeof window.t === 'function') {
         if (c === '_manual') {
             return { text: window.t('chatFilesPage.convManual'), title: '_manual' };
@@ -874,9 +874,9 @@ function chatFilesConversationDisplay(id) {
     return chatFilesIDDisplay(c, chatFilesConversationTitleById);
 }
 
-function chatFilesProjectDisplay(id) {
-    const empty = (typeof window.t === 'function') ? window.t('chatFilesPage.projectUnbound') : '未绑定项目';
-    return chatFilesIDDisplay(id, chatFilesProjectNameById, empty);
+function chatFilesProjectDisplay(ID) {
+    const empty = (typeof window.t === 'function') ? window.t('chatFilesPage.projectUnbound') : 'No project linked';
+    return chatFilesIDDisplay(ID, chatFilesProjectNameById, empty);
 }
 
 function chatFilesTreePathDisplayName(pathParts) {
@@ -922,8 +922,8 @@ function chatFilesTreeNodeMaxMod(node) {
 function chatFilesTreeSortDirKeys(node, keys) {
     return keys.slice().sort(function (a, b) {
         const ma = chatFilesTreeNodeMaxMod(node.dirs[a]);
-        const mb = chatFilesTreeNodeMaxMod(node.dirs[b]);
-        if (mb !== ma) return mb - ma;
+        const MB = chatFilesTreeNodeMaxMod(node.dirs[b]);
+        if (MB !== ma) return MB - ma;
         return String(a).localeCompare(String(b));
     });
 }
@@ -940,13 +940,13 @@ function chatFilesBuildGroups(files, mode) {
             key = f.conversationId || '—';
         }
         if (!map.has(key)) {
-            map.set(key, { key: key, items: [] });
+            map.set(key, { key: key,  items: [] });
         }
-        map.get(key).items.push({ idx: idx, f: f });
+        map.get(key). items.push({ idx: idx, f: f });
     });
     const groups = Array.from(map.values());
     groups.forEach(function (g) {
-        g.items.sort(function (a, b) {
+        g. items.sort(function (a, b) {
             return (b.f.modifiedUnix || 0) - (a.f.modifiedUnix || 0);
         });
     });
@@ -958,23 +958,23 @@ function chatFilesBuildGroups(files, mode) {
         groups.sort(function (a, b) {
             const ma = Math.max.apply(
                 null,
-                a.items.map(function (x) {
+                a. items.map(function (x) {
                     return x.f.modifiedUnix || 0;
                 })
             );
-            const mb = Math.max.apply(
+            const MB = Math.max.apply(
                 null,
-                b.items.map(function (x) {
+                b. items.map(function (x) {
                     return x.f.modifiedUnix || 0;
                 })
             );
-            return mb - ma;
+            return MB - ma;
         });
     }
     return groups;
 }
 
-/** 分组标题：长 ID 缩短展示，完整值放在 title */
+/** Group heading: long IDs are shortened for display, full value placed in title attribute */
 function chatFilesGroupHeadingID(key, emptyLabel) {
     return chatFilesIDDisplay(key, null, emptyLabel);
 }
@@ -993,8 +993,8 @@ function renderChatFilesTable() {
 
     chatFilesDisplayed = chatFilesNameFilter(chatFilesCache);
     const groupMode = chatFilesGetGroupByMode();
-    const emptyMsg = (typeof window.t === 'function') ? window.t('chatFilesPage.empty') : '暂无文件';
-    // 「按文件夹」模式下即使尚无文件，也要显示 chat_uploads 路径栏与「新建文件夹」，否则无法先建目录
+    const emptyMsg = (typeof window.t === 'function') ? window.t('chatFilesPage.empty') : 'No files';
+    // In "by folder" mode, even if there are no files yet, show the chat_uploads path bar and "New folder" button so folders can be created first
     if (!chatFilesDisplayed.length && groupMode !== 'folder') {
         wrap.classList.remove('chat-files-table-wrap--grouped');
         wrap.classList.remove('chat-files-table-wrap--tree');
@@ -1006,13 +1006,13 @@ function renderChatFilesTable() {
         return;
     }
 
-    const thDate = (typeof window.t === 'function') ? window.t('chatFilesPage.colDate') : '日期';
-    const thConv = (typeof window.t === 'function') ? window.t('chatFilesPage.colConversation') : '会话';
-    const thSubPath = (typeof window.t === 'function') ? window.t('chatFilesPage.colSubPath') : '子路径';
-    const thName = (typeof window.t === 'function') ? window.t('chatFilesPage.colName') : '文件名';
-    const thSize = (typeof window.t === 'function') ? window.t('chatFilesPage.colSize') : '大小';
-    const thModified = (typeof window.t === 'function') ? window.t('chatFilesPage.colModified') : '修改时间';
-    const thActions = (typeof window.t === 'function') ? window.t('chatFilesPage.colActions') : '操作';
+    const thDate = (typeof window.t === 'function') ? window.t('chatFilesPage.colDate') : 'Date';
+    const thConv = (typeof window.t === 'function') ? window.t('chatFilesPage.colConversation') : 'Conversation';
+    const thSubPath = (typeof window.t === 'function') ? window.t('chatFilesPage.colSubPath') : 'Sub-path';
+    const thName = (typeof window.t === 'function') ? window.t('chatFilesPage.colName') : 'Filename';
+    const thSize = (typeof window.t === 'function') ? window.t('chatFilesPage.colSize') : 'Size';
+    const thModified = (typeof window.t === 'function') ? window.t('chatFilesPage.colModified') : 'Modified time';
+    const thActions = (typeof window.t === 'function') ? window.t('chatFilesPage.colActions') : 'Actions';
 
     const svgCopy = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
     const svgDownload = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
@@ -1020,9 +1020,9 @@ function renderChatFilesTable() {
     const svgFolder = '<svg class="chat-files-tree-icon" width="16" height="16" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>';
     const svgFile = '<svg class="chat-files-tree-file-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
 
-    const tCopyTitle = escapeHtml((typeof window.t === 'function') ? window.t('chatFilesPage.copyPathTitle') : '复制服务器上的绝对路径，可粘贴到对话中引用');
-    const tDlTitle = escapeHtml((typeof window.t === 'function') ? window.t('chatFilesPage.download') : '下载');
-    const tMoreTitle = escapeHtml((typeof window.t === 'function') ? window.t('chatFilesPage.moreActions') : '更多操作');
+    const tcopyTitle = escapeHtml((typeof window.t === 'function') ? window.t('chatFilesPage.copyPathTitle') : 'Copy absolute server path — paste into chat to reference the file');
+    const tDlTitle = escapeHtml((typeof window.t === 'function') ? window.t('chatFilesPage.download') : 'download');
+    const tmoreTitle = escapeHtml((typeof window.t === 'function') ? window.t('chatFilesPage.moreActions') : 'More actions');
 
     function rowHtml(f, idx) {
         const rp = f.relativePath || '';
@@ -1039,11 +1039,11 @@ function renderChatFilesTable() {
 
         const bin = chatFileIsBinaryByName(f.name);
         const editHint = escapeHtml(chatFilesEditBlockedHint());
-        const editUnavailable = (typeof window.t === 'function') ? escapeHtml(window.t('chatFilesPage.editUnavailable')) : '不可编辑';
-        const tEdit = (typeof window.t === 'function') ? escapeHtml(window.t('chatFilesPage.edit')) : '编辑';
-        const tOpenChat = (typeof window.t === 'function') ? escapeHtml(window.t('chatFilesPage.openChat')) : '打开对话';
-        const tRename = (typeof window.t === 'function') ? escapeHtml(window.t('chatFilesPage.rename')) : '重命名';
-        const tDelete = (typeof window.t === 'function') ? escapeHtml(window.t('common.delete')) : '删除';
+        const editUnavailable = (typeof window.t === 'function') ? escapeHtml(window.t('chatFilesPage.editUnavailable')) : 'Not editable';
+        const tEdit = (typeof window.t === 'function') ? escapeHtml(window.t('chatFilesPage.edit')) : 'edit';
+        const tOpenChat = (typeof window.t === 'function') ? escapeHtml(window.t('chatFilesPage.openChat')) : 'Open chat';
+        const tRename = (typeof window.t === 'function') ? escapeHtml(window.t('chatFilesPage.rename')) : 'Rename';
+        const tDelete = (typeof window.t === 'function') ? escapeHtml(window.t('common.delete')) : 'delete';
 
         const menuParts = [];
         if (canOpenChat) {
@@ -1063,7 +1063,7 @@ function renderChatFilesTable() {
         const menuHtml = menuParts.join('');
 
         const subRaw = (f.subPath && String(f.subPath).trim()) ? String(f.subPath).trim() : '';
-        const rootLabel = (typeof window.t === 'function') ? window.t('chatFilesPage.folderRoot') : '（根目录）';
+        const rootLabel = (typeof window.t === 'function') ? window.t('chatFilesPage.folderRoot') : '(root)';
         let subCellInner;
         if (subRaw) {
             const segs = subRaw.split('/').filter(function (s) {
@@ -1080,17 +1080,17 @@ function renderChatFilesTable() {
         return `<tr>
             <td>${escapeHtml(f.date || '—')}</td>
             <td class="chat-files-cell-conv"><code title="${convTitleEsc}">${convEsc}</code></td>
-            <td class="chat-files-cell-subpath" title="${escapeHtml(subRaw || '')}">${subCellInner}</td>
+            <td class="chat-files-cell-subPath" title="${escapeHtml(subRaw || '')}">${subCellInner}</td>
             <td class="chat-files-cell-name" title="${chatFilesEscapeAttr(pathForTitle)}">${nameEsc}${sourceBadge}</td>
             <td>${formatChatFileBytes(f.size || 0)}</td>
             <td>${escapeHtml(dt)}</td>
             <td class="chat-files-actions">
                 <div class="chat-files-action-bar">
-                    <button type="button" class="btn-icon" title="${tCopyTitle}" onclick="copyChatFilePathIdx(${idx})">${svgCopy}</button>
+                    <button type="button" class="btn-icon" title="${tcopyTitle}" onclick="copyChatFilePathIdx(${idx})">${svgCopy}</button>
                     <button type="button" class="btn-icon" title="${tDlTitle}" onclick="downloadChatFileIdx(${idx})">${svgDownload}</button>
                     <div class="chat-files-dropdown-wrap">
-                        <button type="button" class="btn-icon" title="${tMoreTitle}" aria-haspopup="true" onclick="chatFilesToggleMoreMenu(event, ${idx})">${svgMore}</button>
-                        <div class="chat-files-dropdown" id="chat-files-menu-${idx}" hidden>${menuHtml}</div>
+                        <button type="button" class="btn-icon" title="${tmoreTitle}" aria-haspopup="true" onclick="chatFilesToggleMoreMenu(event, ${idx})">${svgMore}</button>
+                        <div class="chat-files-dropdown" ID="chat-files-menu-${idx}" hidden>${menuHtml}</div>
                     </div>
                 </div>
             </td>
@@ -1127,12 +1127,12 @@ function renderChatFilesTable() {
             return (chatFilesDisplayed[b.idx].modifiedUnix || 0) - (chatFilesDisplayed[a.idx].modifiedUnix || 0);
         });
 
-        const tRoot = escapeHtml((typeof window.t === 'function') ? window.t('chatFilesPage.browseRoot') : '文件');
-        const tUp = escapeHtml((typeof window.t === 'function') ? window.t('chatFilesPage.browseUp') : '上级');
-        const tMkdir = escapeHtml((typeof window.t === 'function') ? window.t('chatFilesPage.newFolderButton') : '新建文件夹');
-        const tEmpty = escapeHtml((typeof window.t === 'function') ? window.t('chatFilesPage.folderEmpty') : '此文件夹为空');
-        const tCopyFolder = escapeHtml((typeof window.t === 'function') ? window.t('chatFilesPage.copyFolderPathTitle') : '复制目录路径');
-        const tEnter = escapeHtml((typeof window.t === 'function') ? window.t('chatFilesPage.enterFolderTitle') : '进入');
+        const tRoot = escapeHtml((typeof window.t === 'function') ? window.t('chatFilesPage.browseRoot') : 'Files');
+        const tUp = escapeHtml((typeof window.t === 'function') ? window.t('chatFilesPage.browseUp') : 'Up');
+        const tMkdir = escapeHtml((typeof window.t === 'function') ? window.t('chatFilesPage.newFolderButton') : 'New folder');
+        const tEmpty = escapeHtml((typeof window.t === 'function') ? window.t('chatFilesPage.folderEmpty') : 'This folder is empty');
+        const tcopyFolder = escapeHtml((typeof window.t === 'function') ? window.t('chatFilesPage.copyFolderPathTitle') : 'copydirectorypath');
+        const tEnter = escapeHtml((typeof window.t === 'function') ? window.t('chatFilesPage.enterFolderTitle') : 'Enter folder');
 
         let breadcrumbHtml = '<nav class="chat-files-breadcrumb" aria-label="breadcrumb">';
         breadcrumbHtml += '<button type="button" class="chat-files-breadcrumb-link" onclick="chatFilesNavigateBreadcrumb(-1)">' + tRoot + '</button>';
@@ -1162,9 +1162,9 @@ function renderChatFilesTable() {
             '<button type="button" class="btn-secondary chat-files-browse-up"' + upDisabled + ' onclick="chatFilesNavigateUp()">' + tUp + '</button></div>';
 
         const svgTrash = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>';
-        const svgUploadToFolder = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>';
-        const tDeleteFolder = escapeHtml((typeof window.t === 'function') ? window.t('chatFilesPage.deleteFolderTitle') : '删除文件夹');
-        const tUploadToFolder = escapeHtml((typeof window.t === 'function') ? window.t('chatFilesPage.uploadToFolderTitle') : '上传到此文件夹');
+        const svguploadToFolder = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>';
+        const tdeleteFolder = escapeHtml((typeof window.t === 'function') ? window.t('chatFilesPage.deleteFolderTitle') : 'Delete folder');
+        const tuploadToFolder = escapeHtml((typeof window.t === 'function') ? window.t('chatFilesPage.uploadToFolderTitle') : 'Upload to this folder');
 
         function rowHtmlBrowseFolder(name) {
             const nameAttr = encodeURIComponent(String(name));
@@ -1173,15 +1173,15 @@ function renderChatFilesTable() {
             const folderTitle = folderDisplay.title || tEnter;
             const relToFolder = folderPath.join('/');
             const uploadDirAttr = encodeURIComponent(relToFolder);
-            const canUploadFolder = chatFilesBrowseCanUploadToPath(folderPath);
-            const canDeleteFolder = chatFilesBrowseCanDeleteFolderPath(folderPath);
-            const uploadBtn = canUploadFolder
-                ? `<button type="button" class="btn-icon" title="${tUploadToFolder}" data-upload-dir="${uploadDirAttr}" onclick="chatFilesUploadToFolderClick(event, this)">${svgUploadToFolder}</button>`
+            const canuploadFolder = chatFilesBrowseCanUploadToPath(folderPath);
+            const candeleteFolder = chatFilesBrowseCanDeleteFolderPath(folderPath);
+            const uploadBtn = canuploadFolder
+                ? `<button type="button" class="btn-icon" title="${tuploadToFolder}" data-upload-dir="${uploadDirAttr}" onclick="chatFilesUploadToFolderClick(event, this)">${svguploadToFolder}</button>`
                 : '';
-            const deleteBtn = canDeleteFolder
-                ? `<button type="button" class="btn-icon btn-danger" title="${tDeleteFolder}" data-chat-folder-name="${nameAttr}" onclick="chatFilesDeleteFolderFromBtn(event, this)">${svgTrash}</button>`
+            const deleteBtn = candeleteFolder
+                ? `<button type="button" class="btn-icon btn-danger" title="${tdeleteFolder}" data-chat-folder-name="${nameAttr}" onclick="chatFilesDeleteFolderFromBtn(event, this)">${svgTrash}</button>`
                 : '';
-            return `<tr class="chat-files-tr-folder chat-files-tr-folder--nav" role="button" tabindex="0" data-chat-folder-name="${nameAttr}" onclick="chatFilesOnFolderRowClick(event)" onkeydown="chatFilesOnFolderRowKeydown(event)">
+            return `<tr class="chat-files-tr-folder chat-files-tr-folder--nav" role="button" tabIndex="0" data-chat-folder-name="${nameAttr}" onclick="chatFilesOnFolderRowClick(event)" onkeydown="chatFilesOnFolderRowKeydown(event)">
                 <td class="chat-files-tree-name-cell chat-files-tree-name-cell--folder" title="${chatFilesEscapeAttr(folderTitle)}">
                     <span class="chat-files-tree-name-inner">${svgFolder}<span class="chat-files-tree-name-text">${escapeHtml(folderDisplay.text)}</span></span>
                 </td>
@@ -1190,7 +1190,7 @@ function renderChatFilesTable() {
                 <td class="chat-files-actions" data-chat-files-stop="true" onclick="event.stopPropagation()">
                     <div class="chat-files-action-bar">
                         ${uploadBtn}
-                        <button type="button" class="btn-icon" title="${tCopyFolder}" data-chat-folder-name="${nameAttr}" onclick="chatFilesCopyFolderPathFromBtn(event, this)">${svgCopy}</button>
+                        <button type="button" class="btn-icon" title="${tcopyFolder}" data-chat-folder-name="${nameAttr}" onclick="chatFilesCopyFolderPathFromBtn(event, this)">${svgCopy}</button>
                         ${deleteBtn}
                     </div>
                 </td>
@@ -1208,11 +1208,11 @@ function renderChatFilesTable() {
 
             const bin = chatFileIsBinaryByName(f.name);
             const editHint = escapeHtml(chatFilesEditBlockedHint());
-            const editUnavailable = (typeof window.t === 'function') ? escapeHtml(window.t('chatFilesPage.editUnavailable')) : '不可编辑';
-            const tEdit = (typeof window.t === 'function') ? escapeHtml(window.t('chatFilesPage.edit')) : '编辑';
-            const tOpenChat = (typeof window.t === 'function') ? escapeHtml(window.t('chatFilesPage.openChat')) : '打开对话';
-            const tRename = (typeof window.t === 'function') ? escapeHtml(window.t('chatFilesPage.rename')) : '重命名';
-            const tDelete = (typeof window.t === 'function') ? escapeHtml(window.t('common.delete')) : '删除';
+            const editUnavailable = (typeof window.t === 'function') ? escapeHtml(window.t('chatFilesPage.editUnavailable')) : 'Not editable';
+            const tEdit = (typeof window.t === 'function') ? escapeHtml(window.t('chatFilesPage.edit')) : 'edit';
+            const tOpenChat = (typeof window.t === 'function') ? escapeHtml(window.t('chatFilesPage.openChat')) : 'Open chat';
+            const tRename = (typeof window.t === 'function') ? escapeHtml(window.t('chatFilesPage.rename')) : 'Rename';
+            const tDelete = (typeof window.t === 'function') ? escapeHtml(window.t('common.delete')) : 'delete';
 
             const menuParts = [];
             if (canOpenChat) {
@@ -1239,11 +1239,11 @@ function renderChatFilesTable() {
                 <td>${escapeHtml(dt)}</td>
                 <td class="chat-files-actions">
                     <div class="chat-files-action-bar">
-                        <button type="button" class="btn-icon" title="${tCopyTitle}" onclick="copyChatFilePathIdx(${idx})">${svgCopy}</button>
+                        <button type="button" class="btn-icon" title="${tcopyTitle}" onclick="copyChatFilePathIdx(${idx})">${svgCopy}</button>
                         <button type="button" class="btn-icon" title="${tDlTitle}" onclick="downloadChatFileIdx(${idx})">${svgDownload}</button>
                         <div class="chat-files-dropdown-wrap">
-                            <button type="button" class="btn-icon" title="${tMoreTitle}" aria-haspopup="true" onclick="chatFilesToggleMoreMenu(event, ${idx})">${svgMore}</button>
-                            <div class="chat-files-dropdown" id="chat-files-menu-${idx}" hidden>${menuHtml}</div>
+                            <button type="button" class="btn-icon" title="${tmoreTitle}" aria-haspopup="true" onclick="chatFilesToggleMoreMenu(event, ${idx})">${svgMore}</button>
+                            <div class="chat-files-dropdown" ID="chat-files-menu-${idx}" hidden>${menuHtml}</div>
                         </div>
                     </div>
                 </td>
@@ -1269,7 +1269,7 @@ function renderChatFilesTable() {
     } else {
         const groups = chatFilesBuildGroups(chatFilesDisplayed, groupMode);
         const blocks = groups.map(function (g) {
-            const rows = g.items.map(function (item) {
+            const rows = g. items.map(function (item) {
                 return rowHtml(item.f, item.idx);
             }).join('');
             let summaryMain;
@@ -1285,7 +1285,7 @@ function renderChatFilesTable() {
                 summaryMain = escapeHtml(h.text);
                 summaryTitleAttr = h.title ? ' title="' + escapeHtml(h.title) + '"' : '';
             }
-            const n = g.items.length;
+            const n = g. items.length;
             const countLabel = (typeof window.t === 'function')
                 ? escapeHtml(window.t('chatFilesPage.groupCount', { count: n }))
                 : escapeHtml(String(n));
@@ -1376,7 +1376,7 @@ async function deleteChatFolderFromBrowse(folderName) {
     const segs = chatFilesBrowsePath.concat([folderName]);
     if (!chatFilesBrowseCanDeleteFolderPath(segs)) return;
     const rel = chatFilesUploadRelativeDirFromBrowsePath(segs);
-    const q = (typeof window.t === 'function') ? window.t('chatFilesPage.confirmDeleteFolder') : '确定删除该文件夹及其中的全部文件？';
+    const q = (typeof window.t === 'function') ? window.t('chatFilesPage.confirmDeleteFolder') : 'Delete this folder and all files inside it?';
     if (!confirm(q)) return;
     try {
         const res = await apiFetch('/api/chat-uploads', {
@@ -1398,7 +1398,7 @@ async function deleteChatFolderFromBrowse(folderName) {
                     loadChatFilesPage();
                     const cleared = (typeof window.t === 'function')
                         ? window.t('chatFilesPage.folderRemovedStale')
-                        : '服务器上不存在该目录，列表已刷新。';
+                        : 'Directory not found on the server — list has been refreshed.';
                     if (typeof chatFilesShowToast === 'function') {
                         chatFilesShowToast(cleared);
                     } else {
@@ -1445,10 +1445,10 @@ async function copyChatFolderPathFromBrowse(folderName) {
     }
     const ok = await chatFilesCopyText(text);
     if (ok) {
-        const msg = (typeof window.t === 'function') ? window.t('chatFilesPage.folderPathCopied') : '目录路径已复制';
+        const msg = (typeof window.t === 'function') ? window.t('chatFilesPage.folderPathCopied') : 'directorypathCopied';
         chatFilesShowToast(msg);
     } else {
-        const fail = (typeof window.t === 'function') ? window.t('common.copyFailed') : '复制失败';
+        const fail = (typeof window.t === 'function') ? window.t('common.copyFailed') : 'copy failed';
         alert(fail);
     }
 }
@@ -1550,17 +1550,17 @@ function openChatFilesConversation(conversationId) {
     }, 400);
 }
 
-async function downloadChatFile(relativePath, filename) {
+async function downloadChatFile(relativePath, fileName) {
     try {
-        const url = '/api/chat-uploads/download?path=' + encodeURIComponent(relativePath);
-        const res = await apiFetch(url);
+        const URL = '/api/chat-uploads/download?path=' + encodeURIComponent(relativePath);
+        const res = await apiFetch(URL);
         if (!res.ok) {
             throw new Error(await res.text());
         }
         const blob = await res.blob();
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
-        a.download = filename || 'download';
+        a.download = fileName || 'download';
         a.click();
         URL.revokeObjectURL(a.href);
     } catch (e) {
@@ -1569,7 +1569,7 @@ async function downloadChatFile(relativePath, filename) {
 }
 
 async function deleteChatFile(relativePath) {
-    const q = (typeof window.t === 'function') ? window.t('chatFilesPage.confirmDelete') : '确定删除该文件？';
+    const q = (typeof window.t === 'function') ? window.t('chatFilesPage.confirmDelete') : 'Delete this file?';
     if (!confirm(q)) return;
     try {
         const res = await apiFetch('/api/chat-uploads', {
@@ -1587,7 +1587,7 @@ async function deleteChatFile(relativePath) {
 }
 
 async function openChatFilesEdit(relativePath) {
-    chatFilesEditRelativePath = relativePath;
+    chatFileseditRelativePath = relativePath;
     const pathEl = document.getElementById('chat-files-edit-path');
     const ta = document.getElementById('chat-files-edit-textarea');
     const modal = document.getElementById('chat-files-edit-modal');
@@ -1621,17 +1621,17 @@ async function openChatFilesEdit(relativePath) {
 
 function closeChatFilesEditModal() {
     closeAppModal('chat-files-edit-modal');
-    chatFilesEditRelativePath = '';
+    chatFileseditRelativePath = '';
 }
 
 async function saveChatFilesEdit() {
     const ta = document.getElementById('chat-files-edit-textarea');
-    if (!ta || !chatFilesEditRelativePath) return;
+    if (!ta || !chatFileseditRelativePath) return;
     try {
         const res = await apiFetch('/api/chat-uploads/content', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ path: chatFilesEditRelativePath, content: ta.value })
+            body: JSON.stringify({ path: chatFileseditRelativePath, content: ta.value })
         });
         if (!res.ok) {
             throw new Error(await res.text());
@@ -1725,7 +1725,7 @@ async function submitChatFilesMkdir() {
     if (name.includes('/') || name.includes('\\') || name === '.' || name === '..') {
         const msg = (typeof window.t === 'function')
             ? window.t('chatFilesPage.mkdirInvalidName')
-            : '名称无效';
+            : 'Invalid name';
         alert(msg);
         return;
     }
@@ -1757,7 +1757,7 @@ async function submitChatFilesMkdir() {
         loadChatFilesPage();
         const okMsg = (typeof window.t === 'function')
             ? window.t('chatFilesPage.mkdirOk')
-            : '文件夹已创建';
+            : 'Folder created';
         chatFilesShowToast(okMsg);
     } catch (e) {
         alert((e && e.message) ? e.message : String(e));
@@ -1781,24 +1781,24 @@ function chatFilesSetUploadProgressUI(visible, percent, fileName) {
     const name = fileName || '';
     label.textContent = (typeof window.t === 'function')
         ? window.t('chatFilesPage.uploadingFile', { name: name, percent: p })
-        : ('正在上传 ' + name + ' · ' + p + '%');
+        : ('Uploading ' + name + ' · ' + p + '%');
 }
 
 function chatFilesSetUploadBusy(busy) {
-    chatFilesXHRUploadBusy = !!busy;
-    ['chat-files-header-upload-btn', 'chat-files-refresh-btn'].forEach(function (id) {
-        const el = document.getElementById(id);
-        if (el) el.disabled = chatFilesXHRUploadBusy;
+    chatFilesXHRuploadBusy = !!busy;
+    ['chat-files-header-upload-btn', 'chat-files-refresh-btn'].forEach(function (ID) {
+        const el = document.getElementById(ID);
+        if (el) el.disabled = chatFilesXHRuploadBusy;
     });
 }
 
 function chatFilesOpenUploadPicker() {
-    if (chatFilesXHRUploadBusy) return;
+    if (chatFilesXHRuploadBusy) return;
     if (chatFilesGetGroupByMode() === 'folder') {
         if (!chatFilesBrowseCanMutateCurrentPath()) return;
-        chatFilesPendingUploadDir = chatFilesUploadRelativeDirFromBrowsePath(chatFilesBrowsePath);
+        chatFilesPendinguploadDir = chatFilesUploadRelativeDirFromBrowsePath(chatFilesBrowsePath);
     } else {
-        chatFilesPendingUploadDir = '';
+        chatFilesPendinguploadDir = '';
     }
     const inp = document.getElementById('chat-files-upload-input');
     if (inp) inp.click();
@@ -1806,14 +1806,14 @@ function chatFilesOpenUploadPicker() {
 
 function chatFilesUploadToFolderClick(ev, btn) {
     if (ev) ev.stopPropagation();
-    if (chatFilesXHRUploadBusy) return;
+    if (chatFilesXHRuploadBusy) return;
     const raw = btn.getAttribute('data-upload-dir');
     if (!raw) return;
     try {
-        chatFilesPendingUploadDir = decodeURIComponent(raw);
-        chatFilesPendingUploadDir = chatFilesUploadRelativeDirFromBrowsePath(chatFilesPendingUploadDir.split('/').filter(Boolean));
+        chatFilesPendinguploadDir = decodeURIComponent(raw);
+        chatFilesPendinguploadDir = chatFilesUploadRelativeDirFromBrowsePath(chatFilesPendinguploadDir.split('/').filter(Boolean));
     } catch (e) {
-        chatFilesPendingUploadDir = '';
+        chatFilesPendinguploadDir = '';
         return;
     }
     const inp = document.getElementById('chat-files-upload-input');
@@ -1821,8 +1821,8 @@ function chatFilesUploadToFolderClick(ev, btn) {
 }
 
 function chatFilesResolveUploadTarget() {
-    const pendingDir = chatFilesPendingUploadDir;
-    chatFilesPendingUploadDir = '';
+    const pendingDir = chatFilesPendinguploadDir;
+    chatFilesPendinguploadDir = '';
     if (pendingDir) {
         return { relativeDir: pendingDir };
     }
@@ -1839,7 +1839,7 @@ function chatFilesResolveUploadTarget() {
 }
 
 async function chatFilesUploadFile(file, target) {
-    if (!file || chatFilesXHRUploadBusy) return false;
+    if (!file || chatFilesXHRuploadBusy) return false;
     const form = new FormData();
     form.append('file', file);
     if (target && target.relativeDir) {
@@ -1867,7 +1867,7 @@ async function chatFilesUploadFile(file, target) {
         if (data && data.ok) {
             const msg = (typeof window.t === 'function')
                 ? window.t('chatFilesPage.uploadOkHint')
-                : '上传成功。在列表中点击「复制路径」即可粘贴到对话中引用。';
+                : 'Upload successful. Click "Copy path" in the list to paste it into chat as a reference.';
             chatFilesShowToast(msg);
         }
         return true;
@@ -1881,7 +1881,7 @@ async function chatFilesUploadFile(file, target) {
 }
 
 async function chatFilesUploadFiles(fileList) {
-    if (!fileList || !fileList.length || chatFilesXHRUploadBusy) return;
+    if (!fileList || !fileList.length || chatFilesXHRuploadBusy) return;
     const files = Array.from(fileList).filter(function (f) {
         return f && (f.name || f.size > 0);
     });
@@ -1915,7 +1915,7 @@ function setupChatFilesDragDrop() {
     wrap.addEventListener('dragover', function (e) {
         e.preventDefault();
         e.stopPropagation();
-        if (chatFilesXHRUploadBusy) return;
+        if (chatFilesXHRuploadBusy) return;
         this.classList.add('drag-over');
     });
     wrap.addEventListener('dragleave', function (e) {
@@ -1929,7 +1929,7 @@ function setupChatFilesDragDrop() {
         e.preventDefault();
         e.stopPropagation();
         this.classList.remove('drag-over');
-        if (chatFilesXHRUploadBusy) return;
+        if (chatFilesXHRuploadBusy) return;
         const files = e.dataTransfer && e.dataTransfer.files;
         if (files && files.length) {
             chatFilesUploadFiles(files).catch(function (err) {
@@ -1939,7 +1939,7 @@ function setupChatFilesDragDrop() {
     });
 }
 
-// 语言切换后重新渲染列表：表头与「更多」菜单由 JS 拼接，无 data-i18n，需用当前语言的 t() 再生成一遍
+// Re-render the list after a language switch: table headers and the "more" menu are assembled by JS without data-i18n, so they must be regenerated with the currentLanguage's t()
 document.addEventListener('languagechange', function () {
     if (typeof window.currentPage !== 'function') return;
     if (window.currentPage() !== 'chat-files') return;
