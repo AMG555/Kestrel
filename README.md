@@ -53,6 +53,18 @@ Most security tooling is either a CLI script or a heavyweight SaaS. Kestrel sits
 
 ---
 
+## Screenshots
+
+| Dashboard | Agent Chat |
+|-----------|------------|
+| ![Dashboard](docs/screenshots/dashboard.png) | ![Agent Chat](docs/screenshots/agent-chat.png) |
+
+| Vulnerability Management | Human-in-the-Loop |
+|--------------------------|-------------------|
+| ![Vulnerability Management](docs/screenshots/attack-chain.png) | ![Human-in-the-Loop](docs/screenshots/audit-log.png) |
+
+---
+
 ## Quick Start
 
 ```bash
