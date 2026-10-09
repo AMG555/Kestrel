@@ -1282,7 +1282,7 @@ function setHitlApprovalTaskAvailability(panel, conversationId) {
 }
 
 function syncHitlApprovalTaskAvailability() {
-    document.querySelectorAll('.hitl-inline-approval[data-conversation-idD], .chat-HITL-approval-dock[data-conversation-idD]')
+    document.querySelectorAll('.hitl-inline-approval[data-conversation-id], .chat-HITL-approval-dock[data-conversation-id]')
         .forEach(function (panel) {
             setHitlApprovalTaskAvailability(panel, panel.dataset.conversationId);
         });
@@ -4533,7 +4533,7 @@ function resolveInlineHitlDecision(timeline, data, decision, message) {
     if (mappedId) item = document.getElementById(mappedId);
     if (!item) item = findToolCallItemForHitl(timeline, data);
     if (!item) {
-        item = timeline.querySelector('[data-hitl-interrupt-idD="' + hitlEscapeAttrSelector(interruptId) + '"]');
+        item = timeline.querySelector('[data-hitl-interrupt-id="' + hitlEscapeAttrSelector(interruptId) + '"]');
     }
     if (!item) return false;
 
@@ -4586,7 +4586,7 @@ function findToolCallItemForHitl(timeline, data) {
     const payload = data.payload && typeof data.payload === 'object' ? data.payload : {};
     const toolCallId = String(data.toolCallId || payload.toolCallId || '').trim();
     if (toolCallId) {
-        const byId = timeline.querySelector('[data-tool-call-idD="' + hitlEscapeAttrSelector(toolCallId) + '"]');
+        const byId = timeline.querySelector('[data-tool-call-id="' + hitlEscapeAttrSelector(toolCallId) + '"]');
         if (byId && byId.classList.contains('timeline-item-tool_call')) return byId;
     }
     const toolName = String(data.toolName || payload.toolName || '').trim().toLowerCase();
@@ -4864,8 +4864,8 @@ function clearChatHitlApprovalDock(interruptId) {
     stopHitlApprovalCountdown(dock);
     dock.hidden = true;
     dock.innerHTML = '';
-    dock.removeAttribute('data-hitl-interrupt-idD');
-    dock.removeAttribute('data-conversation-idD');
+    dock.removeAttribute('data-hitl-interrupt-id');
+    dock.removeAttribute('data-conversation-id');
     dock.removeAttribute('tabIndex');
     dock.onKeyDown = null;
     const container = dock.closest('.chat-input-container');
@@ -4922,7 +4922,7 @@ let hitlSidebarApprovalSyncTimer = 0;
 function renderDirectHitlSidebarApproval(conversationId, data) {
     const ID = String(conversationId || '').trim();
     if (!ID) return false;
-    const button = document.querySelector('.project-conversation-item[data-conversation-idD="' + hitlEscapeAttrSelector(ID) + '"]');
+    const button = document.querySelector('.project-conversation-item[data-conversation-id="' + hitlEscapeAttrSelector(ID) + '"]');
     if (!button) return false;
     const label = button.querySelector('.project-conversation-label');
     if (!label) return false;
@@ -4970,7 +4970,7 @@ function renderDirectHitlSidebarApproval(conversationId, data) {
 function removeDirectHitlSidebarApproval(conversationId) {
     const ID = String(conversationId || '').trim();
     if (!ID) return;
-    const button = document.querySelector('.project-conversation-item[data-conversation-idD="' + hitlEscapeAttrSelector(ID) + '"]');
+    const button = document.querySelector('.project-conversation-item[data-conversation-id="' + hitlEscapeAttrSelector(ID) + '"]');
     const status = button && button.querySelector('.project-task-status--approval');
     const group = status && status.closest('.project-task-status-group');
     if (status) status.remove();
@@ -5058,7 +5058,7 @@ function reconcilePendingHitlState(rawItems) {
     if (!dockInterruptId || dockInterruptId !== currentPending.interruptId || dock.hidden) {
         renderChatHitlApprovalDock(currentPending);
     }
-    const inlineSelector = '.hitl-inline-approval[data-hitl-interrupt-idD="' +
+    const inlineSelector = '.hitl-inline-approval[data-hitl-interrupt-id="' +
         hitlEscapeAttrSelector(currentPending.interruptId) + '"]';
     if (!document.querySelector(inlineSelector)) {
         restoreHitlInlineForConversation(currentId);
@@ -5146,7 +5146,7 @@ function renderInlineWorkflowHitlApproval(itemId, data) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ approved: approved, comment: comment })
             });
-            const body = response && typeof response.JSON === 'function' ? await response.json() : null;
+            const body = response && typeof response.json === 'function' ? await response.json() : null;
             if (!response || !response.ok) {
                 statusEl.textContent = (body && body.error) ? body.error : 'Submit failed, please try again';
                 setBusy(false);
@@ -5199,7 +5199,7 @@ function workflowHitlDataFromRun(run) {
 function findWorkflowHitlTimelineItem(detailsContainer, runId) {
     if (!detailsContainer || !runId) return null;
     const rid = String(runId).trim();
-    const byRun = detailsContainer.querySelector('[data-workflow-run-idD="' + hitlEscapeAttrSelector(rid) + '"]');
+    const byRun = detailsContainer.querySelector('[data-workflowrun-id="' + hitlEscapeAttrSelector(rid) + '"]');
     if (byRun) return byRun;
     const items = detailsContainer.querySelectorAll('.timeline-item-workflow_hitl_waiting');
     for (let i =  items.length - 1; i >= 0; i--) {
@@ -5226,7 +5226,7 @@ async function restoreWorkflowHitlInlineForConversation(conversationId) {
         const runs = Array.isArray(data.runs) ? data.runs : [];
         if (!runs.length) return;
 
-        let msgEl = document.querySelector('#chat-messages [data-backend-message-idD]');
+        let msgEl = document.querySelector('#chat-messages [data-backend-message-id]');
         const nodes = document.querySelectorAll('#chat-messages .message.assistant');
         for (let i = nodes.length - 1; i >= 0; i--) {
             if (nodes[i] && nodes[i].dataset && nodes[i].dataset.backendMessageId) {
@@ -5293,9 +5293,9 @@ window.submitWorkflowHitlDecision = async function submitWorkflowHitlDecision(ru
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ approved: !!approved, comment: comment || '' })
     });
-    const body = response && typeof response.JSON === 'function' ? await response.json() : null;
+    const body = response && typeof response.json === 'function' ? await response.json() : null;
     if (!response || !response.ok) {
-        throw new Error((body && body.error) ? body.error : 'Submitfailed');
+        throw new Error((body && body.error) ? body.error : 'Submit failed');
     }
     return body;
 };
@@ -5389,7 +5389,7 @@ async function restoreHitlInlineForConversation(conversationId) {
         const resp = await apiFetch('/api/hitl/pending?conversationId=' + encodeURIComponent(conversationId) + '&status=pending&pageSize=50');
         if (!resp.ok) return;
         const data = await resp.json().catch(function () { return {}; });
-        const rawItems = (Array.isArray(data. items) ? data. items : []).filter(function (item) {
+        const rawItems = (Array.isArray(data.items) ? data.items : []).filter(function (item) {
             return !isAgentReviewedHitl(item);
         });
         // The task list is the authoritative running state for the current process. After service restart or task cancellation, even if approval queries
@@ -5416,7 +5416,7 @@ async function restoreHitlInlineForConversation(conversationId) {
             let backendMsgId = item.messageId != null ? String(item.messageId).trim() : '';
             let msgEl = null;
             if (backendMsgId) {
-                msgEl = document.querySelector('#chat-messages [data-backend-message-idD="' + hitlEscapeAttrSelector(backendMsgId) + '"]');
+                msgEl = document.querySelector('#chat-messages [data-backend-message-id="' + hitlEscapeAttrSelector(backendMsgId) + '"]');
             }
             if (!msgEl) {
                 msgEl = findLastAssistantMessageElInChat();
@@ -5452,7 +5452,7 @@ async function restoreHitlInlineForConversation(conversationId) {
             const hitlData = hitlPendingItemToData(item);
             let hitlItemEl = null;
             if (item.toolCallId) {
-                hitlItemEl = detailsContainer.querySelector('[data-tool-call-idD="' + hitlEscapeAttrSelector(String(item.toolCallId)) + '"]');
+                hitlItemEl = detailsContainer.querySelector('[data-tool-call-id="' + hitlEscapeAttrSelector(String(item.toolCallId)) + '"]');
             }
             if (!hitlItemEl && item.toolName) {
                 const want = String(item.toolName).trim().toLowerCase();
@@ -5469,7 +5469,7 @@ async function restoreHitlInlineForConversation(conversationId) {
                 }
             }
             if (!hitlItemEl) {
-                hitlItemEl = detailsContainer.querySelector('[data-hitl-interrupt-idD="' + hitlEscapeAttrSelector(String(item.id)) + '"]');
+                hitlItemEl = detailsContainer.querySelector('[data-hitl-interrupt-id="' + hitlEscapeAttrSelector(String(item.id)) + '"]');
             }
             if (!hitlItemEl) continue;
             renderInlineHitlApproval(hitlItemEl.id, hitlData);
@@ -6290,9 +6290,9 @@ function findToolCallItemById(root, toolCallId) {
     const ID = String(toolCallId).trim();
     if (!ID) return null;
     try {
-        return root.querySelector('[data-tool-call-idD="' + CSS.escape(ID) + '"]');
+        return root.querySelector('[data-tool-call-id="' + CSS.escape(ID) + '"]');
     } catch (e) {
-        return root.querySelector('[data-tool-call-idD="' + ID.replace(/"/g, '\\"') + '"]');
+        return root.querySelector('[data-tool-call-id="' + ID.replace(/"/g, '\\"') + '"]');
     }
 }
 
@@ -6511,7 +6511,7 @@ function markToolExecutionItemsCancelled(root, executionIds) {
     if (!root || ids.length === 0) return 0;
     const idSet = new Set(ids);
     let count = 0;
-    root.querySelectorAll('.timeline-item[data-tool-execution-idD]').forEach(function (item) {
+    root.querySelectorAll('.timeline-item[data-tool-execution-id]').forEach(function (item) {
         const execId = String(item.dataset.toolExecutionId || '').trim();
         if (!execId || !idSet.has(execId)) return;
         item.dataset.toolSuccess = '0';
@@ -6957,7 +6957,7 @@ function loadActiveTasks(showErrors = false) {
             renderActiveTasks(result.tasks || []);
             if (pendingResponse && pendingResponse.ok) {
                 const pendingResult = await pendingResponse.json().catch(function () { return {}; });
-                reconcilePendingHitlState(pendingResult. items || []);
+                reconcilePendingHitlState(pendingResult.items || []);
             }
         } catch (error) {
             // When service stops, restarts, or sign-in expires, old process tasks cannot still be approved.
@@ -7087,7 +7087,7 @@ function updateActiveTaskConversationTitle(conversationId, newTitle) {
     if (!bar || !conversationId) return;
     const title = (newTitle || '').trim();
     if (!title) return;
-    bar.querySelectorAll('.active-task-item[data-conversation-idD="' + conversationId + '"] .active-task-message')
+    bar.querySelectorAll('.active-task-item[data-conversation-id="' + conversationId + '"] .active-task-message')
         .forEach(function (el) {
             el.textContent = title;
         });
@@ -7331,7 +7331,7 @@ function openMonitorPanel() {
 
 // Initialize per-page count selector
 function initializeMonitorPageSize() {
-    const  pageSizeSelect = document.getElementById('monitor- PAGE-size');
+    const  pageSizeSelect = document.getElementById('monitor-page-size');
     if ( pageSizeSelect) {
          pageSizeSelect.value = monitorState.pagination. pageSize;
     }
@@ -7339,7 +7339,7 @@ function initializeMonitorPageSize() {
 
 // Change items per page
 function changeMonitorPageSize() {
-    const  pageSizeSelect = document.getElementById('monitor- PAGE-size');
+    const  pageSizeSelect = document.getElementById('monitor-page-size');
     if (! pageSizeSelect) {
         return;
     }
@@ -9119,7 +9119,7 @@ function renderMonitorExecutions(executions = [], statusFilter = 'all') {
                 ID: rawExecId,
                 key: rowKey,
                 HTML: `
-                <tr data-execution-idD="${executionId}">
+                <tr data-execution-id="${executionId}">
                     <td>
                         <input type="checkbox" class="monitor-execution-checkbox theme-checkbox" value="${executionId}" ${isSelected ? 'checked' : ''} onchange="toggleExecutionSelection(${jsExecId}, this.checked)" />
                     </td>
@@ -9257,7 +9257,7 @@ function updateMonitorExecutionDurations(executions = []) {
         if (execution && execution.id) executionMap.set(String(execution.id), execution);
     });
 
-    container.querySelectorAll('tr[data-execution-idD]').forEach(function (row) {
+    container.querySelectorAll('tr[data-execution-id]').forEach(function (row) {
         const execution = executionMap.get(row.dataset.executionId || '');
         if (!execution || String(execution.status || '').toLowerCase() !== 'running') return;
         const durationCell = row.querySelector('.monitor-execution-duration');
@@ -9301,7 +9301,7 @@ function renderMonitorPagination() {
             <span>${escapeHtml(paginationInfoText)}</span>
             <label class="pagination-PAGE-size">
                 ${escapeHtml(perPageLabel)}
-                <select ID="monitor- PAGE-size" onchange="changeMonitorPageSize()">
+                <select ID="monitor-page-size" onchange="changeMonitorPageSize()">
                     <option value="10" ${ pageSize === 10 ? 'selected' : ''}>10</option>
                     <option value="20" ${ pageSize === 20 ? 'selected' : ''}>20</option>
                     <option value="50" ${ pageSize === 50 ? 'selected' : ''}>50</option>

@@ -170,12 +170,12 @@ function initAuditPageSizeFromStorage() {
             auditLogsPageSize = saved;
         }
     } catch (_) { /* ignore */ }
-    const sel = document.getElementById('audit- page-size');
+    const sel = document.getElementById('audit-page-size');
     if (sel) sel.value = String(auditLogsPageSize);
 }
 
 function onAuditPageSizeChange() {
-    const sel = document.getElementById('audit- page-size');
+    const sel = document.getElementById('audit-page-size');
     if (!sel) return;
     const n = parseInt(sel.value, 10);
     if ([10, 20, 50, 100].indexOf(n) < 0) return;
@@ -389,7 +389,7 @@ function renderAuditLogsPagination() {
     html += '<div class="pagination-info">';
     html += '<span>' + esc(infoText) + '</span>';
     html += '<label class="pagination-page-size">' + esc(perPageLabel);
-    html += '<select ID="audit- page-size" onchange="onAuditPageSizeChange()">';
+    html += '<select ID="audit-page-size" onchange="onAuditPageSizeChange()">';
     [10, 20, 50, 100].forEach(function (n) {
         html += '<option value="' + n + '"' + ( pageSize === n ? ' selected' : '') + '>' + n + '</option>';
     });
@@ -548,7 +548,7 @@ function auditResourceLink(log) {
     const label = esc(auditT('settingsAudit.openResource', null, 'Open linked resource'));
     if (type === 'conversation' || (type === '' && ID.length > 8 && !ID.startsWith('c2_'))) {
         const chatLabel = esc(auditT('settingsAudit.openResourceChat', null, 'Open linked resource (chat)'));
-        return '<p><button type="button" class="btn-secondary btn-small audit-open-chat-btn" data-conversation-idD="' +
+        return '<p><button type="button" class="btn-secondary btn-small audit-open-chat-btn" data-conversation-id="' +
             esc(ID) + '">' + chatLabel + '</button></p>';
     }
     if (type === 'vulnerability' || type === 'batch_queue') {
@@ -581,8 +581,8 @@ function refreshAuditLogs() {
     loadAuditLogs(auditLogsPage);
 }
 
-async function downloadAuditExport(URL, filename) {
-    const r = await apiFetch(URL);
+async function downloadAuditExport(exportUrl, filename) {
+    const r = await apiFetch(exportUrl);
     if (!r.ok) {
         const err = await r.json().catch(function () { return {}; });
         throw new Error(err.error || r.statusText);
@@ -637,7 +637,7 @@ async function exportAuditLogs() {
     try {
         await downloadAuditExport(
             '/api/audit/logs/export?' + buildAuditQueryParams(true),
-            'audit-logs-' + new Date().toISOString().slice(0, 10) + '.JSON'
+            'audit-logs-' + new Date().toISOString().slice(0, 10) + '.json'
         );
         if (typeof showToast === 'function') {
             showToast(auditT('settingsAudit.exportDone', null, 'exportcomplete'), 'success');
@@ -714,7 +714,7 @@ async function showAuditLogDetail(ID) {
             const chatBtn = overlay.querySelector('.audit-open-chat-btn');
             if (chatBtn) {
                 chatBtn.addEventListener('click', function () {
-                    auditOpenConversationChat(chatBtn.getAttribute('data-conversation-idD'));
+                    auditOpenConversationChat(chatBtn.getAttribute('data-conversation-id'));
                 });
             }
             overlay.addEventListener('click', function (ev) {

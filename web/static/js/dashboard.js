@@ -153,9 +153,9 @@ async function refreshDashboard() {
             // notification summary: since=0 gets the latest batch, limit controls size; used for 'recent events' inline display
             fetchJson('/api/notifications/summary?since=0&limit=20&lang=' + encodeURIComponent((window.__locale || 'zh-CN'))),
             // External MCP health
-            fetchJson('/api/external-MCP/stats'),
+            fetchJson('/api/external-mcp/stats'),
             // WebShell established connections (foothold after pentest landing, critical for operational scenarios)
-            fetchJson(dashboardProjectScopedUrl('/api/WebShell/connections')),
+            fetchJson(dashboardProjectScopedUrl('/api/webshell/connections')),
             // C2 dashboard bar: listeners / sessions / open tasks (task API includes pending_queued_count)
             fetchJson(dashboardProjectScopedUrl('/api/c2/listeners')),
             fetchJson(dashboardProjectScopedUrl('/api/c2/sessions?limit=500')),
@@ -937,7 +937,7 @@ function renderExternalMcpHealth(stats) {
 // HITL pending approval count: returns the number of pending items; can also be used in capability overview or KPI sub-text
 function getHitlPendingCount(res) {
     if (!res) return 0;
-    if (Array.isArray(res. items)) return res. items.length;
+    if (Array.isArray(res.items)) return res.items.length;
     if (typeof res.total === 'number') return res.total;
     if (Array.isArray(res)) return res.length;
     return 0;
@@ -953,7 +953,7 @@ function renderRecentEvents(notifRes) {
     var listEl = document.getElementById('dashboard-events-list');
     if (!section || !listEl) return;
 
-    var  items = (notifRes && Array.isArray(notifRes. items)) ? notifRes. items : [];
+    var  items = (notifRes && Array.isArray(notifRes.items)) ? notifRes.items : [];
     // Filter: remove new-vulnerability type (to avoid duplication with "recent vulnerabilities" panel); HITL is no longer filtered
     var coveredTypes = { 'vulnerability_created': true };
     var filtered =  items.filter(function (it) {

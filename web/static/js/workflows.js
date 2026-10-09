@@ -496,7 +496,7 @@
         dropdown.appendChild(optionsList);
         reg.optionsList = optionsList;
 
-        searchInput.addEventListener('INPUT', () => renderWorkflowToolSelectOptions(reg, searchInput.value));
+        searchInput.addEventListener('input', () => renderWorkflowToolSelectOptions(reg, searchInput.value));
         searchInput.addEventListener('click', (e) => e.stopPropagation());
         searchInput.addEventListener('keydown', (e) => {
             e.stopPropagation();

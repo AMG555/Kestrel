@@ -72,7 +72,7 @@ const PROJECTS_FILTER_SELECT_HANDLERS = {
     'project-graph-view': function () { loadProjectFactGraph(); },
     'project-vulns-filter-severity': function () { loadProjectVulnerabilities(); },
     'project-vulns-filter-status': function () { loadProjectVulnerabilities(); },
-    'projects- page-size-pagination': function () { changeProjectsPageSize(); }
+    'projects-page-size-pagination': function () { changeProjectsPageSize(); }
 };
 const projectsfilterSelectMap = {};
 let projectsfilterSelectDocBound = false;
@@ -160,7 +160,7 @@ function enhanceProjectsFilterSelect(select) {
 
     const wrapper = document.createElement('div');
     wrapper.className = 'projects-filter-select-UI';
-    if (select.id === 'projects- page-size-pagination') {
+    if (select.id === 'projects-page-size-pagination') {
         wrapper.classList.add('projects-filter-select-UI--compact');
     }
 
@@ -231,7 +231,7 @@ function refreshProjectsFilterSelects() {
     const  page = document.getElementById('page-projects');
     if (! page) return;
     pruneProjectsFilterSelectMap( page);
-     page.querySelectorAll('select.projects-filter-select-native, #projects- page-size-pagination').forEach(function (select) {
+     page.querySelectorAll('select.projects-filter-select-native, #projects-page-size-pagination').forEach(function (select) {
         enhanceProjectsFilterSelect(select);
     });
     if (!projectsfilterSelectDocBound) {
@@ -435,7 +435,7 @@ async function searchActiveProjects(query, opts = {}) {
     const res = await apiFetch(`/api/projects?${params}`);
     if (!res.ok) throw new Error(tp('projects.loadProjectsFailed'));
     const parsed = parseProjectsListResponse(await res.json());
-    rememberProjectsInNameMap(parsed. items);
+    rememberProjectsInNameMap(parsed.items);
     return parsed;
 }
 
@@ -483,7 +483,7 @@ function parseProjectsListResponse(data) {
     if (Array.isArray(data)) {
         return {  items: data, total: data.length, limit: data.length, offset: 0, isLegacyArray: true };
     }
-    const items = data.projects || data. items || [];
+    const items = data.projects || data.items || [];
     const arr = Array.isArray(items) ? items : [];
     return {
          items: arr,
@@ -497,12 +497,12 @@ function parseProjectsListResponse(data) {
 async function resolveProjectsListTotal(params, parsed,  pageSize, offset) {
     const serverTotal = parsed.total;
     // Server total is clearly greater than current page end -> trust directly
-    if (!parsed.isLegacyArray && serverTotal > offset + parsed. items.length) {
+    if (!parsed.isLegacyArray && serverTotal > offset + parsed.items.length) {
         return serverTotal;
     }
     // Less than one page -> already on last page
-    if (parsed. items.length <  pageSize) {
-        return Math.max(serverTotal, offset + parsed. items.length);
+    if (parsed.items.length <  pageSize) {
+        return Math.max(serverTotal, offset + parsed.items.length);
     }
     // Full page but total might be miscalculated as items.length -> probe next
     const probe = new URLSearchParams(params);
@@ -510,14 +510,14 @@ async function resolveProjectsListTotal(params, parsed,  pageSize, offset) {
     probe.set('limit', '1');
     try {
         const res = await apiFetch(`/api/projects?${probe}`);
-        if (!res.ok) return Math.max(serverTotal, offset + parsed. items.length);
+        if (!res.ok) return Math.max(serverTotal, offset + parsed.items.length);
         const probeParsed = parseProjectsListResponse(await res.json());
         if (probeParsed.total > serverTotal) return probeParsed.total;
-        if (probeParsed. items.length > 0) {
+        if (probeParsed.items.length > 0) {
             return Math.max(serverTotal, offset +  pageSize + 1);
         }
     } catch (e) { /* ignore */ }
-    return Math.max(serverTotal, offset + parsed. items.length);
+    return Math.max(serverTotal, offset + parsed.items.length);
 }
 
 async function fetchAllProjects(includeArchived) {
@@ -532,10 +532,10 @@ async function fetchAllProjects(includeArchived) {
         const res = await apiFetch(`/api/projects?${params}`);
         if (!res.ok) throw new Error(tp('projects.loadProjectsFailed'));
         const parsed = parseProjectsListResponse(await res.json());
-        all = all.concat(parsed. items);
+        all = all.concat(parsed.items);
         total = parsed.total;
-        if (!parsed. items.length) break;
-        offset += parsed. items.length;
+        if (!parsed.items.length) break;
+        offset += parsed.items.length;
     }
     return all;
 }
@@ -554,7 +554,7 @@ async function fetchProjectsList(includeArchived, opts = {}) {
     if (!res.ok) throw new Error(tp('projects.loadProjectsFailed'));
     const parsed = parseProjectsListResponse(await res.json());
     const total = await resolveProjectsListTotal(params, parsed,  pageSize, offset);
-    projectsCache = parsed. items;
+    projectsCache = parsed.items;
     projectsListPagination = {  page,  pageSize:  pageSize, total };
     rebuildProjectNameMap(projectsCacheAll.length ? projectsCacheAll : projectsCache);
     return projectsCache;
@@ -734,7 +734,7 @@ function renderProjectFactActions(keyEsc, idEsc, confidence) {
         <button type="button" class="projects-action-btn projects-action-btn--edit" data-fact-key="${keyEsc}" onclick="showEditFactModal(this.dataset.factKey)" title="${escapeHtml(tp('projects.editTitle'))}">${escapeHtml(tp('common.edit'))}</button>
         <button type="button" class="projects-action-btn projects-action-btn--view" data-fact-key="${keyEsc}" onclick="viewProjectFactBody(this.dataset.factKey)" title="${escapeHtml(tp('projects.viewBodyTitle'))}">${escapeHtml(tp('projects.details'))}</button>
         ${toggleBtn}
-        <button type="button" class="projects-action-btn projects-action-btn--danger" data-fact-idD="${idEsc}" onclick="deleteProjectFact(this.dataset.factId)" title="${escapeHtml(tp('projects.deleteForeverTitle'))}">${escapeHtml(tp('common.delete'))}</button>
+        <button type="button" class="projects-action-btn projects-action-btn--danger" data-fact-id="${idEsc}" onclick="deleteProjectFact(this.dataset.factId)" title="${escapeHtml(tp('projects.deleteForeverTitle'))}">${escapeHtml(tp('common.delete'))}</button>
     </div>`;
 }
 
@@ -823,7 +823,7 @@ function goProjectsPage( page) {
 }
 
 function changeProjectsPageSize() {
-    const sel = document.getElementById('projects- page-size-pagination');
+    const sel = document.getElementById('projects-page-size-pagination');
     const newSize = sel ? parseInt(sel.value, 10) : 50;
     if (![20, 50, 100].includes(newSize)) return;
     try {
@@ -860,7 +860,7 @@ function renderProjectsPagination() {
             </div>
             <label class="pagination-page-size">
                 ${escapeHtml(tp('projects.paginationPerPage'))}
-                <select ID="projects- page-size-pagination" class="projects-filter-select-native">
+                <select ID="projects-page-size-pagination" class="projects-filter-select-native">
                     <option value="20" ${ pageSize === 20 ? 'selected' : ''}>20</option>
                     <option value="50" ${ pageSize === 50 ? 'selected' : ''}>50</option>
                     <option value="100" ${ pageSize === 100 ? 'selected' : ''}>100</option>
@@ -1122,7 +1122,7 @@ function renderProjectAssetsPagination() {
         <div class="pagination-info">
             <span>${escapeHtml(tpFmt('projects.paginationShow', `Showing ${start}-${end} / Total ${total}`, { start, end, total }))}</span>
             <label class="pagination-page-size">${escapeHtml(tpFmt('projects.paginationPerPage', 'Per page'))}
-                <select ID="project-assets- page-size" onchange="changeProjectAssetsPageSize(this.value)">
+                <select ID="project-assets-page-size" onchange="changeProjectAssetsPageSize(this.value)">
                     ${[10, 20, 50, 100].map(size => `<option value="${size}" ${size ===  pageSize ? 'selected' : ''}>${size}</option>`).join('')}
                 </select>
             </label>
@@ -1161,7 +1161,7 @@ async function unbindAssetFromProject(index) {
     if (!confirm(message)) return;
     try {
         const res = await apiFetch('/api/assets/project-binding', {
-            METHOD: 'PUT',
+            method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ asset_ids: [asset.id], project_id: '' })
         });
@@ -1213,7 +1213,7 @@ async function handleGraphConnectNodePick(factKey) {
         return;
     }
     const res = await apiFetch(`/api/projects/${currentProjectId}/fact-edges`, {
-        METHOD: 'POST',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             source_fact_key: _graphConnectSource,
@@ -1325,8 +1325,8 @@ function renderGraphEdgesListHtml(factKey, graphData, selectedEdgeId) {
             const synthetic = isSyntheticGraphEdge(e);
             const deleteBtn = synthetic
                 ? `<span class="project-fact-graph-edge-synthetic" title="${escapeHtml(tp('projects.graphEdgeSynthetic'))}">—</span>`
-                : `<button type="button" class="project-fact-graph-edge-delete" data-edge-idD="${escapeAttr(e.id)}" onclick="event.stopPropagation(); deleteProjectFactEdge(this.dataset.edgeId)" title="${escapeAttr(tp('projects.graphDeleteEdge'))}"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>`;
-            return `<div class="project-fact-graph-edge-item${selected}" data-edge-idD="${escapeAttr(e.id)}" onclick="focusProjectFactGraphEdge(${escapeJsStringAttr(e.id)})">
+                : `<button type="button" class="project-fact-graph-edge-delete" data-edge-id="${escapeAttr(e.id)}" onclick="event.stopPropagation(); deleteProjectFactEdge(this.dataset.edgeId)" title="${escapeAttr(tp('projects.graphDeleteEdge'))}"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>`;
+            return `<div class="project-fact-graph-edge-item${selected}" data-edge-id="${escapeAttr(e.id)}" onclick="focusProjectFactGraphEdge(${escapeJsStringAttr(e.id)})">
                 <span class="project-fact-graph-edge-dir">${escapeHtml(dirLabel)}</span>
                 <span class="project-fact-graph-edge-type">${escapeHtml(e.type || '')}</span>
                 <span class="project-fact-graph-edge-peer" title="${escapeHtml(src + ' → ' + tgt)}">${escapeHtml(src)} → ${escapeHtml(tgt)}</span>
@@ -1344,7 +1344,7 @@ function renderProjectFactGraphEdges(factKey, graphData, selectedEdgeId) {
     wrap.hidden = false;
     list.innerHTML = renderGraphEdgesListHtml(factKey, graphData, selectedEdgeId);
     if (selectedEdgeId) {
-        const selectedEl = list.querySelector('[data-edge-idD="' + String(selectedEdgeId).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"]');
+        const selectedEl = list.querySelector('[data-edge-id="' + String(selectedEdgeId).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"]');
         if (selectedEl) selectedEl.scrollIntoView({ block: 'nearest' });
     }
     if (!edges.length) wrap.hidden = false;
@@ -1442,7 +1442,7 @@ async function deleteProjectFactEdge(edgeId) {
     if (isSyntheticGraphEdge(edge)) return;
     if (!confirm(tp('projects.confirmDeleteGraphEdge'))) return;
     const res = await apiFetch(`/api/projects/${currentProjectId}/fact-edges/${encodeURIComponent(edgeId)}`, {
-        METHOD: 'DELETE',
+        method: 'DELETE',
     });
     if (!(await notifyProjectApiFailure(res, 'projects.graphEdgeDeleteFailed', 'Failed to delete edge'))) return;
     if (typeof showNotification === 'function') showNotification(tp('projects.graphEdgeDeleteSuccess'), 'success');
@@ -1580,9 +1580,9 @@ async function loadProjectConversations() {
             <td>${escapeHtml(updated)}</td>
             <td class="col-actions">
                 <div class="projects-table-actions">
-                    <button type="button" class="projects-action-btn projects-action-btn--view" data-conv-idD="${idEsc}" onclick="openProjectConversation(this.dataset.convId)">${escapeHtml(tp('projects.open'))}</button>
-                    <button type="button" class="projects-action-btn" data-conv-idD="${idEsc}" onclick="promoteConversationAttackChain(this.dataset.convId)" title="${escapeHtml(tp('projects.promoteAttackChainTitle'))}">${escapeHtml(tp('projects.promoteAttackChain'))}</button>
-                    <button type="button" class="projects-action-btn projects-action-btn--mute" data-conv-idD="${idEsc}" onclick="unbindConversationFromProject(this.dataset.convId)" title="${escapeHtml(tp('projects.unbindProjectTitle'))}">${escapeHtml(tp('projects.unbind'))}</button>
+                    <button type="button" class="projects-action-btn projects-action-btn--view" data-conv-id="${idEsc}" onclick="openProjectConversation(this.dataset.convId)">${escapeHtml(tp('projects.open'))}</button>
+                    <button type="button" class="projects-action-btn" data-conv-id="${idEsc}" onclick="promoteConversationAttackChain(this.dataset.convId)" title="${escapeHtml(tp('projects.promoteAttackChainTitle'))}">${escapeHtml(tp('projects.promoteAttackChain'))}</button>
+                    <button type="button" class="projects-action-btn projects-action-btn--mute" data-conv-id="${idEsc}" onclick="unbindConversationFromProject(this.dataset.convId)" title="${escapeHtml(tp('projects.unbindProjectTitle'))}">${escapeHtml(tp('projects.unbind'))}</button>
                 </div>
             </td>
         </tr>`;
@@ -1608,7 +1608,7 @@ async function promoteConversationAttackChain(conversationId) {
     if (!confirm(tp('projects.confirmPromoteAttackChain'))) return;
     const res = await apiFetch(
         `/api/projects/${currentProjectId}/promote-attack-chain/${encodeURIComponent(conversationId)}`,
-        { METHOD: 'POST' },
+        { method: 'POST' },
     );
     if (!(await notifyProjectApiFailure(res, 'projects.promoteAttackChainFailed', 'Failed to consolidate attack chain'))) return;
     const data = await res.json();
@@ -1629,7 +1629,7 @@ async function promoteConversationAttackChain(conversationId) {
 async function unbindConversationFromProject(conversationId) {
     if (!conversationId || !confirm(tp('projects.confirmUnbindConversation'))) return;
     const res = await apiFetch(`/api/conversations/${encodeURIComponent(conversationId)}/project`, {
-        METHOD: 'PUT',
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ projectId: '' }),
     });
@@ -1709,7 +1709,7 @@ async function linkFactToExistingVulnerability() {
     const res = await apiFetch(`/api/vulnerabilities?project_id=${encodeURIComponent(currentProjectId)}&limit=50`);
     if (!res.ok) return alert(tp('projects.loadVulnerabilityListFailed'));
     const data = await res.json();
-    const items = data.vulnerabilities || data.vulnerabilities || data. items || [];
+    const items = data.vulnerabilities || data.vulnerabilities || data.items || [];
     if (! items.length) return alert(tp('projects.noVulnerabilitiesInProject'));
     const lines =  items.map((v, i) => `${i + 1}. [${v.severity}] ${v.title} (${v.id})`);
     const pick = prompt(
@@ -1724,7 +1724,7 @@ async function linkFactToExistingVulnerability() {
     if (Number.isNaN(idx) || idx < 0 || idx >=  items.length) return alert(tp('projects.invalidIndex'));
     const vulnId =  items[idx].id;
     const upd = await apiFetch(`/api/projects/${currentProjectId}/facts/${encodeURIComponent(f.id)}`, {
-        METHOD: 'PUT',
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             fact_key: f.fact_key,
@@ -1771,14 +1771,14 @@ async function createVulnerabilityFromCurrentFact() {
         recommendation: '',
     };
     const res = await apiFetch('/api/vulnerabilities', {
-        METHOD: 'POST',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
     });
     if (!(await notifyProjectApiFailure(res, 'projects.createVulnerabilityFailed', 'Failed to create vulnerability'))) return;
     const vuln = await res.json();
     const upd = await apiFetch(`/api/projects/${currentProjectId}/facts/${encodeURIComponent(f.id)}`, {
-        METHOD: 'PUT',
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             fact_key: f.fact_key,
@@ -1818,7 +1818,7 @@ async function deprecateProjectFactByKey(factKey) {
         }) || `Deprecate fact ${factKey}?`,
     )) return;
     const res = await apiFetch(`/api/projects/${currentProjectId}/facts/deprecate`, {
-        METHOD: 'POST',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fact_key: factKey }),
     });
@@ -1835,7 +1835,7 @@ async function restoreProjectFactByKey(factKey) {
         }) || `Restore fact ${factKey}? It will re-enter the board index with tentative status.`,
     )) return;
     const res = await apiFetch(`/api/projects/${currentProjectId}/facts/restore`, {
-        METHOD: 'POST',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fact_key: factKey, confidence: 'tentative' }),
     });
@@ -1867,7 +1867,7 @@ async function loadProjectVulnerabilities() {
         return;
     }
     const data = await res.json();
-    const items = data.vulnerabilities || data.vulnerabilities || data. items || (Array.isArray(data) ? data : []);
+    const items = data.vulnerabilities || data.vulnerabilities || data.items || (Array.isArray(data) ? data : []);
     if (! items.length) {
         tbody.innerHTML = `<tr class="is-empty-row"><td colspan="4">${
             projectVulnsHasActiveFilter() ? tp('projects.noMatchingVulns') : tp('projects.noVulnerabilityRecords')
@@ -1883,8 +1883,8 @@ async function loadProjectVulnerabilities() {
             <td>${formatVulnStatusBadge(v.status)}</td>
             <td class="col-actions">
                 <div class="projects-table-actions">
-                    <button type="button" class="projects-action-btn projects-action-btn--view" data-vuln-idD="${idEsc}" onclick="openVulnerabilityDetail(this.dataset.vulnId)">${escapeHtml(tp('common.view'))}</button>
-                    <button type="button" class="projects-action-btn projects-action-btn--view" data-vuln-idD="${idEsc}" onclick="viewFactsForVulnerability(this.dataset.vulnId)" title="${escapeHtml(tp('projects.viewRelatedFactsTitle'))}">${escapeHtml(tp('projects.facts'))}</button>
+                    <button type="button" class="projects-action-btn projects-action-btn--view" data-vuln-id="${idEsc}" onclick="openVulnerabilityDetail(this.dataset.vulnId)">${escapeHtml(tp('common.view'))}</button>
+                    <button type="button" class="projects-action-btn projects-action-btn--view" data-vuln-id="${idEsc}" onclick="viewFactsForVulnerability(this.dataset.vulnId)" title="${escapeHtml(tp('projects.viewRelatedFactsTitle'))}">${escapeHtml(tp('projects.facts'))}</button>
                 </div>
             </td>
         </tr>`;
@@ -2018,8 +2018,8 @@ async function saveProjectModal() {
     if (submitBtn) submitBtn.disabled = true;
     try {
         const res = editId
-            ? await apiFetch(`/api/projects/${editId}`, { METHOD: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-            : await apiFetch('/api/projects', { METHOD: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+            ? await apiFetch(`/api/projects/${editId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+            : await apiFetch('/api/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
         if (!(await notifyProjectApiFailure(res, 'projects.saveFailed', 'save failed'))) return;
         const fromChat = !!window._projectModalFromChat;
         const fromChatSidebar = !!window._projectModalFromChatSidebar;
@@ -2104,7 +2104,7 @@ async function saveProjectSettings() {
         pinned: !!document.getElementById('project-edit-pinned')?.checked,
     };
     const res = await apiFetch(`/api/projects/${currentProjectId}`, {
-        METHOD: 'PUT',
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
     });
@@ -2216,7 +2216,7 @@ async function toggleProjectPinnedFromListMenu() {
 
     const nextPinned = !project.pinned;
     const res = await apiFetch(`/api/projects/${projectId}`, {
-        METHOD: 'PUT',
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pinned: nextPinned }),
     });
@@ -2249,7 +2249,7 @@ async function toggleProjectArchiveById(projectId) {
     const next = cur === 'archived' ? 'active' : 'archived';
     if (!confirm(next === 'archived' ? tp('projects.confirmArchiveProject') : tp('projects.confirmRestoreProjectActive'))) return;
     const res = await apiFetch(`/api/projects/${projectId}`, {
-        METHOD: 'PUT',
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: next }),
     });
@@ -2268,7 +2268,7 @@ async function deleteProjectById(projectId) {
     if (!requireProjectDelete()) return;
     if (!projectId || !confirm(tp('projects.confirmDeleteProject'))) return;
     const deletedIndex = projectsCache.findIndex((p) => p.id === projectId);
-    const res = await apiFetch(`/api/projects/${projectId}`, { METHOD: 'DELETE' });
+    const res = await apiFetch(`/api/projects/${projectId}`, { method: 'DELETE' });
     if (!(await notifyProjectApiFailure(res, 'projects.deleteFailed', 'delete failed'))) return;
     if (getActiveProjectId() === projectId) setActiveProjectId('');
     if (currentProjectId === projectId) currentProjectId = null;
@@ -2427,12 +2427,12 @@ async function saveFactModal() {
     const editId = window._factModalEditId;
     const res = editId
         ? await apiFetch(`/api/projects/${currentProjectId}/facts/${editId}`, {
-              METHOD: 'PUT',
+              method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(payload),
           })
         : await apiFetch(`/api/projects/${currentProjectId}/facts`, {
-              METHOD: 'POST',
+              method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(payload),
           });
@@ -2445,7 +2445,7 @@ async function saveFactModal() {
 async function deleteProjectFact(ID) {
     if (!requireProjectWrite()) return;
     if (!confirm(tp('projects.confirmDeleteFact'))) return;
-    const res = await apiFetch(`/api/projects/${currentProjectId}/facts/${ID}`, { METHOD: 'DELETE' });
+    const res = await apiFetch(`/api/projects/${currentProjectId}/facts/${ID}`, { method: 'DELETE' });
     if (!(await notifyProjectApiFailure(res, 'projects.operationFailed', 'Operation failed'))) return;
     loadProjectFacts();
     if (currentProjectTab === 'graph') loadProjectFactGraph();
@@ -2551,7 +2551,7 @@ async function normalizeStaleChatProjectSelection() {
                 const res = await apiFetch(
                     `/api/conversations/${encodeURIComponent(window.currentConversationId)}/project`,
                     {
-                        METHOD: 'PUT',
+                        method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ projectId: '' }),
                     }
@@ -3426,7 +3426,7 @@ async function loadChatProjectFolderContext() {
     if (loadSeq !== chatProjectFolderContextLoadSeq) return false;
     const conversations = Array.isArray(conversationData)
         ? conversationData
-        : (conversationData.conversations || conversationData. items || []);
+        : (conversationData.conversations || conversationData.items || []);
     chatProjectFolderContext.conversations = Array.isArray(conversations) ? conversations : [];
     chatProjectFolderContext.runningIds = new Set(
         (activeData.tasks || [])
@@ -3983,7 +3983,7 @@ async function applyChatProjectSelection(projectId) {
     if (window.currentConversationId) {
         try {
             const res = await apiFetch(`/api/conversations/${encodeURIComponent(window.currentConversationId)}/project`, {
-                METHOD: 'PUT',
+                method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ projectId }),
             });

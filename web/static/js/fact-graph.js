@@ -361,7 +361,7 @@
         const textClipH = height - CARD_PAD * 2 + 4;
 
         const SVG =
-            `<SVG xmlns="http://www.w3.org/2000/SVG" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">` +
+            `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">` +
             `<defs><linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">` +
             `<stop offset="0%" stop-color="${bgStart}"/><stop offset="100%" stop-color="${bgEnd}"/></linearGradient>` +
             `<clipPath id="textClip"><rect x="${CARD_TEXT_X}" y="${CARD_PAD - 2}" width="${textClipW}" height="${textClipH}"/></clipPath></defs>` +
@@ -369,12 +369,12 @@
             `<rect x="0.75" y="0.75" width="${width - 1.5}" height="${height - 1.5}" rx="12" fill="url(#bg)" ${stroke}/>` +
             svgIconGroup(theme.icon, accent, iconX, iconY) +
             `<g clip-path="url(#textClip)">${headerSvg}${keySvg}${summarySvg}</g>` +
-            `</g></SVG>`;
+            `</g></svg>`;
 
         try {
-            return 'data:image/SVG+xml;base64,' + btoa(unescape(encodeURIComponent(SVG)));
+            return 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(SVG)));
         } catch (e) {
-            return 'data:image/SVG+xml;charset=utf-8,' + encodeURIComponent(SVG);
+            return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(SVG);
         }
     }
 
@@ -417,7 +417,7 @@
             .selector('edge:selected')
             .style({
                 'line-color': accent,
-                'TARGET-arrow-color': accent,
+                'target-arrow-color': accent,
             })
             .selector('node:selected')
             .style('border-color', accent)
@@ -524,7 +524,7 @@
             edges: validEdges.map((edge) => ({
                 id: edge.id,
                 sources: [edge.source],
-                targets: [edge.TARGET],
+                targets: [edge.target],
             })),
         };
         elkInstance
@@ -631,14 +631,14 @@
 
         const validEdges = [];
         edges.forEach((edge, idx) => {
-            if (!nodeIds.has(edge.source) || !nodeIds.has(edge.TARGET)) return;
+            if (!nodeIds.has(edge.source) || !nodeIds.has(edge.target)) return;
             const id = edge.id || 'e-' + idx;
             validEdges.push({ ...edge, id });
             elements.push({
                 data: {
                     id,
                     source: edge.source,
-                    TARGET: edge.TARGET,
+                    target: edge.target,
                     type: edge.type || 'leads_to',
                     confidence: edge.confidence || 'confirmed',
                 },
@@ -673,8 +673,8 @@
                     style: {
                         width: 2.2,
                         'line-color': (ele) => EDGE_COLORS[ele.data('type')] || '#CBD5E1',
-                        'TARGET-arrow-color': (ele) => EDGE_COLORS[ele.data('type')] || '#CBD5E1',
-                        'TARGET-arrow-shape': 'triangle',
+                        'target-arrow-color': (ele) => EDGE_COLORS[ele.data('type')] || '#CBD5E1',
+                        'target-arrow-shape': 'triangle',
                         'curve-style': 'bezier',
                         opacity: (ele) => (ele.data('confidence') === 'tentative' ? 0.55 : 0.9),
                         'line-style': (ele) => (ele.data('confidence') === 'tentative' ? 'dashed' : 'solid'),
@@ -686,7 +686,7 @@
                         width: 3.5,
                         opacity: 1,
                         'line-color': isDarkTheme() ? '#60a5fa' : '#4F46E5',
-                        'TARGET-arrow-color': isDarkTheme() ? '#60a5fa' : '#4F46E5',
+                        'target-arrow-color': isDarkTheme() ? '#60a5fa' : '#4F46E5',
                     },
                 },
                 {
@@ -703,7 +703,7 @@
         });
 
         _cy.on('tap', 'node', (evt) => {
-            const d = evt.TARGET.data();
+            const d = evt.target.data();
             const key = d.factKey || d.id;
             if (_connectMode && _connectPick) {
                 _connectPick(key);
@@ -716,14 +716,14 @@
 
         _cy.on('tap', 'edge', (evt) => {
             if (_connectMode && _connectPick) return;
-            const d = evt.TARGET.data();
+            const d = evt.target.data();
             if (typeof _onEdgeSelect === 'function') {
                 _onEdgeSelect(d.id, d);
             }
         });
 
         _cy.on('tap', (evt) => {
-            if (evt.TARGET === _cy) {
+            if (evt.target === _cy) {
                 clearEdgeSelection();
             }
         });

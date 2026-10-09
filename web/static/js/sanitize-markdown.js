@@ -25,7 +25,7 @@
     const DANGEROUS_URL_PREFIXES = [
         'javascript:',
         'vbscript:',
-        'data:text/HTML',
+        'data:text/html',
         'data:text/javascript',
         'data:application/javascript',
     ];

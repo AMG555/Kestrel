@@ -99,7 +99,7 @@ async function loadToken() {
 // Load OpenAPI spec
 async function loadAPISpec() {
     try {
-        const url = '/api/OpenAPI/spec';
+        const url = '/api/openapi/spec';
         const headers = currentToken ? { 'Authorization': `Bearer ${currentToken}` } : {};
         const response = await fetch(url, { headers });
         if (!response.ok) {
@@ -379,8 +379,8 @@ function renderRequestBody(endpoint) {
             
             // Handle nested types
             let typeDisplay = prop.type || 'object';
-            if (prop.type === 'array' && prop. items) {
-                typeDisplay = `array[${prop. items.type || 'object'}]`;
+            if (prop.type === 'array' && prop.items) {
+                typeDisplay = `array[${prop.items.type || 'object'}]`;
             } else if (prop.$ref) {
                 const refPath = prop.$ref.split('/');
                 typeDisplay = refPath[refPath.length - 1];

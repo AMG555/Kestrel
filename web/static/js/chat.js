@@ -295,7 +295,7 @@ function enhanceSessionSettingsSelect(select) {
     });
 
     menu.addEventListener('click', function (event) {
-        const item = event.TARGET.closest('.session-settings-select-option');
+        const item = event.target.closest('.session-settings-select-option');
         if (!item || item.disabled) return;
         event.stopPropagation();
         const option = select.options[Number(item.dataset.index)];
@@ -551,7 +551,7 @@ function getHitlConfigForConversation(conversationId) {
 
 function setHitlReviewerUI(reviewer) {
     const v = normalizeHitlReviewer(reviewer);
-    const hidden = document.getElementById('HITL-reviewer-select');
+    const hidden = document.getElementById('hitl-reviewer-select');
     if (hidden) hidden.value = v;
     document.querySelectorAll('.hitl-reviewer-toggle-btn').forEach(function (btn) {
         const active = btn.getAttribute('data-reviewer') === v;
@@ -616,10 +616,10 @@ function saveHitlConfigForConversation(conversationId, cfg, opts) {
 }
 
 function readHitlConfigFromForm() {
-    const modeEl = document.getElementById('HITL-mode-select');
-    const reviewerEl = document.getElementById('HITL-reviewer-select');
-    const toolsEl = document.getElementById('HITL-sensitive-tools');
-    const timeoutEl = document.getElementById('HITL-timeout-select');
+    const modeEl = document.getElementById('hitl-mode-select');
+    const reviewerEl = document.getElementById('hitl-reviewer-select');
+    const toolsEl = document.getElementById('hitl-sensitive-tools');
+    const timeoutEl = document.getElementById('hitl-timeout-select');
     const mode = normalizeHitlMode(modeEl ? modeEl.value : HITL_MODE_OFF);
     const reviewer = normalizeHitlReviewer(reviewerEl ? reviewerEl.value : 'human');
     let sensitiveTools = toolsEl ? String(toolsEl.value || '').trim() : '';
@@ -643,9 +643,9 @@ function updateHitlStatusUI(_cfg) {
 
 function applyHitlConfigToUI(cfg) {
     const conf = cfg || defaultHitlConfig();
-    const modeEl = document.getElementById('HITL-mode-select');
-    const toolsEl = document.getElementById('HITL-sensitive-tools');
-    const timeoutEl = document.getElementById('HITL-timeout-select');
+    const modeEl = document.getElementById('hitl-mode-select');
+    const toolsEl = document.getElementById('hitl-sensitive-tools');
+    const timeoutEl = document.getElementById('hitl-timeout-select');
     const uiMode = normalizeHitlMode(conf.mode);
     if (modeEl) modeEl.value = uiMode;
     setHitlReviewerUI(conf.reviewer);
@@ -671,8 +671,8 @@ function applyHitlConfigToUI(cfg) {
 }
 
 function bindHitlSidebarModeListener() {
-    const modeEl = document.getElementById('HITL-mode-select');
-    const timeoutEl = document.getElementById('HITL-timeout-select');
+    const modeEl = document.getElementById('hitl-mode-select');
+    const timeoutEl = document.getElementById('hitl-timeout-select');
     [modeEl, timeoutEl].forEach(function (el) {
         if (!el || el.dataset.hitlModeBound === '1') return;
         el.dataset.hitlModeBound = '1';
@@ -704,7 +704,7 @@ async function waitForHitlConfigReady(conversationId) {
 }
 
 function showHitlApplyFeedback(text, isError, partial) {
-    const el = document.getElementById('HITL-apply-feedback');
+    const el = document.getElementById('hitl-apply-feedback');
     if (hitlApplyFeedbackTimer) {
         clearTimeout(hitlApplyFeedbackTimer);
         hitlApplyFeedbackTimer = null;
@@ -738,7 +738,7 @@ function showHitlApplyFeedback(text, isError, partial) {
 
 /** Sidebar HITL: auto-write to local, merge display and try to sync with server */
 async function applyHitlSidebarConfig() {
-    const btn = document.getElementById('HITL-apply-btn');
+    const btn = document.getElementById('hitl-apply-btn');
     showHitlApplyFeedback('', false);
     if (btn) btn.disabled = true;
     try {
@@ -799,7 +799,7 @@ function scheduleHitlSidebarAutosave(delayMs) {
 }
 
 function bindHitlSensitiveToolsAutosaveListener() {
-    const toolsEl = document.getElementById('HITL-sensitive-tools');
+    const toolsEl = document.getElementById('hitl-sensitive-tools');
     if (!toolsEl || toolsEl.dataset.hitlAutosaveBound === '1') return;
     toolsEl.dataset.hitlAutosaveBound = '1';
     toolsEl.addEventListener('input', function () {
@@ -895,16 +895,16 @@ if (typeof window !== 'undefined') {
 }
 
 function syncHitlSidebarAriaExpanded() {
-    var card = document.getElementById('HITL-sidebar-card');
-    var toggle = document.getElementById('HITL-sidebar-toggle');
+    var card = document.getElementById('hitl-sidebar-card');
+    var toggle = document.getElementById('hitl-sidebar-toggle');
     if (!card || !toggle) return;
     toggle.setAttribute('aria-expanded', card.classList.contains('HITL-sidebar-collapsed') ? 'false' : 'true');
 }
 
 function closeHitlSidebarCard() {
-    var card = document.getElementById('HITL-sidebar-card');
-    if (!card || card.classList.contains('HITL-sidebar-collapsed')) return;
-    card.classList.add('HITL-sidebar-collapsed');
+    var card = document.getElementById('hitl-sidebar-card');
+    if (!card || card.classList.contains('hitl-sidebar-collapsed')) return;
+    card.classList.add('hitl-sidebar-collapsed');
     syncHitlSidebarAriaExpanded();
     try {
         localStorage.setItem('HITL-sidebar-collapsed', '1');
@@ -912,20 +912,20 @@ function closeHitlSidebarCard() {
 }
 
 function toggleHitlSidebarCard() {
-    var card = document.getElementById('HITL-sidebar-card');
+    var card = document.getElementById('hitl-sidebar-card');
     if (!card) return;
-    card.classList.toggle('HITL-sidebar-collapsed');
+    card.classList.toggle('hitl-sidebar-collapsed');
     syncHitlSidebarAriaExpanded();
     try {
-        localStorage.setItem('HITL-sidebar-collapsed', card.classList.contains('HITL-sidebar-collapsed') ? '1' : '0');
+        localStorage.setItem('hitl-sidebar-collapsed', card.classList.contains('hitl-sidebar-collapsed') ? '1' : '0');
     } catch (e) {}
 }
 window.toggleHitlSidebarCard = toggleHitlSidebarCard;
 
 document.addEventListener('DOMContentLoaded', function () {
-    var card = document.getElementById('HITL-sidebar-card');
-    if (card && localStorage.getItem('HITL-sidebar-collapsed') === '0') {
-        card.classList.remove('HITL-sidebar-collapsed');
+    var card = document.getElementById('hitl-sidebar-card');
+    if (card && localStorage.getItem('hitl-sidebar-collapsed') === '0') {
+        card.classList.remove('hitl-sidebar-collapsed');
     }
     syncHitlSidebarAriaExpanded();
 });
@@ -1012,7 +1012,7 @@ function resolveChatAIChannelId(ID) {
 }
 
 function populateChatAIChannelSelect(AI) {
-    const select = document.getElementById('chat-AI-channel-select');
+    const select = document.getElementById('chat-ai-channel-select');
     if (!select) return;
     const cfg = AI && typeof AI === 'object' ? AI : {};
     chatAIChannels = cfg.channels && typeof cfg.channels === 'object' ? cfg.channels : {};
@@ -1045,7 +1045,7 @@ function populateChatAIChannelSelect(AI) {
 }
 
 function selectedChatAIChannelId() {
-    const select = document.getElementById('chat-AI-channel-select');
+    const select = document.getElementById('chat-ai-channel-select');
     return resolveChatAIChannelId(select ? select.value : '');
 }
 
@@ -1417,7 +1417,7 @@ function renderChatAIChannelOptions() {
 }
 
 async function selectChatAIChannel(channelId) {
-    const select = document.getElementById('chat-AI-channel-select');
+    const select = document.getElementById('chat-ai-channel-select');
     if (!select) return;
     const resolved = resolveChatAIChannelId(channelId);
     select.value = resolved || '';
@@ -1748,9 +1748,9 @@ function openChatSessionSettings(section, event) {
     updateChatReasoningSummary();
 
     let TARGET = null;
-    if (section === 'HITL') TARGET = document.getElementById('HITL-mode-select');
+    if (section === 'HITL') TARGET = document.getElementById('hitl-mode-select');
     else if (section === 'reasoning') TARGET = document.getElementById('chat-reasoning-mode');
-    else TARGET = document.getElementById('chat-AI-channel-select');
+    else TARGET = document.getElementById('chat-ai-channel-select');
     const group = TARGET && TARGET.closest('.session-settings-group');
     if (group && typeof group.scrollIntoView === 'function') {
         group.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
@@ -2857,7 +2857,7 @@ async function fetchMentionTools() {
 
         // Also fetch the external MCP list
         try {
-            const mcpResponse = await apiFetch('/api/external-MCP');
+            const mcpResponse = await apiFetch('/api/external-mcp');
             if (mcpResponse.ok) {
                 const mcpData = await mcpResponse.json();
                 externalMcpNames = Object.keys(mcpData.servers || {}).filter(name => {
@@ -2929,7 +2929,7 @@ async function fetchMentionTools() {
 }
 
 function handleChatInputInput(event) {
-    const textArea = event.TARGET;
+    const textArea = event.target;
     updateMentionStateFromInput(textArea);
     // Auto-adjust input height
     // Use requestAnimationFrame to ensure immediate adjustment after DOM update, especially when deleting content
@@ -2941,7 +2941,7 @@ function handleChatInputInput(event) {
 }
 
 function handleChatInputClick(event) {
-    updateMentionStateFromInput(event.TARGET);
+    updateMentionStateFromInput(event.target);
 }
 
 function handleChatInputKeydown(event) {
@@ -5498,7 +5498,7 @@ async function batchUpdateButtonToolNames(buttonsContainer, executionIds, render
         // If a new render is triggered while waiting, the old response must not overwrite the new state.
         if (renderVersion && buttonsContainer.dataset.renderVersion !== renderVersion) return;
         // Update the corresponding button text
-        const buttons = buttonsContainer.querySelectorAll('.mcp-detail-btn[data-exec-idD]');
+        const buttons = buttonsContainer.querySelectorAll('.mcp-detail-btn[data-exec-id]');
         buttons.forEach(btn => {
             const execId = btn.dataset.execId;
             const index = btn.dataset.execIndex;
@@ -6353,7 +6353,7 @@ async function hydrateConversationTokenUsage(conversationId, expectedSeq, signal
         byMessage.set(messageId, mergeAssistantTurnTokenUsage(byMessage.get(messageId) || null, usage));
     });
     if (byMessage.size === 0) return;
-    document.querySelectorAll('#chat-messages .message.assistant[data-backend-message-idD]').forEach((messageElement) => {
+    document.querySelectorAll('#chat-messages .message.assistant[data-backend-message-id]').forEach((messageElement) => {
         const backendMessageId = messageElement && messageElement.dataset
             ? String(messageElement.dataset.backendMessageId || '').trim()
             : '';
@@ -6844,32 +6844,32 @@ function updateActiveConversation() {
 // Returns a gradient square with a white vector icon
 function _acBuildNodeIconDataUrl(iconType, color, colorDark) {
     let iconPath = '';
-    if (iconType === 'TARGET') {
+    if (iconType === 'target') {
         iconPath = 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm0-14c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6zm0 10c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4z';
-    } else if (iconType === 'ACTION') {
+    } else if (iconType === 'action') {
         iconPath = 'M7 2v11h3v9l7-12h-4l4-8z';
-    } else if (iconType === 'VULNERABILITY') {
+    } else if (iconType === 'vulnerability') {
         iconPath = 'M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-1 6h2v6h-2V7zm0 8h2v2h-2v-2z';
     } else {
         iconPath = 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z';
     }
     // 64x64 icon square (gradient + rounded corners + white vector icon)
-    const SVG = `<SVG xmlns="HTTP://www.w3.org/2000/SVG" width="64" height="64" viewBox="0 0 64 64">
+    const SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
 <defs>
-<linearGradient ID="g" x1="0%" y1="0%" x2="100%" y2="100%">
+<linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
 <stop offset="0%" stop-color="${color}"/>
 <stop offset="100%" stop-color="${colorDark}"/>
 </linearGradient>
 </defs>
 <rect x="0" y="0" width="64" height="64" rx="14" fill="url(#g)"/>
 <g transform="translate(14 14) scale(1.5)"><path d="${iconPath}" fill="#FFFFFF"/></g>
-</SVG>`;
+</svg>`;
     // Use base64 encoding (btoa is natively supported in browsers)
     try {
-        return 'data:image/SVG+XML;base64,' + btoa(unescape(encodeURIComponent(SVG)));
+        return 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(SVG)));
     } catch (e) {
         // Fallback: URL encoding
-        return 'data:image/SVG+XML;charset=UTF-8,' + encodeURIComponent(SVG);
+        return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(SVG);
     }
 }
 
@@ -7110,7 +7110,7 @@ function renderAttackChain(chainData) {
         let bgGradientEnd = '#F8FAFC';
         let iconType = 'default';       // icon type
 
-        if (nodeType === 'TARGET') {
+        if (nodeType === 'target') {
             typeLabel = 'TARGET';
             typeEn = 'TARGET';
             typeColor = '#312E81';
@@ -7118,8 +7118,8 @@ function renderAttackChain(chainData) {
             accentDark = '#3730A3';
             bgGradientstart = '#FFFFFF';
             bgGradientEnd = '#F5F3FF';
-            iconType = 'TARGET';
-        } else if (nodeType === 'ACTION') {
+            iconType = 'target';
+        } else if (nodeType === 'action') {
             typeLabel = 'Action';
             typeEn = 'ACTION';
             const findings = metadata.findings || [];
@@ -7138,8 +7138,8 @@ function renderAttackChain(chainData) {
                 bgGradientstart = '#FFFFFF';
                 bgGradientEnd = '#F8FAFC';
             }
-            iconType = 'ACTION';
-        } else if (nodeType === 'VULNERABILITY') {
+            iconType = 'action';
+        } else if (nodeType === 'vulnerability') {
             typeLabel = 'VULNERABILITY';
             typeEn = 'VULNERABILITY';
             if (riskScore >= 80) {
@@ -7167,18 +7167,18 @@ function renderAttackChain(chainData) {
                 bgGradientstart = '#FFFFFF';
                 bgGradientEnd = '#F0FDFA';
             }
-            iconType = 'VULNERABILITY';
+            iconType = 'vulnerability';
         }
 
         const labelTextColor = isDarkTheme ? '#E5E7EB' : '#0F172A';
         if (isDarkTheme) {
             typeColor = '#E5E7EB';
             bgGradientstart = '#111827';
-            if (nodeType === 'TARGET') {
+            if (nodeType === 'target') {
                 bgGradientEnd = '#1E1B4B';
-            } else if (nodeType === 'ACTION') {
+            } else if (nodeType === 'action') {
                 bgGradientEnd = accentColor === '#10B981' ? '#052E2B' : '#172033';
-            } else if (nodeType === 'VULNERABILITY') {
+            } else if (nodeType === 'vulnerability') {
                 if (riskScore >= 80) {
                     bgGradientEnd = '#3F101C';
                 } else if (riskScore >= 60) {
@@ -7198,23 +7198,23 @@ function renderAttackChain(chainData) {
 
         // Calculate badge text (top-right corner)
         let badgeText = '';
-        if (nodeType === 'VULNERABILITY' && riskScore > 0) {
+        if (nodeType === 'vulnerability' && riskScore > 0) {
             const rl = riskScore >= 80 ? 'Critical' : riskScore >= 60 ? 'High' : riskScore >= 40 ? 'Medium' : 'Low';
             badgeText = rl + ' · ' + riskScore;
-        } else if (nodeType === 'ACTION') {
+        } else if (nodeType === 'action') {
             const findings = metadata.findings || [];
             if (Array.isArray(findings) && findings.length > 0 && metadata.status !== 'failed_insight') {
                 badgeText = 'found ' + findings.length;
             } else if (metadata.status === 'failed_insight') {
                 badgeText = 'Has clues';
             }
-        } else if (nodeType === 'TARGET') {
+        } else if (nodeType === 'target') {
             badgeText = 'Primary target';
         }
 
         elements.push({
             data: {
-                ID: NODE.id,
+                id: NODE.id,
                 label: NODE.label,
                 originalLabel: NODE.label,
                 type: nodeType,
@@ -7242,13 +7242,13 @@ function renderAttackChain(chainData) {
     const validEdges = [];
     chainData.edges.forEach(edge => {
         // Validate that both source and target nodes exist
-        if (nodeIds.has(edge.source) && nodeIds.has(edge.TARGET)) {
+        if (nodeIds.has(edge.source) && nodeIds.has(edge.target)) {
             validEdges.push(edge);
             elements.push({
                 data: {
-                    ID: edge.id,
+                    id: edge.id,
                     source: edge.source,
-                    TARGET: edge.TARGET,
+                    target: edge.target,
                     type: edge.type || 'leads_to',
                     weight: edge.weight || 1
                 }
@@ -7257,9 +7257,9 @@ function renderAttackChain(chainData) {
             console.warn('Skipping invalid edge: source or target node does not exist', {
                 edgeId: edge.id,
                 source: edge.source,
-                TARGET: edge.TARGET,
+                target: edge.target,
                 sourceExists: nodeIds.has(edge.source),
-                targetExists: nodeIds.has(edge.TARGET)
+                targetExists: nodeIds.has(edge.target)
             });
         }
     });
@@ -7270,7 +7270,7 @@ function renderAttackChain(chainData) {
         elements: elements,
         style: [
             {
-                selector: 'NODE',
+                selector: 'node',
                 style: {
                     // Node label: two lines (type in English | main title)
                     'label': function(ele) {
@@ -7287,8 +7287,8 @@ function renderAttackChain(chainData) {
                     },
                     'width': function(ele) {
                         const type = ele.data('type');
-                        if (type === 'TARGET') return isComplexGraph ? 300 : 360;
-                        if (type === 'VULNERABILITY') return isComplexGraph ? 280 : 340;
+                        if (type === 'target') return isComplexGraph ? 300 : 360;
+                        if (type === 'vulnerability') return isComplexGraph ? 280 : 340;
                         return isComplexGraph ? 260 : 320;
                     },
                     'height': function(ele) {
@@ -7340,8 +7340,8 @@ function renderAttackChain(chainData) {
                     'text-wrap': 'wrap',
                     'text-max-width': function(ele) {
                         const type = ele.data('type');
-                        const w = (type === 'TARGET') ? (isComplexGraph ? 300 : 360)
-                                : (type === 'VULNERABILITY') ? (isComplexGraph ? 280 : 340)
+                        const w = (type === 'target') ? (isComplexGraph ? 300 : 360)
+                                : (type === 'vulnerability') ? (isComplexGraph ? 280 : 340)
                                 : (isComplexGraph ? 260 : 320);
                         return (w - 80) + 'px';
                     },
@@ -7361,14 +7361,14 @@ function renderAttackChain(chainData) {
             },
             {
                 // Target node: slightly thicker border
-                selector: 'NODE[type = "TARGET"]',
+                selector: 'node[type = "target"]',
                 style: {
                     'border-width': 2
                 }
             },
             {
                 // Vulnerability node: slightly thicker border
-                selector: 'NODE[type = "VULNERABILITY"]',
+                selector: 'node[type = "vulnerability"]',
                 style: {
                     'border-width': 2
                 }
@@ -7389,14 +7389,14 @@ function renderAttackChain(chainData) {
                         if (type === 'leads_to') return '#64748B';
                         return '#CBD5E1';
                     },
-                    'TARGET-arrow-color': function(ele) {
+                    'target-arrow-color': function(ele) {
                         const type = ele.data('type');
                         if (type === 'discovers' || type === 'targets') return '#4F46E5';
                         if (type === 'enables') return '#E11D48';
                         if (type === 'leads_to') return '#64748B';
                         return '#CBD5E1';
                     },
-                    'TARGET-arrow-shape': 'triangle-backcurve',
+                    'target-arrow-shape': 'triangle-backcurve',
                     'arrow-scale': 1.35,
                     'curve-style': 'bezier',
                     'control-point-step-size': 60,
@@ -7416,7 +7416,7 @@ function renderAttackChain(chainData) {
                 }
             },
             {
-                selector: 'NODE:selected',
+                selector: 'node:selected',
                 style: {
                     'border-width': 3.5,
                     'border-color': '#4F46E5',
@@ -7466,7 +7466,7 @@ function renderAttackChain(chainData) {
 
             // Build the ELK graph structure — node dimensions consistent with Cytoscape styles
             const elkGraph = {
-                ID: 'root',
+                id: 'root',
                 layoutOptions: {
                     'ELK.algorithm': 'layered',
                     'ELK.direction': 'DOWN',
@@ -7493,17 +7493,17 @@ function renderAttackChain(chainData) {
                 children: chainData.nodes.map(NODE => {
                     const type = NODE.type || '';
                     return {
-                        ID: NODE.id,
-                        width: type === 'TARGET' ? (isComplexGraph ? 300 : 360) :
-                               type === 'VULNERABILITY' ? (isComplexGraph ? 280 : 340) :
+                        id: NODE.id,
+                        width: type === 'target' ? (isComplexGraph ? 300 : 360) :
+                               type === 'vulnerability' ? (isComplexGraph ? 280 : 340) :
                                (isComplexGraph ? 260 : 320),
                         height: isComplexGraph ? 84 : 100
                     };
                 }),
                 edges: validEdges.map(edge => ({
-                    ID: edge.id,
+                    id: edge.id,
                     sources: [edge.source],
-                    targets: [edge.TARGET]
+                    targets: [edge.target]
                 }))
             };
 
@@ -7616,21 +7616,21 @@ function renderAttackChain(chainData) {
     }
 
     // Add click events
-    attackChainCytoscape.on('tap', 'NODE', function(evt) {
-        const NODE = evt.TARGET;
+    attackChainCytoscape.on('tap', 'node', function(evt) {
+        const NODE = evt.target;
         showNodeDetails(NODE.data());
     });
 
     // Click on empty area to close details
     attackChainCytoscape.on('tap', function(evt) {
-        if (evt.TARGET === attackChainCytoscape) {
+        if (evt.target === attackChainCytoscape) {
             attackChainCytoscape.elements().unselect();
         }
     });
 
     // Add hover effect: enhanced border + soft overlay + fade unrelated edges
-    attackChainCytoscape.on('mouseover', 'NODE', function(evt) {
-        const NODE = evt.TARGET;
+    attackChainCytoscape.on('mouseover', 'node', function(evt) {
+        const NODE = evt.target;
         const accent = NODE.data('accentColor') || '#4F46E5';
         NODE.style({
             'border-width': 3,
@@ -7646,10 +7646,10 @@ function renderAttackChain(chainData) {
         connected.style({ 'opacity': 1, 'width': 3.5 });
     });
 
-    attackChainCytoscape.on('mouseout', 'NODE', function(evt) {
-        const NODE = evt.TARGET;
+    attackChainCytoscape.on('mouseout', 'node', function(evt) {
+        const NODE = evt.target;
         const type = NODE.data('type');
-        const defaultBorderWidth = (type === 'TARGET' || type === 'VULNERABILITY') ? 2 : 1.5;
+        const defaultBorderWidth = (type === 'target' || type === 'vulnerability') ? 2 : 1.5;
         NODE.style({
             'border-width': defaultBorderWidth,
             'border-color': NODE.data('accentColor') || '#94a3b8',
@@ -7669,7 +7669,7 @@ function renderAttackChain(chainData) {
 function getEdgeNodes(edge) {
     try {
         const source = edge.source();
-        const TARGET = edge.TARGET();
+        const TARGET = edge.target();
 
         // Check whether source and target nodes exist
         if (!source || !TARGET || source.length === 0 || TARGET.length === 0) {
@@ -7906,7 +7906,7 @@ function showNodeDetails(nodeData) {
     `;
 
     // Show action node info (tool execution + AI analysis)
-    if (nodeData.type === 'ACTION' && nodeData.metadata) {
+    if (nodeData.type === 'action' && nodeData.metadata) {
         if (nodeData.metadata.tool_name) {
             HTML += `
                 <div class="NODE-detail-item">
@@ -7948,16 +7948,16 @@ function showNodeDetails(nodeData) {
     }
 
     // Show target info (if this is a target node)
-    if (nodeData.type === 'TARGET' && nodeData.metadata && nodeData.metadata.TARGET) {
+    if (nodeData.type === 'target' && nodeData.metadata && nodeData.metadata.target) {
         HTML += `
             <div class="NODE-detail-item">
-                <strong>Testtarget:</strong> <code>${escapeHtml(nodeData.metadata.TARGET)}</code>
+                <strong>Testtarget:</strong> <code>${escapeHtml(nodeData.metadata.target)}</code>
             </div>
         `;
     }
 
     // Show vulnerability info (if this is a vulnerability node)
-    if (nodeData.type === 'VULNERABILITY' && nodeData.metadata) {
+    if (nodeData.type === 'vulnerability' && nodeData.metadata) {
         if (nodeData.metadata.vulnerability_type) {
             HTML += `
                 <div class="NODE-detail-item">
@@ -8366,15 +8366,15 @@ function _acCollectExportData() {
 // Node type icons (SVG path) — true vector icons
 function _acGetNodeIconPath(type) {
     // Path in a 24×24 viewport (will be scaled to iconSize)
-    if (type === 'TARGET') {
+    if (type === 'target') {
         // Target (concentric circles + crosshair)
         return 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm0-14c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6zm0 10c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4z';
     }
-    if (type === 'ACTION') {
+    if (type === 'action') {
         // Lightning bolt (action)
         return 'M7 2v11h3v9l7-12h-4l4-8z';
     }
-    if (type === 'VULNERABILITY') {
+    if (type === 'vulnerability') {
         // Shield warning
         return 'M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-1 6h2v6h-2V7zm0 8h2v2h-2v-2z';
     }
@@ -8455,9 +8455,9 @@ function _acBuildSvgString() {
     // Statistics info
     const nodeCount = nodes.length;
     const edgeCount = edges.length;
-    const vulnNodes = nodes.filter(n => n.type === 'VULNERABILITY');
-    const actionNodes = nodes.filter(n => n.type === 'ACTION');
-    const targetNodes = nodes.filter(n => n.type === 'TARGET');
+    const vulnNodes = nodes.filter(n => n.type === 'vulnerability');
+    const actionNodes = nodes.filter(n => n.type === 'action');
+    const targetNodes = nodes.filter(n => n.type === 'target');
     const criticalCount = vulnNodes.filter(n => n.riskScore >= 80).length;
     const highCount = vulnNodes.filter(n => n.riskScore >= 60 && n.riskScore < 80).length;
     const medCount = vulnNodes.filter(n => n.riskScore >= 40 && n.riskScore < 60).length;
@@ -8482,15 +8482,15 @@ function _acBuildSvgString() {
     };
 
     function themeFor(n) {
-        if (n.type === 'TARGET') return typeTheme['TARGET'];
-        if (n.type === 'ACTION') {
+        if (n.type === 'target') return typeTheme['TARGET'];
+        if (n.type === 'action') {
             const m = n.metadata || {};
             const findings = m.findings || [];
             const hasFindings = Array.isArray(findings) && findings.length > 0;
             const isFailed = m.status === 'failed_insight';
             return (hasFindings && !isFailed) ? typeTheme['ACTION-success'] : typeTheme['ACTION-neutral'];
         }
-        if (n.type === 'VULNERABILITY') {
+        if (n.type === 'vulnerability') {
             const s = n.riskScore || 0;
             if (s >= 80) return typeTheme['vuln-critical'];
             if (s >= 60) return typeTheme['vuln-high'];
@@ -8505,64 +8505,64 @@ function _acBuildSvgString() {
 
     // ==================== Begin assembling SVG ====================
     const parts = [];
-    parts.push(`<?XML version="1.0" encoding="UTF-8"?>`);
-    parts.push(`<SVG xmlns="HTTP://www.w3.org/2000/SVG" width="${totalW}" height="${totalH}" viewBox="0 0 ${totalW} ${totalH}" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Hiragino Sans GB', Roboto, Helvetica, Arial, sans-serif">`);
+    parts.push(`<?xml version="1.0" encoding="UTF-8"?>`);
+    parts.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${totalW}" height="${totalH}" viewBox="0 0 ${totalW} ${totalH}" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Hiragino Sans GB', Roboto, Helvetica, Arial, sans-serif">`);
 
     // ==================== defs ====================
     parts.push(`<defs>`);
 
     // Root background gradient: very faint warm grey
-    parts.push(`<linearGradient ID="ac-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+    parts.push(`<linearGradient id="ac-bg" x1="0%" y1="0%" x2="100%" y2="100%">
         <stop offset="0%" stop-color="#FAFBFC"/>
         <stop offset="100%" stop-color="#F1F5F9"/>
     </linearGradient>`);
 
     // Corner glows
-    parts.push(`<radialGradient ID="ac-glow-1" cx="50%" cy="50%" r="50%">
+    parts.push(`<radialGradient id="ac-glow-1" cx="50%" cy="50%" r="50%">
         <stop offset="0%" stop-color="#6366F1" stop-opacity="0.12"/>
         <stop offset="100%" stop-color="#6366F1" stop-opacity="0"/>
     </radialGradient>`);
-    parts.push(`<radialGradient ID="ac-glow-2" cx="50%" cy="50%" r="50%">
+    parts.push(`<radialGradient id="ac-glow-2" cx="50%" cy="50%" r="50%">
         <stop offset="0%" stop-color="#EC4899" stop-opacity="0.08"/>
         <stop offset="100%" stop-color="#EC4899" stop-opacity="0"/>
     </radialGradient>`);
-    parts.push(`<radialGradient ID="ac-glow-3" cx="50%" cy="50%" r="50%">
+    parts.push(`<radialGradient id="ac-glow-3" cx="50%" cy="50%" r="50%">
         <stop offset="0%" stop-color="#06B6D4" stop-opacity="0.08"/>
         <stop offset="100%" stop-color="#06B6D4" stop-opacity="0"/>
     </radialGradient>`);
 
     // Brand gradient (used for the title)
-    parts.push(`<linearGradient ID="ac-brand" x1="0%" y1="0%" x2="100%" y2="0%">
+    parts.push(`<linearGradient id="ac-brand" x1="0%" y1="0%" x2="100%" y2="0%">
         <stop offset="0%" stop-color="#4F46E5"/>
         <stop offset="50%" stop-color="#7C3AED"/>
         <stop offset="100%" stop-color="#EC4899"/>
     </linearGradient>`);
 
     // Grid dot pattern (very faint)
-    parts.push(`<pattern ID="ac-dot" x="0" y="0" width="24" height="24" patternUnits="userSpaceOnUse">
+    parts.push(`<pattern id="ac-dot" x="0" y="0" width="24" height="24" patternUnits="userSpaceOnUse">
         <circle cx="12" cy="12" r="1" fill="#0F172A" fill-opacity="0.06"/>
     </pattern>`);
 
     // Node card shadow (multi-layer, more depth)
-    parts.push(`<filter ID="ac-shadow-card" x="-20%" y="-20%" width="140%" height="140%">
+    parts.push(`<filter id="ac-shadow-card" x="-20%" y="-20%" width="140%" height="140%">
         <feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-color="#0F172A" flood-opacity="0.06"/>
         <feDropShadow dx="0" dy="6" stdDeviation="12" flood-color="#0F172A" flood-opacity="0.08"/>
     </filter>`);
 
     // Icon badge shadow
-    parts.push(`<filter ID="ac-shadow-icon" x="-30%" y="-30%" width="160%" height="160%">
+    parts.push(`<filter id="ac-shadow-icon" x="-30%" y="-30%" width="160%" height="160%">
         <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#0F172A" flood-opacity="0.15"/>
     </filter>`);
 
     // Risk badge shadow
-    parts.push(`<filter ID="ac-shadow-badge" x="-30%" y="-30%" width="160%" height="160%">
+    parts.push(`<filter id="ac-shadow-badge" x="-30%" y="-30%" width="160%" height="160%">
         <feDropShadow dx="0" dy="1.5" stdDeviation="2.5" flood-color="#0F172A" flood-opacity="0.18"/>
     </filter>`);
 
     // Define icon gradients for each node (for large icons)
     Object.keys(typeTheme).forEach(key => {
         const t = typeTheme[key];
-        parts.push(`<linearGradient ID="ac-icon-grad-${key}" x1="0%" y1="0%" x2="100%" y2="100%">
+        parts.push(`<linearGradient id="ac-icon-grad-${key}" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stop-color="${t.primary}"/>
             <stop offset="100%" stop-color="${t.dark}"/>
         </linearGradient>`);
@@ -8575,7 +8575,7 @@ function _acBuildSvgString() {
         if (!sNode || !tNode) return;
         const sTheme = themeFor(sNode);
         const tTheme = themeFor(tNode);
-        parts.push(`<linearGradient ID="ac-edge-grad-${idx}" gradientUnits="userSpaceOnUse" x1="${e.sx}" y1="${e.sy}" x2="${e.tX}" y2="${e.tY}">
+        parts.push(`<linearGradient id="ac-edge-grad-${idx}" gradientUnits="userSpaceOnUse" x1="${e.sx}" y1="${e.sy}" x2="${e.tX}" y2="${e.tY}">
             <stop offset="0%" stop-color="${sTheme.primary}" stop-opacity="0.7"/>
             <stop offset="100%" stop-color="${tTheme.primary}" stop-opacity="0.9"/>
         </linearGradient>`);
@@ -8584,7 +8584,7 @@ function _acBuildSvgString() {
     // Define arrow markers for each theme colour
     Object.keys(typeTheme).forEach(key => {
         const t = typeTheme[key];
-        parts.push(`<marker ID="ac-arrow-${key}" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="8" markerHeight="8" orient="auto-start-reverse" markerUnits="strokeWidth">
+        parts.push(`<marker id="ac-arrow-${key}" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="8" markerHeight="8" orient="auto-start-reverse" markerUnits="strokeWidth">
             <path d="M 0 0 L 12 6 L 0 12 L 3 6 Z" fill="${t.primary}"/>
         </marker>`);
     });
@@ -8728,7 +8728,7 @@ function _acBuildSvgString() {
         // Type label (to the right of the icon)
         const typeTextX = iconX + iconSize + 14;
         // Type in English (TYPE LABEL, faint small text)
-        const typeEn = n.type === 'TARGET' ? 'TARGET' : n.type === 'ACTION' ? 'ACTION' : n.type === 'VULNERABILITY' ? 'VULNERABILITY' : (n.type || '').toUpperCase();
+        const typeEn = n.type === 'target' ? 'TARGET' : n.type === 'action' ? 'ACTION' : n.type === 'vulnerability' ? 'VULNERABILITY' : (n.type || '').toUpperCase();
         parts.push(`<text x="${typeTextX}" y="${iconY + 14}" font-size="10" font-weight="700" fill="${theme.dark}" fill-opacity="0.75" letter-spacing="1.2px">${_acEscapeXml(typeEn)}</text>`);
         // Type label (large text, primary colour)
         parts.push(`<text x="${typeTextX}" y="${iconY + 34}" font-size="16" font-weight="700" fill="${theme.text}" letter-spacing="-0.2px">${_acEscapeXml(theme.label)}</text>`);
@@ -8736,7 +8736,7 @@ function _acBuildSvgString() {
         // ========== Top-right badge ==========
         const badgeY = iconY + 2;
         const badgeH = 26;
-        if (n.type === 'VULNERABILITY' && n.riskScore > 0) {
+        if (n.type === 'vulnerability' && n.riskScore > 0) {
             // Risk score badge (large, gradient background)
             const riskLabel = _acGetRiskLabel(n.riskScore);
             const badgeText = `${riskLabel} · ${n.riskScore}`;
@@ -8760,7 +8760,7 @@ function _acBuildSvgString() {
                 parts.push(`<circle cx="${bx + 12}" cy="${badgeY + badgeH / 2}" r="3" fill="${theme.primary}"/>`);
                 parts.push(`<text x="${bx + 20}" y="${badgeY + badgeH / 2 + 4.5}" font-size="11.5" font-weight="700" fill="${theme.dark}">${_acEscapeXml(text)}</text>`);
             }
-        } else if (n.type === 'TARGET') {
+        } else if (n.type === 'target') {
             // Show "TARGET" badge for target nodes
             const badgeW = 60;
             const bx = x + n.w - badgeW - padX;
@@ -8786,15 +8786,15 @@ function _acBuildSvgString() {
 
         // Generate meta-info text
         const metaItems = [];
-        if (n.type === 'TARGET') {
-            const tgt = (n.metadata && n.metadata.TARGET) ? n.metadata.TARGET : null;
+        if (n.type === 'target') {
+            const tgt = (n.metadata && n.metadata.target) ? n.metadata.target : null;
             if (tgt) metaItems.push({ icon: 'loc', text: _acTruncateToWidth(tgt, 26) });
-        } else if (n.type === 'ACTION') {
+        } else if (n.type === 'action') {
             const toolName = n.metadata && n.metadata.tool_name;
             if (toolName) metaItems.push({ icon: 'tool', text: _acTruncateToWidth(toolName, 20) });
             const intent = n.metadata && n.metadata.tool_intent;
             if (intent) metaItems.push({ icon: 'aim', text: _acTruncateToWidth(intent, 22) });
-        } else if (n.type === 'VULNERABILITY') {
+        } else if (n.type === 'vulnerability') {
             const vt = n.metadata && n.metadata.vulnerability_type;
             if (vt) metaItems.push({ icon: 'shield', text: _acTruncateToWidth(vt, 22) });
             const sev = n.metadata && n.metadata.severity;
@@ -8920,20 +8920,20 @@ function _acBuildSvgString() {
     // Right timestamp
     parts.push(`<text x="${OUTER_PAD + contentW - 40}" y="${fY + 38}" font-size="11.5" font-weight="500" fill="#94A3B8" text-anchor="end">${_acEscapeXml(ts)}</text>`);
 
-    parts.push(`</SVG>`);
+    parts.push(`</svg>`);
     return parts.join('\n');
 }
 
 // Download a text file
 function _acDownloadBlob(blob, fileName) {
-    const URL = URL.createObjectURL(blob);
+    const objectURL = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = URL;
+    a.href = objectURL;
     a.download = fileName;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(URL), 150);
+    setTimeout(() => URL.revokeObjectURL(objectURL), 150);
 }
 
 // Generate a high-resolution PNG from an SVG string
@@ -8946,8 +8946,8 @@ function _acSvgToPng(svgString, scale) {
             const h = m ? parseFloat(m[2]) : 900;
             const s = scale || Math.min(2.5, Math.max(1.5, 2000 / Math.max(w, h)));
 
-            const blob = new Blob([svgString], { type: 'image/SVG+XML;charset=UTF-8' });
-            const URL = URL.createObjectURL(blob);
+            const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+            const objectURL = URL.createObjectURL(blob);
             const img = new Image();
             img.onload = function () {
                 try {
@@ -8955,26 +8955,26 @@ function _acSvgToPng(svgString, scale) {
                     canvas.width = Math.round(w * s);
                     canvas.height = Math.round(h * s);
                     const ctx = canvas.getContext('2d');
-                    ctx.imageSmoothingenabled = true;
+                    ctx.imageSmoothingEnabled = true;
                     ctx.imageSmoothingQuality = 'high';
                     ctx.fillStyle = '#FFFFFF';
                     ctx.fillRect(0, 0, canvas.width, canvas.height);
                     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                    URL.revokeObjectURL(URL);
+                    URL.revokeObjectURL(objectURL);
                     canvas.toBlob(pngBlob => {
                         if (!pngBlob) reject(new Error('PNG Generation failed'));
                         else resolve(pngBlob);
-                    }, 'image/PNG', 0.95);
+                    }, 'image/png', 0.95);
                 } catch (err) {
-                    URL.revokeObjectURL(URL);
+                    URL.revokeObjectURL(objectURL);
                     reject(err);
                 }
             };
             img.onerror = function (e) {
-                URL.revokeObjectURL(URL);
+                URL.revokeObjectURL(objectURL);
                 reject(new Error('SVG Load failed'));
             };
-            img.src = URL;
+            img.src = objectURL;
         } catch (e) {
             reject(e);
         }
@@ -8996,7 +8996,7 @@ function exportAttackChain(format) {
             const tsName = Date.now();
 
             if (format === 'SVG') {
-                const blob = new Blob([svgString], { type: 'image/SVG+XML;charset=UTF-8' });
+                const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
                 _acDownloadBlob(blob, `attack-chain-${convId}-${tsName}.SVG`);
             } else if (format === 'PNG') {
                 _acSvgToPng(svgString, 2)
@@ -9311,7 +9311,7 @@ function initSimpleCustomSelect(selectId) {
     });
 
     dropdown.addEventListener('click', (e) => {
-        const opt = e.TARGET.closest('.conversation-project-filter-option');
+        const opt = e.target.closest('.conversation-project-filter-option');
         if (!opt) return;
         e.stopPropagation();
         const val = opt.getAttribute('data-value');
@@ -9389,7 +9389,7 @@ function initProjectFilterCustomSelect(selectId) {
     });
 
     dropdown.addEventListener('click', (e) => {
-        const opt = e.TARGET.closest('.conversation-project-filter-option');
+        const opt = e.target.closest('.conversation-project-filter-option');
         if (!opt) return;
         e.stopPropagation();
         const val = opt.getAttribute('data-value');
@@ -9614,7 +9614,7 @@ if (!window.__conversationSortMenuBound) {
     window.__conversationSortMenuBound = true;
     document.addEventListener('click', (event) => {
         const dropdown = document.getElementById('conversation-sort-dropdown');
-        if (!dropdown || dropdown.contains(event.TARGET)) return;
+        if (!dropdown || dropdown.contains(event.target)) return;
         closeConversationSortMenu();
     });
     document.addEventListener('keydown', (event) => {
@@ -9682,12 +9682,12 @@ function reconcileConversationsPageAfterTotal(activePage, intentPage, parsed,  p
         return { ok: true, total };
     }
 
-    const serverTotal = parseListTotalValue(parsed.total, parsed. items.length);
-    const hasPageData = parsed. items.length > 0;
+    const serverTotal = parseListTotalValue(parsed.total, parsed.items.length);
+    const hasPageData = parsed.items.length > 0;
     const knownTotal = conversationsPagination.total || 0;
     // If the user actively paged and the server has data for that page, do not trust a stale/low total (prevents 2→1 clamp back to page 1)
     if (intentPage != null && (hasPageData || serverTotal > offset || total > offset || knownTotal > offset)) {
-        total = Math.max(total, serverTotal, knownTotal, offset + parsed. items.length);
+        total = Math.max(total, serverTotal, knownTotal, offset + parsed.items.length);
         if (activePage <= totalPages()) {
             return { ok: true, total };
         }
@@ -9719,17 +9719,17 @@ function initConversationsPaginationEvents() {
     if (!el) return;
     conversationsPaginationEventsBound = true;
     el.addEventListener('click', (e) => {
-        const btn = e.TARGET.closest('[data-conv- page]');
+        const btn = e.target.closest('[data-conv-page]');
         if (!btn || btn.disabled) return;
         e.preventDefault();
-        const  page = parseInt(btn.getAttribute('data-conv- page'), 10);
+        const  page = parseInt(btn.getAttribute('data-conv-page'), 10);
         if (Number.isFinite( page)) {
             goConversationsPage( page);
         }
     });
     el.addEventListener('change', (e) => {
         if (conversationsPaginationRenderLock) return;
-        if (e.TARGET && e.TARGET.id === 'conversations- page-size-pagination') {
+        if (e.target && e.target.id === 'conversations-page-size-pagination') {
             changeConversationsPageSize();
         }
     });
@@ -9757,7 +9757,7 @@ function parseConversationsListResponse(data) {
     if (Array.isArray(data)) {
         return {  items: data, total: data.length, limit: data.length, offset: 0, isLegacyArray: true };
     }
-    const items = data.conversations || data. items || [];
+    const items = data.conversations || data.items || [];
     const arr = Array.isArray( items) ?  items : [];
     return {
          items: arr,
@@ -9773,25 +9773,25 @@ async function resolveConversationsListTotal(params, parsed,  pageSize, offset) 
     if (!parsed.isLegacyArray && typeof serverTotal === 'number' && Number.isFinite(serverTotal) && serverTotal >= 0) {
         return serverTotal;
     }
-    if (!parsed.isLegacyArray && serverTotal > offset + parsed. items.length) {
+    if (!parsed.isLegacyArray && serverTotal > offset + parsed.items.length) {
         return serverTotal;
     }
-    if (parsed. items.length <  pageSize) {
-        return Math.max(serverTotal, offset + parsed. items.length);
+    if (parsed.items.length <  pageSize) {
+        return Math.max(serverTotal, offset + parsed.items.length);
     }
     const probe = new URLSearchParams(params);
     probe.set('offset', String(offset +  pageSize));
     probe.set('limit', '1');
     try {
         const res = await apiFetch(`/api/conversations?${probe}`);
-        if (!res.ok) return Math.max(serverTotal, offset + parsed. items.length);
+        if (!res.ok) return Math.max(serverTotal, offset + parsed.items.length);
         const probeParsed = parseConversationsListResponse(await res.json());
         if (probeParsed.total > serverTotal) return probeParsed.total;
-        if (probeParsed. items.length > 0) {
+        if (probeParsed.items.length > 0) {
             return Math.max(serverTotal, offset +  pageSize + 1);
         }
     } catch (e) { /* ignore */ }
-    return Math.max(serverTotal, offset + parsed. items.length);
+    return Math.max(serverTotal, offset + parsed.items.length);
 }
 
 async function fetchAllConversations(searchQuery) {
@@ -9806,10 +9806,10 @@ async function fetchAllConversations(searchQuery) {
         const res = await apiFetch(`/api/conversations?${params}`);
         if (!res.ok) throw new Error('load conversations failed');
         const parsed = parseConversationsListResponse(await res.json());
-        all = all.concat(parsed. items);
+        all = all.concat(parsed.items);
         total = parsed.total;
-        if (!parsed. items.length) break;
-        offset += parsed. items.length;
+        if (!parsed.items.length) break;
+        offset += parsed.items.length;
     }
     return all;
 }
@@ -9863,13 +9863,13 @@ function renderConversationsPagination(visibleCount) {
         <div class="sidebar-list-pagination-inner sidebar-list-pagination-inner--compact">
             <span class="pagination-info">${escapeHtml(infoText)}</span>
             <div class="pagination-controls">
-                <button type="button" class="btn-icon-pagination" data-conv- page="${prevPage}" ${ page <= 1 || navDisabled ? 'disabled' : ''} title="${escapeHtml(prevLabel)}" aria-label="${escapeHtml(prevLabel)}">‹</button>
+                <button type="button" class="btn-icon-pagination" data-conv-page="${prevPage}" ${ page <= 1 || navDisabled ? 'disabled' : ''} title="${escapeHtml(prevLabel)}" aria-label="${escapeHtml(prevLabel)}">‹</button>
                 <span class="pagination-page">${escapeHtml( pageText)}</span>
-                <button type="button" class="btn-icon-pagination" data-conv- page="${nextPage}" ${ page >= totalPages || navDisabled ? 'disabled' : ''} title="${escapeHtml(nextLabel)}" aria-label="${escapeHtml(nextLabel)}">›</button>
+                <button type="button" class="btn-icon-pagination" data-conv-page="${nextPage}" ${ page >= totalPages || navDisabled ? 'disabled' : ''} title="${escapeHtml(nextLabel)}" aria-label="${escapeHtml(nextLabel)}">›</button>
             </div>
             <label class="pagination-page-size">
                 ${escapeHtml(perPageLabel)}
-                <select ID="conversations- page-size-pagination">
+                <select id="conversations-page-size-pagination">
                     <option value="20" ${ pageSize === 20 ? 'selected' : ''}>20</option>
                     <option value="50" ${ pageSize === 50 ? 'selected' : ''}>50</option>
                     <option value="100" ${ pageSize === 100 ? 'selected' : ''}>100</option>
@@ -9893,7 +9893,7 @@ function goConversationsPage( page) {
 }
 
 function changeConversationsPageSize() {
-    const sel = document.getElementById('conversations- page-size-pagination');
+    const sel = document.getElementById('conversations-page-size-pagination');
     const newSize = sel ? parseInt(sel.value, 10) : 50;
     if (![20, 50, 100].includes(newSize)) return;
     // After rebuilding the DOM, the browser may fire a change event asynchronously; do not reset the page number if the value hasn't changed
@@ -9993,7 +9993,7 @@ async function loadConversations(searchQuery = '', options = {}) {
         // Safety net: if duplicate IDs appear (backend bug or concurrency), de-duplicate client-side by ID
         const uniqueConversations = [];
         const seenConversationIds = new Set();
-        parsed. items.forEach(conv => {
+        parsed.items.forEach(conv => {
             if (!conv || !conv.id || seenConversationIds.has(conv.id)) {
                 return;
             }
@@ -10355,8 +10355,8 @@ async function showConversationContextMenu(event) {
     const closeMenu = (e) => {
         // Check whether the click is inside the main menu or submenu
         const downloadMarkdownSubmenuEl = document.getElementById('download-markdown-submenu');
-        const clickedInMenu = menu.contains(e.TARGET);
-        const clickedIndownloadSubmenu = downloadMarkdownSubmenuEl && downloadMarkdownSubmenuEl.contains(e.TARGET);
+        const clickedInMenu = menu.contains(e.target);
+        const clickedIndownloadSubmenu = downloadMarkdownSubmenuEl && downloadMarkdownSubmenuEl.contains(e.target);
 
         if (!clickedInMenu && !clickedIndownloadSubmenu) {
             closeContextMenu();
@@ -10406,7 +10406,7 @@ function ensureConversationRenameModal() {
             </div>
         </div>`;
     modal.addEventListener('click', (event) => {
-        if (event.TARGET === modal) closeConversationRenameModal();
+        if (event.target === modal) closeConversationRenameModal();
     });
     modal.querySelectorAll('[data-conversation-rename-close]').forEach((button) => {
         button.addEventListener('click', closeConversationRenameModal);
@@ -10472,7 +10472,7 @@ async function saveConversationRename() {
         }
 
         // Update the frontend display
-        document.querySelectorAll('[data-conversation-idD]').forEach((item) => {
+        document.querySelectorAll('[data-conversation-id]').forEach((item) => {
             if (item.dataset.conversationId !== convId) return;
             item.querySelectorAll('.conversation-title, .project-conversation-title')
                 .forEach((titleEl) => {
@@ -10686,14 +10686,14 @@ async function downloadConversationMarkdownFromContext(includeToolDetails = fals
 
         const markdown = formatConversationAsMarkdown(conversation || {}, { includeToolDetails });
         const blob = new Blob([markdown], { type: 'text/markdown;charset=UTF-8' });
-        const URL = URL.createObjectURL(blob);
+        const objectURL = URL.createObjectURL(blob);
         const link = document.createElement('a');
-        link.href = URL;
+        link.href = objectURL;
         link.download = buildConversationMarkdownFileName(conversation || {}, { includeToolDetails });
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        URL.revokeObjectURL(URL);
+        URL.revokeObjectURL(objectURL);
     } catch (error) {
         console.error('downloadChat Markdown failed:', error);
         const failedLabel = typeof window.t === 'function' ? window.t('chat.downloadConversationFailed') : 'download failed';
@@ -11201,7 +11201,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const ID = e.detail && e.detail.conversationId;
         if (!ID) return;
         // Remove visible list items immediately after the API confirms deletion; the network refresh only reconciles pagination and counts.
-        document.querySelectorAll('.conversation-item[data-conversation-idD]')
+        document.querySelectorAll('.conversation-item[data-conversation-id]')
             .forEach((item) => {
                 if (item.dataset.conversationId === ID) item.remove();
             });

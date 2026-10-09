@@ -230,7 +230,7 @@ async function apiUploadWithProgress(url, formData, options = {}) {
         if (authToken) {
             xhr.setRequestHeader('Authorization', `Bearer ${authToken}`);
         }
-        xhr.upload.onProgress = (e) => {
+        xhr.upload.onprogress = (e) => {
             if (!onProgress || !e.lengthComputable) return;
             const percent = e.total > 0 ? Math.round((e.loaded / e.total) * 100) : 0;
             onProgress({ loaded: e.loaded, total: e.total, percent });
@@ -252,7 +252,7 @@ async function apiUploadWithProgress(url, formData, options = {}) {
                 ok: xhr.status >= 200 && xhr.status < 300,
                 status: xhr.status,
                 text: async () => responseText,
-                JSON: async () => {
+                json: async () => {
                     try {
                         return responseText ? JSON.parse(responseText) : {};
                     } catch (err) {

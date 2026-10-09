@@ -172,24 +172,24 @@ function escapeAttr(text) {
 
 function getFofaFormElements() {
     return {
-        query: document.getElementById('FOFA-query'),
-        provider: document.getElementById('FOFA-provider'),
-        nl: document.getElementById('FOFA-nl'),
-        size: document.getElementById('FOFA-size'),
-         page: document.getElementById('FOFA- page'),
-        fields: document.getElementById('FOFA-fields'),
-        full: document.getElementById('FOFA-full'),
-        meta: document.getElementById('FOFA-results-meta'),
-        selectedMeta: document.getElementById('FOFA-selected-meta'),
-        thead: document.getElementById('FOFA-results-thead'),
-        tbody: document.getElementById('FOFA-results-tbody'),
-        columnsPanel: document.getElementById('FOFA-columns-panel'),
-        columnsList: document.getElementById('FOFA-columns-list')
+        query: document.getElementById('fofa-query'),
+        provider: document.getElementById('fofa-provider'),
+        nl: document.getElementById('fofa-nl'),
+        size: document.getElementById('fofa-size'),
+         page: document.getElementById('fofa-page'),
+        fields: document.getElementById('fofa-fields'),
+        full: document.getElementById('fofa-full'),
+        meta: document.getElementById('fofa-results-meta'),
+        selectedMeta: document.getElementById('fofa-selected-meta'),
+        thead: document.getElementById('fofa-results-thead'),
+        tbody: document.getElementById('fofa-results-tbody'),
+        columnsPanel: document.getElementById('fofa-columns-panel'),
+        columnsList: document.getElementById('fofa-columns-list')
     };
 }
 
 function getInfoCollectProvider() {
-    const provider = (document.getElementById('FOFA-provider')?.value || 'FOFA').trim().toLowerCase();
+    const provider = (document.getElementById('fofa-provider')?.value || 'FOFA').trim().toLowerCase();
     return INFO_COLLECT_PROVIDERS[provider] ? provider : 'FOFA';
 }
 
@@ -354,7 +354,7 @@ function setInfoCollectQueryMode(mode, options) {
     }
 
     if (shouldFocus) {
-        const focusTarget = mode === 'natural' ? document.getElementById('FOFA-nl') : document.getElementById('FOFA-query');
+        const focusTarget = mode === 'natural' ? document.getElementById('fofa-nl') : document.getElementById('fofa-query');
         try { focusTarget?.focus(); } catch (e) { /* ignore */ }
     }
     scheduleInfoCollectQueryCardHeightStabilize();
@@ -549,7 +549,7 @@ function closeInfoCollectProviderSelect() {
 }
 
 function syncInfoCollectProviderSelect() {
-    const select = document.getElementById('FOFA-provider');
+    const select = document.getElementById('fofa-provider');
     const wrapper = document.querySelector('.info-collect-provider-select');
     if (!select || !wrapper) return;
     const value = wrapper.querySelector('.settings-custom-select-value');
@@ -630,7 +630,7 @@ function refreshInfoCollectProviderUI(resetProviderFields) {
     const queryHint = document.getElementById('info-collect-query-hint');
     const parseHint = document.getElementById('info-collect-parse-hint');
     const sizeHint = document.getElementById('info-collect-size-hint');
-    const parseBtn = document.getElementById('FOFA-nl-parse-btn');
+    const parseBtn = document.getElementById('fofa-nl-parse-btn');
     const presets = document.getElementById('info-collect-query-presets');
     const fieldPresets = document.getElementById('info-collect-fields-presets');
     const fullOption = document.getElementById('info-collect-full-option');
@@ -764,7 +764,7 @@ async function submitFofaSearch() {
     setFofaLoading(true);
 
     try {
-        const response = await apiFetch('/api/FOFA/search', {
+        const response = await apiFetch('/api/fofa/search', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ provider, query, size,  page, fields, full })
@@ -809,7 +809,7 @@ async function parseFofaNaturalLanguage() {
 
     // If not returned after a delay, emphasize still in progress
     fofaParseSlowTimer = setTimeout(() => {
-        const status = document.getElementById('FOFA-nl-status');
+        const status = document.getElementById('fofa-nl-status');
         if (status) {
             status.textContent = _t('infoCollect.parseSlow');
             status.style.display = 'block';
@@ -817,7 +817,7 @@ async function parseFofaNaturalLanguage() {
     }, 1800);
 
     try {
-        const resp = await apiFetch('/api/FOFA/parse', {
+        const resp = await apiFetch('/api/fofa/parse', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ provider, text }),
@@ -853,8 +853,8 @@ async function parseFofaNaturalLanguage() {
 }
 
 function setFofaParseLoading(loading, statusText) {
-    const btn = document.getElementById('FOFA-nl-parse-btn');
-    const status = document.getElementById('FOFA-nl-status');
+    const btn = document.getElementById('fofa-nl-parse-btn');
+    const status = document.getElementById('fofa-nl-status');
     if (btn) {
         if (loading) {
             if (!btn.dataset.originalText) btn.dataset.originalText = btn.textContent || _t('infoCollectPage.parseBtn');
@@ -888,7 +888,7 @@ function setFofaParseLoading(loading, statusText) {
 }
 
 function showFofaParseModal(nlText, parsed) {
-    const existing = document.getElementById('FOFA-parse-modal');
+    const existing = document.getElementById('fofa-parse-modal');
     if (existing) existing.remove();
 
     const provider = getInfoCollectProvider();
@@ -902,7 +902,7 @@ function showFofaParseModal(nlText, parsed) {
         : '<div class="muted info-collect-parse-warnings-empty">' + _t('infoCollect.none') + '</div>';
 
     const modal = document.createElement('div');
-    modal.id = 'FOFA-parse-modal';
+    modal.id = 'fofa-parse-modal';
     modal.className = 'modal';
     document.body.appendChild(modal);
     openAppModal(modal, { focus: false });
@@ -946,7 +946,7 @@ function showFofaParseModal(nlText, parsed) {
         </div>
     `;
 
-    const queryTextarea = document.getElementById('FOFA-parse-query');
+    const queryTextarea = document.getElementById('fofa-parse-query');
     if (queryTextarea) {
         queryTextarea.value = (parsed?.query || '').trim();
         queryTextarea.focus();
@@ -960,8 +960,8 @@ function showFofaParseModal(nlText, parsed) {
     modal.addEventListener('click', function (e) {
         if (e.target === modal) close();
     });
-    document.getElementById('FOFA-parse-modal-close')?.addEventListener('click', close);
-    document.getElementById('FOFA-parse-cancel')?.addEventListener('click', close);
+    document.getElementById('fofa-parse-modal-close')?.addEventListener('click', close);
+    document.getElementById('fofa-parse-cancel')?.addEventListener('click', close);
 
     const applyToQuery = function (run) {
         const els = getFofaFormElements();
@@ -986,8 +986,8 @@ function showFofaParseModal(nlText, parsed) {
         if (run) submitFofaSearch();
     };
 
-    document.getElementById('FOFA-parse-apply')?.addEventListener('click', () => applyToQuery(false));
-    document.getElementById('FOFA-parse-apply-run')?.addEventListener('click', () => applyToQuery(true));
+    document.getElementById('fofa-parse-apply')?.addEventListener('click', () => applyToQuery(false));
+    document.getElementById('fofa-parse-apply-run')?.addEventListener('click', () => applyToQuery(true));
 
     // Esc Close
     const onKey = (e) => {
@@ -1034,7 +1034,7 @@ function setFofaLoading(loading) {
     const els = getFofaFormElements();
     if (!els.tbody) return;
     if (loading) {
-        const fieldsCount = (document.getElementById('FOFA-fields')?.value || '').split(',').filter(Boolean).length;
+        const fieldsCount = (document.getElementById('fofa-fields')?.value || '').split(',').filter(Boolean).length;
         const colspan = Math.max(1, fieldsCount + 1);
         els.tbody.innerHTML = '<tr><td class="muted" style="padding: 16px;" colspan="' + colspan + '">' + escapeHtml(_t('infoCollect.loading')) + '</td></tr>';
     }
@@ -1299,7 +1299,7 @@ function scanFofaRow(encodedRowJson, clickEvent) {
         console.warn('Failed to parse row data', e);
     }
 
-    const fields = (document.getElementById('FOFA-fields')?.value || '').split(',').map(s => s.trim()).filter(Boolean);
+    const fields = (document.getElementById('fofa-fields')?.value || '').split(',').map(s => s.trim()).filter(Boolean);
     const target = inferTargetFromRow(row, fields);
     if (!target) {
         alert(_t('infoCollect.cannotInferTarget'));
@@ -1404,7 +1404,7 @@ function bindFofaTableEvents() {
     // Select all in thead
     document.addEventListener('change', (e) => {
         const t = e.target;
-        if (!t || t.id !== 'FOFA-select-all') return;
+        if (!t || t.id !== 'fofa-select-all') return;
         const checked = !!t.checked;
         toggleSelectAllRows(checked);
     });
@@ -1425,7 +1425,7 @@ function toggleSelectAllRows(checked) {
 }
 
 function syncSelectAllCheckbox() {
-    const selectAll = document.getElementById('FOFA-select-all');
+    const selectAll = document.getElementById('fofa-select-all');
     const els = getFofaFormElements();
     if (!selectAll || !els.tbody) return;
     const boxes = els.tbody.querySelectorAll('input.FOFA-row-select');
@@ -1490,7 +1490,7 @@ function closeFofaColumnsPanel() {
 
 // Click outside panel to close
 document.addEventListener('click', (e) => {
-    const panel = document.getElementById('FOFA-columns-panel');
+    const panel = document.getElementById('fofa-columns-panel');
     const btn = e.target && e.target.closest ? e.target.closest('button') : null;
     const isColumnsBtn = btn && btn.getAttribute && btn.getAttribute('onclick') && String(btn.getAttribute('onclick')).includes('toggleFofaColumnsPanel');
     if (!panel || panel.style.display === 'none') return;
@@ -1578,14 +1578,14 @@ function csvEscape(value) {
 
 function downloadBlob(content, filename, mime) {
     const blob = new Blob([content], { type: mime });
-    const URL = URL.createObjectURL(blob);
+    const objectURL = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = URL;
+    a.href = objectURL;
     a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    URL.revokeObjectURL(URL);
+    URL.revokeObjectURL(objectURL);
 }
 
 async function batchScanSelectedFofaRows() {

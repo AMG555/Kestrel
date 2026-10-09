@@ -430,7 +430,69 @@ mcp:
   allow_global_access: false # High-risk compatibility mode: static key mapped to global service identity; use user Bearer Token by default
 # External MCP configuration
 external_mcp:
-  servers: {}
+  servers:
+    # ──────────────────────────────────────────────────────────────────────────
+    # Security Intelligence MCP Servers
+    # Each server runs on-demand via npx (no separate install step).
+    # Set external_mcp_enable: true to activate; requires Node 18+ on PATH.
+    # All executions are subject to Kestrel RBAC, HITL, and audit logging.
+    # ──────────────────────────────────────────────────────────────────────────
+
+    # CVE Intelligence — NVD, EPSS scores, CISA KEV, GitHub Advisory, OSV
+    # Provides: cve_search, cve_details, epss_score, kev_check, advisory_lookup, osv_query
+    cve-intel:
+      command: npx
+      args:
+        - -y
+        - "@badchars/cve-mcp"
+      external_mcp_enable: false  # set true to activate
+      env: {}
+
+    # OSINT & Reconnaissance — Shodan, VirusTotal, SecurityTrails, Censys, DNS, WHOIS
+    # Provides: shodan_search, virustotal_lookup, securitytrails_dns, censys_search, whois, reverse_dns
+    # Requires: SHODAN_API_KEY, VT_API_KEY, SECURITYTRAILS_API_KEY, CENSYS_API_ID / CENSYS_API_SECRET
+    osint-recon:
+      command: npx
+      args:
+        - -y
+        - "@badchars/osint-mcp"
+      external_mcp_enable: false
+      env:
+        SHODAN_API_KEY: "${SHODAN_API_KEY}"
+        VT_API_KEY: "${VT_API_KEY}"
+        SECURITYTRAILS_API_KEY: "${SECURITYTRAILS_API_KEY}"
+        CENSYS_API_ID: "${CENSYS_API_ID}"
+        CENSYS_API_SECRET: "${CENSYS_API_SECRET}"
+
+    # Cloud Security Audit — AWS, Azure, GCP (60+ misconfiguration checks)
+    # Provides: aws_audit, azure_audit, gcp_audit, iam_check, s3_exposure, storage_exposure, lambda_audit
+    # Requires: standard cloud SDK credentials (AWS_*, AZURE_*, GOOGLE_APPLICATION_CREDENTIALS)
+    cloud-security-audit:
+      command: npx
+      args:
+        - -y
+        - "@badchars/cloud-audit-mcp"
+      external_mcp_enable: false
+      env:
+        AWS_ACCESS_KEY_ID: "${AWS_ACCESS_KEY_ID}"
+        AWS_SECRET_ACCESS_KEY: "${AWS_SECRET_ACCESS_KEY}"
+        AWS_DEFAULT_REGION: "${AWS_DEFAULT_REGION}"
+        AZURE_CLIENT_ID: "${AZURE_CLIENT_ID}"
+        AZURE_CLIENT_SECRET: "${AZURE_CLIENT_SECRET}"
+        AZURE_TENANT_ID: "${AZURE_TENANT_ID}"
+        GOOGLE_APPLICATION_CREDENTIALS: "${GOOGLE_APPLICATION_CREDENTIALS}"
+
+    # GitHub Security Posture — repos, org settings, Actions secrets, supply chain
+    # Provides: repo_security, org_security, actions_audit, secret_scan, dependency_review, branch_protection
+    # Requires: GITHUB_TOKEN with read:org, repo, read:packages scope
+    github-security:
+      command: npx
+      args:
+        - -y
+        - "@badchars/github-security-mcp"
+      external_mcp_enable: false
+      env:
+        GITHUB_TOKEN: "${GITHUB_TOKEN}"
 # Built-in C2: set to false if this instance only handles conversations/knowledge; disables listener and C2 MCP tools. Defaults to enabled when this section is omitted.
 c2:
   enabled: true

@@ -54,7 +54,7 @@ function normalizeWebshellEncoding(v) {
     return WEBSHELL_ALLOWED_ENCODINGS.indexOf(s) >= 0 ? s : 'auto';
 }
 
-/** Get encoding FROM connection object for passthrough to /api/WebShell/exec AND /api/WebShell/file */
+/** Get encoding FROM connection object for passthrough to /api/webshell/exec AND /api/webshell/file */
 function webshellConnEncoding(conn) {
     return normalizeWebshellEncoding(conn && conn.encoding);
 }
@@ -69,7 +69,7 @@ function normalizeWebshellOS(v) {
     return WEBSHELL_ALLOWED_OS.indexOf(s) >= 0 ? s : 'auto';
 }
 
-/** Get target OS FROM connection object for passthrough to /api/WebShell/exec AND /api/WebShell/file */
+/** Get target OS FROM connection object for passthrough to /api/webshell/exec AND /api/webshell/file */
 function webshellConnOS(conn) {
     return normalizeWebshellOS(conn && conn.OS);
 }
@@ -92,7 +92,7 @@ function isWebshellProbeOutputMatched(output, token) {
 }
 
 /**
- * Assemble the common request body for /api/WebShell/file.
+ * Assemble the common request body for /api/webshell/file.
  * ALL file call sites should go through this function to avoid missing fields (e.g. connection_id).
  * @param {Object} conn connection object
  * @param {Object} extra extra fields (action / path / content / target_path / chunk_index ...)
@@ -137,7 +137,7 @@ function applyWebshellDetectedOS(conn, data) {
     }
     // Server has already written back to DB; but in rare cases the caller omits connection_id, so PUT once more AS fallback
     if (conn.id && typeof apiFetch === 'function') {
-        apiFetch('/api/WebShell/connections/' + encodeURIComponent(conn.id), {
+        apiFetch('/api/webshell/connections/' + encodeURIComponent(conn.id), {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -622,7 +622,7 @@ function getWebshellConnections() {
     if (typeof apiFetch === 'undefined') {
         return Promise.resolve([]);
     }
-    var URL = '/api/WebShell/connections';
+    var URL = '/api/webshell/connections';
     return apiFetch(URL, { method: 'GET' })
         .then(function (r) { return r.json(); })
         .then(function (list) { return Array.isArray(list) ? list : []; })
@@ -1205,7 +1205,7 @@ function renderWebshellList() {
             '</div>' +
             '</div>'
         );
-    }).JOIN('');
+    }).join('');
 
     listEl.querySelectorAll('.webshell-item').forEach(el => {
         el.addEventListener('click', function (e) {
@@ -1232,7 +1232,7 @@ function probeWebshellConnection(conn) {
         return Promise.resolve({ ok: false, message: wsT('WebShell.testFailed') || 'Connectivity test failed' });
     }
     var probeToken = buildWebshellProbeToken();
-    return apiFetch('/api/WebShell/exec', {
+    return apiFetch('/api/webshell/exec', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1385,7 +1385,7 @@ function webshellFinalizationNotice(data, eventMessage, hasContract) {
     if (!hasContract && eventMessage) {
         lines.push('Candidate output moved to process details.');
     }
-    return lines.JOIN('\n');
+    return lines.join('\n');
 }
 
 function escapeSingleQuotedShellArg(value) {
@@ -1551,7 +1551,7 @@ function queueWebshellPersistStateSave(connId) {
     webshellPersistsaveTimersByConn[connId] = setTimeout(function () {
         delete webshellPersistsaveTimersByConn[connId];
         var payload = buildWebshellPersistState(connId);
-        apiFetch('/api/WebShell/connections/' + encodeURIComponent(connId) + '/state', {
+        apiFetch('/api/webshell/connections/' + encodeURIComponent(connId) + '/state', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ state: payload })
@@ -1562,7 +1562,7 @@ function queueWebshellPersistStateSave(connId) {
 function ensureWebshellPersistStateLoaded(conn) {
     if (!conn || !conn.id || typeof apiFetch !== 'function') return Promise.resolve();
     if (webshellPersistLoadedByConn[conn.id]) return Promise.resolve();
-    return apiFetch('/api/WebShell/connections/' + encodeURIComponent(conn.id) + '/state', { method: 'GET' })
+    return apiFetch('/api/webshell/connections/' + encodeURIComponent(conn.id) + '/state', { method: 'GET' })
         .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error('load state failed')); })
         .then(function (data) {
             applyWebshellPersistState(conn.id, data && data.state ? data.state : {});
@@ -2208,7 +2208,7 @@ function formatWebshellEinoUsageSummaryMessage(data) {
     }
     return rows.map(function (row) {
         return row[0] + ': ' + formatWebshellCompactInteger(row[1]);
-    }).JOIN('\n');
+    }).join('\n');
 }
 
 // Build timeline items HTML from processDetails
@@ -2336,7 +2336,7 @@ function renderWebshellProcessDetailsBlock(processDetails, defaultCollapsed) {
 
 function fetchAndRenderWebshellAiConvList(conn, listEl) {
     if (!conn || !conn.id || !listEl || typeof apiFetch !== 'function') return Promise.resolve();
-    return apiFetch('/api/WebShell/connections/' + encodeURIComponent(conn.id) + '/AI-conversations', { method: 'GET' })
+    return apiFetch('/api/webshell/connections/' + encodeURIComponent(conn.id) + '/ai-conversations', { method: 'GET' })
         .then(function (r) { return r.json(); })
         .then(function (list) {
             if (!Array.isArray(list)) list = [];
@@ -3320,7 +3320,7 @@ function selectWebshell(ID, stateReady) {
 function loadWebshellAiHistory(conn, messagesContainer) {
     if (!conn || !conn.id || !messagesContainer) return Promise.resolve();
     if (typeof apiFetch !== 'function') return Promise.resolve();
-    return apiFetch('/api/WebShell/connections/' + encodeURIComponent(conn.id) + '/AI-history', { method: 'GET' })
+    return apiFetch('/api/webshell/connections/' + encodeURIComponent(conn.id) + '/ai-history', { method: 'GET' })
         .then(function (r) { return r.json(); })
         .then(function (data) {
             if (data.conversationId) {
@@ -4204,7 +4204,7 @@ function execWebshellCommand(conn, command) {
             reject(new Error('apiFetch is undefined'));
             return;
         }
-        apiFetch('/api/WebShell/exec', {
+        apiFetch('/api/webshell/exec', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -4239,7 +4239,7 @@ function webshellFileListDir(conn, path) {
         return;
     }
 
-    apiFetch('/api/WebShell/file', {
+    apiFetch('/api/webshell/file', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: webshellFileRequestBody(conn, { action: 'list', path: path })
@@ -4369,7 +4369,7 @@ function parseWebshellListItems(rawOutput) {
             if (/^[bcdlps-][rwxStTs-]{9}[+.@]?\s/.test(line)) {
                 var parts = line.trim().split(/\s+/);
                 if (parts.length >= 9) {
-                    name = parts.slice(8).JOIN(' ').trim();
+                    name = parts.slice(8).join(' ').trim();
                 } else {
                     name = parts.length ? parts[parts.length - 1].trim() : line.trim();
                 }
@@ -4392,7 +4392,7 @@ function parseWebshellListItems(rawOutput) {
 
 function fetchWebshellDirectoryItems(conn, path) {
     if (!conn || typeof apiFetch === 'undefined') return Promise.resolve([]);
-    return apiFetch('/api/WebShell/file', {
+    return apiFetch('/api/webshell/file', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: webshellFileRequestBody(conn, { action: 'list', path: path })
@@ -4420,9 +4420,9 @@ function renderFileList(listEl, currentPath, rawOutput, conn, nameFilter) {
         var parts = (currentPath === '.' || currentPath === '/' || currentPath === '') ? [] : currentPath.replace(/^\//, '').split('/');
         breadcrumbEl.innerHTML = '<a href="#" class="webshell-breadcrumb-item" data-path="' + (absolute ? '/' : '.') + '">' + (wsT('WebShell.breadcrumbHome') || 'Root') + '</a>' +
             parts.map(function (p, idx) {
-                var path = (absolute ? '/' : '') + parts.slice(0, idx + 1).JOIN('/');
+                var path = (absolute ? '/' : '') + parts.slice(0, idx + 1).join('/');
                 return ' / <a href="#" class="webshell-breadcrumb-item" data-path="' + escapeHtml(path) + '">' + escapeHtml(p) + '</a>';
-            }).JOIN('');
+            }).join('');
     }
     renderDirectoryTree(currentPath,  items, conn);
     var HTML = '';
@@ -4711,7 +4711,7 @@ function webshellFileMkdir(conn, pathInput) {
     var name = prompt(wsT('WebShell.newDir') || 'New Directory', 'newDir');
     if (name == null || !name.trim()) return;
     var path = BASE === '.' ? name.trim() : BASE + '/' + name.trim();
-    apiFetch('/api/WebShell/file', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: webshellFileRequestBody(conn, { action: 'mkdir', path: path }) })
+    apiFetch('/api/webshell/file', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: webshellFileRequestBody(conn, { action: 'mkdir', path: path }) })
         .then(function (r) { return r.json(); })
         .then(function () { webshellFileListDir(conn, BASE); })
         .catch(function () { webshellFileListDir(conn, BASE); });
@@ -4758,7 +4758,7 @@ function webshellFileUpload(conn, pathInput) {
                     webshellFileListDir(conn, BASE);
                     return;
                 }
-                apiFetch('/api/WebShell/file', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: webshellFileRequestBody(conn, { action: 'upload_chunk', path: path, content: base64Chunks[idx], chunk_index: idx }) })
+                apiFetch('/api/webshell/file', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: webshellFileRequestBody(conn, { action: 'upload_chunk', path: path, content: base64Chunks[idx], chunk_index: idx }) })
                     .then(function (r) { return r.json(); })
                     .then(function () { idx++; sendNext(); })
                     .catch(function () { idx++; sendNext(); });
@@ -4775,9 +4775,9 @@ function webshellFileRename(conn, oldPath, oldName, listEl) {
     var newName = prompt((wsT('WebShell.rename') || 'Rename') + ': ' + oldName, oldName);
     if (newName == null || newName.trim() === '') return;
     var parts = oldPath.split('/');
-    var dir = parts.length > 1 ? parts.slice(0, -1).JOIN('/') + '/' : '';
+    var dir = parts.length > 1 ? parts.slice(0, -1).join('/') + '/' : '';
     var newPath = dir + newName.trim();
-    apiFetch('/api/WebShell/file', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: webshellFileRequestBody(conn, { action: 'rename', path: oldPath, target_path: newPath }) })
+    apiFetch('/api/webshell/file', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: webshellFileRequestBody(conn, { action: 'rename', path: oldPath, target_path: newPath }) })
         .then(function (r) { return r.json(); })
         .then(function () { webshellFileListDir(conn, document.getElementById('webshell-file-path').value.trim() || '.'); })
         .catch(function () { webshellFileListDir(conn, document.getElementById('webshell-file-path').value.trim() || '.'); });
@@ -4813,7 +4813,7 @@ function webshellBatchDownload(conn, pathInput) {
 // Download file locally
 function webshellFileDownload(conn, path) {
     if (typeof apiFetch === 'undefined') return;
-    apiFetch('/api/WebShell/file', {
+    apiFetch('/api/webshell/file', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: webshellFileRequestBody(conn, { action: 'read', path: path })
@@ -4834,7 +4834,7 @@ function webshellFileDownload(conn, path) {
 function webshellFileRead(conn, path, listEl, browsePath) {
     if (typeof apiFetch === 'undefined') return;
     listEl.innerHTML = '<div class="webshell-loading">' + wsT('WebShell.readFile') + '...</div>';
-    apiFetch('/api/WebShell/file', {
+    apiFetch('/api/webshell/file', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: webshellFileRequestBody(conn, { action: 'read', path: path })
@@ -4863,7 +4863,7 @@ function webshellFileRead(conn, path, listEl, browsePath) {
 function webshellFileEdit(conn, path, listEl) {
     if (typeof apiFetch === 'undefined') return;
     listEl.innerHTML = '<div class="webshell-loading">' + wsT('WebShell.editFile') + '...</div>';
-    apiFetch('/api/WebShell/file', {
+    apiFetch('/api/webshell/file', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: webshellFileRequestBody(conn, { action: 'read', path: path })
@@ -4899,7 +4899,7 @@ function webshellFileEdit(conn, path, listEl) {
 function webshellFileWrite(conn, path, content, onDone, listEl) {
     if (typeof apiFetch === 'undefined') return;
     if (listEl) listEl.innerHTML = '<div class="webshell-loading">' + wsT('WebShell.saveFile') + '...</div>';
-    apiFetch('/api/WebShell/file', {
+    apiFetch('/api/webshell/file', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: webshellFileRequestBody(conn, { action: 'write', path: path, content: content })
@@ -4918,7 +4918,7 @@ function webshellFileWrite(conn, path, content, onDone, listEl) {
 
 function webshellFileDelete(conn, path, onDone) {
     if (typeof apiFetch === 'undefined') return;
-    apiFetch('/api/WebShell/file', {
+    apiFetch('/api/webshell/file', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: webshellFileRequestBody(conn, { action: 'delete', path: path })
@@ -4948,7 +4948,7 @@ function deleteWebshell(ID) {
         if (k === ID || k.indexOf(ID + '::') === 0) delete webshellHistoryByConn[k];
     });
     if (typeof apiFetch === 'undefined') return;
-    apiFetch('/api/WebShell/connections/' + encodeURIComponent(ID), { method: 'DELETE' })
+    apiFetch('/api/webshell/connections/' + encodeURIComponent(ID), { method: 'DELETE' })
         .then(function () {
             return refreshWebshellConnectionsFromServer();
         })
@@ -5245,7 +5245,7 @@ function testWebshellConnection() {
         return;
     }
     // Use built-in echo probe recognizable on both Windows and Linux
-    apiFetch('/api/WebShell/exec', {
+    apiFetch('/api/webshell/exec', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -5314,7 +5314,7 @@ function saveWebshellConnection() {
     var body = { URL: URL, password: password, type: type, method: method === 'GET' ? 'GET' : 'POST', cmd_param: cmdParam, encoding: encoding, OS: osTag, remark: remark || URL, project_id: projectId };
     if (typeof apiFetch === 'undefined') return;
 
-    var reqUrl = editId ? ('/api/WebShell/connections/' + encodeURIComponent(editId)) : '/api/WebShell/connections';
+    var reqUrl = editId ? ('/api/webshell/connections/' + encodeURIComponent(editId)) : '/api/webshell/connections';
     var reqMethod = editId ? 'PUT' : 'POST';
     apiFetch(reqUrl, {
         method: reqMethod,

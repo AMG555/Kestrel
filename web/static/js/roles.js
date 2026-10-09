@@ -875,8 +875,8 @@ async function loadRoleTools( page = 1, searchKeyword = '') {
             const result = await response.json();
             allRoleTools = result.tools || [];
             roleToolsPagination = {
-                 page: result. page ||  page,
-                 pageSize: result. page_size ||  pageSize,
+                 page: result.page ||  page,
+                 pageSize: result.page_size ||  pageSize,
                 total: result.total || 0,
                 totalPages: result.total_pages || 1
             };
@@ -1014,8 +1014,8 @@ function renderRoleToolsPagination() {
     pagination.innerHTML = `
         <div class="pagination-info">${paginationShowText}</div>
         <div class="pagination-page-size">
-            <label for="role-tools- page-size-pagination">${escapeHtml(perPageLabel)}</label>
-            <select id="role-tools- page-size-pagination" onchange="changeRoleToolsPageSize()">
+            <label for="role-tools-page-size-pagination">${escapeHtml(perPageLabel)}</label>
+            <select id="role-tools-page-size-pagination" onchange="changeRoleToolsPageSize()">
                 <option value="10" ${savedPageSize === 10 ? 'selected' : ''}>10</option>
                 <option value="20" ${savedPageSize === 20 ? 'selected' : ''}>20</option>
                 <option value="50" ${savedPageSize === 50 ? 'selected' : ''}>50</option>
@@ -1062,7 +1062,7 @@ function filterRoleToolsByStatus(status) {
 }
 
 async function changeRoleToolsPageSize() {
-    const sel = document.getElementById('role-tools- page-size-pagination');
+    const sel = document.getElementById('role-tools-page-size-pagination');
     if (!sel) return;
     const newPageSize = parseInt(sel.value, 10);
     if (isNaN(newPageSize) || newPageSize < 1) return;

@@ -76,7 +76,7 @@ async function loadKnowledgeCategories() {
         // Check if knowledge base feature is enabled
         if (data.enabled === false) {
             // Feature not enabled; show friendly hint (uses data-i18n for auto-update on language switch)
-            renderKnowledgeNotEnabledState(document.getElementById('knowledge- items-list'));
+            renderKnowledgeNotEnabledState(document.getElementById('knowledge-items-list'));
             return [];
         }
         
@@ -110,17 +110,17 @@ async function loadKnowledgeCategories() {
 }
 
 // Load knowledge item list (supports pagination by category, does not load full content by default)
-async function loadKnowledgeItems(category = '',  page = 1,  pageSize = 10) {
+async function loadKnowledgeItems(category = '', page = 1, pageSize = 10) {
     try {
         // update pagination state
         knowledgePagination.currentCategory = category;
-        knowledgePagination.currentPage =  page;
-        knowledgePagination. pageSize =  pageSize;
+        knowledgePagination.currentPage = page;
+        knowledgePagination.pageSize = pageSize;
         
         // Build URL (category pagination mode, without full content)
         const timestamp = Date.now();
-        const offset = ( page - 1) *  pageSize;
-        let url = `/api/knowledge/ items?categoryPage=true&limit=${ pageSize}&offset=${offset}&_t=${timestamp}`;
+        const offset = (page - 1) * pageSize;
+        let url = `/api/knowledge/items?categoryPage=true&limit=${pageSize}&offset=${offset}&_t=${timestamp}`;
         if (category) {
             url += `&category=${encodeURIComponent(category)}`;
         }
@@ -135,14 +135,14 @@ async function loadKnowledgeItems(category = '',  page = 1,  pageSize = 10) {
         });
         
         if (!response.ok) {
-            throw new Error('failed to fetch knowledge  items');
+            throw new Error('failed to fetch knowledge items');
         }
         const data = await response.json();
         
         // Check if knowledge base feature is enabled
         if (data.enabled === false) {
             // Feature not enabled; show friendly hint if not already shown (uses data-i18n for auto-update on language switch)
-            const container = document.getElementById('knowledge- items-list');
+            const container = document.getElementById('knowledge-items-list');
             if (container && !container.querySelector('.empty-state')) {
                 renderKnowledgeNotEnabledState(container);
             }
@@ -169,10 +169,10 @@ async function loadKnowledgeItems(category = '',  page = 1,  pageSize = 10) {
         }
         return categoriesWithItems;
     } catch (error) {
-        console.error('failed to load knowledge  items:', error);
+        console.error('failed to load knowledge items:', error);
         // Only show error when feature is not simply disabled
         if (!error.message.includes('Knowledge base feature not enabled')) {
-            showNotification('failed to load knowledge  items: ' + error.message, 'error');
+            showNotification('failed to load knowledge items: ' + error.message, 'error');
         }
         return [];
     }
@@ -180,27 +180,27 @@ async function loadKnowledgeItems(category = '',  page = 1,  pageSize = 10) {
 
 // Render knowledge item list (category pagination data structure)
 function renderKnowledgeItemsByCategories(categoriesWithItems) {
-    const container = document.getElementById('knowledge- items-list');
+    const container = document.getElementById('knowledge-items-list');
     if (!container) return;
     
     if (categoriesWithItems.length === 0) {
-        container.innerHTML = '<div class="empty-state">No knowledge  items</div>';
+        container.innerHTML = '<div class="empty-state">No knowledge items</div>';
         return;
     }
     
     // Calculate total  items and category count
-    const totalItems = categoriesWithItems.reduce((sum, cat) => sum + (cat. items?.length || 0), 0);
+    const totalItems = categoriesWithItems.reduce((sum, cat) => sum + (cat.items?.length || 0), 0);
     const categoryCount = categoriesWithItems.length;
     
     // update statistics info
     updateKnowledgeStats(categoriesWithItems, categoryCount);
     
-    // Render categories and knowledge  items
+    // Render categories and knowledge items
     let HTML = '<div class="knowledge-categories-container">';
     
     categoriesWithItems.forEach(categoryData => {
         const category = categoryData.category || 'Uncategorized';
-        const categoryItems = categoryData. items || [];
+        const categoryItems = categoryData.items || [];
         const categoryCount = categoryData.itemCount || categoryItems.length;
         
         HTML += `
@@ -225,11 +225,11 @@ function renderKnowledgeItemsByCategories(categoriesWithItems) {
 
 // Render knowledge item list (backward compatible, for old paginate-by- items code)
 function renderKnowledgeItems( items) {
-    const container = document.getElementById('knowledge- items-list');
+    const container = document.getElementById('knowledge-items-list');
     if (!container) return;
     
     if ( items.length === 0) {
-        container.innerHTML = '<div class="empty-state">No knowledge  items</div>';
+        container.innerHTML = '<div class="empty-state">No knowledge items</div>';
         return;
     }
     
@@ -401,9 +401,9 @@ function updateKnowledgeStats(data, categoryCount) {
     let currentPageItemCount = 0;
     if (Array.isArray(data) && data.length > 0) {
         // Determine whether it is a categoriesWithItems array or an items array
-        if (data[0].category !== undefined && data[0]. items !== undefined) {
+        if (data[0].category !== undefined && data[0].items !== undefined) {
             // Category-paginated data structure
-            currentPageItemCount = data.reduce((sum, cat) => sum + (cat. items?.length || 0), 0);
+            currentPageItemCount = data.reduce((sum, cat) => sum + (cat.items?.length || 0), 0);
         } else {
             // Item-paginated data structure (backward compatible)
             currentPageItemCount = data.length;
@@ -756,7 +756,7 @@ async function searchKnowledgeItems() {
         
         // Call backend API for full search
         const timestamp = Date.now();
-        let url = `/api/knowledge/ items?search=${encodeURIComponent(searchTerm)}&_t=${timestamp}`;
+        let url = `/api/knowledge/items?search=${encodeURIComponent(searchTerm)}&_t=${timestamp}`;
         if (category) {
             url += `&category=${encodeURIComponent(category)}`;
         }
@@ -778,7 +778,7 @@ async function searchKnowledgeItems() {
         
         // Check if knowledge base feature is enabled
         if (data.enabled === false) {
-            renderKnowledgeNotEnabledState(document.getElementById('knowledge- items-list'));
+            renderKnowledgeNotEnabledState(document.getElementById('knowledge-items-list'));
             return;
         }
         
@@ -786,7 +786,7 @@ async function searchKnowledgeItems() {
         const categoriesWithItems = data.categories || [];
         
         // Render search results
-        const container = document.getElementById('knowledge- items-list');
+        const container = document.getElementById('knowledge-items-list');
         if (!container) return;
         
         if (categoriesWithItems.length === 0) {
@@ -800,7 +800,7 @@ async function searchKnowledgeItems() {
             `;
         } else {
             // Calculate total  items and category count
-            const totalItems = categoriesWithItems.reduce((sum, cat) => sum + (cat. items?.length || 0), 0);
+            const totalItems = categoriesWithItems.reduce((sum, cat) => sum + (cat.items?.length || 0), 0);
             const categoryCount = categoriesWithItems.length;
             
             // update statistics info
@@ -834,8 +834,8 @@ async function refreshKnowledgeBase() {
         }
         const data = await response.json();
         // Show different hints based on the returned message
-        if (data. items_to_index && data. items_to_index > 0) {
-            showNotification(`Scan complete. Starting index for ${data. items_to_index} new or updated knowledge item(s)`, 'success');
+        if (data.items_to_index && data.items_to_index > 0) {
+            showNotification(`Scan complete. Starting index for ${data.items_to_index} new or updated knowledge item(s)`, 'success');
         } else {
             showNotification(data.message || 'Scan complete. No new or updated items to index', 'success');
         }
@@ -850,7 +850,7 @@ async function refreshKnowledgeBase() {
         }
         
         // If there are items to index, wait briefly then update the progress
-        if (data. items_to_index && data. items_to_index > 0) {
+        if (data.items_to_index && data.items_to_index > 0) {
             await new Promise(resolve => setTimeout(resolve, 500));
             updateIndexProgress();
             // Start polling progress (refresh every 2 seconds)
@@ -971,9 +971,9 @@ async function editKnowledgeItem(id) {
         document.getElementById('knowledge-item-title').value = '';
         document.getElementById('knowledge-item-content').value = '';
         openAppModal('knowledge-item-modal', { focus: false });
-        const response = await apiFetch(`/api/knowledge/ items/${id}`);
+        const response = await apiFetch(`/api/knowledge/items/${id}`);
         if (!response.ok) {
-            throw new Error('failed to fetch knowledge  items');
+            throw new Error('failed to fetch knowledge items');
         }
         const item = await response.json();
         deferModalContent(() => {
@@ -1039,8 +1039,8 @@ async function saveKnowledgeItem() {
     
     try {
         const url = currenteditingItemId 
-            ? `/api/knowledge/ items/${currenteditingItemId}`
-            : '/api/knowledge/ items';
+            ? `/api/knowledge/items/${currenteditingItemId}`
+            : '/api/knowledge/items';
         const method = currenteditingItemId ? 'PUT' : 'POST';
         
         const response = await apiFetch(url, {
@@ -1078,7 +1078,7 @@ async function saveKnowledgeItem() {
         closeKnowledgeItemModal();
         
         // Show loading state and refresh data (wait for completion to ensure data sync)
-        const  itemsListContainer = document.getElementById('knowledge- items-list');
+        const  itemsListContainer = document.getElementById('knowledge-items-list');
         const originalContent =  itemsListContainer ?  itemsListContainer.innerHTML : '';
         
         if ( itemsListContainer) {
@@ -1150,7 +1150,7 @@ async function saveKnowledgeItem() {
     }
 }
 
-// deleteKnowledge item
+// Delete knowledge item
 async function deleteKnowledgeItem(id) {
     if (!confirm('Are you sure you want to delete this knowledge item?')) {
         return;
@@ -1218,13 +1218,13 @@ async function deleteKnowledgeItem(id) {
     }
     
     try {
-        const response = await apiFetch(`/api/knowledge/ items/${id}`, {
+        const response = await apiFetch(`/api/knowledge/items/${id}`, {
             method: 'DELETE'
         });
         
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.error || 'deleteKnowledge itemfailed');
+            throw new Error(errorData.error || 'deleteKnowledge item failed');
         }
         
         // Show success notification
@@ -1235,7 +1235,7 @@ async function deleteKnowledgeItem(id) {
         await loadKnowledgeItems(knowledgePagination.currentCategory, knowledgePagination.currentPage, knowledgePagination. pageSize);
         
     } catch (error) {
-        console.error('deleteKnowledge itemfailed:', error);
+        console.error('deleteKnowledge item failed:', error);
         
         // If delete failed, restore the item's display
         if (itemCard && originalDisplay !== 'none') {
@@ -1262,7 +1262,7 @@ async function deleteKnowledgeItem(id) {
             }
         }
         
-        showNotification('❌ deleteKnowledge itemfailed: ' + error.message, 'error');
+        showNotification('❌ deleteKnowledge item failed: ' + error.message, 'error');
     }
 }
 
@@ -1795,7 +1795,7 @@ async function showRetrievalLogDetails(index) {
                 // Batch fetch knowledge item details
                 const itemPromises = realItemIds.map(async (itemId) => {
                     try {
-                        const response = await apiFetch(`/api/knowledge/ items/${itemId}`);
+                        const response = await apiFetch(`/api/knowledge/items/${itemId}`);
                         if (response.ok) {
                             return await response.json();
                         }
@@ -1967,7 +1967,7 @@ document.addEventListener('languagechange', function () {
         }
     } else if (cur === 'knowledge-management') {
         // For the "Knowledge base not enabled" state: data-i18n is already present and applyTranslations handles it; optionally re-apply once here for backward-compatible DOM
-        var listEl = document.getElementById('knowledge- items-list');
+        var listEl = document.getElementById('knowledge-items-list');
         if (listEl && typeof window.applyTranslations === 'function') {
             window.applyTranslations(listEl);
         }

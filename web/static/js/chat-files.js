@@ -412,9 +412,9 @@ async function loadChatFilesPage() {
         chatFilesRememberDisplayNames(chatFilesCache);
         chatFilesFoldersCache = Array.isArray(data.folders) ? data.folders : [];
         chatFilesTotal = Number.isFinite(Number(data.total)) ? Number(data.total) : chatFilesCache.length;
-        chatFilesPage = Number.isFinite(Number(data. page)) ? Math.max(1, Number(data. page)) : chatFilesPage;
-        if (Number.isFinite(Number(data. pageSize)) && Number(data. pageSize) > 0) {
-            chatFilesPageSize = Number(data. pageSize);
+        chatFilesPage = Number.isFinite(Number(data.page)) ? Math.max(1, Number(data.page)) : chatFilesPage;
+        if (Number.isFinite(Number(data.pageSize)) && Number(data.pageSize) > 0) {
+            chatFilesPageSize = Number(data.pageSize);
         }
         if (groupMode !== 'folder' && chatFilesTotal > 0 && chatFilesCache.length === 0 && chatFilesPage > chatFilesTotalPages()) {
             chatFilesPage = chatFilesTotalPages();

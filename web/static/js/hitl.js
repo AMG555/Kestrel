@@ -52,8 +52,8 @@ function hitlRenderExecutionResultBlock(payloadObj) {
 }
 
 function hitlFillLogModalReadonlySections(payloadObj) {
-    const ctxEl = document.getElementById('HITL-log-context-readonly');
-    const execEl = document.getElementById('HITL-log-execution-readonly');
+    const ctxEl = document.getElementById('hitl-log-context-readonly');
+    const execEl = document.getElementById('hitl-log-execution-readonly');
     const ctxHtml = hitlRenderContextBlocks(payloadObj);
     const execHtml = hitlRenderExecutionResultBlock(payloadObj);
     if (ctxEl) {
@@ -136,32 +136,32 @@ function initHitlPageSizeFromStorage(storageKey, fallbackSize, assignFn) {
     assignFn(fallbackSize);
 }
 
-function renderHitlPagination(containerId, state, goPageFnName,  pageSizeChangeFnName,  pageSizeSelectId) {
+function renderHitlPagination(containerId, state, goPageFnName, pageSizeChangeFnName, pageSizeSelectId) {
     const container = document.getElementById(containerId);
     if (!container) return;
     const esc = typeof escapeHtml === 'function' ? escapeHtml : function (s) { return String(s || ''); };
     const total = state.total || 0;
-    const currentPage = state. page || 1;
-    const pageSize = state. pageSize || 20;
-    const totalPages = Math.max(1, Math.ceil(total /  pageSize));
-    const start = total === 0 ? 0 : (currentPage - 1) *  pageSize + 1;
-    const end = total === 0 ? 0 : Math.min(currentPage *  pageSize, total);
-    const infoText = hitlPaginationT('pagination info', { start: start, end: end, total: total },
+    const currentPage = state.page || 1;
+    const pageSize = state.pageSize || 20;
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    const start = total === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+    const end = total === 0 ? 0 : Math.min(currentPage * pageSize, total);
+    const infoText = hitlPaginationT('paginationInfo', { start: start, end: end, total: total },
         'Showing ' + start + '-' + end + ' / Total ' + total + ' records');
     const perPageLabel = hitlPaginationT('perPageLabel', null, 'Per page');
-    const firstPageLabel = hitlPaginationT('firstPage', null, 'First  page');
+    const firstPageLabel = hitlPaginationT('firstPage', null, 'First page');
     const prevPageLabel = hitlPaginationT('prevPage', null, 'Previous');
     const pageInfoText = hitlPaginationT('pageInfo', { page: currentPage, total: totalPages },
-        'Round ' + currentPage + ' / ' + totalPages + '  page');
+        currentPage + ' / ' + totalPages);
     const nextPageLabel = hitlPaginationT('nextPage', null, 'Next');
-    const lastPageLabel = hitlPaginationT('lastPage', null, 'Last  page');
+    const lastPageLabel = hitlPaginationT('lastPage', null, 'Last page');
     const disabledFirst = currentPage === 1 || total === 0;
     const disabledLast = currentPage >= totalPages || total === 0;
     let html = '<div class="monitor-pagination">';
     html += '<div class="pagination-info">';
     html += '<span>' + esc(infoText) + '</span>';
     html += '<label class="pagination-page-size">' + esc(perPageLabel);
-    html += '<select ID="' + esc( pageSizeSelectId) + '" onchange="' + esc( pageSizeChangeFnName) + '()">';
+    html += '<select id="' + esc(pageSizeSelectId) + '" onchange="' + esc(pageSizeChangeFnName) + '()">';
     HITL_PAGE_SIZE_OPTIONS.forEach(function (n) {
         html += '<option value="' + n + '"' + ( pageSize === n ? ' selected' : '') + '>' + n + '</option>';
     });
@@ -396,7 +396,7 @@ function hitlPageToolsMergeDisplay(globalArr, sessionToolsArr) {
 }
 
 function showHitlPageWhitelistFeedback(text, isError) {
-    const el = document.getElementById('HITL- page-whitelist-feedback');
+    const el = document.getElementById('hitl-page-whitelist-feedback');
     if (!el) return;
     const msg = String(text || '').trim();
     if (!msg) {
@@ -461,7 +461,7 @@ function hitlPageWhitelistDisplayValue(globalArr, sessionArr) {
 }
 
 async function refreshHitlPageWhitelist() {
-    const ta = document.getElementById('HITL- page-sensitive-tools');
+    const ta = document.getElementById('hitl-page-sensitive-tools');
     if (!ta) return;
     const cached = typeof window !== 'undefined' && Array.isArray(window.csaiHitlGlobalToolWhitelist)
         ? window.csaiHitlGlobalToolWhitelist
@@ -511,8 +511,8 @@ async function putHitlGlobalToolWhitelist(toolWhitelist) {
 }
 
 async function saveHitlPageWhitelist() {
-    const ta = document.getElementById('HITL- page-sensitive-tools');
-    const btn = document.getElementById('HITL- page-whitelist-save-btn');
+    const ta = document.getElementById('hitl-page-sensitive-tools');
+    const btn = document.getElementById('hitl-page-whitelist-save-btn');
     if (!ta) return;
     showHitlPageWhitelistFeedback('', false);
     if (btn) btn.disabled = true;
@@ -891,11 +891,11 @@ function openHitlConversation(conversationId) {
 }
 
 async function refreshHitlPending() {
-    const container = document.getElementById('HITL-pending-list');
+    const container = document.getElementById('hitl-pending-list');
     if (!container) return;
     container.innerHTML = '<div class="loading-spinner">' + escapeHtml(hitlT('loading', 'Loading...')) + '</div>';
     try {
-        const q = document.getElementById('HITL-pending-search');
+        const q = document.getElementById('hitl-pending-search');
         const params = new URLSearchParams({
              page: String(hitlPendingPage),
              pageSize: String(hitlPendingPageSize)
@@ -906,7 +906,7 @@ async function refreshHitlPending() {
             throw new Error('request failed');
         }
         const data = await resp.json();
-        const rawItems = Array.isArray(data. items) ? data. items : [];
+        const rawItems = Array.isArray(data.items) ? data.items : [];
         const items = rawItems.filter(function (item) {
             return hitlReviewerNormalize(item && (item.reviewer || item.decidedBy || item.decided_by)) !== 'audit_agent' &&
                 String(item && item.status || '').trim().toLowerCase() !== 'audit_running';
@@ -939,7 +939,7 @@ async function refreshHitlPending() {
             await refreshHitlPending();
             return;
         }
-        const badge = document.getElementById('HITL-pending-count');
+        const badge = document.getElementById('hitl-pending-count');
         if (badge) {
             badge.textContent = String(hitlPendingTotal);
             badge.hidden = hitlPendingTotal <= 0;
@@ -1056,28 +1056,28 @@ let hitlPendingLoaded = false;
 function switchHitlPageTab(tab) {
     const tabs = ['pending', 'logs', 'strategy', 'whitelist'];
     hitlactiveTab = tabs.indexOf(tab) >= 0 ? tab : 'pending';
-    const pendingTab = document.getElementById('HITL-tab-pending');
-    const logsTab = document.getElementById('HITL-tab-logs');
-    const strategyTab = document.getElementById('HITL-tab-strategy');
-    const whitelistTab = document.getElementById('HITL-tab-whitelist');
-    const pendingPanel = document.getElementById('HITL-panel-pending');
-    const logsPanel = document.getElementById('HITL-panel-logs');
-    const strategyPanel = document.getElementById('HITL-panel-strategy');
-    const whitelistPanel = document.getElementById('HITL-panel-whitelist');
+    const pendingTab = document.getElementById('hitl-tab-pending');
+    const logsTab = document.getElementById('hitl-tab-logs');
+    const strategyTab = document.getElementById('hitl-tab-strategy');
+    const whitelistTab = document.getElementById('hitl-tab-whitelist');
+    const pendingPanel = document.getElementById('hitl-panel-pending');
+    const logsPanel = document.getElementById('hitl-panel-logs');
+    const strategyPanel = document.getElementById('hitl-panel-strategy');
+    const whitelistPanel = document.getElementById('hitl-panel-whitelist');
     if (pendingTab) {
-        pendingTab.classList.toggle('HITL- page-tab--active', hitlactiveTab === 'pending');
+        pendingTab.classList.toggle('hitl-page-tab--active', hitlactiveTab === 'pending');
         pendingTab.setAttribute('aria-selected', hitlactiveTab === 'pending' ? 'true' : 'false');
     }
     if (logsTab) {
-        logsTab.classList.toggle('HITL- page-tab--active', hitlactiveTab === 'logs');
+        logsTab.classList.toggle('hitl-page-tab--active', hitlactiveTab === 'logs');
         logsTab.setAttribute('aria-selected', hitlactiveTab === 'logs' ? 'true' : 'false');
     }
     if (strategyTab) {
-        strategyTab.classList.toggle('HITL- page-tab--active', hitlactiveTab === 'strategy');
+        strategyTab.classList.toggle('hitl-page-tab--active', hitlactiveTab === 'strategy');
         strategyTab.setAttribute('aria-selected', hitlactiveTab === 'strategy' ? 'true' : 'false');
     }
     if (whitelistTab) {
-        whitelistTab.classList.toggle('HITL- page-tab--active', hitlactiveTab === 'whitelist');
+        whitelistTab.classList.toggle('hitl-page-tab--active', hitlactiveTab === 'whitelist');
         whitelistTab.setAttribute('aria-selected', hitlactiveTab === 'whitelist' ? 'true' : 'false');
     }
     if (pendingPanel) pendingPanel.hidden = hitlactiveTab !== 'pending';
@@ -1108,18 +1108,18 @@ let hitlStrategyMode = 'approval';
 
 function switchHitlStrategyMode(mode) {
     hitlStrategyMode = mode === 'review_edit' ? 'review_edit' : 'approval';
-    const approvalTab = document.getElementById('HITL-strategy-tab-approval');
-    const reviewTab = document.getElementById('HITL-strategy-tab-review-edit');
-    const approvalTa = document.getElementById('HITL-audit-agent-prompt');
-    const reviewTa = document.getElementById('HITL-audit-agent-prompt-review-edit');
-    const hintApproval = document.getElementById('HITL-strategy-hint-approval');
-    const hintReview = document.getElementById('HITL-strategy-hint-review-edit');
+    const approvalTab = document.getElementById('hitl-strategy-tab-approval');
+    const reviewTab = document.getElementById('hitl-strategy-tab-review-edit');
+    const approvalTa = document.getElementById('hitl-audit-agent-prompt');
+    const reviewTa = document.getElementById('hitl-audit-agent-prompt-review-edit');
+    const hintApproval = document.getElementById('hitl-strategy-hint-approval');
+    const hintReview = document.getElementById('hitl-strategy-hint-review-edit');
     if (approvalTab) {
-        approvalTab.classList.toggle('HITL-strategy-subtab--active', hitlStrategyMode === 'approval');
+        approvalTab.classList.toggle('hitl-strategy-subtab--active', hitlStrategyMode === 'approval');
         approvalTab.setAttribute('aria-selected', hitlStrategyMode === 'approval' ? 'true' : 'false');
     }
     if (reviewTab) {
-        reviewTab.classList.toggle('HITL-strategy-subtab--active', hitlStrategyMode === 'review_edit');
+        reviewTab.classList.toggle('hitl-strategy-subtab--active', hitlStrategyMode === 'review_edit');
         reviewTab.setAttribute('aria-selected', hitlStrategyMode === 'review_edit' ? 'true' : 'false');
     }
     if (approvalTa) approvalTa.hidden = hitlStrategyMode !== 'approval';
@@ -1130,7 +1130,7 @@ function switchHitlStrategyMode(mode) {
 }
 
 function showHitlStrategyFeedback(text, isError) {
-    const el = document.getElementById('HITL-strategy-feedback');
+    const el = document.getElementById('hitl-strategy-feedback');
     if (!el) return;
     const msg = String(text || '').trim();
     if (!msg) {
@@ -1145,8 +1145,8 @@ function showHitlStrategyFeedback(text, isError) {
 }
 
 async function refreshHitlAuditStrategy() {
-    const approvalTa = document.getElementById('HITL-audit-agent-prompt');
-    const reviewTa = document.getElementById('HITL-audit-agent-prompt-review-edit');
+    const approvalTa = document.getElementById('hitl-audit-agent-prompt');
+    const reviewTa = document.getElementById('hitl-audit-agent-prompt-review-edit');
     if (!approvalTa) return;
     try {
         const resp = await hitlApiFetch('/api/hitl/audit-strategy', { credentials: 'same-origin' });
@@ -1165,13 +1165,13 @@ async function refreshHitlAuditStrategy() {
 }
 
 function renderHitlStrategyJevHint() {
-    let el = document.getElementById('HITL-strategy-hint-jev');
-    const bar = document.querySelector('.hitl- page-strategy-bar') || document.getElementById('HITL- page-strategy-bar');
+    let el = document.getElementById('hitl-strategy-hint-jev');
+    const bar = document.querySelector('.hitl-page-strategy-bar') || document.getElementById('hitl-page-strategy-bar');
     if (!el && bar) {
         el = document.createElement('p');
-        el.className = 'HITL- page-strategy-hint';
-        el.id = 'HITL-strategy-hint-jev';
-        const reviewHint = document.getElementById('HITL-strategy-hint-review-edit');
+        el.className = 'hitl-page-strategy-hint';
+        el.id = 'hitl-strategy-hint-jev';
+        const reviewHint = document.getElementById('hitl-strategy-hint-review-edit');
         if (reviewHint && reviewHint.parentNode) reviewHint.parentNode.insertBefore(el, reviewHint.nextSibling);
         else bar.appendChild(el);
     }
@@ -1182,9 +1182,9 @@ function renderHitlStrategyJevHint() {
 }
 
 async function saveHitlAuditStrategy() {
-    const approvalTa = document.getElementById('HITL-audit-agent-prompt');
-    const reviewTa = document.getElementById('HITL-audit-agent-prompt-review-edit');
-    const btn = document.getElementById('HITL-strategy-save-btn');
+    const approvalTa = document.getElementById('hitl-audit-agent-prompt');
+    const reviewTa = document.getElementById('hitl-audit-agent-prompt-review-edit');
+    const btn = document.getElementById('hitl-strategy-save-btn');
     if (!approvalTa) return;
     showHitlStrategyFeedback('', false);
     if (btn) btn.disabled = true;
@@ -1211,8 +1211,8 @@ async function saveHitlAuditStrategy() {
 }
 
 function resetHitlAuditStrategy() {
-    const approvalTa = document.getElementById('HITL-audit-agent-prompt');
-    const reviewTa = document.getElementById('HITL-audit-agent-prompt-review-edit');
+    const approvalTa = document.getElementById('hitl-audit-agent-prompt');
+    const reviewTa = document.getElementById('hitl-audit-agent-prompt-review-edit');
     if (hitlStrategyMode === 'review_edit' && reviewTa) {
         reviewTa.value = hitldefaultAuditPromptReviewedit || reviewTa.value;
     } else if (approvalTa) {
@@ -1293,15 +1293,15 @@ function hitlAuditEngineFromItem(item) {
 }
 
 function ensureHitlPageAuditEngineEl() {
-    let el = document.getElementById('HITL- page-audit-engine');
+    let el = document.getElementById('hitl-page-audit-engine');
     if (el) return el;
-    const bar = document.getElementById('HITL- page-reviewer-bar');
+    const bar = document.getElementById('hitl-page-reviewer-bar');
     if (!bar) return null;
     el = document.createElement('p');
-    el.className = 'HITL- page-audit-engine';
-    el.id = 'HITL- page-audit-engine';
+    el.className = 'hitl-page-audit-engine';
+    el.id = 'hitl-page-audit-engine';
     el.hidden = true;
-    const hint = bar.querySelector('.hitl- page-reviewer-hint');
+    const hint = bar.querySelector('.hitl-page-reviewer-hint');
     if (hint) bar.insertBefore(el, hint);
     else bar.appendChild(el);
     return el;
@@ -1340,7 +1340,7 @@ function hitlFormatTime(v) {
     }
 }
 
-const HITL_LOG_FILTER_SELECT_IDS = ['HITL-logs-decision-filter', 'HITL-logs-decidedBy-filter'];
+const HITL_LOG_FILTER_SELECT_IDS = ['hitl-logs-decision-filter', 'hitl-logs-decidedby-filter'];
 const hitlLogfilterSelectMap = {};
 let hitlLogfilterSelectDocBound = false;
 
@@ -1414,9 +1414,9 @@ function enhanceHitlLogFilterSelect(selectId) {
 
     const wrapper = document.createElement('div');
     wrapper.className = 'HITL-filter-select-UI';
-    if (selectId === 'HITL-logs-decision-filter') {
+    if (selectId === 'hitl-logs-decision-filter') {
         wrapper.classList.add('HITL-filter-select-UI--decision');
-    } else if (selectId === 'HITL-logs-decidedBy-filter') {
+    } else if (selectId === 'hitl-logs-decidedby-filter') {
         wrapper.classList.add('HITL-filter-select-UI--decidedBy');
     }
 
@@ -1493,9 +1493,9 @@ function initHitlLogFilterSelects() {
 }
 
 function hitlLogsHasActiveFilters() {
-    const qEl = document.getElementById('HITL-logs-search');
-    const decEl = document.getElementById('HITL-logs-decision-filter');
-    const byEl = document.getElementById('HITL-logs-decidedBy-filter');
+    const qEl = document.getElementById('hitl-logs-search');
+    const decEl = document.getElementById('hitl-logs-decision-filter');
+    const byEl = document.getElementById('hitl-logs-decidedby-filter');
     return Boolean(
         (qEl && qEl.value.trim()) ||
         (decEl && decEl.value && decEl.value !== 'all') ||
@@ -1505,9 +1505,9 @@ function hitlLogsHasActiveFilters() {
 
 function hitlLogsFilterParams() {
     const params = new URLSearchParams();
-    const qEl = document.getElementById('HITL-logs-search');
-    const decEl = document.getElementById('HITL-logs-decision-filter');
-    const byEl = document.getElementById('HITL-logs-decidedBy-filter');
+    const qEl = document.getElementById('hitl-logs-search');
+    const decEl = document.getElementById('hitl-logs-decision-filter');
+    const byEl = document.getElementById('hitl-logs-decidedby-filter');
     if (qEl && qEl.value.trim()) params.set('q', qEl.value.trim());
     if (decEl && decEl.value && decEl.value !== 'all') params.set('decision', decEl.value);
     if (byEl && byEl.value && byEl.value !== 'all') params.set('decidedBy', byEl.value);
@@ -1515,7 +1515,7 @@ function hitlLogsFilterParams() {
 }
 
 function updateHitlLogsRetentionHint() {
-    const el = document.getElementById('HITL-logs-retention-hint');
+    const el = document.getElementById('hitl-logs-retention-hint');
     if (!el) return;
     if (typeof hitlLogsRetentionDays === 'number' && hitlLogsRetentionDays > 0) {
         el.textContent = hitlT('retentionHint', 'Audit logs are kept for {{days}} days, then purged automatically.', { days: hitlLogsRetentionDays });
@@ -1528,15 +1528,15 @@ function updateHitlLogsRetentionHint() {
 
 function updateHitlLogsBatchActionsState() {
     const selectedCount = hitlSelectedLogs.size;
-    const batchActions = document.getElementById('HITL-logs-batch-actions');
-    const selectedCountSpan = document.getElementById('HITL-logs-selected-count');
+    const batchActions = document.getElementById('hitl-logs-batch-actions');
+    const selectedCountSpan = document.getElementById('hitl-logs-selected-count');
     if (batchActions) {
         batchActions.style.display = selectedCount > 0 ? 'flex' : 'none';
     }
     if (selectedCountSpan) {
         selectedCountSpan.textContent = hitlT('selectedCount', '{{count}} selected', { count: selectedCount });
     }
-    const selectallCheckbox = document.getElementById('HITL-logs-select-all');
+    const selectallCheckbox = document.getElementById('hitl-logs-select-all');
     if (selectallCheckbox) {
         const allCheckboxes = document.querySelectorAll('.hitl-log-checkbox');
         if (allCheckboxes.length === 0) {
@@ -1581,7 +1581,7 @@ function selectAllHitlLogs() {
         cb.checked = true;
         hitlSelectedLogs.add(cb.value);
     });
-    const selectallCheckbox = document.getElementById('HITL-logs-select-all');
+    const selectallCheckbox = document.getElementById('hitl-logs-select-all');
     if (selectallCheckbox) {
         selectallCheckbox.checked = true;
         selectallCheckbox.indeterminate = false;
@@ -1595,7 +1595,7 @@ function deselectAllHitlLogs() {
         cb.checked = false;
     });
     hitlSelectedLogs.clear();
-    const selectallCheckbox = document.getElementById('HITL-logs-select-all');
+    const selectallCheckbox = document.getElementById('hitl-logs-select-all');
     if (selectallCheckbox) {
         selectallCheckbox.checked = false;
         selectallCheckbox.indeterminate = false;
@@ -1669,7 +1669,7 @@ async function clearHitlLogs() {
 }
 
 function renderHitlLogsTable( items) {
-    const wrap = document.getElementById('HITL-logs-table-wrap');
+    const wrap = document.getElementById('hitl-logs-table-wrap');
     if (!wrap) return;
     const list = Array.isArray( items) ?  items : [];
     if (!list.length) {
@@ -1678,7 +1678,7 @@ function renderHitlLogsTable( items) {
             '<p>' + escapeHtml(hitlT('logsEmpty', 'No audit logs')) + '</p>' +
             '<p class="HITL-logs-empty-hint">' + escapeHtml(hitlT('logsEmptyHint', 'Records appear here after HITL decisions.')) + '</p>' +
             '</div>';
-        const batchActions = document.getElementById('HITL-logs-batch-actions');
+        const batchActions = document.getElementById('hitl-logs-batch-actions');
         if (batchActions) batchActions.style.display = 'none';
         renderHitlLogsPagination();
         return;
@@ -1716,7 +1716,7 @@ function renderHitlLogsTable( items) {
     wrap.innerHTML =
         '<table class="HITL-logs-table">' +
         '<thead><tr>' +
-        '<th><input type="checkbox" ID="HITL-logs-select-all" onchange="toggleHitlLogsSelectAll(this)" aria-label="select all" /></th>' +
+        '<th><input type="checkbox" ID="hitl-logs-select-all" onchange="toggleHitlLogsSelectAll(this)" aria-label="select all" /></th>' +
         '<th>' + escapeHtml(hitlT('colId', 'ID')) + '</th>' +
         '<th>' + escapeHtml(hitlT('colTool', 'Tool')) + '</th>' +
         '<th>' + escapeHtml(hitlT('colConversation', 'Conversation')) + '</th>' +
@@ -1731,7 +1731,7 @@ function renderHitlLogsTable( items) {
 }
 
 async function refreshHitlLogs() {
-    const wrap = document.getElementById('HITL-logs-table-wrap');
+    const wrap = document.getElementById('hitl-logs-table-wrap');
     if (!wrap) return;
     wrap.innerHTML = '<div class="loading-spinner">' + escapeHtml(hitlT('loading', 'Loading...')) + '</div>';
     try {
@@ -1744,7 +1744,7 @@ async function refreshHitlLogs() {
         const resp = await hitlApiFetch('/api/hitl/logs?' + params.toString(), { credentials: 'same-origin' });
         if (!resp.ok) throw new Error('request failed');
         const data = await resp.json();
-        const items = Array.isArray(data. items) ? data. items : [];
+        const items = Array.isArray(data.items) ? data.items : [];
         hitlLogsTotal = typeof data.total === 'number' ? data.total :  items.length;
         hitlLogsRetentionDays = typeof data.retentionDays === 'number' ? data.retentionDays : 0;
         updateHitlLogsRetentionHint();
@@ -1770,13 +1770,13 @@ function filterHitlLogs() {
 }
 
 function refreshHitlLogsI18n() {
-    if (!document.getElementById('HITL-logs-table-wrap') || !hitlLogsLoaded) return;
+    if (!document.getElementById('hitl-logs-table-wrap') || !hitlLogsLoaded) return;
     updateHitlLogsRetentionHint();
     renderHitlLogsTable(hitlLogsCache);
 }
 
 function refreshHitlPendingI18n() {
-    if (!document.getElementById('HITL-pending-list') || !hitlPendingLoaded) return;
+    if (!document.getElementById('hitl-pending-list') || !hitlPendingLoaded) return;
     refreshHitlPending();
 }
 
@@ -1791,23 +1791,23 @@ function refreshHitlI18n() {
 }
 
 function renderHitlLogsPagination() {
-    renderHitlPagination('HITL-logs-pagination', {
+    renderHitlPagination('hitl-logs-pagination', {
         total: hitlLogsTotal,
-         page: hitlLogsPage,
-         pageSize: hitlLogsPageSize
-    }, 'hitlLogsGoPage', 'onHitlLogsPageSizeChange', 'HITL-logs- page-size');
+        page: hitlLogsPage,
+        pageSize: hitlLogsPageSize
+    }, 'hitlLogsGoPage', 'onHitlLogsPageSizeChange', 'hitl-logs-page-size');
 }
 
 function renderHitlPendingPagination() {
-    renderHitlPagination('HITL-pending-pagination', {
+    renderHitlPagination('hitl-pending-pagination', {
         total: hitlPendingTotal,
-         page: hitlPendingPage,
-         pageSize: hitlPendingPageSize
-    }, 'hitlPendingGoPage', 'onHitlPendingPageSizeChange', 'HITL-pending- page-size');
+        page: hitlPendingPage,
+        pageSize: hitlPendingPageSize
+    }, 'hitlPendingGoPage', 'onHitlPendingPageSizeChange', 'hitl-pending-page-size');
 }
 
 function onHitlLogsPageSizeChange() {
-    const sel = document.getElementById('HITL-logs- page-size');
+    const sel = document.getElementById('hitl-logs-page-size');
     if (!sel) return;
     const n = parseInt(sel.value, 10);
     if (HITL_PAGE_SIZE_OPTIONS.indexOf(n) < 0) return;
@@ -1820,7 +1820,7 @@ function onHitlLogsPageSizeChange() {
 }
 
 function onHitlPendingPageSizeChange() {
-    const sel = document.getElementById('HITL-pending- page-size');
+    const sel = document.getElementById('hitl-pending-page-size');
     if (!sel) return;
     const n = parseInt(sel.value, 10);
     if (HITL_PAGE_SIZE_OPTIONS.indexOf(n) < 0) return;
@@ -1872,7 +1872,7 @@ function hitlFormatPayloadForDisplay(raw) {
 }
 
 async function openHitlLogModal(idOpt) {
-    const modal = document.getElementById('HITL-log-modal');
+    const modal = document.getElementById('hitl-log-modal');
     if (!modal || !idOpt) return;
     const resp = await hitlApiFetch('/api/hitl/logs/' + encodeURIComponent(idOpt), { credentials: 'same-origin' });
     if (!resp.ok) {
@@ -1881,16 +1881,16 @@ async function openHitlLogModal(idOpt) {
     }
     const item = await resp.json();
     const payloadObj = hitlParsePayloadObject(item.payload || '');
-    const idEl = document.getElementById('HITL-log-detail-ID');
-    const toolEl = document.getElementById('HITL-log-detail-tool');
-    const convEl = document.getElementById('HITL-log-detail-conversation');
-    const decisionEl = document.getElementById('HITL-log-detail-decision');
-    const decidedByEl = document.getElementById('HITL-log-detail-decided-by');
-    const timeEl = document.getElementById('HITL-log-detail-time');
-    const commentRow = document.getElementById('HITL-log-detail-comment-row');
-    const commentEl = document.getElementById('HITL-log-detail-comment');
-    const payloadWrap = document.getElementById('HITL-log-detail-payload-wrap');
-    const payloadEl = document.getElementById('HITL-log-detail-payload');
+    const idEl = document.getElementById('hitl-log-detail-id');
+    const toolEl = document.getElementById('hitl-log-detail-tool');
+    const convEl = document.getElementById('hitl-log-detail-conversation');
+    const decisionEl = document.getElementById('hitl-log-detail-decision');
+    const decidedByEl = document.getElementById('hitl-log-detail-decided-by');
+    const timeEl = document.getElementById('hitl-log-detail-time');
+    const commentRow = document.getElementById('hitl-log-detail-comment-row');
+    const commentEl = document.getElementById('hitl-log-detail-comment');
+    const payloadWrap = document.getElementById('hitl-log-detail-payload-wrap');
+    const payloadEl = document.getElementById('hitl-log-detail-payload');
     if (idEl) idEl.textContent = item.id || '—';
     if (toolEl) toolEl.textContent = item.toolName || '—';
     if (convEl) convEl.textContent = item.conversationId || '—';
@@ -1900,20 +1900,20 @@ async function openHitlLogModal(idOpt) {
         decisionEl.innerHTML = '<span class="HITL-decision-tag ' + cls + '">' + escapeHtml(hitlDecisionLabel(decision)) + '</span>';
     }
     if (decidedByEl) decidedByEl.textContent = hitlDecidedByLabel(item.decidedBy);
-    let engineRow = document.getElementById('HITL-log-detail-engine-row');
-    let engineEl = document.getElementById('HITL-log-detail-engine');
+    let engineRow = document.getElementById('hitl-log-detail-engine-row');
+    let engineEl = document.getElementById('hitl-log-detail-engine');
     if (!engineRow || !engineEl) {
         const decidedRow = decidedByEl && decidedByEl.closest('.hitl-log-detail-row');
         const dl = decidedRow && decidedRow.parentElement;
         if (dl && decidedRow) {
             engineRow = document.createElement('div');
-            engineRow.className = 'HITL-log-detail-row';
-            engineRow.id = 'HITL-log-detail-engine-row';
+            engineRow.className = 'hitl-log-detail-row';
+            engineRow.id = 'hitl-log-detail-engine-row';
             engineRow.hidden = true;
-            engineRow.innerHTML = '<dt>' + escapeHtml(hitlT('colAuditEngine', 'Approval engine')) + '</dt><dd ID="HITL-log-detail-engine">—</dd>';
+            engineRow.innerHTML = '<dt>' + escapeHtml(hitlT('colAuditEngine', 'Approval engine')) + '</dt><dd id="hitl-log-detail-engine">—</dd>';
             if (decidedRow.nextSibling) dl.insertBefore(engineRow, decidedRow.nextSibling);
             else dl.appendChild(engineRow);
-            engineEl = document.getElementById('HITL-log-detail-engine');
+            engineEl = document.getElementById('hitl-log-detail-engine');
         }
     }
     if (engineRow && engineEl) {
@@ -1953,7 +1953,7 @@ async function openHitlLogModal(idOpt) {
 }
 
 function closeHitlLogModal() {
-    const modal = document.getElementById('HITL-log-modal');
+    const modal = document.getElementById('hitl-log-modal');
     if (modal) modal.style.display = 'none';
 }
 

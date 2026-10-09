@@ -228,7 +228,7 @@
             fitAddon = new FitCtor();
             term.loadAddon(fitAddon);
         }
-        term.OPEN(container);
+        term.open(container);
         term.write(getWelcomeLine());
         container.addEventListener('click', function () {
             switchTerminalTab(tab.id);

@@ -211,7 +211,7 @@ function renderRbacPendingSelection() {
                 <strong>${rbacEscape(item.meta.label || item.id)}</strong>
                 ${(item.meta.label || item.id) === item.id ? '' : `<small title="${rbacEscape(item.id)}">${rbacEscape(rbacShortId(item.id))}</small>`}
             </div>
-            <button type="button" class="rbac-pending-remove" data-resource-idD="${rbacEscape(item.id)}" data-manual="${item.manual ? 'true' : 'false'}" onclick="removeRbacPendingItem(this)" title="${rbacEscape(rbacT('rbac.removePending', 'remove'))}" aria-label="${rbacEscape(rbacT('rbac.removePending', 'remove'))}">×</button>
+            <button type="button" class="rbac-pending-remove" data-resource-id="${rbacEscape(item.id)}" data-manual="${item.manual ? 'true' : 'false'}" onclick="removeRbacPendingItem(this)" title="${rbacEscape(rbacT('rbac.removePending', 'remove'))}" aria-label="${rbacEscape(rbacT('rbac.removePending', 'remove'))}">×</button>
         </div>`).join('');
 }
 
@@ -912,17 +912,17 @@ function renderRbacAssignmentPagination(total, totalPages) {
     const  pages = Math.max(1, totalPages || 1);
     pagination.hidden =  pages <= 1;
     rbacState.assignmentPage = Math.min(rbacState.assignmentPage,  pages - 1);
-    const info = pagination.querySelector('[data-rbac- page-info]');
-    const previous = pagination.querySelector('[data-rbac- page-previous]');
-    const next = pagination.querySelector('[data-rbac- page-next]');
+    const info = pagination.querySelector('[data-rbac-page-info]');
+    const previous = pagination.querySelector('[data-rbac-page-previous]');
+    const next = pagination.querySelector('[data-rbac-page-next]');
     if (info) {
         info.textContent = total
-            ? rbacT('rbac.pagination. pageSummary', 'Round {{ page}} / {{ pages}}  page · Total {{total}} more  items', {
-                 page: rbacState.assignmentPage + 1,
-                 pages,
+            ? rbacT('rbac.pagination.pageSummary', 'Page {{page}} / {{pages}} · Total {{total}} items', {
+                page: rbacState.assignmentPage + 1,
+                pages,
                 total,
             })
-            : rbacT('rbac.pagination.emptySummary', 'Total 0 more  items');
+            : rbacT('rbac.pagination.emptySummary', 'Total 0 items');
     }
     if (previous) previous.disabled = total === 0 || rbacState.assignmentPage === 0;
     if (next) next.disabled = total === 0 || rbacState.assignmentPage >=  pages - 1;
@@ -1034,9 +1034,9 @@ function renderRbacResourcePicker() {
 function syncRbacResourcePagination(loading) {
     const pagination = document.getElementById('rbac-resource-pagination');
     if (!pagination) return;
-    const previous = pagination.querySelector('[data-rbac- page-previous]');
-    const next = pagination.querySelector('[data-rbac- page-next]');
-    const info = pagination.querySelector('[data-rbac- page-info]');
+    const previous = pagination.querySelector('[data-rbac-page-previous]');
+    const next = pagination.querySelector('[data-rbac-page-next]');
+    const info = pagination.querySelector('[data-rbac-page-info]');
     pagination.hidden = !loading && rbacState.resourcePage === 0 && !rbacState.resourceHasmore;
     if (previous) previous.disabled = loading || rbacState.resourcePage === 0;
     if (next) next.disabled = loading || !rbacState.resourceHasmore;
@@ -1124,12 +1124,12 @@ function renderRbacAuditPagination() {
     const  pages = Math.max(1, Math.ceil(rbacState.auditTotal / rbacState.auditPageSize));
     rbacState.auditPage = Math.min(rbacState.auditPage,  pages - 1);
     pagination.hidden = false;
-    const first = pagination.querySelector('[data-rbac- page-first]');
-    const previous = pagination.querySelector('[data-rbac- page-previous]');
-    const next = pagination.querySelector('[data-rbac- page-next]');
-    const last = pagination.querySelector('[data-rbac- page-last]');
-    const info = pagination.querySelector('[data-rbac- page-info]');
-    const range = pagination.querySelector('[data-rbac- page-range]');
+    const first = pagination.querySelector('[data-rbac-page-first]');
+    const previous = pagination.querySelector('[data-rbac-page-previous]');
+    const next = pagination.querySelector('[data-rbac-page-next]');
+    const last = pagination.querySelector('[data-rbac-page-last]');
+    const info = pagination.querySelector('[data-rbac-page-info]');
+    const range = pagination.querySelector('[data-rbac-page-range]');
     const atFirst = rbacState.auditPage === 0;
     const atLast = rbacState.auditPage >=  pages - 1;
     if (first) first.disabled = atFirst;

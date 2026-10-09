@@ -155,7 +155,7 @@ function syncSettingsCustomSelect(SELECT) {
         item.appendChild(check);
         item.appendChild(label);
 
-        if (SELECT.id === 'AI-channel-SELECT') {
+        if (SELECT.id === 'ai-channel-select') {
             const probeStatus = option.dataset.probeStatus || '';
             const probeMessage = option.dataset.probeMessage || '';
             if (probeStatus) {
@@ -461,7 +461,7 @@ function bindRobotManagerEvents() {
     robotinputIds.forEach((id) => {
         const el = document.getElementById(id);
         if (el && !el.dataset.robotManagerBound) {
-            el.addEventListener('INPUT', refreshRobotManager);
+            el.addEventListener('input', refreshRobotManager);
             el.addEventListener('change', refreshRobotManager);
             el.dataset.robotManagerBound = 'true';
         }
@@ -1213,7 +1213,7 @@ async function loadToolsList( page = 1, searchKeyword = '', options = {}) {
     if (toolsList) {
         toolsList.setAttribute('aria-busy', 'true');
         if (!toolsList.querySelector('.tool-item')) {
-            toolsList.innerHTML = '<div class="tools-list- items"><div class="loading" style="padding: 20px; text-align: center; color: var(--text-muted);">⏳ ' + (typeof window.t === 'function' ? window.t('MCP.loadingTools') : 'Loading tool list...') + '</div></div>';
+            toolsList.innerHTML = '<div class="tools-list-items"><div class="loading" style="padding: 20px; text-align: center; color: var(--text-muted);">⏳ ' + (typeof window.t === 'function' ? window.t('MCP.loadingTools') : 'Loading tool list...') + '</div></div>';
         }
     }
     
@@ -1253,8 +1253,8 @@ async function loadToolsList( page = 1, searchKeyword = '', options = {}) {
 
         allTools = result.tools || [];
         toolsPagination = {
-             page: result. page ||  page,
-             pageSize: result. page_size ||  pageSize,
+             page: result.page ||  page,
+             pageSize: result.page_size ||  pageSize,
             total: result.total || 0,
             totalEnabled: result.total_enabled ?? 0,
             totalPages: result.total_pages || 1
@@ -1369,10 +1369,10 @@ function renderToolsList() {
     }
     
     // Get or create the list container
-    let listContainer = toolsList.querySelector('.tools-list- items');
+    let listContainer = toolsList.querySelector('.tools-list-items');
     if (!listContainer) {
         listContainer = document.createElement('div');
-        listContainer.className = 'tools-list- items';
+        listContainer.className = 'tools-list-items';
         toolsList.appendChild(listContainer);
     }
     
@@ -1678,8 +1678,8 @@ function renderToolsPagination() {
             ${paginationT('MCP.pagination INFO', { start: startItem, end: endItem, total: total })}${toolssearchKeyword ? ` (${t('common.search')}: "${escapeHtml(toolssearchKeyword)}")` : ''}
         </div>
         <div class="pagination-page-size">
-            <label for="tools- page-size-pagination">${t('MCP.perPage')}</label>
-            <SELECT id="tools- page-size-pagination" onchange="changeToolsPageSize()">
+            <label for="tools-page-size-pagination">${t('MCP.perPage')}</label>
+            <SELECT id="tools-page-size-pagination" onchange="changeToolsPageSize()">
                 <option value="10" ${savedPageSize === 10 ? 'selected' : ''}>10</option>
                 <option value="20" ${savedPageSize === 20 ? 'selected' : ''}>20</option>
                 <option value="50" ${savedPageSize === 50 ? 'selected' : ''}>50</option>
@@ -1778,7 +1778,7 @@ function deselectAllTools() {
 // Change the number of items displayed per page
 async function changeToolsPageSize() {
     // Try to get the selector from either location (top or pagination area)
-    const  pageSizeSelect = document.getElementById('tools- page-size') || document.getElementById('tools- page-size-pagination');
+    const  pageSizeSelect = document.getElementById('tools-page-size-pagination');
     if (! pageSizeSelect) return;
     
     const newPageSize = parseInt( pageSizeSelect.value, 10);
@@ -1793,7 +1793,7 @@ async function changeToolsPageSize() {
     toolsPagination. pageSize = newPageSize;
     
     // Sync-update the other selector if it exists
-    const otherSelect = document.getElementById('tools- page-size') || document.getElementById('tools- page-size-pagination');
+    const otherSelect = document.getElementById('tools-page-size-pagination');
     if (otherSelect && otherSelect !==  pageSizeSelect) {
         otherSelect.value = newPageSize;
     }
@@ -2593,7 +2593,7 @@ function escapeAIChannelHtml(value) {
 
 function ensureAIConfigShape(cfg) {
     const AI = cfg && cfg.ai && typeof cfg.ai === 'object' ? cfg.ai : {};
-    const channels = AI.channels && typeof AI.channels === 'object' ? { ...ai.channels } : {};
+    const channels = AI.channels && typeof AI.channels === 'object' ? { ...AI.channels } : {};
     let def = normalizeAIChannelId(AI.default_channel || '');
     if (!channels[def]) {
         const oa = (cfg && cfg.OpenAI) ? cfg.OpenAI : {};
@@ -2616,7 +2616,7 @@ function readAIChannelFromMainForm(id) {
     const maxCompletionTokens = parseInt(document.getElementById('openai-max-completion-tokens')?.value, 10) || 32768;
     return normalizeAIChannelProviderProfile({
         ...prev,
-        name: (document.getElementById('AI-channel-name')?.value || '').trim() || prev.name || id,
+        name: (document.getElementById('ai-channel-name')?.value || '').trim() || prev.name || id,
         provider: document.getElementById('openai-provider')?.value || 'OpenAI',
         API_KEY: document.getElementById('openai-API-key')?.value.trim() || '',
         base_url: document.getElementById('openai-base-URL')?.value.trim() || '',
@@ -2637,7 +2637,7 @@ function writeAIChannelToMainForm(id) {
     const AI = ensureAIConfigShape(currentConfig || {});
     const ch = AI.channels[id] || AI.channels[AI.default_channel] || {};
     selectedAIChannelId = id || AI.default_channel;
-    const nameEl = document.getElementById('AI-channel-name');
+    const nameEl = document.getElementById('ai-channel-name');
     if (nameEl) nameEl.value = ch.name || selectedAIChannelId;
     const providerEl = document.getElementById('openai-provider');
     if (providerEl) {
@@ -2680,7 +2680,7 @@ function writeAIChannelToMainForm(id) {
 
 function displayAIChannelName(id, ch) {
     const name = String(ch?.name || '').trim();
-    if ((name === 'New Channel' || name === 'New Channel') && !String(ch?.model || '').trim()) {
+    if (name === 'New Channel' && !String(ch?.model || '').trim()) {
         return settingsT('settingsBasic.aiChannelUntitled', name || id);
     }
     return name || id;
@@ -2707,7 +2707,7 @@ function aiChannelOptionProbeMeta(id) {
 }
 
 function updateAIChannelSelectOption(id) {
-    const SELECT = document.getElementById('AI-channel-SELECT');
+    const SELECT = document.getElementById('ai-channel-select');
     if (!SELECT || !currentConfig?.ai?.channels) return;
     const channelId = normalizeAIChannelId(id || selectedAIChannelId || currentConfig.ai.default_channel || 'default');
     const ch = currentConfig.ai.channels[channelId];
@@ -2755,7 +2755,7 @@ function syncAIChannelEditorPreview() {
 
 function bindAIChannelEditorPreviewSync() {
     const ids = [
-        'AI-channel-name',
+        'ai-channel-name',
         'openai-provider',
         'openai-API-key',
         'openai-base-URL',
@@ -2765,7 +2765,7 @@ function bindAIChannelEditorPreviewSync() {
         const el = document.getElementById(fieldId);
         if (!el || el.dataset.aiChannelPreviewBound === '1') return;
         el.dataset.aiChannelPreviewBound = '1';
-        const eventName = el.tagName === 'SELECT' ? 'change' : 'INPUT';
+        const eventName = el.tagName === 'SELECT' ? 'change' : 'input';
         el.addEventListener(eventName, syncAIChannelEditorPreview);
     });
 }
@@ -2773,7 +2773,7 @@ function bindAIChannelEditorPreviewSync() {
 function renderAIChannelSelect() {
     if (!currentConfig) return;
     currentConfig.ai = ensureAIConfigShape(currentConfig);
-    const SELECT = document.getElementById('AI-channel-SELECT');
+    const SELECT = document.getElementById('ai-channel-select');
     if (!SELECT) return;
     SELECT.innerHTML = '';
     const ids = Object.keys(currentConfig.ai.channels || {}).sort();
@@ -2816,7 +2816,7 @@ function channelHostLabel(baseUrl) {
 }
 
 function renderAIChannelList(ids) {
-    const list = document.getElementById('AI-channel-list');
+    const list = document.getElementById('ai-channel-list');
     if (!list || !currentConfig?.ai?.channels) return;
     list.innerHTML = '';
     (ids || Object.keys(currentConfig.ai.channels).sort()).forEach((id) => {
@@ -2881,7 +2881,7 @@ function renderAIChannelList(ids) {
 }
 
 function showAIChannelSaveHint(message, ok) {
-    const el = document.getElementById('AI-channel-save-hint');
+    const el = document.getElementById('ai-channel-save-hint');
     if (!el) return;
     el.textContent = message;
     el.classList.toggle('is-error', ok === false);
@@ -2895,8 +2895,8 @@ function updateAIChannelEditorChrome(id) {
     const isDefault = channelId === AI.default_channel;
     const isComplete = !validateSelectedAIChannelPayload(ch);
     const probe = aiChannelProbeResults[channelId] || null;
-    const title = document.getElementById('AI-channel-editor-title');
-    const meta = document.getElementById('AI-channel-editor-meta');
+    const title = document.getElementById('ai-channel-editor-title');
+    const meta = document.getElementById('ai-channel-editor-meta');
     if (title) {
         title.textContent = settingsT('settingsBasic.aiChannelFormContextHint', 'The channel configuration will update after the form is saved.');
     }
@@ -3193,7 +3193,7 @@ async function probeSelectedAIChannels() {
         if (!id) return;
         const ch = currentConfig.ai.channels[id] || {};
         try {
-            const response = await apiFetch('/api/config/test-OpenAI', {
+            const response = await apiFetch('/api/config/test-openai', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -3765,7 +3765,7 @@ async function testHitlAuditModelConnection() {
     }
 
     try {
-        const endpoint = typeSafe ? '/api/config/test-TypeSafe' : '/api/config/test-OpenAI';
+        const endpoint = typeSafe ? '/api/config/test-typesafe' : '/api/config/test-openai';
         const payload = typeSafe
             ? { base_url: baseUrl, API_KEY: apiKey, model: model }
             : cfg;
@@ -3889,7 +3889,7 @@ async function testOpenAIConnection() {
     syncSelectedAIChannelUI();
 
     try {
-        const response = await apiFetch('/api/config/test-OpenAI', {
+        const response = await apiFetch('/api/config/test-openai', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -4176,7 +4176,7 @@ let currenteditingMCPName = null;
 
 // Fetch External MCP list data (for polling; returns { servers, stats })
 async function fetchExternalMCPs() {
-    const response = await apiFetch('/api/external-MCP');
+    const response = await apiFetch('/api/external-mcp');
     if (!response.ok) {
         if (typeof readApiError === 'function') {
             throw new Error(await readApiError(response, 'Failed to fetch External MCP list'));
@@ -4426,7 +4426,7 @@ async function editExternalMCP(name) {
         document.getElementById('external-mcp-JSON-error').textContent = '';
         document.getElementById('external-mcp-JSON').classList.remove('error');
         openAppModal('external-mcp-modal', { focus: false });
-        const response = await apiFetch(`/api/external-MCP/${encodeURIComponent(name)}`);
+        const response = await apiFetch(`/api/external-mcp/${encodeURIComponent(name)}`);
         if (!response.ok) {
             throw new Error(typeof window.t === 'function' ? window.t('MCP.getConfigFailed') : 'Failed to fetch External MCP configuration');
         }
@@ -4617,7 +4617,7 @@ async function saveExternalMCP() {
                 return;
             }
             
-            const response = await apiFetch(`/api/external-MCP/${encodeURIComponent(currenteditingMCPName)}`, {
+            const response = await apiFetch(`/api/external-mcp/${encodeURIComponent(currenteditingMCPName)}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -4633,7 +4633,7 @@ async function saveExternalMCP() {
             // Add mode: save all configurations
             for (const name of names) {
                 const config = configObj[name];
-                const response = await apiFetch(`/api/external-MCP/${encodeURIComponent(name)}`, {
+                const response = await apiFetch(`/api/external-mcp/${encodeURIComponent(name)}`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
@@ -4671,7 +4671,7 @@ async function deleteExternalMCP(name) {
     }
     
     try {
-        const response = await apiFetch(`/api/external-MCP/${encodeURIComponent(name)}`, {
+        const response = await apiFetch(`/api/external-mcp/${encodeURIComponent(name)}`, {
             method: 'DELETE',
         });
         
@@ -4707,7 +4707,7 @@ async function toggleExternalMCP(name, currentStatus) {
     }
     
     try {
-        const response = await apiFetch(`/api/external-MCP/${encodeURIComponent(name)}/${action}`, {
+        const response = await apiFetch(`/api/external-mcp/${encodeURIComponent(name)}/${action}`, {
             method: 'POST',
         });
         
@@ -4722,7 +4722,7 @@ async function toggleExternalMCP(name, currentStatus) {
         if (action === 'start') {
             // Do an immediate status check (may already be connected)
             try {
-                const statusResponse = await apiFetch(`/api/external-MCP/${encodeURIComponent(name)}`);
+                const statusResponse = await apiFetch(`/api/external-mcp/${encodeURIComponent(name)}`);
                 if (statusResponse.ok) {
                     const statusData = await statusResponse.json();
                     const status = statusData.status || 'disconnected';
@@ -4783,7 +4783,7 @@ async function pollExternalMCPStatus(name, maxAttempts = 30) {
         await new Promise(resolve => setTimeout(resolve, pollInterval));
         
         try {
-            const response = await apiFetch(`/api/external-MCP/${encodeURIComponent(name)}`);
+            const response = await apiFetch(`/api/external-mcp/${encodeURIComponent(name)}`);
             if (response.ok) {
                 const data = await response.json();
                 const status = data.status || 'disconnected';

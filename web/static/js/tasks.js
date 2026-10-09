@@ -1702,7 +1702,7 @@ function renderBatchQueuesPagination() {
             <span>` + _t('tasks.paginationShow', { start: start, end: end, total: total }) + `</span>
             <label class="pagination-page-size">
                 ` + _t('tasks.paginationPerPage') + `
-                <select ID="batch-queues- page-size-pagination" onchange="changeBatchQueuesPageSize()">
+                <select ID="batch-queues-page-size-pagination" onchange="changeBatchQueuesPageSize()">
                     <option value="10" ${ pageSize === 10 ? 'selected' : ''}>10</option>
                     <option value="20" ${ pageSize === 20 ? 'selected' : ''}>20</option>
                     <option value="50" ${ pageSize === 50 ? 'selected' : ''}>50</option>
@@ -1744,7 +1744,7 @@ function goBatchQueuesPage( page) {
 
 // Change items per page
 function changeBatchQueuesPageSize() {
-    const  pageSizeSelect = document.getElementById('batch-queues- page-size-pagination');
+    const  pageSizeSelect = document.getElementById('batch-queues-page-size-pagination');
     if (! pageSizeSelect) return;
     
     const newPageSize = parseInt( pageSizeSelect.value, 10);
