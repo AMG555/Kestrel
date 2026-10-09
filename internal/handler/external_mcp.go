@@ -172,18 +172,6 @@ func (h *ExternalMCPHandler) AddOrUpdateExternalMCP(c *gin.Context) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	// add or update configuration
-	if err := h.manager.AddOrUpdateConfig(name, req.Config); err != nil {
-		h.logger.Error("add or update external MCP configuration failed", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "add or update configuration failed: " + err.Error()})
-		return
-	}
-
-	// update in-memory config
-	if h.config.ExternalMCP.Servers == nil {
-		h.config.ExternalMCP.Servers = make(map[string]config.ExternalMCPServerConfig)
-	}
-
 	cfg := req.Config
 
 	// official disabled field → invert ExternalMCPEnable
@@ -194,8 +182,24 @@ func (h *ExternalMCPHandler) AddOrUpdateExternalMCP(c *gin.Context) {
 		cfg.ExternalMCPEnable = true
 	}
 
-	// expand ${VAR} environment variables
+	// Expand ${VAR} environment variables before passing to the manager so the
+	// goroutine spawned by AddOrUpdateConfig only ever reads the expanded copy.
+	// Doing this after AddOrUpdateConfig would race: AddOrUpdateConfig stores cfg
+	// and immediately spawns a goroutine that reads cfg.Args, while ExpandConfigEnv
+	// writes to the same underlying slice backing array concurrently.
 	config.ExpandConfigEnv(&cfg)
+
+	// add or update configuration
+	if err := h.manager.AddOrUpdateConfig(name, cfg); err != nil {
+		h.logger.Error("add or update external MCP configuration failed", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "add or update configuration failed: " + err.Error()})
+		return
+	}
+
+	// update in-memory config
+	if h.config.ExternalMCP.Servers == nil {
+		h.config.ExternalMCP.Servers = make(map[string]config.ExternalMCPServerConfig)
+	}
 
 	h.config.ExternalMCP.Servers[name] = cfg
 
