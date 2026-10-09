@@ -25,6 +25,10 @@ web/.vite/
 vendor/
 coverage.out
 coverage.html
+# -- Vendored frontend libraries (needed by tests in CI) ------
+!web/static/vendor/
+!web/static/vendor/xlsx.full.min.js
+
 
 # ── Secrets (never commit real config) ───────────────────────
 config.yaml

@@ -1,3 +1,5 @@
+//go:build !windows
+
 package security
 
 import (
@@ -107,9 +109,15 @@ func TestNonInteractiveStdinReadBlocksWithoutRedirect(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer r.Close()
+	defer w.Close()
 	// Keep w open without writing data, simulating "waiting for user input".
 
-	cmd := exec.Command("sh", "-c", `read x; echo done`)
+	// Use a context with timeout so we never touch cmd.Process from a separate
+	// goroutine — that access races with exec.Cmd.Run setting cmd.Process.
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "sh", "-c", `read x; echo done`)
 	cmd.Stdin = r
 
 	done := make(chan error, 1)
@@ -117,12 +125,13 @@ func TestNonInteractiveStdinReadBlocksWithoutRedirect(t *testing.T) {
 
 	select {
 	case err := <-done:
-		t.Fatalf("expected hang, but command finished: %v", err)
-	case <-time.After(500 * time.Millisecond):
-		if cmd.Process != nil {
-			_ = cmd.Process.Kill()
+		// Command finished before timeout — that means it did not hang as expected.
+		if ctx.Err() == nil {
+			t.Fatalf("expected hang, but command finished early: %v", err)
 		}
-		_ = w.Close()
-		<-done // wait for goroutine to exit
+		// Context cancelled it — that is the expected "hung until timeout" path.
+	case <-ctx.Done():
+		// Timed out as expected; drain the goroutine.
+		<-done
 	}
 }
