@@ -1,4 +1,4 @@
-﻿package handler
+package handler
 
 import (
 	"bytes"
@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -92,7 +93,11 @@ func (h *TerminalHandler) RunCommand(c *gin.Context) {
 
 	var cmd *exec.Cmd
 	if runtime.GOOS == "windows" {
-		cmd = exec.CommandContext(ctx, "cmd", "/c", cmdStr)
+		if shell == "powershell" || shell == "pwsh" {
+			cmd = exec.CommandContext(ctx, shell, "-NoProfile", "-NonInteractive", "-Command", cmdStr)
+		} else {
+			cmd = exec.CommandContext(ctx, "cmd", "/c", cmdStr)
+		}
 	} else {
 		cmd = exec.CommandContext(ctx, shell, "-c", cmdStr)
 		// When no TTY, set COLUMNS/TERM so tools like ping display usage formatting consistent with a real terminal.
@@ -215,7 +220,11 @@ func (h *TerminalHandler) RunCommandStream(c *gin.Context) {
 
 	var cmd *exec.Cmd
 	if runtime.GOOS == "windows" {
-		cmd = exec.CommandContext(ctx, "cmd", "/c", cmdStr)
+		if shell == "powershell" || shell == "pwsh" {
+			cmd = exec.CommandContext(ctx, shell, "-NoProfile", "-NonInteractive", "-Command", cmdStr)
+		} else {
+			cmd = exec.CommandContext(ctx, "cmd", "/c", cmdStr)
+		}
 	} else {
 		cmd = exec.CommandContext(ctx, shell, "-c", cmdStr)
 		cmd.Env = append(os.Environ(), "COLUMNS=256", "LINES=40", "TERM=xterm-256color")
@@ -247,7 +256,10 @@ func (h *TerminalHandler) RunCommandStream(c *gin.Context) {
 		return
 	}
 
+	var sendMu sync.Mutex
 	sendEvent := func(ev streamEvent) {
+		sendMu.Lock()
+		defer sendMu.Unlock()
 		body, _ := json.Marshal(ev)
 		c.SSEvent("", string(body))
 		flusher.Flush()

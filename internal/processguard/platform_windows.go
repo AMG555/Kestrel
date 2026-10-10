@@ -1,4 +1,4 @@
-﻿//go:build windows
+//go:build windows
 
 package processguard
 
@@ -113,29 +113,35 @@ func (g *jobGroup) Close(ctx context.Context) error {
 	if g.closed {
 		return nil
 	}
-	if err := windows.TerminateJobObject(g.job, 1); err != nil {
-		return err
-	}
+	g.closed = true
+	termErr := windows.TerminateJobObject(g.job, 1)
 	type accounting struct {
 		TotalUser, TotalKernel, PeriodUser, PeriodKernel        int64
 		PageFaults, TotalProcesses, ActiveProcesses, Terminated uint32
 	}
-	for {
-		var info accounting
-		if err := windows.QueryInformationJobObject(g.job, windows.JobObjectBasicAccountingInformation, uintptr(unsafe.Pointer(&info)), uint32(unsafe.Sizeof(info)), nil); err != nil {
-			return err
-		}
-		if info.ActiveProcesses == 0 {
-			break
-		}
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(10 * time.Millisecond):
+	var waitErr error
+	if termErr == nil {
+		for {
+			var info accounting
+			if err := windows.QueryInformationJobObject(g.job, windows.JobObjectBasicAccountingInformation, uintptr(unsafe.Pointer(&info)), uint32(unsafe.Sizeof(info)), nil); err != nil {
+				waitErr = err
+				break
+			}
+			if info.ActiveProcesses == 0 {
+				break
+			}
+			select {
+			case <-ctx.Done():
+				waitErr = ctx.Err()
+			case <-time.After(10 * time.Millisecond):
+			}
+			if waitErr != nil {
+				break
+			}
 		}
 	}
-	g.closed = true
-	return errors.Join(g.watcher.close(), windows.CloseHandle(g.parent), windows.CloseHandle(g.job))
+	closeErr := errors.Join(g.watcher.close(), windows.CloseHandle(g.parent), windows.CloseHandle(g.job))
+	return errors.Join(termErr, waitErr, closeErr)
 }
 func guardianMain(dec *json.Decoder, enc *json.Encoder) error {
 	var req watchRequest

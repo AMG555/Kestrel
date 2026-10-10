@@ -1,4 +1,4 @@
-﻿//go:build windows
+//go:build windows
 
 package handler
 
@@ -37,6 +37,7 @@ func runCommandStreamImpl(cmd *exec.Cmd, sendEvent func(streamEvent), ctx contex
 	go func() {
 		defer wg.Done()
 		sc := bufio.NewScanner(stdoutPipe)
+		sc.Buffer(make([]byte, 64*1024), terminalMaxOutputLen)
 		for sc.Scan() {
 			sendEvent(streamEvent{T: "out", D: normalize(sc.Text())})
 		}
@@ -44,6 +45,7 @@ func runCommandStreamImpl(cmd *exec.Cmd, sendEvent func(streamEvent), ctx contex
 	go func() {
 		defer wg.Done()
 		sc := bufio.NewScanner(stderrPipe)
+		sc.Buffer(make([]byte, 64*1024), terminalMaxOutputLen)
 		for sc.Scan() {
 			sendEvent(streamEvent{T: "err", D: normalize(sc.Text())})
 		}

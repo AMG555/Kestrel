@@ -50,7 +50,10 @@ args:
     # shellcheck disable=SC1090
     source "$ENV_DIR/bin/activate"
 
-    if [ -n "$ADDITIONAL_ARGS" ]; then
+    shift 2 2>/dev/null || true
+    if [ "$#" -gt 0 ]; then
+      python3 "$@" -c "$SCRIPT_CONTENT"
+    elif [ -n "$ADDITIONAL_ARGS" ]; then
       python3 $ADDITIONAL_ARGS -c "$SCRIPT_CONTENT"
     else
       python3 -c "$SCRIPT_CONTENT"
@@ -104,5 +107,6 @@ parameters:
       - Ensure parameter format is correct to avoid command injection
       - This argument is appended directly to the end of the command
     required: false
+    position: 2
     format: "positional"
     default: ""

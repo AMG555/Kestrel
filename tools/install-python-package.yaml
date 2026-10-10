@@ -1,4 +1,4 @@
-﻿name: "install-python-package"
+name: "install-python-package"
 command: "/bin/bash"
 args:
   - "-c"
@@ -50,7 +50,10 @@ args:
     # shellcheck disable=SC1090
     source "$ENV_DIR/bin/activate"
 
-    if [ -n "$ADDITIONAL_ARGS" ]; then
+    shift 2 2>/dev/null || true
+    if [ "$#" -gt 0 ]; then
+      pip install "$PACKAGE" "$@"
+    elif [ -n "$ADDITIONAL_ARGS" ]; then
       pip install "$PACKAGE" $ADDITIONAL_ARGS
     else
       pip install "$PACKAGE"
@@ -97,5 +100,6 @@ parameters:
       - Ensure correct parameter format to avoid command injection
       - This parameter is appended directly to the end of the command
     required: false
+    position: 2
     format: "positional"
     default: ""

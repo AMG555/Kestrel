@@ -3,6 +3,7 @@ package security
 import (
 	"errors"
 	"os/exec"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -31,7 +32,12 @@ func TestIsCommandFailureResult(t *testing.T) {
 }
 
 func TestFormatCommandFailureFromErr(t *testing.T) {
-	cmd := exec.Command("sh", "-c", "exit 42")
+	var cmd *exec.Cmd
+	if runtime.GOOS == "windows" {
+		cmd = exec.Command("cmd", "/c", "exit 42")
+	} else {
+		cmd = exec.Command("sh", "-c", "exit 42")
+	}
 	err := cmd.Run()
 	got := FormatCommandFailureFromErr(err, "oops")
 	if got != "command execution failed: exit status 42\nOutput: oops" {

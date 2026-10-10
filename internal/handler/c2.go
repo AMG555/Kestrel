@@ -1,4 +1,4 @@
-﻿package handler
+package handler
 
 import (
 	"database/sql"
@@ -840,13 +840,18 @@ func (h *C2Handler) PayloadDownload(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload id"})
 		return
 	}
+	mgr := h.mgr()
+	if mgr == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "c2 disabled"})
+		return
+	}
 	session, ok := security.CurrentSession(c)
-	if !ok || !h.mgr().DB().UserCanAccessC2Payload(session.UserID, session.Scope, filename) {
+	if !ok || !mgr.DB().UserCanAccessC2Payload(session.UserID, session.Scope, filename) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "access denied for this resource"})
 		return
 	}
 
-	builder := c2.NewPayloadBuilder(h.mgr(), h.logger, "", "")
+	builder := c2.NewPayloadBuilder(mgr, h.logger, "", "")
 	storageDir := builder.GetPayloadStoragePath()
 	targetPath := filepath.Join(storageDir, filename)
 
@@ -856,7 +861,12 @@ func (h *C2Handler) PayloadDownload(c *gin.Context) {
 		return
 	}
 	absDir, err := filepath.Abs(storageDir)
-	if err != nil || !strings.HasPrefix(absTarget, absDir+string(filepath.Separator)) {
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload id"})
+		return
+	}
+	rel, err := filepath.Rel(absDir, absTarget)
+	if err != nil || strings.HasPrefix(rel, "..") || rel == ".." {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload id"})
 		return
 	}
@@ -967,18 +977,24 @@ func (h *C2Handler) EventStream(c *gin.Context) {
 	c.Header("Cache-Control", "no-cache")
 	c.Header("Connection", "keep-alive")
 
+	mgr := h.mgr()
+	if mgr == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "c2 disabled"})
+		return
+	}
+
 	sessionFilter := c.Query("session_id")
 	categoryFilter := c.Query("category")
 	levels := c.QueryArray("level")
 
-	sub := h.mgr().EventBus().Subscribe(
+	sub := mgr.EventBus().Subscribe(
 		"sse-"+uuid.New().String(),
 		128,
 		sessionFilter,
 		categoryFilter,
 		levels,
 	)
-	defer h.mgr().EventBus().Unsubscribe(sub.ID)
+	defer mgr.EventBus().Unsubscribe(sub.ID)
 
 	c.Stream(func(w io.Writer) bool {
 		select {
@@ -1231,7 +1247,11 @@ func (h *C2Handler) canAccessProject(c *gin.Context, projectID string) bool {
 	if session.Scope == database.RBACScopeAll {
 		return true
 	}
-	return h.mgr().DB().UserCanAccessResource(session.UserID, session.Scope, "project", projectID)
+	mgr := h.mgr()
+	if mgr == nil {
+		return false
+	}
+	return mgr.DB().UserCanAccessResource(session.UserID, session.Scope, "project", projectID)
 }
 
 func (h *C2Handler) c2ResourceAllowed(c *gin.Context, resourceType, resourceID string) bool {
@@ -1239,7 +1259,11 @@ func (h *C2Handler) c2ResourceAllowed(c *gin.Context, resourceType, resourceID s
 	if !ok {
 		return false
 	}
-	return h.mgr().DB().UserCanAccessResource(session.UserID, session.Scope, resourceType, resourceID)
+	mgr := h.mgr()
+	if mgr == nil {
+		return false
+	}
+	return mgr.DB().UserCanAccessResource(session.UserID, session.Scope, resourceType, resourceID)
 }
 
 func (h *C2Handler) c2EventAllowed(c *gin.Context, e *c2.Event) bool {
@@ -1253,11 +1277,15 @@ func (h *C2Handler) c2EventAllowed(c *gin.Context, e *c2.Event) bool {
 	if session.Scope == database.RBACScopeAll {
 		return true
 	}
+	mgr := h.mgr()
+	if mgr == nil {
+		return false
+	}
 	if strings.TrimSpace(e.SessionID) != "" {
-		return h.mgr().DB().UserCanAccessResource(session.UserID, session.Scope, "c2_session", e.SessionID)
+		return mgr.DB().UserCanAccessResource(session.UserID, session.Scope, "c2_session", e.SessionID)
 	}
 	if strings.TrimSpace(e.TaskID) != "" {
-		return h.mgr().DB().UserCanAccessResource(session.UserID, session.Scope, "c2_task", e.TaskID)
+		return mgr.DB().UserCanAccessResource(session.UserID, session.Scope, "c2_task", e.TaskID)
 	}
 	return false
 }
