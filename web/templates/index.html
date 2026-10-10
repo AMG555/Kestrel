@@ -1277,16 +1277,16 @@
                                     </div>
                                     <div class="chat-composer-footer-trailing">
                                         <div class="chat-ai-session-state" hidden>
-                                            <select id="chat-ai-channel-select" onchange="persistChatAIChannelPref()">
+                                            <select id="chat-ai-channel-select" aria-label="AI channel" onchange="persistChatAIChannelPref()">
                                                 <option value="" data-i18n="chat.aiChannelDefault">Use default channel</option>
                                             </select>
-                                            <select id="chat-reasoning-mode" onchange="persistChatReasoningPrefs()">
+                                            <select id="chat-reasoning-mode" aria-label="Reasoning mode" onchange="persistChatReasoningPrefs()">
                                                 <option value="default" data-i18n="chat.reasoningModeDefault">Use system default</option>
                                                 <option value="off" data-i18n="chat.reasoningModeOff">Off</option>
                                                 <option value="on" data-i18n="chat.reasoningModeOn">On</option>
                                                 <option value="auto" data-i18n="chat.reasoningModeAuto">Auto</option>
                                             </select>
-                                            <select id="chat-reasoning-effort" onchange="persistChatReasoningPrefs()">
+                                            <select id="chat-reasoning-effort" aria-label="Reasoning effort" onchange="persistChatReasoningPrefs()">
                                                 <option value="" data-i18n="chat.reasoningEffortUnset">Unspecified</option>
                                                 <option value="low">low</option>
                                                 <option value="medium">medium</option>
@@ -1560,8 +1560,8 @@
                                 <p class="hitl-page-strategy-hint" id="hitl-strategy-hint-approval" data-i18n="hitl.strategyHintApproval">Whitelisted tools skip approval. In approval mode the Audit Agent only approves or rejects.</p>
                                 <p class="hitl-page-strategy-hint" id="hitl-strategy-hint-review-edit" hidden data-i18n="hitl.strategyHintReviewEdit">In review & edit mode the Audit Agent may narrow parameters via editedArguments before approve; reject if parameters cannot be safely adjusted.</p>
                                 <p class="hitl-page-strategy-hint" id="hitl-strategy-hint-jev" hidden data-i18n="hitl.strategyHintJev">TypeSafe Jev is active: custom strategy text below is evaluated as structured questions. Built-in destructive rules remain a hard floor. Jev cannot rewrite arguments.</p>
-                                <textarea id="hitl-audit-agent-prompt" class="hitl-strategy-textarea" rows="14" spellcheck="false" autocomplete="off"></textarea>
-                                <textarea id="hitl-audit-agent-prompt-review-edit" class="hitl-strategy-textarea" rows="14" spellcheck="false" autocomplete="off" hidden></textarea>
+                                <textarea id="hitl-audit-agent-prompt" class="hitl-strategy-textarea" rows="14" spellcheck="false" autocomplete="off" aria-label="Audit agent prompt"></textarea>
+                                <textarea id="hitl-audit-agent-prompt-review-edit" class="hitl-strategy-textarea" rows="14" spellcheck="false" autocomplete="off" hidden aria-label="Audit agent prompt (review &amp; edit mode)"></textarea>
                                 <div id="hitl-strategy-feedback" class="hitl-apply-feedback" role="status" aria-live="polite" hidden></div>
                             </div>
                         </div>
@@ -1948,8 +1948,8 @@
                         <div class="asset-toolbar">
                             <div class="asset-toolbar-main">
                                 <input id="asset-search" type="search" data-i18n="assets.searchPlaceholder" data-i18n-attr="placeholder" placeholder="Search host, IP, domain, title, service, or tag" onkeydown="if(event.key==='Enter')loadAssets(1)">
-                                <select id="asset-status-filter" onchange="loadAssets(1)"><option value="" data-i18n="assets.allStatuses">All statuses</option><option value="active" data-i18n="assets.statusActive">Active</option><option value="inactive" data-i18n="assets.statusInactive">Inactive</option></select>
-                                <select id="asset-project-filter" onchange="loadAssets(1)"><option value="" data-i18n="assets.allProjects">All projects</option></select>
+                                <select id="asset-status-filter" aria-label="Filter by status" onchange="loadAssets(1)"><option value="" data-i18n="assets.allStatuses">All statuses</option><option value="active" data-i18n="assets.statusActive">Active</option><option value="inactive" data-i18n="assets.statusInactive">Inactive</option></select>
+                                <select id="asset-project-filter" aria-label="Filter by project" onchange="loadAssets(1)"><option value="" data-i18n="assets.allProjects">All projects</option></select>
                                 <button class="btn-secondary" type="button" onclick="toggleAssetAdvancedFilters()" aria-expanded="false" id="asset-advanced-toggle" data-i18n="assets.advancedFilters">Advanced filters</button>
                                 <button class="btn-primary" type="button" onclick="loadAssets(1)" data-i18n="common.search">Search</button>
                                 <button class="btn-link" type="button" onclick="resetAssetFilters()" data-i18n="assets.resetFilters">Reset</button>
@@ -1978,7 +1978,7 @@
                                 <label><span data-i18n="assets.sort">Sort</span><select id="asset-sort-filter"><option value="last_seen_at:desc" data-i18n="assets.sortLastSeenDesc">Last seen (newest)</option><option value="last_scan_at:asc" data-i18n="assets.sortLastScanAsc">Most overdue scan</option><option value="last_scan_at:desc" data-i18n="assets.sortLastScanDesc">Most recently scanned</option><option value="risk_level:desc" data-i18n="assets.sortRiskDesc">Risk (high to low)</option><option value="vulnerability_count:desc" data-i18n="assets.sortVulnerabilityDesc">Findings (most first)</option><option value="first_seen_at:desc" data-i18n="assets.sortFirstSeenDesc">First seen (newest)</option><option value="host:asc" data-i18n="assets.sortHostAsc">Target name</option><option value="port:asc" data-i18n="assets.sortPortAsc">Port</option></select></label>
                             </div>
                             <div class="asset-saved-views">
-                                <select id="asset-saved-view-select" onchange="applyAssetSavedView(this.value)"><option value="" data-i18n="assets.savedViews">Saved filter views</option></select>
+                                <select id="asset-saved-view-select" aria-label="Saved filter views" onchange="applyAssetSavedView(this.value)"><option value="" data-i18n="assets.savedViews">Saved filter views</option></select>
                                 <button class="btn-secondary" type="button" onclick="saveCurrentAssetView()" data-i18n="assets.saveCurrentView">Save current view</button>
                                 <button class="btn-link" type="button" onclick="deleteCurrentAssetView()" data-i18n="assets.deleteView">Delete view</button>
                             </div>
@@ -2038,7 +2038,7 @@
                             </section>
                             <section class="asset-import-step">
                                 <div class="asset-import-step-heading"><span>2</span><div><strong data-i18n="assets.uploadFile">Upload file</strong><small data-i18n="assets.uploadFileHint">Supports .xlsx and .csv, up to 100,000 rows and 100 MB</small></div></div>
-                                <input id="asset-import-file" type="file" accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden onchange="handleAssetImportFile(this.files && this.files[0])">
+                                <input id="asset-import-file" type="file" accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden aria-label="Import asset file" onchange="handleAssetImportFile(this.files && this.files[0])">
                                 <button id="asset-import-dropzone" class="asset-import-dropzone" type="button" onclick="document.getElementById('asset-import-file').click()">
                                     <span class="asset-import-dropzone-icon" aria-hidden="true">⇧</span>
                                     <strong id="asset-import-dropzone-title" data-i18n="assets.chooseOrDropFile">Choose a file or drop it here</strong>
@@ -2876,7 +2876,7 @@
                         <div class="page-header-actions">
                             <button type="button" class="btn-secondary" id="chat-files-export-btn" data-require-permission="files:read" onclick="exportChatFiles()" data-i18n="chatFilesPage.export">Export Current Results</button>
                             <button type="button" class="btn-primary" id="chat-files-header-upload-btn" data-require-permission="files:write" onclick="chatFilesOpenUploadPicker()" data-i18n="chatFilesPage.upload">Upload</button>
-                            <input type="file" id="chat-files-upload-input" style="display:none" multiple onchange="onChatFilesUploadPick(event)" />
+                            <input type="file" id="chat-files-upload-input" style="display:none" multiple aria-label="Upload files" onchange="onChatFilesUploadPick(event)" />
                             <button type="button" class="btn-secondary" id="chat-files-refresh-btn" onclick="loadChatFilesPage()" data-i18n="common.refresh">Refresh</button>
                         </div>
                     </div>
@@ -3105,11 +3105,11 @@
                                 <p class="c2-payload-desc" data-i18n="c2.payloads.onelinerDesc">Generate a one-line reverse shell for the target (Bash / Python / PowerShell / Curl).</p>
                                 <div class="c2-form-group">
                                     <label data-i18n="c2.payloads.listener">Listener</label>
-                                    <select id="c2-payload-listener" class="form-control c2-form-select-native"></select>
+                                    <select id="c2-payload-listener" aria-label="Listener" class="form-control c2-form-select-native"></select>
                                 </div>
                                 <div class="c2-form-group">
                                     <label data-i18n="c2.payloads.kind">Kind</label>
-                                    <select id="c2-payload-kind" class="form-control c2-form-select-native"></select>
+                                    <select id="c2-payload-kind" aria-label="Payload kind" class="form-control c2-form-select-native"></select>
                                 </div>
                                 <div class="c2-form-group">
                                     <label data-i18n="c2.payloads.hostOptional">Callback host (optional)</label>
@@ -3128,7 +3128,7 @@
                                 <p class="c2-payload-desc" data-i18n="c2.payloads.buildDesc">Cross-compile a full Beacon binary for Linux / Windows / macOS.</p>
                                 <div class="c2-form-group">
                                     <label data-i18n="c2.payloads.listener">Listener</label>
-                                    <select id="c2-build-listener" class="form-control c2-form-select-native"></select>
+                                    <select id="c2-build-listener" aria-label="Listener" class="form-control c2-form-select-native"></select>
                                     <p id="c2-build-loopback-hint" class="form-hint" style="display:none;margin-top:8px;color:#b45309;"></p>
                                 </div>
                                 <div class="c2-form-group">
@@ -3138,7 +3138,7 @@
                                 <div class="c2-form-row">
                                     <div class="c2-form-group">
                                         <label data-i18n="c2.payloads.os">Target OS</label>
-                                        <select id="c2-build-os" class="form-control c2-form-select-native">
+                                        <select id="c2-build-os" aria-label="Target OS" class="form-control c2-form-select-native">
                                             <option value="linux" data-i18n="c2.payloads.linux">Linux</option>
                                             <option value="windows" data-i18n="c2.payloads.windows">Windows</option>
                                             <option value="darwin" data-i18n="c2.payloads.darwin">macOS</option>
@@ -3146,7 +3146,7 @@
                                     </div>
                                     <div class="c2-form-group">
                                         <label data-i18n="c2.payloads.arch">Target Arch</label>
-                                        <select id="c2-build-arch" class="form-control c2-form-select-native">
+                                        <select id="c2-build-arch" aria-label="Target architecture" class="form-control c2-form-select-native">
                                             <option value="amd64" data-i18n="c2.payloads.amd64">AMD64</option>
                                             <option value="arm64" data-i18n="c2.payloads.arm64">ARM64</option>
                                             <option value="386" data-i18n="c2.payloads.386">386</option>
@@ -3531,7 +3531,7 @@
                             </div>
                             <div class="form-group">
                                 <label data-i18n="agentsPage.fieldRole">Type</label>
-                                <select id="agent-md-role" class="form-select">
+                                <select id="agent-md-role" aria-label="Agent type" class="form-select">
                                     <option value="sub" data-i18n="agentsPage.roleSub">Sub-agent</option>
                                     <option value="orchestrator" data-i18n="agentsPage.roleOrchestrator">Orchestrator (Deep)</option>
                                 </select>
@@ -3555,11 +3555,11 @@
                             </div>
                             <div class="form-group">
                                 <label data-i18n="agentsPage.fieldBindRole">Bind role (optional)</label>
-                                <input type="text" id="agent-md-bind-role" placeholder="" autocomplete="off" />
+                                <input type="text" id="agent-md-bind-role" aria-label="Bind role" placeholder="" autocomplete="off" />
                             </div>
                             <div class="form-group">
                                 <label data-i18n="agentsPage.fieldMaxIter">Max iterations (0 = use Settings → agent.max_iterations)</label>
-                                <input type="number" id="agent-md-max-iter" min="0" value="0" />
+                                <input type="number" id="agent-md-max-iter" aria-label="Max iterations" min="0" value="0" />
                             </div>
                             <div class="form-group">
                                 <label data-i18n="agentsPage.fieldInstruction">System prompt (Markdown body)</label>
@@ -5299,7 +5299,7 @@
                                                             </div>
                                                         </div>
                                                         <div class="rbac-assignment-filterbar rbac-resource-filterbar">
-                                                            <select id="rbac-assignment-type" class="form-select rbac-form-select" onchange="changeRbacResourceType()">
+                                                            <select id="rbac-assignment-type" aria-label="Resource type" class="form-select rbac-form-select" onchange="changeRbacResourceType()">
                                                                 <option value="conversation" data-i18n="rbac.resourceTypes.conversation">Conversation</option>
                                                                 <option value="project" data-i18n="rbac.resourceTypes.project">Project</option>
                                                                 <option value="batch_task" data-i18n="rbac.resourceTypes.batch_task">Batch Task</option>
@@ -5641,14 +5641,14 @@
                             <div class="attack-chain-filters">
                                 <input type="text" id="attack-chain-search" data-i18n="attackChainModal.searchPlaceholder" data-i18n-attr="placeholder" placeholder="Search nodes..." 
                                        oninput="filterAttackChainNodes(this.value)">
-                                <select id="attack-chain-type-filter" 
+                                <select id="attack-chain-type-filter" aria-label="Filter by node type"
                                         onchange="filterAttackChainByType(this.value)">
                                     <option value="all" data-i18n="attackChainModal.allTypes">All types</option>
                                     <option value="target" data-i18n="attackChainModal.target">Target</option>
                                     <option value="action" data-i18n="attackChainModal.action">Action</option>
                                     <option value="vulnerability" data-i18n="attackChainModal.vulnerability">Vulnerability</option>
                                 </select>
-                                <select id="attack-chain-risk-filter"
+                                <select id="attack-chain-risk-filter" aria-label="Filter by risk level"
                                         onchange="filterAttackChainByRisk(this.value)">
                                     <option value="all" data-i18n="attackChainModal.allRisks">All risks</option>
                                     <option value="high" data-i18n="attackChainModal.highRisk">High (80-100)</option>
@@ -5727,7 +5727,7 @@
             </div>
             <div class="modal-body">
                 <p class="chat-files-modal-path"><code id="chat-files-edit-path"></code></p>
-                <textarea id="chat-files-edit-textarea" class="form-control chat-files-edit-textarea" rows="18"></textarea>
+                <textarea id="chat-files-edit-textarea" class="form-control chat-files-edit-textarea" rows="18" aria-label="File content"></textarea>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn-secondary" onclick="closeChatFilesEditModal()" data-i18n="common.cancel">Cancel</button>
@@ -5934,7 +5934,7 @@
                         </div>
                         <span class="workflow-package-format-pill">.CSAPKG.ZIP</span>
                     </div>
-                    <input id="workflow-package-file-input" type="file" accept=".csapkg.zip,application/zip" hidden onchange="onWorkflowPackageFileSelected()">
+                    <input id="workflow-package-file-input" type="file" accept=".csapkg.zip,application/zip" hidden aria-label="Workflow package file" onchange="onWorkflowPackageFileSelected()">
                     <div id="workflow-package-dropzone" class="workflow-package-dropzone" role="button" tabindex="0" aria-controls="workflow-package-file-input" aria-describedby="workflow-package-file-hint" onclick="openWorkflowPackageFilePicker()" onkeydown="onWorkflowPackageDropzoneKeydown(event)" ondragenter="onWorkflowPackageDragEnter(event)" ondragover="onWorkflowPackageDragOver(event)" ondragleave="onWorkflowPackageDragLeave(event)" ondrop="onWorkflowPackageDrop(event)">
                         <span class="workflow-package-upload-icon" aria-hidden="true">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4"/><path d="m7 9 5-5 5 5"/><path d="M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/></svg>
