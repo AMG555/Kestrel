@@ -6,6 +6,18 @@ function _t(key, opts) {
 const FOFA_FORM_STORAGE_KEY = 'info-collect-FOFA-form';
 const FOFA_HIDDEN_FIELDS_STORAGE_KEY = 'info-collect-FOFA-hidden-fields';
 
+const infoCollectState = {
+    hiddenFields: new Set(),
+    selectedRowIndexes: new Set(),
+    currentPayload: null,
+    tableBound: false,
+    presetEventsBound: false,
+    providerSelectBound: false,
+    queryHeightResizeBound: false,
+    queryHeightFrame: null,
+    syntaxGuideexpanded: false,
+};
+
 const INFO_COLLECT_PROVIDERS = {
     FOFA: {
         label: 'FOFA',
