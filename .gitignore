@@ -1,8 +1,8 @@
 # ── Kestrel binaries ────────────────────────────────────────
-kestrel
-kestrel.exe
-server
-server.exe
+/kestrel
+/kestrel.exe
+/server
+/server.exe
 *.exe
 *.out
 

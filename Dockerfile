@@ -40,6 +40,8 @@ RUN apk add --no-cache \
 COPY --from=backend-builder /app/kestrel-server /opt/kestrel/kestrel-server
 COPY --from=backend-builder /app/kestrel-mcp /opt/kestrel/kestrel-mcp
 COPY --from=backend-builder /app/web/dist /opt/kestrel/web/dist
+COPY web/templates /opt/kestrel/web/templates
+COPY web/static /opt/kestrel/web/static
 COPY config.example.yaml /opt/kestrel/config.example.yaml
 COPY agents /opt/kestrel/agents
 COPY roles /opt/kestrel/roles
@@ -52,14 +54,18 @@ COPY requirements.txt /opt/kestrel/requirements.txt
 RUN python3 -m venv /opt/kestrel/venv && \
     /opt/kestrel/venv/bin/pip install --no-cache-dir -r requirements.txt || true
 
-# Storage directories
-RUN mkdir -p /opt/kestrel/data /opt/kestrel/log /opt/kestrel/scratch
+# Create non-root system user and storage directories
+RUN addgroup -S kestrel && adduser -S kestrel -G kestrel && \
+    mkdir -p /opt/kestrel/data /opt/kestrel/log /opt/kestrel/scratch && \
+    chown -R kestrel:kestrel /opt/kestrel
 
 EXPOSE 8080 8443
 VOLUME ["/opt/kestrel/data", "/opt/kestrel/log"]
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-  CMD curl -f http://127.0.0.1:8080/api/system/info || exit 1
+  CMD curl -f http://127.0.0.1:8080/healthz || exit 1
+
+USER kestrel
 
 ENTRYPOINT ["/opt/kestrel/kestrel-server"]
 CMD ["-config", "/opt/kestrel/config.yaml"]

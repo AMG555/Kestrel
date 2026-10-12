@@ -1,4 +1,4 @@
-﻿package handler
+package handler
 
 import (
 	"archive/zip"
@@ -1403,6 +1403,11 @@ func (h *ChatUploadsHandler) Upload(c *gin.Context) {
 	fh, err := c.FormFile("file")
 	if err != nil || fh == nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "missing file"})
+		return
+	}
+	const maxUploadSizeBytes = 50 * 1024 * 1024 // 50MB limit
+	if fh.Size > maxUploadSizeBytes {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "file size exceeds 50MB limit"})
 		return
 	}
 	root, err := h.absRoot()

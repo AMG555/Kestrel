@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -770,9 +771,8 @@ func (h *WebShellHandler) Exec(c *gin.Context) {
 		return
 	}
 
-	parsed, err := url.Parse(req.URL)
-	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid url: only http(s) allowed"})
+	if err := validateWebshellTargetURL(req.URL); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -782,6 +782,7 @@ func (h *WebShellHandler) Exec(c *gin.Context) {
 		cmdParam = "cmd"
 	}
 	var httpReq *http.Request
+	var err error
 	if useGET {
 		targetURL := h.buildExecURL(req.URL, req.Type, req.Password, cmdParam, req.Command)
 		httpReq, err = http.NewRequest(http.MethodGet, targetURL, nil)
@@ -813,11 +814,35 @@ func (h *WebShellHandler) Exec(c *gin.Context) {
 	httpCode := resp.StatusCode
 
 	ok := resp.StatusCode == http.StatusOK
+	if h.audit != nil {
+		h.audit.RecordOK(c, "webshell", "exec", "executed command via WebShell", "webshell_connection", req.ConnectionID, map[string]interface{}{
+			"url":         req.URL,
+			"command":     req.Command,
+			"ok":          ok,
+			"http_status": httpCode,
+		})
+	}
+
 	c.JSON(http.StatusOK, ExecResponse{
 		OK:       ok,
 		Output:   output,
 		HTTPCode: httpCode,
 	})
+}
+
+func validateWebshellTargetURL(rawURL string) error {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return fmt.Errorf("invalid url: %w", err)
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return fmt.Errorf("only http(s) allowed")
+	}
+	host := parsed.Hostname()
+	if strings.EqualFold(host, "169.254.169.254") || strings.EqualFold(host, "metadata.google.internal") || strings.EqualFold(host, "instance-data") {
+		return fmt.Errorf("access to cloud metadata service is prohibited")
+	}
+	return nil
 }
 
 // buildExecBody builds a POST body following common WebShell conventions (most use pass + cmd; command argument name is configurable)

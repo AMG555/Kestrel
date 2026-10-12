@@ -153,7 +153,7 @@ SELECT msg.id, msg.conversation_id,
            SELECT MIN(later.created_at)
            FROM messages later
            WHERE later.conversation_id = msg.conversation_id
-             AND later.created_at > msg.created_at
+             AND (later.created_at > msg.created_at OR (later.created_at = msg.created_at AND later.rowid > msg.rowid))
        ), (
            SELECT MAX(pd.created_at)
            FROM process_details pd
@@ -179,7 +179,7 @@ WHERE msg.role = 'assistant'
       OR EXISTS (
           SELECT 1 FROM messages later
           WHERE later.conversation_id = msg.conversation_id
-            AND later.created_at > msg.created_at
+            AND (later.created_at > msg.created_at OR (later.created_at = msg.created_at AND later.rowid > msg.rowid))
       )
   )`)
 	if err != nil {

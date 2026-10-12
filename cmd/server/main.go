@@ -158,7 +158,6 @@ func main() {
 	go func() {
 		sig := <-sigCh
 		log.Info("received system signal, starting graceful shutdown: " + sig.String())
-		application.Shutdown()
 		cancel()
 	}()
 
@@ -171,6 +170,7 @@ func main() {
 			log.Fatal("server startup failed", "error", err)
 		}
 	}
+	application.Shutdown()
 }
 
 func runResetAdminPassword(cfg *config.Config) error {

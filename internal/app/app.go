@@ -92,6 +92,8 @@ func New(cfg *config.Config, log *logger.Logger, configPath string) (*App, error
 
 	// CORS middleware
 	router.Use(corsMiddleware(cfg.Server.CORSAllowedOrigins))
+	// Security headers middleware
+	router.Use(securityHeadersMiddleware(config.MainWebUIUsesHTTPS(&cfg.Server)))
 
 	// initialize database
 	dbPath := cfg.Database.Path
@@ -477,6 +479,7 @@ func New(cfg *config.Config, log *logger.Logger, configPath string) (*App, error
 	skillsHandler.SetAudit(auditSvc)
 	fofaHandler := handler.NewFofaHandler(cfg, log.Logger)
 	terminalHandler := handler.NewTerminalHandler(log.Logger)
+	terminalHandler.SetAudit(auditSvc)
 	if db != nil {
 		skillsHandler.SetDB(db) // set database connection to retrieve call statistics
 	}
@@ -948,6 +951,37 @@ func setupRoutes(
 	authManager *security.AuthManager,
 	openAPIHandler *handler.OpenAPIHandler,
 ) {
+	// Health & readiness probes (unauthenticated)
+	healthHandler := func(c *gin.Context) {
+		version := app.config.Version
+		if version == "" {
+			version = "v1.0.0"
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"status":  "ok",
+			"version": version,
+			"time":    time.Now().UTC().Format(time.RFC3339),
+		})
+	}
+	readyHandler := func(c *gin.Context) {
+		if app.db == nil || app.db.DB == nil {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"status": "error", "error": "database not ready"})
+			return
+		}
+		ctx, cancel := context.WithTimeout(c.Request.Context(), 2*time.Second)
+		defer cancel()
+		if err := app.db.PingContext(ctx); err != nil {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"status": "error", "error": "database ping failed: " + err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"status": "ready", "time": time.Now().UTC().Format(time.RFC3339)})
+	}
+
+	router.GET("/healthz", healthHandler)
+	router.GET("/readyz", readyHandler)
+	router.GET("/api/healthz", healthHandler)
+	router.GET("/api/system/info", healthHandler)
+
 	// API routes
 	api := router.Group("/api")
 
@@ -2307,4 +2341,17 @@ func normalizeCORSOrigin(raw string) (string, bool) {
 		return "", false
 	}
 	return strings.ToLower(parsed.Scheme) + "://" + strings.ToLower(parsed.Host), true
+}
+
+func securityHeadersMiddleware(isHTTPS bool) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Writer.Header().Set("X-Content-Type-Options", "nosniff")
+		c.Writer.Header().Set("X-Frame-Options", "SAMEORIGIN")
+		c.Writer.Header().Set("X-XSS-Protection", "1; mode=block")
+		c.Writer.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		if isHTTPS {
+			c.Writer.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		}
+		c.Next()
+	}
 }

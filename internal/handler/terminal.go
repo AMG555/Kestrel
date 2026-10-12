@@ -13,6 +13,8 @@ import (
 	"sync"
 	"time"
 
+	"kestrel/internal/audit"
+
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -26,6 +28,12 @@ const (
 // TerminalHandler handles terminal command execution in system settings.
 type TerminalHandler struct {
 	logger *zap.Logger
+	audit  *audit.Service
+}
+
+// SetAudit wires platform audit logging.
+func (h *TerminalHandler) SetAudit(s *audit.Service) {
+	h.audit = s
 }
 
 // maskTerminalCommand redacts potentially sensitive info from terminal commands to avoid logging passwords etc.
@@ -181,6 +189,13 @@ func (h *TerminalHandler) RunCommand(c *gin.Context) {
 	if err != nil && exitCode != 0 {
 		resp.Error = err.Error()
 	}
+	if h.audit != nil {
+		h.audit.RecordOK(c, "terminal", "command_exec", "terminal command executed", "terminal", "", map[string]interface{}{
+			"command":   maskTerminalCommand(cmdStr),
+			"exit_code": exitCode,
+		})
+	}
+
 	c.JSON(http.StatusOK, resp)
 }
 
@@ -265,5 +280,11 @@ func (h *TerminalHandler) RunCommandStream(c *gin.Context) {
 		flusher.Flush()
 	}
 
-	_ = runCommandStreamImpl(cmd, sendEvent, ctx)
+	exitCode := runCommandStreamImpl(cmd, sendEvent, ctx)
+	if h.audit != nil {
+		h.audit.RecordOK(c, "terminal", "command_stream", "terminal command streamed", "terminal", "", map[string]interface{}{
+			"command":   maskTerminalCommand(cmdStr),
+			"exit_code": exitCode,
+		})
+	}
 }

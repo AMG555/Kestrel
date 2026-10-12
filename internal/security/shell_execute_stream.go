@@ -5,13 +5,33 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"sync"
 
 	"github.com/cloudwego/eino/adk/filesystem"
 	"github.com/cloudwego/eino/schema"
 )
+
+func defaultStreamingShell() string {
+	if runtime.GOOS == "windows" {
+		if p, err := exec.LookPath("sh"); err == nil {
+			return p
+		}
+		for _, candidate := range []string{
+			`C:\Program Files\Git\bin\sh.exe`,
+			`C:\Program Files\Git\usr\bin\sh.exe`,
+		} {
+			if _, err := os.Stat(candidate); err == nil {
+				return candidate
+			}
+		}
+		return "sh"
+	}
+	return "/bin/sh"
+}
 
 // ConfigureShellCmdForAgentExecute aligns with exec tool: non-interactive stdin, pager/TERM environment, independent process group.
 func ConfigureShellCmdForAgentExecute(cmd *exec.Cmd) {
@@ -66,7 +86,7 @@ func runShellInBackground(ctx context.Context, command string, w *schema.StreamW
 	if IsBackgroundShellCommand(command) {
 		command = strings.TrimSpace(strings.TrimSuffix(command, "&"))
 	}
-	session, err := StartManagedBackground(ctx, "/bin/sh", command, "")
+	session, err := StartManagedBackground(ctx, defaultStreamingShell(), command, "")
 	if err != nil {
 		_ = w.Send(nil, err)
 		return
@@ -96,7 +116,7 @@ func streamShellForeground(ctx context.Context, command string, w *schema.Stream
 	defer w.Close()
 
 	command = PrepareShellCommandForExecute(command)
-	cmd := exec.CommandContext(ctx, "/bin/sh", "-c", command)
+	cmd := exec.CommandContext(ctx, defaultStreamingShell(), "-c", command)
 	applyDefaultTerminalEnv(cmd)
 	attachNonInteractiveStdin(cmd)
 

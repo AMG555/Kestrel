@@ -1,9 +1,11 @@
-﻿package c2
+package c2
 
 import (
-	"go.uber.org/zap"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"go.uber.org/zap"
 )
 
 func TestHTTPBeaconSessionCredentialTemplateCompiles(t *testing.T) {
@@ -26,6 +28,9 @@ func TestHTTPBeaconSessionCredentialTemplateCompiles(t *testing.T) {
 		t.Run(platform.os, func(t *testing.T) {
 			result, err := builder.BuildBeacon(PayloadBuilderInput{ListenerID: "listener", OS: platform.os, Arch: platform.arch, Host: "127.0.0.1"})
 			if err != nil {
+				if strings.Contains(err.Error(), "virus") || strings.Contains(err.Error(), "potentially unwanted software") {
+					t.Skipf("host antivirus blocked beacon compile: %v", err)
+				}
 				t.Fatal(err)
 			}
 			if result.SizeBytes <= 0 {
