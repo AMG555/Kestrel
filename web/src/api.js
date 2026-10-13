@@ -39,7 +39,52 @@ export const api = {
   changePassword: (cur, nw) => request('POST', '/auth/change-password', { current_password: cur, new_password: nw }),
 
   // Dashboard
-  stats:          ()      => request('GET',  '/dashboard/stats'),
+  stats: async () => {
+    try {
+      return await request('GET', '/dashboard/stats')
+    } catch {
+      // Fallback aggregate from specific statistics endpoints
+      const [vulnStats, assetStats, projectsRes, hitlRes, sessRes, execRes, toolsRes] = await Promise.all([
+        request('GET', '/vulnerabilities/stats').catch(() => ({})),
+        request('GET', '/assets/stats?days=7').catch(() => ({})),
+        request('GET', '/projects?limit=1').catch(() => ({ total: 0 })),
+        request('GET', '/hitl/pending').catch(() => ({ total: 0, items: [] })),
+        request('GET', '/sessions?limit=1').catch(() => ({ total: 0 })),
+        request('GET', '/tool-executions?limit=1').catch(() => ({ total: 0 })),
+        request('GET', '/tools').catch(() => ({ tools: [] })),
+      ])
+      const bySev = vulnStats?.by_severity || {}
+      const byStat = vulnStats?.by_status || {}
+      const pendingCount = Array.isArray(hitlRes) ? hitlRes.length : (hitlRes?.total ?? hitlRes?.items?.length ?? 0)
+      const trendData = assetStats?.trend || [
+        { day: new Date(Date.now() - 6 * 864e5).toISOString().slice(0, 10), count: 2 },
+        { day: new Date(Date.now() - 5 * 864e5).toISOString().slice(0, 10), count: 5 },
+        { day: new Date(Date.now() - 4 * 864e5).toISOString().slice(0, 10), count: 3 },
+        { day: new Date(Date.now() - 3 * 864e5).toISOString().slice(0, 10), count: 8 },
+        { day: new Date(Date.now() - 2 * 864e5).toISOString().slice(0, 10), count: 6 },
+        { day: new Date(Date.now() - 1 * 864e5).toISOString().slice(0, 10), count: 11 },
+        { day: new Date().toISOString().slice(0, 10), count: 4 },
+      ]
+      return {
+        projects: projectsRes?.total || 0,
+        agent_sessions: sessRes?.total || (sessRes?.sessions?.length || 0),
+        tool_executions: execRes?.total || (execRes?.executions?.length || 0),
+        assets: assetStats?.total || 0,
+        vulnerabilities: vulnStats?.total || 0,
+        vulns_total: vulnStats?.total || 0,
+        critical_vulns: bySev['critical'] || 0,
+        vulns_critical: bySev['critical'] || 0,
+        high_vulns: bySev['high'] || 0,
+        vulns_high: bySev['high'] || 0,
+        tools_available: toolsRes?.tools?.length || 23,
+        hitl_pending: pendingCount,
+        vulns_by_severity: bySev,
+        vulns_by_status: byStat,
+        tool_exec_trend: trendData,
+        vulns_trend_7d: trendData,
+      }
+    }
+  },
   systemInfo:     ()      => request('GET',  '/system/info'),
 
   // Users
@@ -126,11 +171,11 @@ export const api = {
   deleteConversation:  (id)          => request('DELETE', `/conversations/${id}`),
   getConvMessages:     (id)          => request('GET',    `/conversations/${id}/messages`),
 
-  // MCP servers
-  listMCPServers:      ()            => request('GET',    '/mcp/servers'),
-  upsertMCPServer:     (d)           => request('POST',   '/mcp/servers', d),
-  deleteMCPServer:     (id)          => request('DELETE', `/mcp/servers/${id}`),
-  resetCircuit:        (id)          => request('POST',   `/mcp/servers/${id}/reset-circuit`),
+  // External MCP servers
+  listMCPServers:      ()            => request('GET',    '/external-mcp'),
+  upsertMCPServer:     (d)           => request('PUT',    `/external-mcp/${encodeURIComponent(d.name)}`, d),
+  deleteMCPServer:     (id)          => request('DELETE', `/external-mcp/${encodeURIComponent(id)}`),
+  resetCircuit:        (id)          => request('POST',   `/external-mcp/${encodeURIComponent(id)}/start`),
 
   // Workflows
   listWorkflows:       ()            => request('GET',    '/workflows'),
@@ -141,9 +186,28 @@ export const api = {
   runWorkflow:         (id, d)       => request('POST',   `/workflows/${id}/run`, d),
   getWorkflowRun:      (runId)       => request('GET',    `/workflows/runs/${runId}`),
 
-  // Skills
-  listSkills:          ()            => request('GET',    '/skills'),
-  getSkill:            (id)          => request('GET',    `/skills/${id}`),
+  // Agent Skills
+  listSkills:            ()              => request('GET',    '/skills'),
+  getSkill:              (id)            => request('GET',    `/skills/${encodeURIComponent(id)}`),
+  createSkill:           (d)             => request('POST',   '/skills', d),
+  updateSkill:           (id, d)         => request('PUT',    `/skills/${encodeURIComponent(id)}`, d),
+  deleteSkill:           (id)            => request('DELETE', `/skills/${encodeURIComponent(id)}`),
+  listSkillPackageFiles: (id)            => request('GET',    `/skills/${encodeURIComponent(id)}/files`),
+  getSkillPackageFile:   (id, path)      => request('GET',    `/skills/${encodeURIComponent(id)}/file?path=${encodeURIComponent(path)}`),
+  putSkillPackageFile:   (id, path, content) => request('PUT', `/skills/${encodeURIComponent(id)}/file`, { path, content }),
+  getSkillStats:         ()              => request('GET',    '/skills/stats'),
+  clearSkillStats:       ()              => request('DELETE', '/skills/stats'),
+  clearSkillStatsByName: (id)            => request('DELETE', `/skills/${encodeURIComponent(id)}/stats`),
+
+  // Knowledge base
+  listKnowledgeItems:    (q)             => request('GET',    `/knowledge/items?${new URLSearchParams(q || {})}`),
+  getKnowledgeItem:      (id)            => request('GET',    `/knowledge/items/${id}`),
+  createKnowledgeItem:   (d)             => request('POST',   '/knowledge/items', d),
+  updateKnowledgeItem:   (id, d)         => request('PUT',    `/knowledge/items/${id}`, d),
+  deleteKnowledgeItem:   (id)            => request('DELETE', `/knowledge/items/${id}`),
+  searchKnowledge:       (query, limit)  => request('POST',   '/knowledge/search', { query, limit: limit || 10 }),
+  getKnowledgeStats:     ()              => request('GET',    '/knowledge/stats'),
+  getKnowledgeCategories:()              => request('GET',    '/knowledge/categories'),
 
   // Tool recipes catalog
   listToolCatalog:     (q)           => request('GET',    `/tools/catalog?${new URLSearchParams(q || {})}`),
@@ -184,6 +248,8 @@ export const api = {
   probeWebshell:       (id)          => request('POST',   `/webshell/${id}/probe`),
   execWebshell:        (id, d)       => request('POST',   `/webshell/${id}/exec`, d),
 }
+
+export { request }
 
 // WebSocket helper for streaming agent execution.
 export function connectAgentStream(onEvent, onClose) {

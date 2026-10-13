@@ -31,8 +31,17 @@ export default function SettingsPage() {
     setLoading(true)
     Promise.all([api.systemInfo(), api.listMCPServers()])
       .then(([i, m]) => {
-        setInfo(i)
-        setMcpSvrs(m.servers || [])
+        const svrs = Array.isArray(m?.servers)
+          ? m.servers
+          : Object.entries(m?.servers || {}).map(([name, s]) => ({
+              id: name,
+              name,
+              transport: s?.config?.transport || 'http',
+              url: s?.config?.url || s?.config?.command || '',
+              status: s?.status || 'disconnected',
+              circuit_open: s?.status === 'circuit_open' || s?.status === 'error',
+            }))
+        setMcpSvrs(svrs)
         setLoading(false)
       })
       .catch(e => { setError(e.message); setLoading(false) })

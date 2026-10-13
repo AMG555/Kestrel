@@ -12,40 +12,52 @@ export default function KnowledgePage() {
   const [error, setError] = useState('')
   const [enabled, setEnabled] = useState(true)
 
-  const load = () => {
-    api.request?.('GET', '/knowledge/documents')
-      ?.then?.(d => setDocs(d.documents || []))
-      ?.catch?.(err => {
-        if (err.message?.includes('not enabled')) setEnabled(false)
-        else setError(err.message)
+  const load = async () => {
+    try {
+      const data = await api.listKnowledgeItems().catch(async () => {
+        // Fallback for legacy /knowledge/documents if applicable
+        const res = await fetch('/api/knowledge/documents', {
+          headers: { Authorization: `Bearer ${localStorage.getItem('kestrel_token')}` }
+        })
+        return await res.json()
       })
-    // Use direct fetch since api.js doesn't expose knowledge yet
-    fetch('/api/knowledge/documents', {
-      headers: { Authorization: `Bearer ${localStorage.getItem('kestrel_token')}` }
-    }).then(r => r.json()).then(d => {
-      if (d.error?.includes('not enabled')) setEnabled(false)
-      else setDocs(d.documents || [])
-    }).catch(() => {})
+      if (data?.enabled === false || data?.message?.includes('not enabled')) {
+        setEnabled(false)
+      } else {
+        setDocs(data?.items || data?.documents || [])
+        setEnabled(true)
+      }
+    } catch (err) {
+      if (err.message?.includes('not enabled')) setEnabled(false)
+      else setError(err.message)
+    }
   }
 
-  useEffect(load, [])
+  useEffect(() => { load() }, [])
 
   const ingest = async () => {
     if (!text.trim()) return
     setIngesting(true)
     setError('')
     try {
-      const resp = await fetch('/api/knowledge/ingest', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('kestrel_token')}`,
-          'Content-Type': 'text/plain',
-          'X-Document-Title': title || 'Untitled',
-        },
-        body: text,
+      await api.createKnowledgeItem({
+        title: title || 'Untitled Playbook',
+        content: text,
+        category: 'playbook',
+      }).catch(async () => {
+        // Fallback
+        const resp = await fetch('/api/knowledge/ingest', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('kestrel_token')}`,
+            'Content-Type': 'text/plain',
+            'X-Document-Title': title || 'Untitled',
+          },
+          body: text,
+        })
+        const d = await resp.json()
+        if (!resp.ok) throw new Error(d.error || 'Ingest failed')
       })
-      const d = await resp.json()
-      if (!resp.ok) throw new Error(d.error || 'Ingest failed')
       setText('')
       setTitle('')
       load()
@@ -61,17 +73,18 @@ export default function KnowledgePage() {
     setQuerying(true)
     setError('')
     try {
-      const resp = await fetch('/api/knowledge/query', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('kestrel_token')}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ query, top_k: 5 }),
+      const d = await api.searchKnowledge(query, 5).catch(async () => {
+        const resp = await fetch('/api/knowledge/query', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('kestrel_token')}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ query, top_k: 5 }),
+        })
+        return await resp.json()
       })
-      const d = await resp.json()
-      if (!resp.ok) throw new Error(d.error || 'Query failed')
-      setResults(d.results || [])
+      setResults(d.results || d.items || [])
     } catch (err) {
       setError(err.message)
     } finally {
@@ -81,11 +94,17 @@ export default function KnowledgePage() {
 
   const deleteDoc = async (id) => {
     if (!confirm('Delete this document?')) return
-    await fetch(`/api/knowledge/documents/${id}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${localStorage.getItem('kestrel_token')}` },
-    })
-    load()
+    try {
+      await api.deleteKnowledgeItem(id).catch(async () => {
+        await fetch(`/api/knowledge/documents/${id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${localStorage.getItem('kestrel_token')}` },
+        })
+      })
+      load()
+    } catch (err) {
+      setError(err.message)
+    }
   }
 
   if (!enabled) {
