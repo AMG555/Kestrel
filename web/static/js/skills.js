@@ -139,6 +139,37 @@ async function loadSkills(page = 1, pageSize = null) {
     }
 }
 
+// Trigger and execution helpers for Skills
+function runSkillInChat(skillName, skillDesc) {
+    const prompt = `Please activate and execute the "${skillName}" skill. Perform thorough assessment following its guidelines.`;
+    if (typeof switchPage === 'function') {
+        switchPage('chat');
+    } else {
+        window.location.hash = '#/chat';
+    }
+    setTimeout(() => {
+        const input = document.getElementById('chat-input');
+        if (input) {
+            input.value = prompt;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.focus();
+        }
+    }, 200);
+}
+
+function copySkillPrompt(skillName, skillDesc) {
+    const prompt = `Please activate and execute the "${skillName}" skill. Perform thorough assessment following its guidelines.`;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(prompt).then(() => {
+            showNotification('Skill trigger prompt copied to clipboard', 'success');
+        }).catch(() => {
+            showNotification('Failed to copy to clipboard', 'error');
+        });
+    } else {
+        showNotification('Clipboard API not available', 'warn');
+    }
+}
+
 // Render skills list
 function renderSkillsList() {
     const skillsListEl = document.getElementById('skills-list');
@@ -186,7 +217,9 @@ function renderSkillsList() {
                         <div class="skill-card-description">${escapeHtml(skill.description || _t('skills.noDescription'))}</div>
                         ${tagsHtml}
                     </div>
-                    <div class="skill-card-actions">
+                    <div class="skill-card-actions" style="gap: 6px; flex-wrap: wrap;">
+                        <button type="button" class="btn-primary btn-small" data-skill-run="${escapeAttr(sid)}" title="Launch in Chat">▶ Run in Chat</button>
+                        <button type="button" class="btn-secondary btn-small" data-skill-copy="${escapeAttr(sid)}" title="Copy trigger prompt">📋</button>
                         <button type="button" class="btn-secondary btn-small" data-skill-view="${escapeAttr(sid)}">${_t('common.view')}</button>
                         <button type="button" class="btn-secondary btn-small" data-skill-edit="${escapeAttr(sid)}">${_t('common.edit')}</button>
                         <button type="button" class="btn-secondary btn-small btn-danger" data-skill-delete="${escapeAttr(sid)}">${_t('common.delete')}</button>
@@ -196,6 +229,16 @@ function renderSkillsList() {
         `;
     }).join('');
 
+    skillsListEl.querySelectorAll('[data-skill-run]').forEach(btn => {
+        const sid = btn.getAttribute('data-skill-run');
+        const item = skillsList.find(s => (s.id || s.name) === sid) || { name: sid };
+        btn.addEventListener('click', () => runSkillInChat(item.name || sid, item.description));
+    });
+    skillsListEl.querySelectorAll('[data-skill-copy]').forEach(btn => {
+        const sid = btn.getAttribute('data-skill-copy');
+        const item = skillsList.find(s => (s.id || s.name) === sid) || { name: sid };
+        btn.addEventListener('click', () => copySkillPrompt(item.name || sid, item.description));
+    });
     skillsListEl.querySelectorAll('[data-skill-view]').forEach(btn => {
         btn.addEventListener('click', () => viewSkill(btn.getAttribute('data-skill-view')));
     });
@@ -205,6 +248,7 @@ function renderSkillsList() {
     skillsListEl.querySelectorAll('[data-skill-delete]').forEach(btn => {
         btn.addEventListener('click', () => deleteSkill(btn.getAttribute('data-skill-delete')));
     });
+
     
     // Ensure list container can scroll and pagination bar is visible
     // Use setTimeout to check after DOM update completes
@@ -698,10 +742,12 @@ async function viewSkill(skillId) {
                     <div style="margin-bottom: 8px;"><strong>${escapeHtml(contentLabel)}</strong> <span style="opacity:0.8;font-size:12px;">${escapeHtml(_t('skills.summaryHint'))}</span></div>
                     <pre id="skill-view-body" style="padding: 16px; border-radius: 4px; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word; border: 1px solid var(--border-color);">${escapeHtml(sumSkill.content || '')}</pre>
                 </div>
-                <div class="modal-footer">
+                <div class="modal-footer" style="display: flex; gap: 8px; flex-wrap: wrap;">
                     <button type="button" class="btn-secondary" data-skill-load-full>${escapeHtml(loadFullLabel)}</button>
+                    <button type="button" class="btn-secondary" data-skill-view-copy>📋 Copy Prompt</button>
+                    <button type="button" class="btn-primary" data-skill-view-run>▶ Run in Chat</button>
                     <button type="button" class="btn-secondary" data-skill-view-close>${escapeHtml(closeBtn)}</button>
-                    <button type="button" class="btn-primary" data-skill-view-edit>${escapeHtml(editBtn)}</button>
+                    <button type="button" class="btn-secondary" data-skill-view-edit>${escapeHtml(editBtn)}</button>
                 </div>
             </div>
         `;
@@ -710,6 +756,13 @@ async function viewSkill(skillId) {
 
         const close = () => closeSkillViewModal();
         modal.querySelectorAll('[data-skill-view-close]').forEach(el => el.addEventListener('click', close));
+        modal.querySelector('[data-skill-view-run]')?.addEventListener('click', () => {
+            close();
+            runSkillInChat(sumSkill.name || skillId, sumSkill.description);
+        });
+        modal.querySelector('[data-skill-view-copy]')?.addEventListener('click', () => {
+            copySkillPrompt(sumSkill.name || skillId, sumSkill.description);
+        });
         modal.querySelector('[data-skill-view-edit]').addEventListener('click', () => {
             close();
             editSkill(skillId);
