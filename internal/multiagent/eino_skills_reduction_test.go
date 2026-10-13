@@ -1,4 +1,4 @@
-﻿package multiagent
+package multiagent
 
 import (
 	"context"
@@ -25,3 +25,25 @@ func TestPrepareEinoAgenticSkillsStillCreatesReductionBackendWhenSkillsDisabled(
 		t.Fatalf("Agentic Skills unexpectedly enabled: mw=%v fs=%v root=%q", skillMW, fsTools, skillsRoot)
 	}
 }
+
+func TestPrepareEinoAgenticSkillsWithRealSkillsDirectory(t *testing.T) {
+	ma := &config.MultiAgentConfig{
+		EinoSkills: config.MultiAgentEinoSkillsConfig{
+			Disable: false,
+		},
+	}
+	loc, skillMW, _, skillsRoot, err := prepareEinoAgenticSkills(context.Background(), "../../skills", ma, nil)
+	if err != nil {
+		t.Fatalf("prepareEinoAgenticSkills failed with real skills: %v", err)
+	}
+	if loc == nil {
+		t.Fatal("expected local backend")
+	}
+	if skillMW == nil {
+		t.Fatal("expected non-nil skillMW")
+	}
+	if skillsRoot == "" {
+		t.Fatal("expected non-empty skillsRoot")
+	}
+}
+

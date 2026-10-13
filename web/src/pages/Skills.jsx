@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { api } from '../api'
 
 const QUICK_CATEGORIES = [
@@ -7,10 +8,15 @@ const QUICK_CATEGORIES = [
   { id: 'web', label: 'Web Attacks' },
   { id: 'active-directory', label: 'Active Directory' },
   { id: 'cloud', label: 'Cloud Security' },
-  { id: 'binary', label: 'Binary & Reversing' },
-  { id: 'exploitation', label: 'Post-Exploitation' },
+  { id: 'binary', label: 'Binary & Mobile' },
+  { id: 'post-exploitation', label: 'Post-Exploitation' },
   { id: 'phishing', label: 'Initial Access' },
   { id: 'zero-day', label: 'Zero-Day Discovery' },
+  { id: 'ai-llm', label: 'AI & LLM Security' },
+  { id: 'blockchain', label: 'Smart Contracts' },
+  { id: 'wireless', label: 'Wireless & Hardware' },
+  { id: 'source-code', label: 'Source Review' },
+  { id: 'pentest', label: 'Standards & OPSEC' },
 ]
 
 export default function Skills() {
@@ -33,10 +39,13 @@ export default function Skills() {
   const [loadingDetail, setLoadingDetail] = useState(false)
   const [modalTab, setModalTab] = useState('doc') // 'doc' | 'files' | 'edit' | 'agent'
 
-  // Package file viewer inside modal
+  // Package file viewer & editor inside modal
   const [selectedPackageFile, setSelectedPackageFile] = useState(null)
   const [packageFileContent, setPackageFileContent] = useState('')
   const [loadingPackageFile, setLoadingPackageFile] = useState(false)
+  const [editingPackageFile, setEditingPackageFile] = useState(false)
+  const [editPackageFileContent, setEditPackageFileContent] = useState('')
+  const [savingPackageFile, setSavingPackageFile] = useState(false)
 
   // Edit skill state
   const [editDesc, setEditDesc] = useState('')
@@ -88,6 +97,7 @@ export default function Skills() {
     setModalTab('doc')
     setSelectedPackageFile(null)
     setPackageFileContent('')
+    setEditingPackageFile(false)
     try {
       const detail = await api.getSkill(id)
       setSkillDetail(detail.skill || detail)
@@ -104,13 +114,32 @@ export default function Skills() {
   async function loadPackageFile(skillId, filePath) {
     setSelectedPackageFile(filePath)
     setLoadingPackageFile(true)
+    setEditingPackageFile(false)
     try {
       const res = await api.getSkillPackageFile(skillId, filePath)
-      setPackageFileContent(res.content || '')
+      const content = res.content || ''
+      setPackageFileContent(content)
+      setEditPackageFileContent(content)
     } catch (err) {
       setPackageFileContent(`[Error loading file: ${err.message}]`)
+      setEditPackageFileContent('')
     } finally {
       setLoadingPackageFile(false)
+    }
+  }
+
+  async function handleSavePackageFile() {
+    if (!selectedSkill || !selectedPackageFile) return
+    setSavingPackageFile(true)
+    try {
+      await api.putSkillPackageFile(selectedSkill, selectedPackageFile, editPackageFileContent)
+      setPackageFileContent(editPackageFileContent)
+      setEditingPackageFile(false)
+      notifySuccess(`Saved file '${selectedPackageFile}'`)
+    } catch (err) {
+      alert(`Failed to save package file: ${err.message}`)
+    } finally {
+      setSavingPackageFile(false)
     }
   }
 
@@ -567,12 +596,19 @@ export default function Skills() {
                     📋 Copy Prompt
                   </button>
 
-                  <div style={{ display: 'flex', gap: '8px' }}>
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                    <Link
+                      to={`/agent?mode=deep&intent=${encodeURIComponent(`Please activate and execute the "${skill.name}" skill. Perform thorough assessment following its guidelines.`)}`}
+                      style={{ color: '#38bdf8', textDecoration: 'none', fontWeight: 600, fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+                      title="Launch immediately in DeepAgent orchestrator"
+                    >
+                      ▶ Run in Agent
+                    </Link>
                     <button
                       onClick={() => viewSkill(skill.id)}
                       style={{ background: 'transparent', border: 'none', color: 'var(--accent)', fontWeight: 500, padding: 0, cursor: 'pointer' }}
                     >
-                      Inspect & Edit →
+                      Inspect →
                     </button>
                   </div>
                 </div>
@@ -785,7 +821,7 @@ export default function Skills() {
                           )}
                         </div>
 
-                        {/* File Content Preview */}
+                        {/* File Content Preview / Editor */}
                         <div style={{ background: '#090d13', border: '1px solid var(--border)', borderRadius: '8px', padding: '14px', display: 'flex', flexDirection: 'column' }}>
                           {selectedPackageFile ? (
                             <>
@@ -793,18 +829,71 @@ export default function Skills() {
                                 <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--accent)', fontFamily: 'monospace' }}>
                                   {selectedPackageFile}
                                 </span>
-                                <button
-                                  onClick={() => {
-                                    navigator.clipboard.writeText(packageFileContent)
-                                    notifySuccess(`Copied ${selectedPackageFile}`)
-                                  }}
-                                  style={{ fontSize: '11px', padding: '2px 8px' }}
-                                >
-                                  Copy
-                                </button>
+                                <div style={{ display: 'flex', gap: '6px' }}>
+                                  {!editingPackageFile ? (
+                                    <>
+                                      <button
+                                        onClick={() => {
+                                          navigator.clipboard.writeText(packageFileContent)
+                                          notifySuccess(`Copied ${selectedPackageFile}`)
+                                        }}
+                                        style={{ fontSize: '11px', padding: '2px 8px' }}
+                                      >
+                                        Copy
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          setEditPackageFileContent(packageFileContent)
+                                          setEditingPackageFile(true)
+                                        }}
+                                        style={{ fontSize: '11px', padding: '2px 8px', color: 'var(--accent)' }}
+                                      >
+                                        ✏️ Edit
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <button
+                                        onClick={() => setEditingPackageFile(false)}
+                                        disabled={savingPackageFile}
+                                        style={{ fontSize: '11px', padding: '2px 8px' }}
+                                      >
+                                        Cancel
+                                      </button>
+                                      <button
+                                        onClick={handleSavePackageFile}
+                                        disabled={savingPackageFile}
+                                        className="primary"
+                                        style={{ fontSize: '11px', padding: '2px 8px' }}
+                                      >
+                                        {savingPackageFile ? 'Saving…' : 'Save'}
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
                               </div>
                               {loadingPackageFile ? (
                                 <div style={{ padding: '40px', textAlign: 'center', color: 'var(--muted)' }}>Loading file content...</div>
+                              ) : editingPackageFile ? (
+                                <textarea
+                                  rows={14}
+                                  value={editPackageFileContent}
+                                  onChange={e => setEditPackageFileContent(e.target.value)}
+                                  style={{
+                                    width: '100%',
+                                    boxSizing: 'border-box',
+                                    background: '#04070b',
+                                    border: '1px solid var(--border)',
+                                    borderRadius: '4px',
+                                    padding: '10px',
+                                    color: 'var(--text)',
+                                    fontSize: '12px',
+                                    fontFamily: 'monospace',
+                                    lineHeight: '1.5',
+                                    flex: 1,
+                                    resize: 'vertical'
+                                  }}
+                                />
                               ) : (
                                 <pre style={{
                                   margin: 0,
@@ -823,7 +912,7 @@ export default function Skills() {
                             </>
                           ) : (
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--muted)', fontSize: '13px' }}>
-                              Select a file from the list to view its contents.
+                              Select a file from the list to view or edit its contents.
                             </div>
                           )}
                         </div>
@@ -917,19 +1006,25 @@ export default function Skills() {
                         <p style={{ margin: '0 0 10px', fontSize: '13px', color: 'var(--muted)' }}>
                           Copy the recommended trigger prompt to immediately direct Kestrel to invoke this skill:
                         </p>
-                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                           <input
                             readOnly
                             value={`Please activate and execute the "${skillDetail.name}" skill. Perform thorough assessment following its guidelines.`}
-                            style={{ flex: 1, background: '#090d13', fontFamily: 'monospace', fontSize: '12px' }}
+                            style={{ flex: 1, minWidth: '280px', background: '#090d13', fontFamily: 'monospace', fontSize: '12px' }}
                           />
                           <button
-                            className="primary"
                             onClick={() => copyPromptToClipboard(skillDetail.name, skillDetail.description)}
-                            style={{ padding: '7px 14px', fontSize: '12px' }}
+                            style={{ padding: '7px 12px', fontSize: '12px' }}
                           >
                             Copy Prompt
                           </button>
+                          <Link
+                            to={`/agent?mode=deep&intent=${encodeURIComponent(`Please activate and execute the "${skillDetail.name}" skill. Perform thorough assessment following its guidelines.`)}`}
+                            className="primary"
+                            style={{ padding: '7px 14px', fontSize: '12px', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                          >
+                            ▶ Launch in DeepAgent
+                          </Link>
                         </div>
                       </div>
                     </div>

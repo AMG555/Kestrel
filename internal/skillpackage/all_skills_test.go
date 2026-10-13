@@ -52,3 +52,20 @@ func TestAllInstalledSkills(t *testing.T) {
 		t.Logf("Successfully validated %d skills in %q", skillCount, skillsRoot)
 	}
 }
+
+func TestListSkillSummaries(t *testing.T) {
+	skillsRoot := filepath.Join("..", "..", "skills")
+	summaries, err := skillpackage.ListSkillSummaries(skillsRoot)
+	if err != nil {
+		t.Fatalf("ListSkillSummaries failed: %v", err)
+	}
+	if len(summaries) != 23 {
+		t.Errorf("expected 23 skills, got %d", len(summaries))
+	}
+	for _, s := range summaries {
+		if s.Name == "" || s.Description == "" {
+			t.Errorf("skill %s missing name or description", s.DirName)
+		}
+	}
+}
+

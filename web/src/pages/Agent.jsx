@@ -5,7 +5,9 @@ import { api, connectAgentStream } from '../api.js'
 export default function AgentPage() {
   const [searchParams]          = useSearchParams()
   const [tools, setTools]       = useState([])
-  const [toolSearch, setToolSearch] = useState('')
+  const [skills, setSkills]     = useState([])
+  const [sidebarTab, setSidebarTab] = useState('tools') // 'tools' | 'skills'
+  const [catalogSearch, setCatalogSearch] = useState('')
   const [projects, setProjects] = useState([])
   const [intent, setIntent]     = useState(searchParams.get('intent') || '')
   const [projectID, setProjectID] = useState(searchParams.get('project') || '')
@@ -21,6 +23,7 @@ export default function AgentPage() {
 
   useEffect(() => {
     api.listTools().then(d => setTools(d.tools || []))
+    api.listSkills().then(d => setSkills(d.skills || [])).catch(() => {})
     api.listProjects().then(d => setProjects(d.projects || [])).catch(() => {})
   }, [])
 
@@ -95,9 +98,17 @@ export default function AgentPage() {
   }
 
   const filteredTools = tools.filter(t => {
-    if (!toolSearch) return true
-    const q = toolSearch.toLowerCase()
+    if (!catalogSearch) return true
+    const q = catalogSearch.toLowerCase()
     return t.name.toLowerCase().includes(q) || (t.description && t.description.toLowerCase().includes(q))
+  })
+
+  const filteredSkills = skills.filter(s => {
+    if (!catalogSearch) return true
+    const q = catalogSearch.toLowerCase()
+    return s.name.toLowerCase().includes(q) ||
+      (s.dir_name && s.dir_name.toLowerCase().includes(q)) ||
+      (s.description && s.description.toLowerCase().includes(q))
   })
 
   return (
@@ -175,27 +186,81 @@ export default function AgentPage() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr', gap: 16 }}>
-        {/* Tools sidebar with filter */}
+        {/* Capability sidebar with Tools / Skills tabs */}
         <div className="card" style={{ display: 'flex', flexDirection: 'column', maxHeight: 560 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <span style={{ fontWeight: 600, fontSize: 13 }}>Available Tools ({filteredTools.length})</span>
+          <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', marginBottom: 8, paddingBottom: 6, gap: 4 }}>
+            <button
+              onClick={() => setSidebarTab('tools')}
+              style={{
+                flex: 1,
+                fontSize: 12,
+                fontWeight: sidebarTab === 'tools' ? 600 : 400,
+                padding: '4px 6px',
+                background: sidebarTab === 'tools' ? 'var(--surface2)' : 'transparent',
+                color: sidebarTab === 'tools' ? 'var(--accent)' : 'var(--muted)',
+                borderRadius: 4
+              }}
+            >
+              Tools ({filteredTools.length})
+            </button>
+            <button
+              onClick={() => setSidebarTab('skills')}
+              style={{
+                flex: 1,
+                fontSize: 12,
+                fontWeight: sidebarTab === 'skills' ? 600 : 400,
+                padding: '4px 6px',
+                background: sidebarTab === 'skills' ? 'var(--surface2)' : 'transparent',
+                color: sidebarTab === 'skills' ? '#38bdf8' : 'var(--muted)',
+                borderRadius: 4
+              }}
+            >
+              Skills ({filteredSkills.length})
+            </button>
           </div>
+
           <input
             type="text"
-            placeholder="Filter tools..."
-            value={toolSearch}
-            onChange={e => setToolSearch(e.target.value)}
+            placeholder={sidebarTab === 'tools' ? 'Filter tools...' : 'Filter skills...'}
+            value={catalogSearch}
+            onChange={e => setCatalogSearch(e.target.value)}
             style={{ fontSize: 11, padding: '4px 8px', marginBottom: 8 }}
           />
+
           <div style={{ flex: 1, overflowY: 'auto' }}>
-            {filteredTools.map(t => (
-              <div key={t.name} style={{ marginBottom: 6, padding: '6px 8px', background: 'var(--surface2)', borderRadius: 4 }}>
-                <div style={{ fontWeight: 600, fontSize: 12, color: 'var(--accent)' }}>{t.name}</div>
-                <div style={{ color: 'var(--muted)', fontSize: 11, marginTop: 2 }}>{t.description?.slice(0, 60)}…</div>
-              </div>
-            ))}
-            {filteredTools.length === 0 && (
+            {sidebarTab === 'tools' ? (
+              filteredTools.map(t => (
+                <div key={t.name} style={{ marginBottom: 6, padding: '6px 8px', background: 'var(--surface2)', borderRadius: 4 }}>
+                  <div style={{ fontWeight: 600, fontSize: 12, color: 'var(--accent)' }}>{t.name}</div>
+                  <div style={{ color: 'var(--muted)', fontSize: 11, marginTop: 2 }}>{t.description?.slice(0, 60)}…</div>
+                </div>
+              ))
+            ) : (
+              filteredSkills.map(s => (
+                <div key={s.id} style={{ marginBottom: 6, padding: '6px 8px', background: 'var(--surface2)', borderRadius: 4 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ fontWeight: 600, fontSize: 12, color: '#38bdf8' }}>{s.name}</div>
+                    <button
+                      onClick={() => {
+                        setIntent(`Please activate and execute the "${s.name}" skill. Perform thorough assessment following its guidelines.`)
+                        if (mode === 'single') setMode('deep')
+                      }}
+                      style={{ fontSize: 10, padding: '2px 6px', color: 'var(--accent)' }}
+                      title="Insert trigger prompt into intent"
+                    >
+                      + Use
+                    </button>
+                  </div>
+                  <div style={{ color: 'var(--muted)', fontSize: 11, marginTop: 2 }}>{s.description?.slice(0, 65)}…</div>
+                </div>
+              ))
+            )}
+
+            {sidebarTab === 'tools' && filteredTools.length === 0 && (
               <div style={{ color: 'var(--muted)', fontSize: 11, textAlign: 'center', padding: 12 }}>No matching tools</div>
+            )}
+            {sidebarTab === 'skills' && filteredSkills.length === 0 && (
+              <div style={{ color: 'var(--muted)', fontSize: 11, textAlign: 'center', padding: 12 }}>No matching skills</div>
             )}
           </div>
         </div>
