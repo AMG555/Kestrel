@@ -6,6 +6,7 @@ const ALL_PERMS = ['read:assets', 'write:assets', 'read:vulns', 'write:vulns', '
 
 export default function RolesPage() {
   const [roles, setRoles] = useState([])
+  const [availableTools, setAvailableTools] = useState(ALL_TOOLS)
   const [error, setError] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ name: '', description: '', permissions: [], allowed_tools: [], hitl_mode: 'auto' })
@@ -15,7 +16,16 @@ export default function RolesPage() {
     api.listRoles().then(d => setRoles(d.roles || [])).catch(err => setError(err.message))
   }
 
-  useEffect(load, [])
+  useEffect(() => {
+    load()
+    api.listTools()
+      .then(d => {
+        if (d.tools && d.tools.length > 0) {
+          setAvailableTools(d.tools.map(t => t.name))
+        }
+      })
+      .catch(() => {})
+  }, [])
 
   const toggleItem = (list, item) =>
     list.includes(item) ? list.filter(x => x !== item) : [...list, item]
@@ -78,14 +88,16 @@ export default function RolesPage() {
               ))}
             </div>
             <div>
-              <div style={{ color: 'var(--muted)', fontSize: 12, marginBottom: 6 }}>Allowed Tools</div>
-              {ALL_TOOLS.map(t => (
-                <label key={t} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, fontSize: 13, cursor: 'pointer' }}>
-                  <input type="checkbox" checked={form.allowed_tools.includes(t)}
-                    onChange={() => setForm(f => ({ ...f, allowed_tools: toggleItem(f.allowed_tools, t) }))} />
-                  {t}
-                </label>
-              ))}
+              <div style={{ color: 'var(--muted)', fontSize: 12, marginBottom: 6 }}>Allowed Tools ({availableTools.length})</div>
+              <div style={{ maxHeight: 180, overflowY: 'auto' }}>
+                {availableTools.map(t => (
+                  <label key={t} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, fontSize: 13, cursor: 'pointer' }}>
+                    <input type="checkbox" checked={form.allowed_tools.includes(t)}
+                      onChange={() => setForm(f => ({ ...f, allowed_tools: toggleItem(f.allowed_tools, t) }))} />
+                    {t}
+                  </label>
+                ))}
+              </div>
             </div>
           </div>
           <div className="flex gap-8">

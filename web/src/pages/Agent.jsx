@@ -1,18 +1,22 @@
 import { useState, useEffect, useRef } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { api, connectAgentStream } from '../api.js'
 
 export default function AgentPage() {
+  const [searchParams]          = useSearchParams()
   const [tools, setTools]       = useState([])
+  const [toolSearch, setToolSearch] = useState('')
   const [projects, setProjects] = useState([])
-  const [intent, setIntent]     = useState('')
-  const [projectID, setProjectID] = useState('')
+  const [intent, setIntent]     = useState(searchParams.get('intent') || '')
+  const [projectID, setProjectID] = useState(searchParams.get('project') || '')
   const [title, setTitle]       = useState('')
-  const [mode, setMode]         = useState('single')
+  const [mode, setMode]         = useState(searchParams.get('mode') || 'single')
   const [hitlMode, setHitlMode] = useState('auto')
   const [events, setEvents]     = useState([])
   const [running, setRunning]   = useState(false)
   const [wsRef, setWsRef]       = useState(null)
   const [sessionID, setSessionID] = useState(null)
+  const [copied, setCopied]     = useState(false)
   const logRef = useRef(null)
 
   useEffect(() => {
@@ -57,6 +61,18 @@ export default function AgentPage() {
     setRunning(false)
   }
 
+  const copyLog = () => {
+    const text = events.map(e => `[${e.type.toUpperCase()}] ${e.content || e.data || ''}`).join('\n\n')
+    navigator.clipboard.writeText(text)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  const clearLog = () => {
+    setEvents([])
+    setSessionID(null)
+  }
+
   const eventColor = (type) => {
     if (type === 'tool_result') return 'var(--success)'
     if (type === 'final') return 'var(--accent)'
@@ -78,20 +94,33 @@ export default function AgentPage() {
     )
   }
 
+  const filteredTools = tools.filter(t => {
+    if (!toolSearch) return true
+    const q = toolSearch.toLowerCase()
+    return t.name.toLowerCase().includes(q) || (t.description && t.description.toLowerCase().includes(q))
+  })
+
   return (
     <div>
-      <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>Agent</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <div>
+          <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Agent Operator Console</h1>
+          <p style={{ color: 'var(--muted)', fontSize: 13, margin: '4px 0 0' }}>
+            Autonomous and supervised security agent runs with real-time streaming telemetry.
+          </p>
+        </div>
+      </div>
 
       <div className="card" style={{ marginBottom: 16 }}>
         {/* Row 1: Intent */}
         <div style={{ marginBottom: 12 }}>
-          <label style={{ display: 'block', color: 'var(--muted)', fontSize: 12, marginBottom: 4 }}>Intent *</label>
+          <label style={{ display: 'block', color: 'var(--muted)', fontSize: 12, marginBottom: 4 }}>Security Intent *</label>
           <input
             type="text"
             value={intent}
             onChange={e => setIntent(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && run()}
-            placeholder="e.g. Enumerate subdomains for example.com"
+            placeholder="e.g. Enumerate subdomains for example.com and probe live web services"
             style={{ width: '100%' }}
           />
         </div>
@@ -116,53 +145,85 @@ export default function AgentPage() {
           </div>
           <div>
             <label style={{ display: 'block', color: 'var(--muted)', fontSize: 12, marginBottom: 4 }}>Mode</label>
-            <select value={mode} onChange={e => setMode(e.target.value)} style={{ width: 130 }}>
-              <option value="single">Single</option>
+            <select value={mode} onChange={e => setMode(e.target.value)} style={{ width: 140 }}>
+              <option value="single">Single Agent</option>
+              <option value="deep">DeepAgent (Multi)</option>
               <option value="plan_execute">Plan-Execute</option>
               <option value="supervisor">Supervisor</option>
             </select>
           </div>
           <div>
-            <label style={{ display: 'block', color: 'var(--muted)', fontSize: 12, marginBottom: 4 }}>HITL</label>
-            <select value={hitlMode} onChange={e => setHitlMode(e.target.value)} style={{ width: 148 }}>
-              <option value="auto">Auto</option>
+            <label style={{ display: 'block', color: 'var(--muted)', fontSize: 12, marginBottom: 4 }}>HITL Safety</label>
+            <select value={hitlMode} onChange={e => setHitlMode(e.target.value)} style={{ width: 150 }}>
+              <option value="auto">Auto (Safe Only)</option>
               <option value="require_approval">Require Approval</option>
             </select>
           </div>
         </div>
 
-        <div className="flex gap-8">
+        <div className="flex gap-8 items-center">
           <button className="primary" onClick={run} disabled={running || !intent.trim()}>
-            {running ? '⏳ Running…' : '▶ Run'}
+            {running ? '⏳ Executing…' : '▶ Run Agent'}
           </button>
-          {running && <button className="danger" onClick={cancel}>■ Cancel</button>}
+          {running && <button className="danger" onClick={cancel}>■ Stop</button>}
           {sessionID && !running && (
-            <a href={`/sessions/${sessionID}`} style={{ fontSize: 12, color: 'var(--accent)', alignSelf: 'center', marginLeft: 8 }}>
-              View session →
-            </a>
+            <Link to={`/sessions/${sessionID}`} style={{ fontSize: 12, color: 'var(--accent)', marginLeft: 8, fontWeight: 600 }}>
+              View full session replay →
+            </Link>
           )}
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: 16 }}>
-        <div className="card">
-          <div style={{ fontWeight: 600, marginBottom: 10, fontSize: 13 }}>Available Tools</div>
-          {tools.map(t => (
-            <div key={t.name} style={{ marginBottom: 8, padding: '6px 8px', background: 'var(--surface2)', borderRadius: 4 }}>
-              <div style={{ fontWeight: 600, fontSize: 12 }}>{t.name}</div>
-              <div style={{ color: 'var(--muted)', fontSize: 11, marginTop: 2 }}>{t.description?.slice(0, 60)}…</div>
-            </div>
-          ))}
+      <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr', gap: 16 }}>
+        {/* Tools sidebar with filter */}
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', maxHeight: 560 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <span style={{ fontWeight: 600, fontSize: 13 }}>Available Tools ({filteredTools.length})</span>
+          </div>
+          <input
+            type="text"
+            placeholder="Filter tools..."
+            value={toolSearch}
+            onChange={e => setToolSearch(e.target.value)}
+            style={{ fontSize: 11, padding: '4px 8px', marginBottom: 8 }}
+          />
+          <div style={{ flex: 1, overflowY: 'auto' }}>
+            {filteredTools.map(t => (
+              <div key={t.name} style={{ marginBottom: 6, padding: '6px 8px', background: 'var(--surface2)', borderRadius: 4 }}>
+                <div style={{ fontWeight: 600, fontSize: 12, color: 'var(--accent)' }}>{t.name}</div>
+                <div style={{ color: 'var(--muted)', fontSize: 11, marginTop: 2 }}>{t.description?.slice(0, 60)}…</div>
+              </div>
+            ))}
+            {filteredTools.length === 0 && (
+              <div style={{ color: 'var(--muted)', fontSize: 11, textAlign: 'center', padding: 12 }}>No matching tools</div>
+            )}
+          </div>
         </div>
 
-        <div className="card" style={{ padding: 0 }}>
-          <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)', fontWeight: 600, fontSize: 13 }}>
-            Execution Stream {running && <span style={{ color: 'var(--warn)', fontSize: 11 }}>● live</span>}
+        {/* Execution stream pane */}
+        <div className="card" style={{ padding: 0, display: 'flex', flexDirection: 'column', height: 560 }}>
+          <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontWeight: 600, fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+              Execution Stream
+              {running && <span style={{ color: 'var(--warn)', fontSize: 11 }}>● live</span>}
+            </span>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {events.length > 0 && (
+                <>
+                  <button onClick={copyLog} style={{ fontSize: 11, padding: '2px 8px' }}>
+                    {copied ? '✓ Copied' : 'Copy'}
+                  </button>
+                  <button onClick={clearLog} style={{ fontSize: 11, padding: '2px 8px' }}>
+                    Clear
+                  </button>
+                </>
+              )}
+            </div>
           </div>
-          <div ref={logRef} style={{ height: 480, overflowY: 'auto', padding: 14 }}>
+          <div ref={logRef} style={{ flex: 1, overflowY: 'auto', padding: 14 }}>
             {events.length === 0 && (
-              <div style={{ color: 'var(--muted)', fontSize: 13 }}>
-                Enter an intent above and click Run to start an agent session.
+              <div style={{ color: 'var(--muted)', fontSize: 13, textAlign: 'center', marginTop: 100 }}>
+                Enter an intent above and click <strong>Run Agent</strong> to launch an execution session.
               </div>
             )}
             {events.map(renderEvent)}

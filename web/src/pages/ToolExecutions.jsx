@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { api } from '../api.js'
 
 export default function ToolExecutionsPage() {
@@ -8,6 +9,7 @@ export default function ToolExecutionsPage() {
   const [error, setError]       = useState('')
   const [filter, setFilter]     = useState({ tool_name: '', status: '' })
   const [tools, setTools]       = useState([])
+  const [inspectItem, setInspectItem] = useState(null)
 
   const load = () => {
     setLoading(true)
@@ -33,7 +35,7 @@ export default function ToolExecutionsPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div>
           <h2 style={{ margin: 0 }}>Tool Executions</h2>
-          <div style={{ color: 'var(--muted)', fontSize: 13, marginTop: 2 }}>Complete history of every tool call</div>
+          <div style={{ color: 'var(--muted)', fontSize: 13, marginTop: 2 }}>Complete audit trail of every security tool invocation</div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <select value={filter.tool_name} onChange={e => setFilter(f => ({ ...f, tool_name: e.target.value }))}
@@ -60,7 +62,7 @@ export default function ToolExecutionsPage() {
       ) : execs.length === 0 ? (
         <div style={{ color: 'var(--muted)', padding: 32, textAlign: 'center' }}>
           <div style={{ fontSize: 32, marginBottom: 8 }}>🔧</div>
-          <div>No tool executions yet.</div>
+          <div>No tool executions recorded yet.</div>
         </div>
       ) : (
         <>
@@ -68,13 +70,13 @@ export default function ToolExecutionsPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}>
-                {['Tool', 'Status', 'Duration', 'Output', 'Session', 'Started'].map(h => (
+                {['Tool', 'Status', 'Duration', 'Output', 'Session', 'Started', 'Action'].map(h => (
                   <th key={h} style={{ padding: '8px 12px', textAlign: 'left', color: 'var(--muted)', fontWeight: 600 }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {execs.map((e, i) => {
+              {execs.map((e) => {
                 const sc = statusColor[e.status] || '#94a3b8'
                 return (
                   <tr key={e.id} style={{ borderBottom: '1px solid var(--border)' }}>
@@ -89,11 +91,23 @@ export default function ToolExecutionsPage() {
                       {e.output_bytes > 0 ? `${(e.output_bytes / 1024).toFixed(1)} KB` : '—'}
                       {e.output_truncated && <span style={{ color: 'var(--warn)', marginLeft: 4 }} title="Truncated">✂</span>}
                     </td>
-                    <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: 10, color: 'var(--muted)' }}>
-                      {e.session_id ? e.session_id.slice(0, 12) + '…' : '—'}
+                    <td style={{ padding: '8px 12px', fontSize: 11 }}>
+                      {e.session_id ? (
+                        <Link to={`/sessions/${e.session_id}`} style={{ fontFamily: 'monospace' }}>
+                          {e.session_id.slice(0, 10)}…
+                        </Link>
+                      ) : '—'}
                     </td>
                     <td style={{ padding: '8px 12px', color: 'var(--muted)' }}>
                       {new Date(e.started_at).toLocaleString()}
+                    </td>
+                    <td style={{ padding: '8px 12px' }}>
+                      <button
+                        onClick={() => setInspectItem(e)}
+                        style={{ fontSize: 11, padding: '2px 8px' }}
+                      >
+                        Inspect
+                      </button>
                     </td>
                   </tr>
                 )
@@ -101,6 +115,61 @@ export default function ToolExecutionsPage() {
             </tbody>
           </table>
         </>
+      )}
+
+      {/* Execution Detail Modal */}
+      {inspectItem && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100,
+          padding: 24,
+        }}>
+          <div style={{
+            background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8,
+            maxWidth: 720, width: '100%', maxHeight: '85vh', display: 'flex', flexDirection: 'column', overflow: 'hidden',
+          }}>
+            <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ fontWeight: 600, fontSize: 15 }}>
+                {inspectItem.tool_name} — Execution Details
+              </div>
+              <button onClick={() => setInspectItem(null)} style={{ background: 'none', border: 'none', fontSize: 16 }}>✕</button>
+            </div>
+            <div style={{ padding: 18, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, fontSize: 12 }}>
+                <div><span style={{ color: 'var(--muted)' }}>Status:</span> <strong>{inspectItem.status}</strong></div>
+                <div><span style={{ color: 'var(--muted)' }}>Duration:</span> <strong>{inspectItem.duration_ms || 0}ms</strong></div>
+                <div><span style={{ color: 'var(--muted)' }}>Started:</span> <strong>{new Date(inspectItem.started_at).toLocaleTimeString()}</strong></div>
+              </div>
+
+              {inspectItem.arguments_json && inspectItem.arguments_json !== '{}' && (
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Arguments JSON:</div>
+                  <pre style={{ background: 'var(--surface2)', padding: 10, borderRadius: 6, fontSize: 11, overflowX: 'auto', margin: 0 }}>
+                    {(() => { try { return JSON.stringify(JSON.parse(inspectItem.arguments_json), null, 2) } catch { return inspectItem.arguments_json } })()}
+                  </pre>
+                </div>
+              )}
+
+              {inspectItem.result && (
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Execution Output:</div>
+                  <pre style={{ background: 'var(--surface2)', padding: 10, borderRadius: 6, fontSize: 11, maxHeight: 240, overflowY: 'auto', whiteSpace: 'pre-wrap', margin: 0 }}>
+                    {inspectItem.result}
+                  </pre>
+                </div>
+              )}
+
+              {inspectItem.error && (
+                <div style={{ color: 'var(--danger)', fontSize: 12 }}>
+                  <strong>Error:</strong> {inspectItem.error}
+                </div>
+              )}
+            </div>
+            <div style={{ padding: '12px 18px', borderTop: '1px solid var(--border)', textAlign: 'right' }}>
+              <button onClick={() => setInspectItem(null)}>Close</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

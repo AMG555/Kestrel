@@ -122,12 +122,33 @@ export default function ProjectsPage() {
                   </div>
                 )}
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 {badge(p.status || 'active')}
-                <button onClick={() => navigate(`/projects/${p.id}/attack-chain`)} style={{ fontSize: 12 }}>
+                <button
+                  onClick={() => navigate(`/agent?project=${p.id}`)}
+                  style={{ fontSize: 12, background: 'var(--surface2)', color: 'var(--accent)' }}
+                  title="Run agent on this project"
+                >
+                  ▶ Agent
+                </button>
+                <button
+                  onClick={() => navigate(`/sessions?project=${p.id}`)}
+                  style={{ fontSize: 12 }}
+                  title="View sessions for this project"
+                >
+                  Sessions
+                </button>
+                <button
+                  onClick={() => navigate(`/projects/${p.id}/attack-chain`)}
+                  style={{ fontSize: 12 }}
+                  title="View project attack chain"
+                >
                   Attack Chain
                 </button>
-                <button onClick={() => handleDelete(p.id)} style={{ fontSize: 12, color: 'var(--danger)' }}>
+                <button
+                  onClick={() => handleDelete(p.id)}
+                  style={{ fontSize: 12, color: 'var(--danger)' }}
+                >
                   Delete
                 </button>
               </div>

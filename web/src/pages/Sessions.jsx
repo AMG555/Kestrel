@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../api.js'
 
 const STATUS_COLORS = {
@@ -17,7 +17,7 @@ function StatusBadge({ status }) {
 }
 
 function ModeChip({ mode }) {
-  const colors = { single: '#3b82d4', plan_execute: '#8b5cf6', supervisor: '#f59e0b' }
+  const colors = { single: '#3b82d4', deep: '#10b981', plan_execute: '#8b5cf6', supervisor: '#f59e0b' }
   const color = colors[mode] || '#94a3b8'
   return (
     <span style={{
@@ -28,6 +28,8 @@ function ModeChip({ mode }) {
 }
 
 export default function SessionsPage() {
+  const [searchParams]          = useSearchParams()
+  const projectParam            = searchParams.get('project') || ''
   const [sessions, setSessions] = useState([])
   const [total, setTotal]       = useState(0)
   const [loading, setLoading]   = useState(true)
@@ -39,12 +41,13 @@ export default function SessionsPage() {
     setLoading(true)
     const q = {}
     if (filter.status) q.status = filter.status
+    if (projectParam) q.project_id = projectParam
     api.listSessions(q)
       .then(d => { setSessions(d.sessions || []); setTotal(d.total || 0); setLoading(false) })
       .catch(e => { setError(e.message); setLoading(false) })
   }
 
-  useEffect(() => { load() }, [filter.status])
+  useEffect(() => { load() }, [filter.status, projectParam])
 
   const handlePin = async (id, pinned) => {
     await api.updateSession(id, { pinned: !pinned }).catch(e => setError(e.message))
@@ -59,6 +62,15 @@ export default function SessionsPage() {
 
   const fmt = (d) => new Date(d).toLocaleString()
 
+  const displayedSessions = sessions.filter(s => {
+    if (!filter.search) return true
+    const q = filter.search.toLowerCase()
+    return (s.title && s.title.toLowerCase().includes(q)) ||
+           s.id.toLowerCase().includes(q) ||
+           (s.project_id && s.project_id.toLowerCase().includes(q)) ||
+           (s.agent_mode && s.agent_mode.toLowerCase().includes(q))
+  })
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
@@ -66,9 +78,17 @@ export default function SessionsPage() {
           <h2 style={{ margin: 0 }}>Agent Sessions</h2>
           <div style={{ color: 'var(--muted)', fontSize: 13, marginTop: 2 }}>
             All agent runs — click to replay messages and tool calls
+            {projectParam && <span style={{ color: 'var(--accent)', marginLeft: 8 }}>[Filtered by Project: {projectParam.slice(0, 8)}…]</span>}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
+          <input
+            type="text"
+            placeholder="Search sessions..."
+            value={filter.search}
+            onChange={e => setFilter(f => ({ ...f, search: e.target.value }))}
+            style={{ fontSize: 12, width: 170, padding: '4px 8px' }}
+          />
           <select value={filter.status} onChange={e => setFilter(f => ({ ...f, status: e.target.value }))}
             style={{ fontSize: 12 }}>
             <option value="">All statuses</option>
@@ -85,16 +105,18 @@ export default function SessionsPage() {
 
       {loading ? (
         <div style={{ color: 'var(--muted)', padding: 24 }}>Loading…</div>
-      ) : sessions.length === 0 ? (
+      ) : displayedSessions.length === 0 ? (
         <div style={{ color: 'var(--muted)', padding: 32, textAlign: 'center' }}>
           <div style={{ fontSize: 32, marginBottom: 8 }}>🤖</div>
-          <div>No sessions yet. Run an agent to get started.</div>
+          <div>{filter.search ? 'No matching sessions found.' : 'No sessions yet. Run an agent to get started.'}</div>
         </div>
       ) : (
         <>
-          <div style={{ color: 'var(--muted)', fontSize: 12, marginBottom: 12 }}>{total} session{total !== 1 ? 's' : ''}</div>
+          <div style={{ color: 'var(--muted)', fontSize: 12, marginBottom: 12 }}>
+            Showing {displayedSessions.length} of {total} session{total !== 1 ? 's' : ''}
+          </div>
           <div style={{ display: 'grid', gap: 8 }}>
-            {sessions.map(s => (
+            {displayedSessions.map(s => (
               <div key={s.id}
                 onClick={() => navigate(`/sessions/${s.id}`)}
                 style={{

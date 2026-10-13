@@ -101,13 +101,14 @@ export default function BatchTasksPage() {
             <div>
               <label style={{ fontSize: 12, color: 'var(--muted)' }}>Queue Title *</label>
               <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-                required style={{ width: '100%', marginTop: 4 }} />
+                required style={{ width: '100%', marginTop: 4 }} placeholder="Recon batch queue" />
             </div>
             <div>
               <label style={{ fontSize: 12, color: 'var(--muted)' }}>Agent Mode</label>
               <select value={form.agent_mode} onChange={e => setForm(f => ({ ...f, agent_mode: e.target.value }))}
                 style={{ width: '100%', marginTop: 4 }}>
-                <option value="single">Single</option>
+                <option value="single">Single Agent</option>
+                <option value="deep">DeepAgent</option>
                 <option value="plan_execute">Plan-Execute</option>
                 <option value="supervisor">Supervisor</option>
               </select>
@@ -122,18 +123,21 @@ export default function BatchTasksPage() {
             </div>
           </div>
           <div>
-            <label style={{ fontSize: 12, color: 'var(--muted)' }}>Intents (one per line)</label>
+            <label style={{ fontSize: 12, color: 'var(--muted)' }}>Tasks / Intents (one per line) *</label>
             <textarea value={form.intents} onChange={e => setForm(f => ({ ...f, intents: e.target.value }))}
               rows={4} style={{ width: '100%', marginTop: 4, fontFamily: 'monospace', fontSize: 12 }}
+              required
               placeholder="Enumerate subdomains of example.com&#10;Check open ports on 192.168.1.1" />
           </div>
           <div style={{ textAlign: 'right' }}>
-            <button type="submit" disabled={saving} className="primary">{saving ? 'Creating…' : 'Create Queue'}</button>
+            <button type="submit" disabled={saving || !form.title.trim() || !form.intents.trim()} className="primary">
+              {saving ? 'Creating…' : 'Create Queue'}
+            </button>
           </div>
         </form>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: selected ? '320px 1fr' : '1fr', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: selected ? '340px 1fr' : '1fr', gap: 16 }}>
         {/* Queue list */}
         <div style={{ display: 'grid', gap: 10, alignContent: 'start' }}>
           {loading ? (
@@ -147,20 +151,21 @@ export default function BatchTasksPage() {
                 borderRadius: 8, padding: '12px 14px', cursor: 'pointer',
               }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                <span style={{ fontWeight: 600, fontSize: 13 }}>{q.title}</span>
+                <span style={{ fontWeight: 600, fontSize: 13 }}>{q.title || 'Untitled Queue'}</span>
                 <StatusBadge status={q.status} />
               </div>
               <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8 }}>
-                Mode: {q.agent_mode} | HITL: {q.hitl_mode}
+                Mode: {q.agentMode || q.agent_mode || 'single'} | HITL: {q.hitlPolicy || q.hitl_mode || 'auto'}
+                {q.tasks?.length ? ` | Tasks: ${q.tasks.length}` : ''}
               </div>
               <div style={{ display: 'flex', gap: 6 }}>
-                {q.status === 'pending' && (
+                {q.status !== 'running' && q.status !== 'completed' && (
                   <button onClick={e => { e.stopPropagation(); run(q.id) }}
                     style={{ fontSize: 11, padding: '3px 10px' }} className="primary">▶ Run</button>
                 )}
                 {q.status === 'running' && (
                   <button onClick={e => { e.stopPropagation(); cancel(q.id) }}
-                    style={{ fontSize: 11, padding: '3px 10px' }}>⏹ Cancel</button>
+                    style={{ fontSize: 11, padding: '3px 10px' }}>⏹ Pause</button>
                 )}
                 <button onClick={e => { e.stopPropagation(); del(q.id) }}
                   style={{ fontSize: 11, padding: '3px 10px', color: 'var(--danger)' }}>Delete</button>
@@ -172,23 +177,37 @@ export default function BatchTasksPage() {
         {/* Detail pane */}
         {selected && detail && (
           <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: 16 }}>
-            <div style={{ fontWeight: 600, marginBottom: 12 }}>{detail.queue?.title} — Tasks</div>
-            {(detail.tasks || []).map((t, i) => (
-              <div key={t.id} style={{
-                borderBottom: '1px solid var(--border)', paddingBottom: 10, marginBottom: 10,
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <span style={{ fontSize: 12, color: 'var(--muted)' }}>#{i + 1}</span>
-                  <StatusBadge status={t.status} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <div style={{ fontWeight: 600, fontSize: 14 }}>{detail.queue?.title || detail.title} — Sub-tasks</div>
+              <StatusBadge status={detail.queue?.status || detail.status} />
+            </div>
+            {(() => {
+              const tasks = detail.queue?.tasks || detail.tasks || []
+              if (tasks.length === 0) {
+                return <div style={{ color: 'var(--muted)', fontSize: 13 }}>No tasks recorded in this queue.</div>
+              }
+              return tasks.map((t, i) => (
+                <div key={t.id || i} style={{
+                  borderBottom: '1px solid var(--border)', paddingBottom: 10, marginBottom: 10,
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 600 }}>Task #{i + 1}</span>
+                    <StatusBadge status={t.status || 'pending'} />
+                  </div>
+                  <div style={{ fontSize: 13, marginBottom: 4, fontFamily: 'monospace' }}>{t.message || t.intent}</div>
+                  {t.result && (
+                    <div style={{ fontSize: 12, color: '#22c55e', background: 'var(--surface2)', padding: '6px 8px', borderRadius: 4, whiteSpace: 'pre-wrap', marginTop: 4 }}>
+                      {t.result}
+                    </div>
+                  )}
+                  {t.error && (
+                    <div style={{ fontSize: 12, color: 'var(--danger)', background: 'var(--surface2)', padding: '6px 8px', borderRadius: 4, marginTop: 4 }}>
+                      {t.error}
+                    </div>
+                  )}
                 </div>
-                <div style={{ fontSize: 13, marginBottom: 4 }}>{t.intent}</div>
-                {t.result && <div style={{ fontSize: 12, color: '#22c55e', whiteSpace: 'pre-wrap' }}>{t.result}</div>}
-                {t.error && <div style={{ fontSize: 12, color: 'var(--danger)' }}>{t.error}</div>}
-              </div>
-            ))}
-            {(!detail.tasks || detail.tasks.length === 0) && (
-              <div style={{ color: 'var(--muted)', fontSize: 13 }}>No tasks in this queue.</div>
-            )}
+              ))
+            })()}
           </div>
         )}
       </div>

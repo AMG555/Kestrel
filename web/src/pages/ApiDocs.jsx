@@ -17,6 +17,7 @@ export default function ApiDocs() {
   const [expanded, setExpanded] = useState({})
   const [testResult, setTestResult] = useState({})
   const [testing, setTesting] = useState({})
+  const [copiedKey, setCopiedKey] = useState('')
 
   useEffect(() => {
     fetchSpec()
@@ -38,11 +39,12 @@ export default function ApiDocs() {
     setExpanded(prev => ({ ...prev, [key]: !prev[key] }))
   }
 
-  function copyCurl(method, path) {
+  function copyCurl(key, method, path) {
     const token = localStorage.getItem('kestrel_token') || 'YOUR_API_TOKEN'
     const cmd = `curl -X ${method.toUpperCase()} "${window.location.origin}/api${path}" \\\n  -H "Authorization: Bearer ${token}" \\\n  -H "Content-Type: application/json"`
     navigator.clipboard.writeText(cmd)
-    alert('cURL command copied to clipboard!')
+    setCopiedKey(key)
+    setTimeout(() => setCopiedKey(''), 2000)
   }
 
   async function tryEndpoint(key, method, path) {
@@ -205,8 +207,8 @@ export default function ApiDocs() {
                       <strong>Summary:</strong> {op.summary || 'No description provided.'}
                     </div>
                     <div style={{ display: 'flex', gap: 8 }}>
-                      <button onClick={() => copyCurl(op.method, op.path)} style={{ fontSize: 12, padding: '4px 10px' }}>
-                        📋 Copy cURL
+                      <button onClick={() => copyCurl(op.key, op.method, op.path)} style={{ fontSize: 12, padding: '4px 10px' }}>
+                        {copiedKey === op.key ? '✓ Copied' : '📋 Copy cURL'}
                       </button>
                       {op.method === 'get' && (
                         <button

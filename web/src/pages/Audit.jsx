@@ -14,10 +14,7 @@ export default function AuditPage() {
   }, [filters.category, filters.result])
 
   useEffect(() => {
-    fetch('/api/audit/summary', {
-      headers: { Authorization: 'Bearer ' + (localStorage.getItem('token') || '') }
-    })
-      .then(r => r.ok ? r.json() : null)
+    api.auditSummary()
       .then(d => d && setSummary(d))
       .catch(() => {})
   }, [])
@@ -29,18 +26,20 @@ export default function AuditPage() {
   }
 
   const exportCSV = () => {
-    const token = localStorage.getItem('token') || ''
-    fetch('/api/audit/export.csv', { headers: { Authorization: 'Bearer ' + token } })
-      .then(r => r.blob())
+    api.exportAuditLogs('csv')
+      .then(r => {
+        if (!r.ok) throw new Error(`Export failed (${r.status})`)
+        return r.blob()
+      })
       .then(blob => {
         const url = URL.createObjectURL(blob)
         const a = document.createElement('a')
         a.href = url
-        a.download = 'audit_export.csv'
+        a.download = `kestrel_audit_export_${new Date().toISOString().slice(0, 10)}.csv`
         a.click()
         URL.revokeObjectURL(url)
       })
-      .catch(() => setError('Export failed'))
+      .catch((err) => setError('Export failed: ' + err.message))
   }
 
   return (

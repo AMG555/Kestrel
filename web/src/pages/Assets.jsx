@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api.js'
 
-const TOKEN = () => localStorage.getItem('token') || ''
-
 export default function AssetsPage() {
   const [assets, setAssets] = useState([])
   const [total, setTotal] = useState(0)
@@ -39,18 +37,38 @@ export default function AssetsPage() {
     load()
   }
 
+  const exportCSV = () => {
+    if (!assets || assets.length === 0) {
+      setError('No assets to export')
+      return
+    }
+    const headers = ['ID', 'Host', 'IP', 'Port', 'Domain', 'Protocol', 'Service', 'Created At']
+    const rows = assets.map(a => [
+      `"${a.id || ''}"`,
+      `"${(a.host || '').replace(/"/g, '""')}"`,
+      `"${a.ip || ''}"`,
+      `"${a.port || ''}"`,
+      `"${(a.domain || '').replace(/"/g, '""')}"`,
+      `"${a.protocol || ''}"`,
+      `"${(a.service || '').replace(/"/g, '""')}"`,
+      `"${a.created_at || ''}"`,
+    ])
+    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const el = document.createElement('a')
+    el.href = url
+    el.download = `kestrel_assets_${new Date().toISOString().slice(0, 10)}.csv`
+    el.click()
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-16">
         <h1 style={{ fontSize: 20, fontWeight: 700 }}>Assets <span style={{ color: 'var(--muted)', fontSize: 14, fontWeight: 400 }}>({total})</span></h1>
         <div style={{ display: 'flex', gap: 8 }}>
-          <a
-            href={`/api/assets/export.csv`}
-            onClick={e => { e.preventDefault(); window.location.href = `/api/assets/export.csv` }}
-            style={{ textDecoration: 'none' }}
-          >
-            <button>⬇ Export CSV</button>
-          </a>
+          <button onClick={exportCSV} title="Export current asset inventory to CSV">⬇ Export CSV</button>
           <button className="primary" onClick={() => setShowForm(s => !s)}>+ Add Asset</button>
         </div>
       </div>

@@ -117,8 +117,14 @@ export const api = {
   executeTool:    (name, args) => request('POST', `/tools/${name}/execute`, { arguments: args }),
 
   // Audit
-  listAudit:      (q)     => request('GET',  `/audit?${new URLSearchParams(q || {})}`),
+  listAudit:      (q)     => request('GET',  `/audit/logs?${new URLSearchParams(q || {})}`),
   auditSummary:   ()      => request('GET',  '/audit/summary'),
+  exportAuditLogs:(format = 'csv') => {
+    const token = getToken()
+    return fetch(`${BASE}/audit/logs/export?format=${encodeURIComponent(format)}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+  },
 
   // ToolGuard config
   getToolGuardConfig:    ()  => request('GET', '/tool-guard/config'),
@@ -152,17 +158,32 @@ export const api = {
   addChainNode:        (id, d)       => request('POST',   `/projects/${id}/attack-chain/nodes`, d),
   addChainEdge:        (id, d)       => request('POST',   `/projects/${id}/attack-chain/edges`, d),
 
-  // Batch task queues
-  listQueues:          (q)           => request('GET',    `/batch/queues?${new URLSearchParams(q || {})}`),
-  createQueue:         (d)           => request('POST',   '/batch/queues', d),
-  getQueue:            (id)          => request('GET',    `/batch/queues/${id}`),
-  runQueue:            (id)          => request('POST',   `/batch/queues/${id}/run`),
-  cancelQueue:         (id)          => request('POST',   `/batch/queues/${id}/cancel`),
-  deleteQueue:         (id)          => request('DELETE', `/batch/queues/${id}`),
+  // Batch task queues (backed by /batch-tasks on server)
+  listQueues:          (q)           => request('GET',    `/batch-tasks?${new URLSearchParams(q || {})}`),
+  createQueue:         (d)           => request('POST',   '/batch-tasks', {
+    title: d.title,
+    tasks: Array.isArray(d.tasks) ? d.tasks : (d.intents || '').split('\n').map(s => s.trim()).filter(Boolean),
+    agentMode: d.agent_mode || d.agentMode || 'single',
+    hitlPolicy: d.hitl_mode || d.hitlPolicy || 'auto',
+    concurrency: d.concurrency || 1,
+    scheduleMode: d.scheduleMode || 'manual',
+    cronExpr: d.cronExpr || '',
+  }),
+  getQueue:            (id)          => request('GET',    `/batch-tasks/${id}`),
+  runQueue:            (id)          => request('POST',   `/batch-tasks/${id}/start`),
+  cancelQueue:         (id)          => request('POST',   `/batch-tasks/${id}/pause`),
+  deleteQueue:         (id)          => request('DELETE', `/batch-tasks/${id}`),
 
-  // HITL approvals
+  // HITL approvals (/hitl/decision expects { interruptId, decision: 'approve'|'reject', comment })
   listPendingHITL:     ()            => request('GET',    '/hitl/pending'),
-  decideHITL:          (id, d)       => request('POST',   `/hitl/${id}/decide`, d),
+  decideHITL:          (id, decision, comment = '') => {
+    const dec = (decision === 'approved' || decision === 'approve') ? 'approve' : 'reject'
+    return request('POST', '/hitl/decision', {
+      interruptId: id,
+      decision: dec,
+      comment: typeof comment === 'string' ? comment : '',
+    })
+  },
 
   // Conversations
   listConversations:   (q)           => request('GET',    `/conversations?${new URLSearchParams(q || {})}`),

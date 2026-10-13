@@ -44,12 +44,60 @@ export default function VulnsPage() {
     load()
   }
 
+  const exportCSV = () => {
+    if (!vulns || vulns.length === 0) {
+      setError('No vulnerabilities to export')
+      return
+    }
+    const headers = ['ID', 'Title', 'Severity', 'Status', 'Target', 'Description', 'Recommendation', 'Created At']
+    const rows = vulns.map(v => [
+      `"${v.id || ''}"`,
+      `"${(v.title || '').replace(/"/g, '""')}"`,
+      `"${v.severity || ''}"`,
+      `"${v.status || ''}"`,
+      `"${(v.target || '').replace(/"/g, '""')}"`,
+      `"${(v.description || '').replace(/"/g, '""')}"`,
+      `"${(v.recommendation || '').replace(/"/g, '""')}"`,
+      `"${v.created_at || ''}"`,
+    ])
+    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `kestrel_vulnerabilities_${new Date().toISOString().slice(0, 10)}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const exportReport = async () => {
+    try {
+      const token = localStorage.getItem('kestrel_token') || ''
+      const res = await fetch('/api/vulnerabilities/export?mode=summary&group_by=conversation', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+      if (!res.ok) throw new Error(`Export failed (${res.status})`)
+      const data = await res.json()
+      const content = data.files?.[0]?.content || '# Vulnerability Report\nNo findings.'
+      const blob = new Blob([content], { type: 'text/markdown;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `vulnerability_report_${new Date().toISOString().slice(0, 10)}.md`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      setError('Report export failed: ' + err.message)
+    }
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-16">
         <h1 style={{ fontSize: 20, fontWeight: 700 }}>Vulnerabilities <span style={{ color: 'var(--muted)', fontSize: 14, fontWeight: 400 }}>({total})</span></h1>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={() => { window.location.href = '/api/vulnerabilities/export.csv' }}>⬇ Export CSV</button>
+          <button onClick={exportCSV} title="Export current list to CSV">⬇ CSV</button>
+          <button onClick={exportReport} title="Export full Markdown audit report">📜 Report</button>
           <button className="primary" onClick={() => setShowForm(s => !s)}>+ Add</button>
         </div>
       </div>
