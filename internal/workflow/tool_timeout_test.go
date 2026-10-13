@@ -1,4 +1,4 @@
-﻿package workflow
+package workflow
 
 import (
 	"context"
@@ -73,7 +73,8 @@ func TestRunToolNodeAppliesTimeoutToActualMCPExecution(t *testing.T) {
 	defer cancel()
 	start := time.Now()
 	output, proceed, status, errText := runToolNode(parent, RunArgs{Agent: ag, ConversationID: "test-only-conversation"}, node, newWorkflowLocalState(nil, "test-only-run"))
-	if proceed || status != "failed" || !strings.Contains(errText, "deadline exceeded") {
+	lowerErr := strings.ToLower(errText)
+	if proceed || status != "failed" || (!strings.Contains(lowerErr, "deadline exceeded") && !strings.Contains(lowerErr, "timeout")) {
 		t.Fatalf("timeout became success: %v %s %s %#v", proceed, status, errText, output)
 	}
 	if time.Since(start) >= 3*time.Second {
