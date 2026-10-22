@@ -118,6 +118,18 @@ export const api = {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     })
   },
+  exportPoC:      (id, format = 'python') => {
+    const token = getToken()
+    return fetch(`${BASE}/vulnerabilities/${id}/export/poc?format=${format}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+  },
+  exportNuclei:   (id) => {
+    const token = getToken()
+    return fetch(`${BASE}/vulnerabilities/${id}/export/nuclei`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+  },
 
   // Tools
   listTools:      ()      => request('GET',  '/tools'),

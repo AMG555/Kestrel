@@ -1336,6 +1336,8 @@ func setupRoutes(
 		protected.GET("/vulnerabilities", vulnerabilityHandler.ListVulnerabilities)
 		protected.GET("/vulnerabilities/export", vulnerabilityHandler.ExportVulnerabilities)
 		protected.GET("/vulnerabilities/export/sarif", vulnerabilityHandler.ExportSARIF)
+		protected.GET("/vulnerabilities/:id/export/poc", vulnerabilityHandler.ExportPoC)
+		protected.GET("/vulnerabilities/:id/export/nuclei", vulnerabilityHandler.ExportNuclei)
 		protected.DELETE("/vulnerabilities/batch", vulnerabilityHandler.BatchDeleteVulnerabilities)
 		protected.GET("/vulnerabilities/filter-options", vulnerabilityHandler.GetVulnerabilityFilterOptions)
 		protected.GET("/vulnerabilities/stats", vulnerabilityHandler.GetVulnerabilityStats)
