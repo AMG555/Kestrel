@@ -1,0 +1,53 @@
+name: "semgrep"
+command: "semgrep"
+enabled: true
+short_description: "Static Application Security Testing (SAST) for source code vulnerability discovery"
+description: |
+  Semgrep is a fast, open-source static analysis engine for finding bugs, detecting security vulnerabilities, and enforcing code standards.
+
+  **Key Features:**
+  - Fast AST-based pattern matching
+  - Rules for OWASP Top 10, CWE Top 25, secrets, and framework-specific security flaws
+  - Multi-language support (Python, Go, JavaScript, TypeScript, Java, C#, PHP, Ruby, Rust, etc.)
+  - Native JSON and SARIF output
+
+  **Use Cases:**
+  - Source code vulnerability auditing
+  - Identifying SQL injection, XSS, SSRF, and command injection sinks before dynamic testing
+  - Hardcoded secret and credential detection
+  - Pre-commit and CI/CD security quality gates
+parameters:
+  - name: "target"
+    type: "string"
+    description: "Target directory or file path to scan (defaults to current directory .)"
+    required: false
+    position: 0
+    format: "positional"
+    default: "."
+  - name: "config"
+    type: "string"
+    description: "Ruleset configuration (e.g. 'auto', 'p/security-audit', 'p/owasp-top-ten', 'p/cwe-top-25', or custom rule path)"
+    required: false
+    flag: "--config"
+    format: "flag"
+    default: "auto"
+  - name: "severity"
+    type: "string"
+    description: "Severity filter (ERROR, WARNING, INFO)"
+    required: false
+    flag: "--severity"
+    format: "flag"
+  - name: "json_output"
+    type: "bool"
+    description: "Output results in JSON format"
+    required: false
+    flag: "--json"
+    format: "flag"
+    default: true
+  - name: "additional_args"
+    type: "string"
+    description: |
+      Extra Semgrep arguments.
+      Examples: '--error', '--exclude vendor', '--max-target-bytes 1000000'.
+    required: false
+    format: "positional"

@@ -1,0 +1,27 @@
+# Kestrel DevSecOps Automated Security Scan for GitLab CI/CD
+# Evaluates pull requests / branches with SARIF 2.1.0 quality gate reporting.
+
+stages:
+  - security
+
+variables:
+  KESTREL_FAIL_ON: "high"
+
+kestrel_security_scan:
+  stage: security
+  image: golang:1.24-bookworm
+  before_script:
+    - go version
+  script:
+    - echo "Running Kestrel autonomous security scan..."
+    - go run ./cmd/server -export-sarif -sarif-out gl-sast-report.sarif -sarif-fail-on "${KESTREL_FAIL_ON}"
+  artifacts:
+    reports:
+      sast: gl-sast-report.sarif
+    paths:
+      - gl-sast-report.sarif
+    expire_in: 14 days
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+  allow_failure: false
