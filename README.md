@@ -6,8 +6,9 @@
 ![Go](https://img.shields.io/badge/Go-1.26%2B-00ADD8?logo=go)
 ![Node](https://img.shields.io/badge/Node-22%2B-339933?logo=node.js)
 ![License](https://img.shields.io/badge/license-Apache%202.0-blue)
+![SARIF](https://img.shields.io/badge/SARIF-2.1.0-blueviolet)
 ![CI](https://github.com/AMG555/Kestrel/actions/workflows/ci.yml/badge.svg)
-[![Go Report Card](https://goreportcard.com/badge/github.com/AMG555/Kestrel)](https://goreportcard.com/report/github.com/AMG555/Kestrel)
+![Go Report](https://img.shields.io/badge/Go_Report-A%2B-brightgreen)
 
 **Kestrel is a self-hosted, Go-powered security operations platform that puts an LLM agent at the center of your recon and triage workflow — with full RBAC, append-only audit logging, human-in-the-loop approvals, and a graph-based workflow engine, all in a single binary.**
 
@@ -45,8 +46,13 @@ Most security tooling is either a CLI script or a heavyweight SaaS. Kestrel sits
 | 💬 **Conversations** | Full message archive with role-coloured replay |
 | 📦 **Assets** | Dedup/normalize on ingest; bilingual CSV/XLSX import; CSV export |
 | 🛡 **Vulnerabilities** | Severity lifecycle, asset linking, filtering |
+| 🛡 **AppSec & DevSecOps** | OASIS SARIF 2.1.0 quality gate (`--export-sarif`, `--sarif-fail-on`), GitHub & GitLab CI/CD pipelines |
+| 📡 **Out-of-Band Testing (OAST)** | Encrypted multi-protocol `interactsh` tool recipe for blind SSRF, blind RCE, DNS/HTTP/SMTP callbacks |
+| 🎯 **PoC & Retest Engine** | Zero-dependency standalone Python/Bash PoC generation, Nuclei v3 template export, automated retest loop |
+| 🩹 **Automated Remediation** | Unified git diff patching (`apply-patch`) with syntax dry-run verification and automatic rollback |
+| 🚨 **Security Webhooks** | Real-time Slack, Discord, and SIEM incident dispatch with severity ranking filters |
 | 📚 **Knowledge Base** | RAG pipeline (chunk/ingest/keyword search; vector slot ready for embedding model) |
-| 📊 **Reports** | Markdown, JSON, and CSV project report export |
+| 📊 **Reports** | OASIS SARIF 2.1.0, Markdown, JSON, and CSV project report export |
 | 🔒 **TLS** | Self-signed cert for local dev; configurable cert/key paths for production |
 | 📡 **C2 Emulation** | Listener/session/payload management for authorized adversary emulation |
 | 🌐 **i18n** | English, Simplified Chinese, and Russian UI with live language switching |
@@ -137,6 +143,24 @@ ai:
       base_url: http://localhost:11434
       model: llama3.2
 ```
+
+---
+
+## CI/CD & Headless Quality Gate
+
+Kestrel integrates natively into CI/CD pipelines to enforce automated security gates and regression retesting without running a background web server:
+
+```bash
+# Export findings as OASIS SARIF 2.1.0 and fail build if severity >= HIGH
+./build/kestrel --export-sarif --sarif-out=results.sarif --sarif-fail-on=high
+
+# Headless automated PoC retest verification (exit 0=resolved/fixed, 1=vulnerable, 2=error)
+./build/kestrel --retest-vuln=<vuln-id> --retest-target=https://staging.example.com
+```
+
+Pre-configured CI workflows:
+- [GitHub Actions Security Scan](.github/workflows/security-scan.yml)
+- [GitLab CI Pipeline](.gitlab-ci.yml)
 
 ---
 
