@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { api } from '../api.js'
 
 const SEVERITIES = ['critical', 'high', 'medium', 'low', 'info']
-const STATUSES = ['open', 'in_progress', 'resolved', 'accepted_risk', 'false_positive']
+const STATUSES = ['open', 'confirmed', 'in_progress', 'fixed', 'resolved', 'accepted_risk', 'false_positive', 'ignored']
 
 export default function VulnsPage() {
   const [vulns, setVulns] = useState([])
@@ -13,6 +13,8 @@ export default function VulnsPage() {
   const [form, setForm] = useState({ title: '', severity: 'medium', description: '', target: '', recommendation: '' })
   const [saving, setSaving] = useState(false)
   const [editing, setEditing] = useState(null)
+  const [retestingId, setRetestingId] = useState(null)
+  const [retestResult, setRetestResult] = useState(null)
 
   const load = () => {
     api.listVulns(filters).then(d => { setVulns(d.vulnerabilities || []); setTotal(d.total || 0) })
@@ -20,6 +22,28 @@ export default function VulnsPage() {
   }
 
   useEffect(load, [filters.severity, filters.status])
+
+  const retest = async (id, title) => {
+    setRetestingId(id)
+    setRetestResult(null)
+    setError('')
+    try {
+      const res = await api.retestVuln(id)
+      setRetestResult({
+        id,
+        title,
+        is_resolved: res.is_resolved,
+        status: res.status,
+        message: res.message,
+        exit_code: res.exit_code,
+      })
+      load()
+    } catch (err) {
+      setError('Retest failed: ' + err.message)
+    } finally {
+      setRetestingId(null)
+    }
+  }
 
   const create = async () => {
     setSaving(true)
@@ -155,6 +179,27 @@ export default function VulnsPage() {
       </div>
 
       {error && <div className="error-msg mb-16">{error}</div>}
+      {retestResult && (
+        <div
+          className="card mb-16"
+          style={{
+            borderLeft: `4px solid ${retestResult.is_resolved ? '#10b981' : '#ef4444'}`,
+            padding: '10px 14px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}
+        >
+          <div>
+            <strong>Retest Result for {retestResult.title}:</strong>{' '}
+            <span style={{ color: retestResult.is_resolved ? '#10b981' : '#ef4444', fontWeight: 600 }}>
+              {retestResult.is_resolved ? 'RESOLVED / FIXED' : 'STILL VULNERABLE'}
+            </span>
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>{retestResult.message}</div>
+          </div>
+          <button style={{ padding: '2px 8px', fontSize: 12 }} onClick={() => setRetestResult(null)}>✕</button>
+        </div>
+      )}
 
       {showForm && (
         <div className="card mb-16">
@@ -199,7 +244,7 @@ export default function VulnsPage() {
         </div>
         <table>
           <thead>
-            <tr><th>Title</th><th>Severity</th><th>Status</th><th>Target</th><th>Created</th><th style={{ width: 160 }}>Actions</th></tr>
+            <tr><th>Title</th><th>Severity</th><th>Status</th><th>Target</th><th>Created</th><th style={{ width: 220 }}>Actions</th></tr>
           </thead>
           <tbody>
             {(vulns || []).length === 0 && <tr><td colSpan={6} style={{ color: 'var(--muted)', textAlign: 'center', padding: 24 }}>No vulnerabilities found.</td></tr>}
@@ -220,6 +265,14 @@ export default function VulnsPage() {
                 <td style={{ color: 'var(--muted)', fontSize: 12 }}>{new Date(v.created_at).toLocaleDateString()}</td>
                 <td>
                   <div style={{ display: 'flex', gap: 4 }}>
+                    <button
+                      style={{ padding: '2px 6px', fontSize: 11 }}
+                      onClick={() => retest(v.id, v.title)}
+                      disabled={retestingId === v.id}
+                      title="Run automated PoC retest verification against target"
+                    >
+                      {retestingId === v.id ? '⏳…' : '🔄 Retest'}
+                    </button>
                     <button style={{ padding: '2px 6px', fontSize: 11 }} onClick={() => downloadPoC(v.id, v.title, 'python')} title="Download Standalone Python PoC">🐍 PoC</button>
                     <button style={{ padding: '2px 6px', fontSize: 11 }} onClick={() => downloadNuclei(v.id, v.title)} title="Download Nuclei Regression Template">⚡ Nuclei</button>
                     <button style={{ padding: '2px 6px', fontSize: 11 }} onClick={() => del(v.id)} title="Delete finding">🗑</button>

@@ -130,6 +130,7 @@ export const api = {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     })
   },
+  retestVuln:     (id, target) => request('POST', `/vulnerabilities/${id}/retest${target ? '?target=' + encodeURIComponent(target) : ''}`),
 
   // Tools
   listTools:      ()      => request('GET',  '/tools'),

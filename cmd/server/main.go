@@ -32,6 +32,8 @@ func main() {
 	var sarifProject = flag.String("sarif-project", "", "Filter vulnerabilities for specific project ID in SARIF export")
 	var sarifOut = flag.String("sarif-out", "", "Output destination file path for SARIF export (defaults to stdout)")
 	var sarifFailOn = flag.String("sarif-fail-on", "", "CI quality gate: exit with code 2 if any finding severity >= threshold (critical, high, medium, low, info)")
+	var retestVuln = flag.String("retest-vuln", "", "Vulnerability ID to automatically retest using PoC verification (exit 0=resolved/fixed, 1=vulnerable, 2=error)")
+	var retestTarget = flag.String("retest-target", "", "Optional target URL override for -retest-vuln")
 	flag.Parse()
 
 	// environment variable compatibility (for systemd/docker scenarios where args are not passed)
@@ -98,6 +100,14 @@ func main() {
 		if err := runExportSarif(cfg, *sarifProject, *sarifOut, *sarifFailOn); err != nil {
 			fmt.Fprintf(os.Stderr, "SARIF export error: %v\n", err)
 			os.Exit(1)
+		}
+		return
+	}
+
+	if *retestVuln != "" {
+		if err := runRetestVuln(cfg, *retestVuln, *retestTarget); err != nil {
+			fmt.Fprintf(os.Stderr, "Retest error: %v\n", err)
+			os.Exit(2)
 		}
 		return
 	}
@@ -341,4 +351,64 @@ func meetsSeverityThreshold(severity, threshold string) bool {
 		return false
 	}
 	return v >= t
+}
+
+func runRetestVuln(cfg *config.Config, vulnID, targetOverride string) error {
+	dbPath := strings.TrimSpace(cfg.Database.Path)
+	if dbPath == "" {
+		dbPath = "data/conversations.db"
+	}
+	if _, err := os.Stat(dbPath); err != nil {
+		return fmt.Errorf("database does not exist: %s", dbPath)
+	}
+
+	db, err := database.NewDB(dbPath, zap.NewNop())
+	if err != nil {
+		return fmt.Errorf("failed to open database: %w", err)
+	}
+	defer db.Close()
+
+	vuln, err := db.GetVulnerability(vulnID)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve vulnerability %s: %w", vulnID, err)
+	}
+	if vuln == nil {
+		return fmt.Errorf("vulnerability %s not found", vulnID)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+
+	result, err := report.RunVulnerabilityRetest(ctx, vuln, targetOverride)
+	if err != nil {
+		return fmt.Errorf("retest failed to execute: %w", err)
+	}
+
+	if result.IsResolved {
+		vuln.Status = "fixed"
+		vuln.RetestNotes = fmt.Sprintf("Automated CI retest verified finding as RESOLVED on %s. %s", result.Timestamp, result.Message)
+		_ = db.UpdateVulnerability(vuln.ID, vuln)
+		fmt.Fprintf(os.Stdout, "SUCCESS: Vulnerability %s verified as RESOLVED (status=fixed, exit_code=%d)\n", vuln.ID, result.ExitCode)
+		if result.Output != "" {
+			fmt.Println(result.Output)
+		}
+		os.Exit(0)
+	} else if result.ExitCode == 0 {
+		vuln.Status = "confirmed"
+		vuln.RetestNotes = fmt.Sprintf("Automated CI retest confirmed vulnerability is STILL ACTIVE on %s.", result.Timestamp)
+		_ = db.UpdateVulnerability(vuln.ID, vuln)
+		fmt.Fprintf(os.Stderr, "FAILURE: Vulnerability %s is STILL ACTIVE (status=confirmed, exit_code=%d)\n", vuln.ID, result.ExitCode)
+		if result.Output != "" {
+			fmt.Fprintln(os.Stderr, result.Output)
+		}
+		os.Exit(1)
+	} else {
+		fmt.Fprintf(os.Stderr, "ERROR: Vulnerability %s retest inconclusive (exit_code=%d): %s\n", vuln.ID, result.ExitCode, result.Message)
+		if result.Output != "" {
+			fmt.Fprintln(os.Stderr, result.Output)
+		}
+		os.Exit(2)
+	}
+
+	return nil
 }
