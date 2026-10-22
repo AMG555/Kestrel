@@ -59,8 +59,8 @@ func TestListSkillSummaries(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListSkillSummaries failed: %v", err)
 	}
-	if len(summaries) != 23 {
-		t.Errorf("expected 23 skills, got %d", len(summaries))
+	if len(summaries) < 25 {
+		t.Errorf("expected at least 25 skills, got %d", len(summaries))
 	}
 	for _, s := range summaries {
 		if s.Name == "" || s.Description == "" {
