@@ -1088,6 +1088,8 @@ type SecurityConfig struct {
 	Tools               []ToolConfig `yaml:"tools,omitempty"`                 // backward compatible: supports defining tools in main config file
 	ToolsDir            string       `yaml:"tools_dir,omitempty"`             // tool configuration file directory (new method)
 	ToolDescriptionMode string       `yaml:"tool_description_mode,omitempty"` // tool description mode: "short" | "full", default short
+	WebhookURL          string       `yaml:"webhook_url,omitempty" json:"webhook_url,omitempty"`                   // optional outgoing webhook for finding alerts
+	WebhookMinSeverity  string       `yaml:"webhook_min_severity,omitempty" json:"webhook_min_severity,omitempty"` // minimum severity: critical, high, medium, low
 }
 
 type DatabaseConfig struct {

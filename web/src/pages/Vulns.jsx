@@ -91,6 +91,57 @@ export default function VulnsPage() {
     }
   }
 
+  const exportSARIF = async () => {
+    try {
+      const res = await api.exportSarif(filters)
+      if (!res.ok) throw new Error(`SARIF export failed (${res.status})`)
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `kestrel_findings_${new Date().toISOString().slice(0, 10)}.sarif`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      setError('SARIF export failed: ' + err.message)
+    }
+  }
+
+  const downloadPoC = async (id, title, format = 'python') => {
+    try {
+      const res = await api.exportPoC(id, format)
+      if (!res.ok) throw new Error(`PoC export failed (${res.status})`)
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      const ext = (format === 'bash' || format === 'sh') ? 'sh' : 'py'
+      const cleanTitle = (title || id).toLowerCase().replace(/[^a-z0-9_-]/g, '_').slice(0, 30)
+      a.download = `poc_${cleanTitle}.${ext}`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      setError('PoC download failed: ' + err.message)
+    }
+  }
+
+  const downloadNuclei = async (id, title) => {
+    try {
+      const res = await api.exportNuclei(id)
+      if (!res.ok) throw new Error(`Nuclei export failed (${res.status})`)
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      const cleanTitle = (title || id).toLowerCase().replace(/[^a-z0-9_-]/g, '_').slice(0, 30)
+      a.download = `nuclei_${cleanTitle}.yaml`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      setError('Nuclei template download failed: ' + err.message)
+    }
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-16">
@@ -98,6 +149,7 @@ export default function VulnsPage() {
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={exportCSV} title="Export current list to CSV">⬇ CSV</button>
           <button onClick={exportReport} title="Export full Markdown audit report">📜 Report</button>
+          <button onClick={exportSARIF} title="Export OASIS SARIF 2.1.0 report for CI/CD">🛡 SARIF</button>
           <button className="primary" onClick={() => setShowForm(s => !s)}>+ Add</button>
         </div>
       </div>
@@ -147,7 +199,7 @@ export default function VulnsPage() {
         </div>
         <table>
           <thead>
-            <tr><th>Title</th><th>Severity</th><th>Status</th><th>Target</th><th>Created</th><th></th></tr>
+            <tr><th>Title</th><th>Severity</th><th>Status</th><th>Target</th><th>Created</th><th style={{ width: 160 }}>Actions</th></tr>
           </thead>
           <tbody>
             {(vulns || []).length === 0 && <tr><td colSpan={6} style={{ color: 'var(--muted)', textAlign: 'center', padding: 24 }}>No vulnerabilities found.</td></tr>}
@@ -167,7 +219,11 @@ export default function VulnsPage() {
                 <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{v.target || '—'}</td>
                 <td style={{ color: 'var(--muted)', fontSize: 12 }}>{new Date(v.created_at).toLocaleDateString()}</td>
                 <td>
-                  <button style={{ padding: '3px 8px', fontSize: 11 }} onClick={() => del(v.id)}>Delete</button>
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    <button style={{ padding: '2px 6px', fontSize: 11 }} onClick={() => downloadPoC(v.id, v.title, 'python')} title="Download Standalone Python PoC">🐍 PoC</button>
+                    <button style={{ padding: '2px 6px', fontSize: 11 }} onClick={() => downloadNuclei(v.id, v.title)} title="Download Nuclei Regression Template">⚡ Nuclei</button>
+                    <button style={{ padding: '2px 6px', fontSize: 11 }} onClick={() => del(v.id)} title="Delete finding">🗑</button>
+                  </div>
                 </td>
               </tr>
             ))}

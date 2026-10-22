@@ -457,6 +457,7 @@ func New(cfg *config.Config, log *logger.Logger, configPath string) (*App, error
 	workflowHandler.SetAudit(auditSvc)
 	workflowHandler.SetRuntime(agent, cfg)
 	vulnerabilityHandler.SetAudit(auditSvc)
+	vulnerabilityHandler.SetWebhookConfig(cfg.Security.WebhookURL, cfg.Security.WebhookMinSeverity)
 	webshellHandler := handler.NewWebShellHandler(log.Logger, db)
 	webshellHandler.SetAudit(auditSvc)
 	chatUploadsHandler := handler.NewChatUploadsHandler(log.Logger, db)
