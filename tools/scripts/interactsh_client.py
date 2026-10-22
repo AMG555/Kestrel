@@ -1,0 +1,391 @@
+#!/usr/bin/env python3
+"""
+Interactsh client for Kestrel.
+Provides out-of-band (OAST) interaction verification for blind SSRF, RCE, SQLi, and XXE.
+Protocol compatible with ProjectDiscovery Interactsh server.
+"""
+
+import sys
+import os
+import json
+import time
+import base64
+import random
+import string
+import tempfile
+from typing import Optional, Dict, Any, List
+
+try:
+    import requests
+    from cryptography.hazmat.primitives.asymmetric import rsa, padding
+    from cryptography.hazmat.primitives import serialization, hashes
+    from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+except ImportError:
+    print(json.dumps({
+        "status": "error",
+        "message": "Required dependencies missing. Please install requests and cryptography: pip install requests cryptography"
+    }, indent=2))
+    sys.exit(1)
+
+DEFAULT_SERVER = os.environ.get("INTERACTSH_SERVER", "oast.pro")
+SESSION_DIR = tempfile.gettempdir()
+LATEST_SESSION_FILE = os.path.join(SESSION_DIR, "kestrel_interactsh_latest.json")
+
+def session_path_for(cid: str) -> str:
+    return os.path.join(SESSION_DIR, f"kestrel_interactsh_{cid}.json")
+
+def generate_ids():
+    cid = ''.join(random.choices(string.ascii_lowercase + string.digits, k=20))
+    sec = ''.join(random.choices(string.ascii_letters + string.digits, k=16))
+    nonce = ''.join(random.choices(string.ascii_lowercase + string.digits, k=13))
+    return cid, sec, nonce
+
+def generate_keypair():
+    private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    private_pem = private_key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.NoEncryption()
+    ).decode('utf-8')
+    public_pem = private_key.public_key().public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo
+    ).decode('utf-8')
+    return private_key, private_pem, public_pem
+
+def register_session(server: str = DEFAULT_SERVER, token: str = "") -> Dict[str, Any]:
+    cid, sec, nonce = generate_ids()
+    private_key, private_pem, public_pem = generate_keypair()
+    
+    server_clean = server.strip().lstrip("http://").lstrip("https://").rstrip("/")
+    reg_url = f"https://{server_clean}/register"
+    
+    payload = {
+        "public-key": base64.b64encode(public_pem.encode('utf-8')).decode('utf-8'),
+        "secret-key": sec,
+        "correlation-id": cid
+    }
+    headers = {"Content-Type": "application/json"}
+    if token:
+        headers["Authorization"] = token
+        
+    try:
+        resp = requests.post(reg_url, json=payload, headers=headers, timeout=12)
+        resp.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        return {
+            "status": "error",
+            "message": f"Interactsh registration failed against {server_clean}: {str(e)}",
+            "suggestion": "Check internet connectivity or specify a different server with server=<host> (e.g. oast.live, oast.site)."
+        }
+        
+    subdomain = f"{cid}{nonce}.{server_clean}"
+    
+    session_data = {
+        "correlation_id": cid,
+        "secret_key": sec,
+        "nonce": nonce,
+        "server": server_clean,
+        "token": token,
+        "subdomain": subdomain,
+        "private_key_pem": private_pem,
+        "created_at": time.time()
+    }
+    
+    # Save per-correlation session file and update latest pointer
+    try:
+        with open(session_path_for(cid), "w") as f:
+            json.dump(session_data, f, indent=2)
+        with open(LATEST_SESSION_FILE, "w") as f:
+            json.dump(session_data, f, indent=2)
+    except Exception as e:
+        sys.stderr.write(f"Warning: Failed to persist session file: {e}\n")
+        
+    return {
+        "status": "success",
+        "domain": subdomain,
+        "correlation_id": cid,
+        "server": server_clean,
+        "message": f"Successfully registered Interactsh OOB listener: {subdomain}",
+        "usage": f"Embed '{subdomain}' in payloads (e.g. curl http://{subdomain}, nslookup {subdomain}, or blind SSRF/RCE/SQLi headers).",
+        "note": "Interactsh server records all DNS, HTTP, and SMTP interactions. Call operation=poll_records to inspect callbacks."
+    }
+
+def extract_correlation_id(identifier: str) -> Optional[str]:
+    if not identifier:
+        return None
+    ident = identifier.strip().lower()
+    # If it's already a 20-char correlation ID
+    if len(ident) == 20 and ident.isalnum():
+        return ident
+    # If it's a domain/URL e.g. "http://abc...oast.pro" or "abc...oast.pro"
+    ident = ident.replace("http://", "").replace("https://", "").split("/")[0].split(":")[0]
+    parts = ident.split(".")
+    for part in parts:
+        if len(part) >= 20 and part.isalnum():
+            return part[:20]
+    return None
+
+def load_session(target_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    cid = extract_correlation_id(target_id) if target_id else None
+    if cid:
+        path = session_path_for(cid)
+        if os.path.exists(path):
+            try:
+                with open(path, "r") as f:
+                    return json.load(f)
+            except Exception:
+                pass
+                
+    if os.path.exists(LATEST_SESSION_FILE):
+        try:
+            with open(LATEST_SESSION_FILE, "r") as f:
+                return json.load(f)
+        except Exception:
+            pass
+            
+    return None
+
+def poll_records(identifier: Optional[str] = None, wait_time: int = 0, server: Optional[str] = None) -> Dict[str, Any]:
+    if wait_time > 0:
+        time.sleep(wait_time)
+        
+    session = load_session(identifier)
+    if not session:
+        return {
+            "status": "error",
+            "message": "No active Interactsh session found. Please run operation=get_domain first.",
+            "suggestion": "Call interactsh with operation=get_domain to generate a listener domain before polling."
+        }
+        
+    cid = session["correlation_id"]
+    sec = session["secret_key"]
+    server_clean = server.strip() if server else session.get("server", DEFAULT_SERVER)
+    server_clean = server_clean.lstrip("http://").lstrip("https://").rstrip("/")
+    token = session.get("token", "")
+    
+    poll_url = f"https://{server_clean}/poll?id={cid}&secret={sec}"
+    headers = {}
+    if token:
+        headers["Authorization"] = token
+        
+    try:
+        resp = requests.get(poll_url, headers=headers, timeout=12)
+        resp.raise_for_status()
+        data = resp.json()
+    except requests.exceptions.RequestException as e:
+        return {
+            "status": "error",
+            "correlation_id": cid,
+            "message": f"Interactsh poll request failed: {str(e)}",
+            "suggestion": "Check network connectivity or server availability."
+        }
+    except json.JSONDecodeError:
+        return {
+            "status": "error",
+            "correlation_id": cid,
+            "message": f"Invalid JSON response from Interactsh server ({resp.status_code})"
+        }
+
+    raw_items = data.get("data", [])
+    enc_aes_key_b64 = data.get("aes_key", "")
+    
+    if not raw_items or not enc_aes_key_b64:
+        return {
+            "status": "no_records",
+            "domain": session.get("subdomain"),
+            "correlation_id": cid,
+            "server": server_clean,
+            "interactions_count": 0,
+            "interactions": [],
+            "message": f"No out-of-band interactions recorded for {session.get('subdomain')}",
+            "suggestion": "Target may be delayed or payload not executed. Check payload or poll again with wait_time."
+        }
+
+    # Decrypt AES key with RSA private key (OAEP SHA256)
+    try:
+        priv_key = serialization.load_pem_private_key(
+            session["private_key_pem"].encode('utf-8'),
+            password=None
+        )
+        enc_aes_key = base64.b64decode(enc_aes_key_b64)
+        aes_key = priv_key.decrypt(
+            enc_aes_key,
+            padding.OAEP(
+                mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                algorithm=hashes.SHA256(),
+                label=None
+            )
+        )
+    except Exception as e:
+        return {
+            "status": "error",
+            "correlation_id": cid,
+            "message": f"Failed to decrypt Interactsh session key: {str(e)}"
+        }
+
+    # Decrypt each interaction record (AES-CTR with 16-byte IV prefix)
+    interactions = []
+    for raw_item in raw_items:
+        try:
+            raw_bytes = base64.b64decode(raw_item)
+            iv = raw_bytes[:16]
+            ciphertext = raw_bytes[16:]
+            cipher = Cipher(algorithms.AES(aes_key), modes.CTR(iv))
+            decryptor = cipher.decryptor()
+            plaintext = decryptor.update(ciphertext) + decryptor.finalize()
+            interaction = json.loads(plaintext.decode('utf-8'))
+            interactions.append(interaction)
+        except Exception as e:
+            interactions.append({
+                "status": "decrypt_error",
+                "error": str(e)
+            })
+
+    return {
+        "status": "success",
+        "domain": session.get("subdomain"),
+        "correlation_id": cid,
+        "server": server_clean,
+        "interactions_count": len(interactions),
+        "interactions": interactions,
+        "message": f"Retrieved {len(interactions)} out-of-band interaction(s) for {session.get('subdomain')}",
+        "conclusion": "Vulnerability confirmed: target executed payload and performed out-of-band callback."
+    }
+
+def deregister_session(identifier: Optional[str] = None) -> Dict[str, Any]:
+    session = load_session(identifier)
+    if not session:
+        return {
+            "status": "success",
+            "message": "No active session found to deregister."
+        }
+        
+    cid = session["correlation_id"]
+    sec = session["secret_key"]
+    server = session.get("server", DEFAULT_SERVER)
+    dereg_url = f"https://{server}/deregister"
+    
+    try:
+        requests.post(dereg_url, json={"correlation-id": cid, "secret-key": sec}, timeout=5)
+    except Exception:
+        pass
+        
+    # Clean up session files
+    path = session_path_for(cid)
+    if os.path.exists(path):
+        try:
+            os.remove(path)
+        except Exception:
+            pass
+            
+    if os.path.exists(LATEST_SESSION_FILE):
+        try:
+            with open(LATEST_SESSION_FILE, "r") as f:
+                latest = json.load(f)
+            if latest.get("correlation_id") == cid:
+                os.remove(LATEST_SESSION_FILE)
+        except Exception:
+            pass
+
+    return {
+        "status": "success",
+        "correlation_id": cid,
+        "message": f"Interactsh session {cid} deregistered successfully."
+    }
+
+def parse_args():
+    # Supports JSON payload in sys.argv[1], positional arguments, or --flags
+    args = {
+        "operation": "get_domain",
+        "domain": None,
+        "wait_time": 0,
+        "server": DEFAULT_SERVER,
+        "token": ""
+    }
+    
+    if len(sys.argv) <= 1:
+        return args
+        
+    # Check if first argument is a JSON dictionary
+    first_arg = sys.argv[1].strip()
+    if first_arg.startswith("{") and first_arg.endswith("}"):
+        try:
+            data = json.loads(first_arg)
+            if isinstance(data, dict):
+                args.update(data)
+                return args
+        except Exception:
+            pass
+
+    # Flag parsing
+    idx = 1
+    positional = []
+    while idx < len(sys.argv):
+        arg = sys.argv[idx]
+        if arg in ("--operation", "-o") and idx + 1 < len(sys.argv):
+            args["operation"] = sys.argv[idx + 1]
+            idx += 2
+        elif arg in ("--domain", "-d") and idx + 1 < len(sys.argv):
+            args["domain"] = sys.argv[idx + 1]
+            idx += 2
+        elif arg in ("--wait-time", "-w") and idx + 1 < len(sys.argv):
+            try:
+                args["wait_time"] = int(sys.argv[idx + 1])
+            except ValueError:
+                pass
+            idx += 2
+        elif arg in ("--server", "-s") and idx + 1 < len(sys.argv):
+            args["server"] = sys.argv[idx + 1]
+            idx += 2
+        elif arg in ("--token", "-t") and idx + 1 < len(sys.argv):
+            args["token"] = sys.argv[idx + 1]
+            idx += 2
+        else:
+            positional.append(arg)
+            idx += 1
+
+    # Positional mapping: operation [domain] [wait_time] [server]
+    if len(positional) > 0 and not args.get("operation_set_by_flag"):
+        args["operation"] = positional[0]
+    if len(positional) > 1 and not args.get("domain"):
+        args["domain"] = positional[1]
+    if len(positional) > 2 and args["wait_time"] == 0:
+        try:
+            args["wait_time"] = int(positional[2])
+        except ValueError:
+            pass
+    if len(positional) > 3 and args["server"] == DEFAULT_SERVER:
+        args["server"] = positional[3]
+
+    return args
+
+def main():
+    config = parse_args()
+    op = (config.get("operation") or "get_domain").lower().replace("-", "_")
+    
+    if op in ("get_domain", "register", "init"):
+        res = register_session(
+            server=config.get("server") or DEFAULT_SERVER,
+            token=config.get("token") or ""
+        )
+    elif op in ("poll_records", "poll", "get_records"):
+        res = poll_records(
+            identifier=config.get("domain"),
+            wait_time=int(config.get("wait_time") or 0),
+            server=config.get("server")
+        )
+    elif op in ("deregister", "cleanup", "close"):
+        res = deregister_session(identifier=config.get("domain"))
+    else:
+        res = {
+            "status": "error",
+            "message": f"Unsupported operation '{op}'. Supported operations: get_domain, poll_records, deregister."
+        }
+        
+    print(json.dumps(res, indent=2, ensure_ascii=False))
+    if res.get("status") == "error":
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()

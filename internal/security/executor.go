@@ -184,13 +184,15 @@ func (e *Executor) ExecuteTool(ctx context.Context, toolName string, args map[st
 	}
 
 	// execute command
-	cmd := exec.CommandContext(ctx, toolConfig.Command, cmdArgs...)
+	execCmd := resolveExecutable(toolConfig.Command)
+	cmd := exec.CommandContext(ctx, execCmd, cmdArgs...)
 	applyDefaultTerminalEnv(cmd)
 	attachNonInteractiveStdin(cmd)
 	_ = prepareShellCmdSession(cmd)
 
 	e.logger.Debug("execute security tool",
 		zap.String("tool", toolName),
+		zap.String("command", execCmd),
 		zap.Strings("args", cmdArgs),
 	)
 
@@ -205,7 +207,7 @@ func (e *Executor) ExecuteTool(ctx context.Context, toolName string, args map[st
 			e.logger.Info("detected tool requires TTY, retrying with PTY",
 				zap.String("tool", toolName),
 			)
-			cmd2 := exec.CommandContext(ctx, toolConfig.Command, cmdArgs...)
+			cmd2 := exec.CommandContext(ctx, execCmd, cmdArgs...)
 			applyDefaultTerminalEnv(cmd2)
 			_ = prepareShellCmdSession(cmd2)
 			output, err = runCommandWithPTY(ctx, cmd2, cb, e.toolOutputMaxBytes, spill)
@@ -217,7 +219,7 @@ func (e *Executor) ExecuteTool(ctx context.Context, toolName string, args map[st
 			e.logger.Info("detected tool requires TTY, retrying with PTY",
 				zap.String("tool", toolName),
 			)
-			cmd2 := exec.CommandContext(ctx, toolConfig.Command, cmdArgs...)
+			cmd2 := exec.CommandContext(ctx, execCmd, cmdArgs...)
 			applyDefaultTerminalEnv(cmd2)
 			_ = prepareShellCmdSession(cmd2)
 			output, err = runCommandWithPTY(ctx, cmd2, nil, e.toolOutputMaxBytes, spill)
@@ -1515,4 +1517,18 @@ func getExitCodeValue(err error) int {
 		return *code
 	}
 	return -1
+}
+
+// resolveExecutable provides cross-platform binary compatibility (e.g. mapping python3 -> python on Windows when python3 is missing from PATH).
+func resolveExecutable(command string) string {
+	if runtime.GOOS == "windows" {
+		if command == "python3" {
+			if _, err := exec.LookPath("python3"); err != nil {
+				if _, err := exec.LookPath("python"); err == nil {
+					return "python"
+				}
+			}
+		}
+	}
+	return command
 }
