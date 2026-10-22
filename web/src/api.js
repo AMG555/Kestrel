@@ -111,6 +111,13 @@ export const api = {
   createVuln:     (d)     => request('POST', '/vulnerabilities', d),
   updateVuln:     (id, d) => request('PATCH', `/vulnerabilities/${id}`, d),
   deleteVuln:     (id)    => request('DELETE', `/vulnerabilities/${id}`),
+  exportSarif:    (q)     => {
+    const token = getToken()
+    const query = new URLSearchParams(q || {}).toString()
+    return fetch(`${BASE}/vulnerabilities/export/sarif${query ? '?' + query : ''}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+  },
 
   // Tools
   listTools:      ()      => request('GET',  '/tools'),

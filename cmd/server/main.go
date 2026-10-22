@@ -7,6 +7,7 @@ import (
 	"kestrel/internal/database"
 	"kestrel/internal/logger"
 	"kestrel/internal/processguard"
+	"kestrel/internal/report"
 	"kestrel/internal/security"
 	"kestrel/internal/termout"
 	"flag"
@@ -27,6 +28,10 @@ func main() {
 	var httpBootstrap = flag.Bool("http", false, "Force plain HTTP for the main site, overriding TLS settings in the configuration file")
 	var resetAdminPassword = flag.Bool("reset-admin-password", false, "Interactively reset the built-in admin password and exit")
 	checkIsolation := flag.Bool("check-process-isolation", false, "Probe task containment and cleanup, then exit without starting services")
+	var exportSarif = flag.Bool("export-sarif", false, "Export vulnerabilities as OASIS SARIF 2.1.0 to stdout or -sarif-out file and exit")
+	var sarifProject = flag.String("sarif-project", "", "Filter vulnerabilities for specific project ID in SARIF export")
+	var sarifOut = flag.String("sarif-out", "", "Output destination file path for SARIF export (defaults to stdout)")
+	var sarifFailOn = flag.String("sarif-fail-on", "", "CI quality gate: exit with code 2 if any finding severity >= threshold (critical, high, medium, low, info)")
 	flag.Parse()
 
 	// environment variable compatibility (for systemd/docker scenarios where args are not passed)
@@ -84,6 +89,14 @@ func main() {
 	if *resetAdminPassword {
 		if err := runResetAdminPassword(cfg); err != nil {
 			fmt.Fprintf(os.Stderr, "Failed to reset admin password: %v\n", err)
+			os.Exit(1)
+		}
+		return
+	}
+
+	if *exportSarif || *sarifProject != "" {
+		if err := runExportSarif(cfg, *sarifProject, *sarifOut, *sarifFailOn); err != nil {
+			fmt.Fprintf(os.Stderr, "SARIF export error: %v\n", err)
 			os.Exit(1)
 		}
 		return
@@ -245,4 +258,87 @@ func readHiddenPassword(prompt string) (string, error) {
 func configureProcessIsolation(cfg *config.Config) error {
 	isolation := cfg.Security.ProcessIsolation
 	return processguard.Configure(processguard.Options{Mode: isolation.Mode, CgroupRoot: isolation.CgroupRoot, MaxProcesses: isolation.MaxProcesses, MemoryMaxBytes: isolation.MemoryMaxBytes, CPUQuotaMicros: isolation.CPUQuotaMicros})
+}
+
+func runExportSarif(cfg *config.Config, projectID, outFile, failOn string) error {
+	dbPath := strings.TrimSpace(cfg.Database.Path)
+	if dbPath == "" {
+		dbPath = "data/conversations.db"
+	}
+	if _, err := os.Stat(dbPath); err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("database does not exist: %s; start the service once to initialize it first", dbPath)
+		}
+		return err
+	}
+
+	db, err := database.NewDB(dbPath, zap.NewNop())
+	if err != nil {
+		return fmt.Errorf("failed to open database: %w", err)
+	}
+	defer db.Close()
+
+	filter := database.VulnerabilityListFilter{
+		ProjectID: strings.TrimSpace(projectID),
+	}
+	access := database.RBACListAccess{Scope: database.RBACScopeAll}
+
+	total, err := db.CountVulnerabilitiesForAccess(filter, access)
+	if err != nil {
+		return fmt.Errorf("failed to count vulnerabilities: %w", err)
+	}
+
+	vulns := make([]*database.Vulnerability, 0)
+	if total > 0 {
+		vulns, err = db.ListVulnerabilitiesForAccess(total, 0, filter, access)
+		if err != nil {
+			return fmt.Errorf("failed to list vulnerabilities: %w", err)
+		}
+	}
+
+	sarifData, err := report.ToJSON(vulns, "", true)
+	if err != nil {
+		return fmt.Errorf("failed to generate SARIF: %w", err)
+	}
+
+	if outFile != "" {
+		if err := os.WriteFile(outFile, sarifData, 0644); err != nil {
+			return fmt.Errorf("failed to write SARIF output to %s: %w", outFile, err)
+		}
+		fmt.Fprintf(os.Stderr, "Exported %d vulnerabilities to SARIF: %s\n", len(vulns), outFile)
+	} else {
+		fmt.Println(string(sarifData))
+	}
+
+	if failOn != "" {
+		thresholdMet := false
+		for _, v := range vulns {
+			if meetsSeverityThreshold(v.Severity, failOn) {
+				thresholdMet = true
+				break
+			}
+		}
+		if thresholdMet {
+			fmt.Fprintf(os.Stderr, "Quality gate failed: detected vulnerabilities with severity >= %s\n", failOn)
+			os.Exit(2)
+		}
+	}
+
+	return nil
+}
+
+func meetsSeverityThreshold(severity, threshold string) bool {
+	weights := map[string]int{
+		"critical": 5,
+		"high":     4,
+		"medium":   3,
+		"low":      2,
+		"info":     1,
+	}
+	v := weights[strings.ToLower(strings.TrimSpace(severity))]
+	t := weights[strings.ToLower(strings.TrimSpace(threshold))]
+	if t == 0 {
+		return false
+	}
+	return v >= t
 }
