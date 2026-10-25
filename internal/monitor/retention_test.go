@@ -1,7 +1,8 @@
-﻿package monitor
+package monitor
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -16,6 +17,9 @@ func TestServicePurgeExpired_respectsZeroRetention(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "monitor.db")
 	db, err := database.NewDB(dbPath, zap.NewNop())
 	if err != nil {
+		if strings.Contains(err.Error(), "CGO_ENABLED=0") {
+			t.Skip("skipping test: sqlite requires CGO_ENABLED=1")
+		}
 		t.Fatalf("NewDB: %v", err)
 	}
 	defer db.Close()
@@ -46,6 +50,9 @@ func TestServicePurgeExpired_deletesOldRows(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "monitor.db")
 	db, err := database.NewDB(dbPath, zap.NewNop())
 	if err != nil {
+		if strings.Contains(err.Error(), "CGO_ENABLED=0") {
+			t.Skip("skipping test: sqlite requires CGO_ENABLED=1")
+		}
 		t.Fatalf("NewDB: %v", err)
 	}
 	defer db.Close()

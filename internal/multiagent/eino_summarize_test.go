@@ -589,6 +589,9 @@ func TestRefreshFactIndexInMessages(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "summarize-facts.db")
 	db, err := database.NewDB(dbPath, zap.NewNop())
 	if err != nil {
+		if strings.Contains(err.Error(), "CGO_ENABLED=0") {
+			t.Skip("skipping test: sqlite requires CGO_ENABLED=1")
+		}
 		t.Fatal(err)
 	}
 	defer db.Close()

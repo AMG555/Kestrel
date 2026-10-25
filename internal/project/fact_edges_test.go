@@ -1,7 +1,8 @@
-﻿package project
+package project
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"kestrel/internal/database"
@@ -120,6 +121,9 @@ func TestBuildProjectFactGraphPreservesStoredEdgeDirection(t *testing.T) {
 	dir := t.TempDir()
 	db, err := database.NewDB(filepath.Join(dir, "test.db"), zap.NewNop())
 	if err != nil {
+		if strings.Contains(err.Error(), "CGO_ENABLED=0") {
+			t.Skip("skipping test: sqlite requires CGO_ENABLED=1")
+		}
 		t.Fatal(err)
 	}
 	defer db.Close()
@@ -202,6 +206,9 @@ func TestPersistFactLinksFromUsesFromAsIncoming(t *testing.T) {
 	dir := t.TempDir()
 	db, err := database.NewDB(filepath.Join(dir, "test.db"), zap.NewNop())
 	if err != nil {
+		if strings.Contains(err.Error(), "CGO_ENABLED=0") {
+			t.Skip("skipping test: sqlite requires CGO_ENABLED=1")
+		}
 		t.Fatal(err)
 	}
 	defer db.Close()
@@ -256,6 +263,9 @@ func TestReplaceIncomingAllowsNotYetCreatedSource(t *testing.T) {
 	dir := t.TempDir()
 	db, err := database.NewDB(filepath.Join(dir, "test.db"), zap.NewNop())
 	if err != nil {
+		if strings.Contains(err.Error(), "CGO_ENABLED=0") {
+			t.Skip("skipping test: sqlite requires CGO_ENABLED=1")
+		}
 		t.Fatal(err)
 	}
 	defer db.Close()

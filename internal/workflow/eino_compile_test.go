@@ -19,6 +19,9 @@ func testWorkflowDB(t *testing.T) *database.DB {
 	dir := t.TempDir()
 	db, err := database.NewDB(filepath.Join(dir, "workflow.db"), zap.NewNop())
 	if err != nil {
+		if strings.Contains(err.Error(), "CGO_ENABLED=0") {
+			t.Skip("skipping test: sqlite requires CGO_ENABLED=1")
+		}
 		t.Fatalf("NewDB: %v", err)
 	}
 	t.Cleanup(func() { _ = db.Close() })

@@ -14,6 +14,13 @@ import (
 	"go.uber.org/zap"
 )
 
+func skipIfNoSh(t *testing.T) {
+	t.Helper()
+	if _, err := exec.LookPath("sh"); err != nil {
+		t.Skip("skipping test: sh not available on PATH")
+	}
+}
+
 // setupTestExecutor creates an executor for tests
 func setupTestExecutor(t *testing.T) (*Executor, *mcp.Server) {
 	logger := zap.NewNop()
@@ -51,6 +58,7 @@ func TestExecutor_ExecuteInternalTool_UnknownTool(t *testing.T) {
 }
 
 func TestExecuteSystemCommand_BackgroundDoesNotBlockOnChildStdout(t *testing.T) {
+	skipIfNoSh(t)
 	executor, _ := setupTestExecutor(t)
 	// child process first writes non-newline characters to stdout then sleeps for a long time;
 	// if the child process stdout shares a pipe with echo $pid and is not redirected,
@@ -82,6 +90,7 @@ func TestExecuteSystemCommand_BackgroundDoesNotBlockOnChildStdout(t *testing.T) 
 }
 
 func TestExecToolSoftWaitExposesPartialOutput(t *testing.T) {
+	skipIfNoSh(t)
 	executor, server := setupTestExecutor(t)
 	server.ConfigureToolWaitTimeoutSeconds(1)
 	mcp.RegisterExecutionControlTools(server, nil)
@@ -119,6 +128,7 @@ func TestExecToolSoftWaitExposesPartialOutput(t *testing.T) {
 }
 
 func TestExecuteSystemCommand_FailureFormat(t *testing.T) {
+	skipIfNoSh(t)
 	executor, _ := setupTestExecutor(t)
 	res, err := executor.executeSystemCommand(context.Background(), map[string]interface{}{
 		"command": "echo fail-msg >&2; exit 7",
@@ -140,6 +150,7 @@ func TestExecuteSystemCommand_FailureFormat(t *testing.T) {
 }
 
 func TestExecuteSystemCommand_OutputIsSourceLimited(t *testing.T) {
+	skipIfNoSh(t)
 	executor, _ := setupTestExecutor(t)
 	spillRoot := t.TempDir()
 	executor.SetToolOutputMaxBytes(200)
@@ -168,6 +179,7 @@ func TestExecuteSystemCommand_OutputIsSourceLimited(t *testing.T) {
 }
 
 func TestExecuteSystemCommand_StreamingOutputIsSourceLimited(t *testing.T) {
+	skipIfNoSh(t)
 	executor, _ := setupTestExecutor(t)
 	spillRoot := t.TempDir()
 	executor.SetToolOutputMaxBytes(200)

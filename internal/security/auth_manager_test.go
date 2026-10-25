@@ -1,9 +1,10 @@
-﻿package security
+package security
 
 import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"kestrel/internal/authctx"
@@ -16,6 +17,9 @@ import (
 func TestAuthManagerAuthenticatesCreatedRBACUser(t *testing.T) {
 	db, err := database.NewDB(filepath.Join(t.TempDir(), "auth-rbac.db"), zap.NewNop())
 	if err != nil {
+		if strings.Contains(err.Error(), "CGO_ENABLED=0") {
+			t.Skip("skipping test: sqlite requires CGO_ENABLED=1")
+		}
 		t.Fatalf("NewDB: %v", err)
 	}
 	t.Cleanup(func() { _ = db.Close() })

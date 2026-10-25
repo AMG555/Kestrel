@@ -91,13 +91,13 @@ func permissionAlternativesForRequest(method, path string) []string {
 func permissionForRequest(method, fullPath string) string {
 	path := strings.TrimPrefix(fullPath, "/api")
 	switch {
-	case path == "/rbac/me":
+	case path == "/rbac/me", path == "/auth/me":
 		return "auth:self"
 	case path == "/rbac/resources":
 		// The picker enumerates resource names and IDs and is only needed by
 		// administrators who can actually create assignments.
 		return "rbac:write"
-	case strings.HasPrefix(path, "/rbac"):
+	case strings.HasPrefix(path, "/rbac"), strings.HasPrefix(path, "/users"):
 		if method == http.MethodGet {
 			return "rbac:read"
 		}
@@ -118,10 +118,12 @@ func permissionForRequest(method, fullPath string) string {
 		return "hitl:write"
 	case strings.HasPrefix(path, "/agent-loop"), strings.HasPrefix(path, "/batch-tasks"):
 		return crudPermission(method, "tasks")
-	case path == "/usage/tokens":
+	case path == "/usage/tokens", path == "/stats/token-usage", path == "/dashboard/stats":
 		return "dashboard:read"
 	case strings.HasPrefix(path, "/conversations"), strings.HasPrefix(path, "/messages"), strings.HasPrefix(path, "/process-details"):
 		return crudPermission(method, "chat")
+	case path == "/system/info", path == "/tool-executions":
+		return "monitor:read"
 	case strings.HasPrefix(path, "/monitor"):
 		return crudPermission(method, "monitor")
 	case strings.HasPrefix(path, "/notifications"):
@@ -131,8 +133,18 @@ func permissionForRequest(method, fullPath string) string {
 		return "notification:write"
 	case path == "/tool-guard/test" && method == http.MethodPost:
 		return "config:read"
-	case path == "/tool-guard":
+	case strings.HasPrefix(path, "/tool-guard"):
 		return crudPermission(method, "config")
+	case strings.HasPrefix(path, "/tools"):
+		if method == http.MethodPost {
+			return "agent:execute"
+		}
+		return "config:read"
+	case strings.HasPrefix(path, "/osint"):
+		if path == "/osint/import-assets" {
+			return "asset:write"
+		}
+		return "fofa:execute"
 	case strings.HasPrefix(path, "/config"):
 		return crudPermission(method, "config")
 	case strings.HasPrefix(path, "/storage"):

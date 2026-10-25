@@ -1,7 +1,8 @@
-﻿package security
+package security
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"kestrel/internal/database"
@@ -12,6 +13,9 @@ import (
 func TestAttachRBACStoreBootstrapsAdminPassword(t *testing.T) {
 	db, err := database.NewDB(filepath.Join(t.TempDir(), "auth-bootstrap.db"), zap.NewNop())
 	if err != nil {
+		if strings.Contains(err.Error(), "CGO_ENABLED=0") {
+			t.Skip("skipping test: sqlite requires CGO_ENABLED=1")
+		}
 		t.Fatalf("NewDB: %v", err)
 	}
 	t.Cleanup(func() { _ = db.Close() })
