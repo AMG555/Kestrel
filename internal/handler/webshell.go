@@ -1120,3 +1120,64 @@ func (h *WebShellHandler) FileOpWithConnection(conn *database.WebShellConnection
 	}
 	return decodeWebshellOutput(out, conn.Encoding), resp.StatusCode == http.StatusOK, ""
 }
+
+// ProbeConnection tests connectivity to a specific WebShell connection (POST /api/webshell/:id/probe)
+func (h *WebShellHandler) ProbeConnection(c *gin.Context) {
+	id := strings.TrimSpace(c.Param("id"))
+	if id == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "connection id is required"})
+		return
+	}
+	conn, ok := h.authorizedWebshellConnection(c, id, "")
+	if !ok {
+		c.JSON(http.StatusForbidden, gin.H{"error": "access denied for this resource"})
+		return
+	}
+	out, execOk, errStr := h.ExecWithConnection(conn, "echo kestrel_probe")
+	connected := execOk && strings.Contains(out, "kestrel_probe")
+	c.JSON(http.StatusOK, gin.H{
+		"connected": connected,
+		"output":    out,
+		"error":     errStr,
+	})
+}
+
+// ExecConnection executes a command on a specific connection by ID (POST /api/webshell/:id/exec)
+func (h *WebShellHandler) ExecConnection(c *gin.Context) {
+	id := strings.TrimSpace(c.Param("id"))
+	if id == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "connection id is required"})
+		return
+	}
+	conn, ok := h.authorizedWebshellConnection(c, id, "")
+	if !ok {
+		c.JSON(http.StatusForbidden, gin.H{"error": "access denied for this resource"})
+		return
+	}
+	var req struct {
+		Command string `json:"command" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	start := time.Now()
+	out, execOk, errStr := h.ExecWithConnection(conn, req.Command)
+	duration := time.Since(start).Milliseconds()
+
+	if h.audit != nil {
+		h.audit.RecordOK(c, "webshell", "exec", "executed command on WebShell", "webshell_connection", id, map[string]interface{}{
+			"command":     req.Command,
+			"duration_ms": duration,
+			"success":     execOk,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"ok":          execOk,
+		"output":      out,
+		"error":       errStr,
+		"duration_ms": duration,
+	})
+}
+

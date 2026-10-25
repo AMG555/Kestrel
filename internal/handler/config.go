@@ -2902,3 +2902,34 @@ func convertParamType(t string) string {
 		return "string"
 	}
 }
+
+// GetRobotsConfig serves GET /api/robots/config
+func (h *ConfigHandler) GetRobotsConfig(c *gin.Context) {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	c.JSON(http.StatusOK, h.config.Robots)
+}
+
+// UpdateRobotsConfig serves PUT /api/robots/config
+func (h *ConfigHandler) UpdateRobotsConfig(c *gin.Context) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	var req config.RobotsConfig
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	h.config.Robots = req
+	if err := h.saveConfig(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save configuration: " + err.Error()})
+		return
+	}
+	if h.robotRestarter != nil {
+		h.robotRestarter.RestartRobotConnections()
+	}
+	if h.audit != nil {
+		h.audit.RecordOK(c, "config", "update_robots", "updated notification robots configuration", "robots_config", "", nil)
+	}
+	c.JSON(http.StatusOK, h.config.Robots)
+}
+

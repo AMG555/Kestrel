@@ -316,7 +316,10 @@ func (h *C2Handler) ListSessions(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"sessions": sessions})
+	c.JSON(http.StatusOK, gin.H{
+		"sessions": sessions,
+		"beacons":  sessions,
+	})
 }
 
 // GetSession retrieves a single session

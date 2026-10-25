@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"database/sql"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -958,10 +959,24 @@ func setupRoutes(
 		if version == "" {
 			version = "v1.0.0"
 		}
+		toolNames := []string{}
+		if mcpServer != nil {
+			for _, t := range mcpServer.GetAllTools() {
+				toolNames = append(toolNames, t.Name)
+			}
+		}
+		llmProvider := app.config.OpenAI.Model
+		if llmProvider == "" {
+			llmProvider = "stub (rule-based)"
+		}
 		c.JSON(http.StatusOK, gin.H{
-			"status":  "ok",
-			"version": version,
-			"time":    time.Now().UTC().Format(time.RFC3339),
+			"status":       "ok",
+			"version":      version,
+			"agent_modes":  []string{"single", "multi_agent"},
+			"hitl_modes":   []string{"auto", "interactive", "strict"},
+			"llm_provider": llmProvider,
+			"tools":        toolNames,
+			"time":         time.Now().UTC().Format(time.RFC3339),
 		})
 	}
 	readyHandler := func(c *gin.Context) {
@@ -994,6 +1009,7 @@ func setupRoutes(
 		authRoutes.POST("/logout", security.AuthMiddleware(authManager), authHandler.Logout)
 		authRoutes.POST("/change-password", security.AuthMiddleware(authManager), security.RequirePermission("auth:self"), authHandler.ChangePassword)
 		authRoutes.GET("/validate", security.AuthMiddleware(authManager), authHandler.Validate)
+		authRoutes.GET("/me", security.AuthMiddleware(authManager), authHandler.Validate)
 		authRoutes.POST("/robot-binding-code", security.AuthMiddleware(authManager), security.RequirePermission("auth:self"), robotHandler.CreateRobotBindingCode)
 		authRoutes.GET("/robot-bindings", security.AuthMiddleware(authManager), security.RequirePermission("auth:self"), robotHandler.ListMyRobotBindings)
 		authRoutes.DELETE("/robot-bindings/:id", security.AuthMiddleware(authManager), security.RequirePermission("auth:self"), robotHandler.DeleteMyRobotBinding)
@@ -1023,12 +1039,20 @@ func setupRoutes(
 		}
 	}))
 	{
+		protected.GET("/auth/me", authHandler.Validate)
 		protected.GET("/rbac/me", rbacHandler.Me)
 		protected.GET("/rbac/metadata", rbacHandler.Metadata)
 		protected.GET("/rbac/users", rbacHandler.ListUsers)
 		protected.POST("/rbac/users", rbacHandler.CreateUser)
 		protected.PUT("/rbac/users/:id", rbacHandler.UpdateUser)
 		protected.DELETE("/rbac/users/:id", rbacHandler.DeleteUser)
+
+		// users management aliases
+		protected.GET("/users", rbacHandler.ListUsers)
+		protected.POST("/users", rbacHandler.CreateUser)
+		protected.PUT("/users/:id", rbacHandler.UpdateUser)
+		protected.PATCH("/users/:id", rbacHandler.UpdateUser)
+		protected.DELETE("/users/:id", rbacHandler.DeleteUser)
 		protected.GET("/rbac/roles", rbacHandler.ListRoles)
 		protected.POST("/rbac/roles", rbacHandler.CreateRole)
 		protected.PUT("/rbac/roles/:id", rbacHandler.UpdateRole)
@@ -1083,10 +1107,12 @@ func setupRoutes(
 		protected.PUT("/multi-agent/markdown-agents/:filename", markdownAgentsHandler.UpdateMarkdownAgent)
 		protected.DELETE("/multi-agent/markdown-agents/:filename", markdownAgentsHandler.DeleteMarkdownAgent)
 
-		// info gathering - FOFA query (backend proxy)
+		// info gathering - FOFA and OSINT queries
 		protected.POST("/fofa/search", fofaHandler.Search)
-		// info gathering - natural language to FOFA syntax (requires human confirmation before query)
 		protected.POST("/fofa/parse", fofaHandler.ParseNaturalLanguage)
+		protected.POST("/osint/search", fofaHandler.Search)
+		protected.POST("/osint/parse", fofaHandler.ParseNaturalLanguage)
+		protected.POST("/osint/import-assets", assetHandler.Import)
 
 		// asset management
 		protected.GET("/assets", assetHandler.List)
@@ -1119,6 +1145,7 @@ func setupRoutes(
 
 		// conversation history
 		protected.GET("/usage/tokens", conversationHandler.GetTokenUsageStats)
+		protected.GET("/stats/token-usage", conversationHandler.GetTokenUsageStats)
 		protected.POST("/conversations", conversationHandler.CreateConversation)
 		protected.GET("/conversations", conversationHandler.ListConversations)
 		protected.GET("/conversations/:id", conversationHandler.GetConversation)
@@ -1132,8 +1159,12 @@ func setupRoutes(
 		protected.POST("/conversations/:id/delete-turn", conversationHandler.DeleteConversationTurn)
 		protected.PUT("/conversations/:id/pinned", conversationHandler.UpdateConversationPinned)
 
-		// monitoring
+		// monitoring & telemetry
 		protected.GET("/monitor", monitorHandler.Monitor)
+		protected.GET("/tool-executions", monitorHandler.Monitor)
+		protected.GET("/monitor/status", monitorHandler.GetSystemStatus)
+		protected.GET("/system/info", monitorHandler.GetSystemStatus)
+		protected.GET("/dashboard/stats", monitorHandler.GetDashboardStats)
 		protected.GET("/monitor/execution/:id", monitorHandler.GetExecution)
 		protected.POST("/monitor/execution/:id/cancel", monitorHandler.CancelExecution)
 		protected.POST("/monitor/executions/names", monitorHandler.BatchGetToolNames)
@@ -1144,12 +1175,17 @@ func setupRoutes(
 		protected.GET("/notifications/summary", notificationHandler.GetSummary)
 		protected.POST("/notifications/read", notificationHandler.MarkRead)
 
-		// config management
+		// config management & tool recipes catalog
 		protected.GET("/config", configHandler.GetConfig)
 		protected.GET("/tool-guard", configHandler.GetToolGuard)
+		protected.GET("/tool-guard/config", configHandler.GetToolGuard)
 		protected.PUT("/tool-guard", configHandler.UpdateToolGuard)
+		protected.PUT("/tool-guard/config", configHandler.UpdateToolGuard)
 		protected.POST("/tool-guard/test", configHandler.TestToolGuard)
 		protected.GET("/config/tools", configHandler.GetTools)
+		protected.GET("/tools", configHandler.GetTools)
+		protected.GET("/tools/catalog", configHandler.GetTools)
+		protected.GET("/tools/catalog/:name", configHandler.GetToolSchema)
 		protected.GET("/config/tools/:name/schema", configHandler.GetToolSchema)
 		protected.PUT("/config", configHandler.UpdateConfig)
 		protected.POST("/config/apply", configHandler.ApplyConfig)
@@ -1157,9 +1193,40 @@ func setupRoutes(
 		protected.POST("/config/test-typesafe", configHandler.TestTypeSafe)
 		protected.POST("/config/test-vision", configHandler.TestVision)
 		protected.POST("/config/list-models", configHandler.ListModels)
+		protected.GET("/robots/config", configHandler.GetRobotsConfig)
+		protected.PUT("/robots/config", configHandler.UpdateRobotsConfig)
+		protected.POST("/robots/test", robotHandler.HandleRobotTest)
+
+		// direct security tool execution (quick testing from tool recipes catalog)
+		protected.POST("/tools/:name/execute", func(c *gin.Context) {
+			toolName := c.Param("name")
+			var req struct {
+				Arguments map[string]interface{} `json:"arguments"`
+			}
+			if err := c.ShouldBindJSON(&req); err != nil && err != io.EOF {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid arguments payload: " + err.Error()})
+				return
+			}
+			if req.Arguments == nil {
+				req.Arguments = make(map[string]interface{})
+			}
+			callCtx, cancel := context.WithTimeout(c.Request.Context(), 2*time.Minute)
+			defer cancel()
+			result, execID, err := mcpServer.CallTool(callCtx, toolName, req.Arguments)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error(), "execution_id": execID})
+				return
+			}
+			c.JSON(http.StatusOK, gin.H{
+				"tool":         toolName,
+				"result":       result,
+				"execution_id": execID,
+			})
+		})
 
 		// system settings - terminal (execute commands, improve ops efficiency)
 		protected.POST("/terminal/run", terminalHandler.RunCommand)
+		protected.POST("/terminal/exec", terminalHandler.RunCommand)
 		protected.POST("/terminal/run/stream", terminalHandler.RunCommandStream)
 		protected.GET("/terminal/ws", terminalHandler.RunCommandWS)
 
@@ -1364,6 +1431,10 @@ func setupRoutes(
 		protected.POST("/projects/:id/fact-edges", projectHandler.CreateFactEdge)
 		protected.DELETE("/projects/:id/fact-edges/:edgeId", projectHandler.DeleteFactEdge)
 		protected.POST("/projects/:id/promote-attack-chain/:conversationId", projectHandler.PromoteAttackChain)
+		protected.GET("/projects/:id/attack-chain", projectHandler.GetFactGraph)
+		protected.POST("/projects/:id/attack-chain/nodes", projectHandler.CreateFact)
+		protected.POST("/projects/:id/attack-chain/edges", projectHandler.CreateFactEdge)
+		protected.POST("/projects/:id/attack-chain/promote", projectHandler.PromoteAttackChain)
 		protected.GET("/projects/:id/facts", projectHandler.ListFacts)
 		protected.POST("/projects/:id/facts", projectHandler.CreateFact)
 		protected.PUT("/projects/:id/facts/:factId", projectHandler.UpdateFact)
@@ -1382,6 +1453,8 @@ func setupRoutes(
 		protected.DELETE("/webshell/connections/:id", webshellHandler.DeleteConnection)
 		protected.POST("/webshell/exec", webshellHandler.Exec)
 		protected.POST("/webshell/file", webshellHandler.FileOp)
+		protected.POST("/webshell/:id/probe", webshellHandler.ProbeConnection)
+		protected.POST("/webshell/:id/exec", webshellHandler.ExecConnection)
 
 		// C2 management (returns 503 when not enabled, to avoid nil handler pointer)
 		c2Routes := protected.Group("/c2")
@@ -1404,8 +1477,10 @@ func setupRoutes(
 		c2Routes.POST("/listeners/:id/start", c2Handler.StartListener)
 		c2Routes.POST("/listeners/:id/stop", c2Handler.StopListener)
 		c2Routes.GET("/sessions", c2Handler.ListSessions)
+		c2Routes.GET("/beacons", c2Handler.ListSessions)
 		c2Routes.DELETE("/sessions", c2Handler.DeleteSessions)
 		c2Routes.GET("/sessions/:id", c2Handler.GetSession)
+		c2Routes.GET("/beacons/:id", c2Handler.GetSession)
 		c2Routes.DELETE("/sessions/:id", c2Handler.DeleteSession)
 		c2Routes.PUT("/sessions/:id/sleep", c2Handler.SetSessionSleep)
 		c2Routes.PUT("/sessions/:id/note", c2Handler.SetSessionNote)
@@ -1416,6 +1491,7 @@ func setupRoutes(
 		c2Routes.POST("/tasks/:id/cancel", c2Handler.CancelTask)
 		c2Routes.GET("/tasks/:id/wait", c2Handler.WaitTask)
 		c2Routes.POST("/sessions/:id/tasks", c2Handler.CreateTask)
+		c2Routes.POST("/beacons/:id/tasks", c2Handler.CreateTask)
 		c2Routes.POST("/payloads/oneliner", c2Handler.PayloadOneliner)
 		c2Routes.POST("/payloads/build", c2Handler.PayloadBuild)
 		c2Routes.GET("/payloads/:id/download", c2Handler.PayloadDownload)

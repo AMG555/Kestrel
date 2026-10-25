@@ -88,18 +88,31 @@ export const api = {
   systemInfo:     ()      => request('GET',  '/system/info'),
 
   // Users
-  listUsers:      ()      => request('GET',  '/users'),
-  createUser:     (d)     => request('POST', '/users', d),
-  updateUser:     (id, d) => request('PATCH', `/users/${id}`, d),
-  deleteUser:     (id)    => request('DELETE', `/users/${id}`),
-  assignRole:     (uid, rid) => request('POST', `/users/${uid}/roles`, { role_id: rid }),
-  revokeRole:     (uid, rid) => request('DELETE', `/users/${uid}/roles/${rid}`),
+  listUsers:      ()      => request('GET',  '/rbac/users'),
+  createUser:     (d)     => request('POST', '/rbac/users', d),
+  updateUser:     (id, d) => request('PUT',  `/rbac/users/${id}`, d),
+  deleteUser:     (id)    => request('DELETE', `/rbac/users/${id}`),
+  assignRole:     async (uid, rid) => {
+    const u = await request('GET', `/rbac/users`)
+    const user = (u.users || []).find(x => x.id === uid)
+    const currentRoles = user?.roles || []
+    if (!currentRoles.includes(rid)) {
+      return request('PUT', `/rbac/users/${uid}`, { roles: [...currentRoles, rid] })
+    }
+    return { ok: true }
+  },
+  revokeRole:     async (uid, rid) => {
+    const u = await request('GET', `/rbac/users`)
+    const user = (u.users || []).find(x => x.id === uid)
+    const currentRoles = user?.roles || []
+    return request('PUT', `/rbac/users/${uid}`, { roles: currentRoles.filter(r => r !== rid) })
+  },
 
   // Roles
-  listRoles:      ()      => request('GET',  '/roles'),
-  createRole:     (d)     => request('POST', '/roles', d),
-  updateRole:     (id, d) => request('PATCH', `/roles/${id}`, d),
-  deleteRole:     (id)    => request('DELETE', `/roles/${id}`),
+  listRoles:      ()      => request('GET',  '/rbac/roles'),
+  createRole:     (d)     => request('POST', '/rbac/roles', d),
+  updateRole:     (id, d) => request('PUT',  `/rbac/roles/${id}`, d),
+  deleteRole:     (id)    => request('DELETE', `/rbac/roles/${id}`),
 
   // Assets
   listAssets:     (q)     => request('GET',  `/assets?${new URLSearchParams(q || {})}`),
@@ -264,9 +277,6 @@ export const api = {
 
   // Attack chain auto-promotion
   promoteAttackChain:  (pid, sid)    => request('POST',   `/projects/${pid}/attack-chain/promote`, { session_id: sid }),
-
-  // Operator Terminal
-  execTerminal:        (d)           => request('POST',   '/terminal/exec', d),
 
   // System Monitor & Telemetry
   getMonitorStatus:    ()            => request('GET',    '/monitor/status'),

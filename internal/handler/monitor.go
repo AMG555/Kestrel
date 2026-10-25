@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -1042,3 +1043,149 @@ func toolNameFilterMatches(storedName, filter string) bool {
 	}
 	return strings.Contains(strings.ReplaceAll(storedLower, "::", "__"), filterLower)
 }
+
+var processStartTime = time.Now()
+
+// GetSystemStatus serves GET /api/monitor/status and /api/system/info for real-time telemetry.
+func (h *MonitorHandler) GetSystemStatus(c *gin.Context) {
+	uptimeSecs := int64(time.Since(processStartTime).Seconds())
+	var mem runtime.MemStats
+	runtime.ReadMemStats(&mem)
+	memAllocMB := float64(mem.Alloc) / (1024 * 1024)
+	memSysMB := float64(mem.Sys) / (1024 * 1024)
+
+	toolCount := 0
+	if h.mcpServer != nil {
+		toolCount = len(h.mcpServer.GetAllTools())
+	}
+
+	var pageCount, pageSize int64
+	var dbSizeMB float64
+	var dbSizeBytes int64
+	var usersCount, projectsCount, assetsCount, vulnsCount, sessionsCount, toolExecsCount, auditLogsCount int
+
+	if h.db != nil && h.db.DB != nil {
+		_ = h.db.QueryRow("PRAGMA page_count").Scan(&pageCount)
+		_ = h.db.QueryRow("PRAGMA page_size").Scan(&pageSize)
+		dbSizeBytes = pageCount * pageSize
+		dbSizeMB = float64(dbSizeBytes) / (1024 * 1024)
+
+		_ = h.db.QueryRow("SELECT COUNT(*) FROM rbac_users").Scan(&usersCount)
+		_ = h.db.QueryRow("SELECT COUNT(*) FROM projects").Scan(&projectsCount)
+		_ = h.db.QueryRow("SELECT COUNT(*) FROM assets").Scan(&assetsCount)
+		_ = h.db.QueryRow("SELECT COUNT(*) FROM vulnerabilities").Scan(&vulnsCount)
+		_ = h.db.QueryRow("SELECT COUNT(*) FROM conversations").Scan(&sessionsCount)
+		_ = h.db.QueryRow("SELECT COUNT(*) FROM mcp_tool_executions").Scan(&toolExecsCount)
+		_ = h.db.QueryRow("SELECT COUNT(*) FROM audit_logs").Scan(&auditLogsCount)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"status": "healthy",
+		"system": gin.H{
+			"uptime_secs":     uptimeSecs,
+			"goroutines":      runtime.NumGoroutine(),
+			"os":              runtime.GOOS,
+			"arch":            runtime.GOARCH,
+			"go_version":      runtime.Version(),
+			"num_cpu":         runtime.NumCPU(),
+			"memory_alloc_mb": memAllocMB,
+			"memory_sys_mb":   memSysMB,
+		},
+		"tools": gin.H{
+			"registered_count": toolCount,
+		},
+		"database": gin.H{
+			"size_mb":         dbSizeMB,
+			"size_bytes":      dbSizeBytes,
+			"users":           usersCount,
+			"projects":        projectsCount,
+			"assets":          assetsCount,
+			"vulnerabilities":  vulnsCount,
+			"sessions":        sessionsCount,
+			"tool_executions": toolExecsCount,
+			"audit_logs":      auditLogsCount,
+		},
+	})
+}
+
+// GetDashboardStats serves GET /api/dashboard/stats with consolidated metrics for instant frontend rendering.
+func (h *MonitorHandler) GetDashboardStats(c *gin.Context) {
+	toolCount := 0
+	if h.mcpServer != nil {
+		toolCount = len(h.mcpServer.GetAllTools())
+	}
+
+	var usersCount, projectsCount, assetsCount, vulnsCount, sessionsCount, toolExecsCount int
+	var criticalVulns, highVulns, mediumVulns, lowVulns, infoVulns int
+	var openVulns, confirmedVulns, resolvedVulns, falsePositiveVulns int
+	var pendingHITL int
+
+	trend := make([]gin.H, 7)
+	now := time.Now().UTC()
+	for i := 6; i >= 0; i-- {
+		dayTime := now.AddDate(0, 0, -i)
+		dayStr := dayTime.Format("2006-01-02")
+		trend[6-i] = gin.H{"day": dayStr, "count": 0}
+	}
+
+	if h.db != nil && h.db.DB != nil {
+		_ = h.db.QueryRow("SELECT COUNT(*) FROM rbac_users").Scan(&usersCount)
+		_ = h.db.QueryRow("SELECT COUNT(*) FROM projects").Scan(&projectsCount)
+		_ = h.db.QueryRow("SELECT COUNT(*) FROM assets").Scan(&assetsCount)
+		_ = h.db.QueryRow("SELECT COUNT(*) FROM vulnerabilities").Scan(&vulnsCount)
+		_ = h.db.QueryRow("SELECT COUNT(*) FROM conversations").Scan(&sessionsCount)
+		_ = h.db.QueryRow("SELECT COUNT(*) FROM mcp_tool_executions").Scan(&toolExecsCount)
+
+		_ = h.db.QueryRow("SELECT COUNT(*) FROM vulnerabilities WHERE severity = 'critical'").Scan(&criticalVulns)
+		_ = h.db.QueryRow("SELECT COUNT(*) FROM vulnerabilities WHERE severity = 'high'").Scan(&highVulns)
+		_ = h.db.QueryRow("SELECT COUNT(*) FROM vulnerabilities WHERE severity = 'medium'").Scan(&mediumVulns)
+		_ = h.db.QueryRow("SELECT COUNT(*) FROM vulnerabilities WHERE severity = 'low'").Scan(&lowVulns)
+		_ = h.db.QueryRow("SELECT COUNT(*) FROM vulnerabilities WHERE severity = 'info'").Scan(&infoVulns)
+
+		_ = h.db.QueryRow("SELECT COUNT(*) FROM vulnerabilities WHERE status = 'open'").Scan(&openVulns)
+		_ = h.db.QueryRow("SELECT COUNT(*) FROM vulnerabilities WHERE status = 'confirmed'").Scan(&confirmedVulns)
+		_ = h.db.QueryRow("SELECT COUNT(*) FROM vulnerabilities WHERE status = 'resolved'").Scan(&resolvedVulns)
+		_ = h.db.QueryRow("SELECT COUNT(*) FROM vulnerabilities WHERE status = 'false_positive'").Scan(&falsePositiveVulns)
+
+		_ = h.db.QueryRow("SELECT COUNT(*) FROM hitl_interrupts WHERE status = 'pending'").Scan(&pendingHITL)
+
+		for i := 6; i >= 0; i-- {
+			dayTime := now.AddDate(0, 0, -i)
+			dayStr := dayTime.Format("2006-01-02")
+			var dayCount int
+			_ = h.db.QueryRow("SELECT COUNT(*) FROM mcp_tool_executions WHERE date(created_at) = date(?)", dayStr).Scan(&dayCount)
+			trend[6-i] = gin.H{"day": dayStr, "count": dayCount}
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"projects":        projectsCount,
+		"agent_sessions":  sessionsCount,
+		"tool_executions": toolExecsCount,
+		"assets":          assetsCount,
+		"vulnerabilities":  vulnsCount,
+		"vulns_total":     vulnsCount,
+		"critical_vulns":  criticalVulns,
+		"vulns_critical":  criticalVulns,
+		"high_vulns":      highVulns,
+		"vulns_high":      highVulns,
+		"tools_available": toolCount,
+		"hitl_pending":    pendingHITL,
+		"vulns_by_severity": gin.H{
+			"critical": criticalVulns,
+			"high":     highVulns,
+			"medium":   mediumVulns,
+			"low":      lowVulns,
+			"info":     infoVulns,
+		},
+		"vulns_by_status": gin.H{
+			"open":           openVulns,
+			"confirmed":      confirmedVulns,
+			"resolved":       resolvedVulns,
+			"false_positive": falsePositiveVulns,
+		},
+		"tool_exec_trend": trend,
+		"vulns_trend_7d":  trend,
+	})
+}
+

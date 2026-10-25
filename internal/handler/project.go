@@ -645,9 +645,22 @@ func (h *ProjectHandler) DeleteFactEdge(c *gin.Context) {
 func (h *ProjectHandler) PromoteAttackChain(c *gin.Context) {
 	projectID := c.Param("id")
 	conversationID := c.Param("conversationId")
+	if conversationID == "" {
+		var req struct {
+			SessionID      string `json:"session_id"`
+			ConversationID string `json:"conversation_id"`
+		}
+		if err := c.ShouldBindJSON(&req); err == nil {
+			if strings.TrimSpace(req.SessionID) != "" {
+				conversationID = strings.TrimSpace(req.SessionID)
+			} else if strings.TrimSpace(req.ConversationID) != "" {
+				conversationID = strings.TrimSpace(req.ConversationID)
+			}
+		}
+	}
 	session, ok := security.CurrentSession(c)
 	if !ok || !h.db.UserCanAccessResource(session.UserID, session.Scope, "project", projectID) ||
-		!h.db.UserCanAccessResource(session.UserID, session.Scope, "conversation", conversationID) {
+		(conversationID != "" && !h.db.UserCanAccessResource(session.UserID, session.Scope, "conversation", conversationID)) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "access denied for target project or source conversation"})
 		return
 	}

@@ -37,7 +37,8 @@ export default function UsersPage() {
   }
 
   const toggleActive = async (u) => {
-    await api.updateUser(u.id, { is_active: !u.is_active }).catch(err => setError(err.message))
+    const next = !(u.enabled !== undefined ? u.enabled : u.is_active)
+    await api.updateUser(u.id, { enabled: next, is_active: next }).catch(err => setError(err.message))
     load()
   }
 
@@ -82,9 +83,9 @@ export default function UsersPage() {
                 <td>{u.display_name || '—'}</td>
                 <td style={{ color: 'var(--muted)' }}>{u.email || '—'}</td>
                 <td>
-                  <span className={`badge badge-${u.is_active ? 'active' : 'info'}`}
+                  <span className={`badge badge-${(u.enabled !== undefined ? u.enabled : u.is_active) ? 'active' : 'info'}`}
                     style={{ cursor: 'pointer' }} onClick={() => toggleActive(u)}>
-                    {u.is_active ? 'active' : 'inactive'}
+                    {(u.enabled !== undefined ? u.enabled : u.is_active) ? 'active' : 'inactive'}
                   </span>
                 </td>
                 <td style={{ color: u.must_change_password ? 'var(--warn)' : 'var(--muted)', fontSize: 12 }}>
