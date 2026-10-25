@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { api } from '../api'
+import { api } from '../api.js'
 
 const PRESET_COMMANDS = [
   { label: 'Network Scan', cmd: 'nmap -sV -T4 127.0.0.1' },

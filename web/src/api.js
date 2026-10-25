@@ -136,6 +136,9 @@ export const api = {
   listTools:      ()      => request('GET',  '/tools'),
   executeTool:    (name, args) => request('POST', `/tools/${name}/execute`, { arguments: args }),
 
+  // Terminal
+  execTerminal:   (d)     => request('POST', '/terminal/run', d),
+
   // Audit
   listAudit:      (q)     => request('GET',  `/audit/logs?${new URLSearchParams(q || {})}`),
   auditSummary:   ()      => request('GET',  '/audit/summary'),

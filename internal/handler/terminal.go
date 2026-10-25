@@ -59,14 +59,16 @@ type RunCommandRequest struct {
 	Command string `json:"command"`
 	Shell   string `json:"shell,omitempty"`
 	Cwd     string `json:"cwd,omitempty"`
+	Timeout int    `json:"timeout,omitempty"`
 }
 
 // RunCommandResponse execute commandresponse
 type RunCommandResponse struct {
-	Stdout   string `json:"stdout"`
-	Stderr   string `json:"stderr"`
-	ExitCode int    `json:"exit_code"`
-	Error    string `json:"error,omitempty"`
+	Stdout     string `json:"stdout"`
+	Stderr     string `json:"stderr"`
+	ExitCode   int    `json:"exit_code"`
+	DurationMs int64  `json:"duration_ms"`
+	Error      string `json:"error,omitempty"`
 }
 
 // RunCommand executes a terminal command (requires login).
@@ -96,7 +98,11 @@ func (h *TerminalHandler) RunCommand(c *gin.Context) {
 		}
 	}
 
-	ctx, cancel := context.WithTimeout(c.Request.Context(), terminalTimeout)
+	timeoutDuration := terminalTimeout
+	if req.Timeout > 0 {
+		timeoutDuration = time.Duration(req.Timeout) * time.Second
+	}
+	ctx, cancel := context.WithTimeout(c.Request.Context(), timeoutDuration)
 	defer cancel()
 
 	var cmd *exec.Cmd
@@ -132,7 +138,9 @@ func (h *TerminalHandler) RunCommand(c *gin.Context) {
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
+	startTime := time.Now()
 	err := cmd.Run()
+	durationMs := time.Since(startTime).Milliseconds()
 	stdoutBytes := stdout.Bytes()
 	stderrBytes := stderr.Bytes()
 
@@ -164,10 +172,11 @@ func (h *TerminalHandler) RunCommand(c *gin.Context) {
 			se := strings.ReplaceAll(string(stderrBytes), "\r\n", "\n")
 			se = strings.ReplaceAll(se, "\r", "\n")
 			resp := RunCommandResponse{
-				Stdout:   so,
-				Stderr:   se,
-				ExitCode: -1,
-				Error:    "command execution timed out (" + terminalTimeout.String() + ")",
+				Stdout:     so,
+				Stderr:     se,
+				ExitCode:   -1,
+				DurationMs: durationMs,
+				Error:      "command execution timed out (" + timeoutDuration.String() + ")",
 			}
 			c.JSON(http.StatusOK, resp)
 			return
@@ -182,9 +191,10 @@ func (h *TerminalHandler) RunCommand(c *gin.Context) {
 	stderrStr = strings.ReplaceAll(stderrStr, "\r", "\n")
 
 	resp := RunCommandResponse{
-		Stdout:   stdoutStr,
-		Stderr:   stderrStr,
-		ExitCode: exitCode,
+		Stdout:     stdoutStr,
+		Stderr:     stderrStr,
+		ExitCode:   exitCode,
+		DurationMs: durationMs,
 	}
 	if err != nil && exitCode != 0 {
 		resp.Error = err.Error()
