@@ -238,6 +238,7 @@ func GenerateSARIF(vulns []*database.Vulnerability, toolVersion string) *SARIFRe
 
 		ruleID := NormalizeRuleID(v.Type, v.Title)
 		level, score := MapSeverityToLevel(v.Severity)
+		cvss := DefaultCVSSForSeverity(v.Severity)
 
 		idx, exists := ruleIndexMap[ruleID]
 		if !exists {
@@ -261,6 +262,8 @@ func GenerateSARIF(vulns []*database.Vulnerability, toolVersion string) *SARIFRe
 
 			ruleProps := map[string]interface{}{
 				"security-severity": score,
+				"cvss-score":        cvss.Score,
+				"cvss-vector":       cvss.Vector,
 				"tags": []string{
 					"security",
 					strings.ToLower(ruleID),
@@ -298,6 +301,8 @@ func GenerateSARIF(vulns []*database.Vulnerability, toolVersion string) *SARIFRe
 			"status":            v.Status,
 			"evidence":          v.Evidence,
 			"reproductionSteps": v.ReproSteps,
+			"cvss-score":        cvss.Score,
+			"cvss-vector":       cvss.Vector,
 			"impact":            v.Impact,
 			"preconditions":     v.Preconditions,
 		}

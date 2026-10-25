@@ -187,6 +187,7 @@ func generatePythonPoC(v *database.Vulnerability, d PoCDetails) string {
 	} else {
 		sb.WriteString("    req.add_header('User-Agent', 'Kestrel-PoC-Verifier/1.0')\n")
 	}
+	sb.WriteString("    req.add_header('Connection', 'close')\n")
 
 	sb.WriteString("\n    ctx = ssl.create_default_context()\n")
 	sb.WriteString("    if args.insecure:\n")
