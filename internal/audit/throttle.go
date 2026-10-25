@@ -1,4 +1,4 @@
-﻿package audit
+package audit
 
 import (
 	"sync"
@@ -32,6 +32,12 @@ func (t *failureThrottle) allow(key string, cooldown time.Duration) bool {
 			if now.Sub(ts) > cooldown*2 {
 				delete(t.last, k)
 			}
+		}
+		// If map remains oversized despite pruning (e.g. distributed attack with distinct keys),
+		// reset to prevent unbounded heap consumption.
+		if len(t.last) > 8192 {
+			t.last = make(map[string]time.Time, 4096)
+			t.last[key] = now
 		}
 	}
 	return true

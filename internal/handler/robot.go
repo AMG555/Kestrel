@@ -21,6 +21,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"kestrel/internal/audit"
@@ -75,6 +76,11 @@ type robotPendingConfirmation struct {
 	ExpiresAt time.Time
 }
 
+type robotRunningTask struct {
+	id     uint64
+	cancel context.CancelFunc
+}
+
 // RobotHandler handles WeCom/DingTalk/Feishu and other bot callbacks
 type RobotHandler struct {
 	config               *config.Config
@@ -86,7 +92,8 @@ type RobotHandler struct {
 	sessionRoles         map[string]string             // key: "platform_userID", value: roleName (default "default")
 	sessionModes         map[string]string             // key: "platform_userID", value: agent mode
 	cancelMu             sync.Mutex                    // protects runningCancels
-	runningCancels       map[string]context.CancelFunc // key: "platform_userID", used to interrupt tasks via stop command
+	runningCancels       map[string]robotRunningTask   // key: "platform_userID", used to interrupt tasks via stop command
+	nextTaskID           uint64                        // monotonic ID generator for running tasks
 	wecomReplay          map[string]time.Time
 	pendingConfirmations map[string]robotPendingConfirmation
 	alertWake            chan struct{}
@@ -103,7 +110,7 @@ func NewRobotHandler(cfg *config.Config, db *database.DB, agentHandler *AgentHan
 		sessions:             make(map[string]string),
 		sessionRoles:         make(map[string]string),
 		sessionModes:         make(map[string]string),
-		runningCancels:       make(map[string]context.CancelFunc),
+		runningCancels:       make(map[string]robotRunningTask),
 		wecomReplay:          make(map[string]time.Time),
 		pendingConfirmations: make(map[string]robotPendingConfirmation),
 		alertWake:            make(chan struct{}, 1),
@@ -134,6 +141,9 @@ func (h *RobotHandler) acceptFreshWecomRequest(timestamp, nonce, signature strin
 		if now.Sub(seenAt) > 10*time.Minute {
 			delete(h.wecomReplay, replayKey)
 		}
+	}
+	if len(h.wecomReplay) > 10000 {
+		h.wecomReplay = make(map[string]time.Time, 1024)
 	}
 	if _, exists := h.wecomReplay[key]; exists {
 		return false
@@ -429,13 +439,19 @@ func (h *RobotHandler) HandleMessage(platform, userID, text string) (reply strin
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), h.robotMessageTimeout())
 	sk := h.sessionKey(platform, userID)
+	taskID := atomic.AddUint64(&h.nextTaskID, 1)
 	h.cancelMu.Lock()
-	h.runningCancels[sk] = cancel
+	if old, exists := h.runningCancels[sk]; exists {
+		old.cancel()
+	}
+	h.runningCancels[sk] = robotRunningTask{id: taskID, cancel: cancel}
 	h.cancelMu.Unlock()
 	defer func() {
 		cancel()
 		h.cancelMu.Lock()
-		delete(h.runningCancels, sk)
+		if cur, ok := h.runningCancels[sk]; ok && cur.id == taskID {
+			delete(h.runningCancels, sk)
+		}
 		h.cancelMu.Unlock()
 	}()
 	role := h.getRole(platform, userID)
@@ -744,10 +760,10 @@ func (h *RobotHandler) cmdClear(platform, userID string) string {
 func (h *RobotHandler) cmdStop(platform, userID string) string {
 	sk := h.sessionKey(platform, userID)
 	h.cancelMu.Lock()
-	cancel, ok := h.runningCancels[sk]
+	task, ok := h.runningCancels[sk]
 	if ok {
 		delete(h.runningCancels, sk)
-		cancel()
+		task.cancel()
 	}
 	h.cancelMu.Unlock()
 	if !ok {
@@ -1207,6 +1223,9 @@ func (h *RobotHandler) setPendingConfirmation(platform, userID, action, target s
 		if now.After(pending.ExpiresAt) {
 			delete(h.pendingConfirmations, key)
 		}
+	}
+	if len(h.pendingConfirmations) > 5000 {
+		h.pendingConfirmations = make(map[string]robotPendingConfirmation, 512)
 	}
 	h.pendingConfirmations[sk] = robotPendingConfirmation{Action: action, Target: target, ExpiresAt: now.Add(2 * time.Minute)}
 	h.mu.Unlock()
