@@ -1,0 +1,59 @@
+name: "tlsx"
+command: "tlsx"
+enabled: true
+short_description: "Fast TLS/SSL data collector and cipher suite analyzer"
+description: |
+  tlsx is a fast and configurable TLS data collection tool that extracts certificate information, SANs, cipher suites, TLS version support, and probes for expired or misconfigured TLS endpoints.
+
+  **Main features:**
+  - TLS/SSL handshake analysis
+  - Certificate SAN and issuer extraction
+  - Supported cipher suites and TLS versions (SSLv3 through TLS 1.3)
+  - JARM fingerprinting
+  - Revocation and expiration auditing
+
+  **Use cases:**
+  - TLS transport security auditing
+  - Identifying deprecated protocols (SSLv3, TLS 1.0, TLS 1.1)
+  - Asset certificate discovery
+  - Expired or self-signed certificate detection
+parameters:
+  - name: "target"
+    type: "string"
+    description: "Target host, IP, or CIDR (e.g. example.com, 10.0.0.1:443)"
+    required: true
+    flag: "-u"
+    format: "flag"
+  - name: "silent"
+    type: "bool"
+    description: "Silent mode (output results only)"
+    required: false
+    default: true
+    flag: "-silent"
+    format: "flag"
+  - name: "probe_cipher"
+    type: "bool"
+    description: "Enumerate supported ciphers"
+    required: false
+    default: false
+    flag: "-ex"
+    format: "flag"
+  - name: "probe_version"
+    type: "bool"
+    description: "Enumerate supported TLS versions"
+    required: false
+    default: false
+    flag: "-sm"
+    format: "flag"
+  - name: "json_output"
+    type: "bool"
+    description: "Format output as JSON"
+    required: false
+    default: true
+    flag: "-j"
+    format: "flag"
+  - name: "additional_args"
+    type: "string"
+    description: "Additional tlsx arguments"
+    required: false
+    format: "positional"
