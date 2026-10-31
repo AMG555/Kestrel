@@ -36,6 +36,7 @@ import (
 	"kestrel/internal/skillpackage"
 	"kestrel/internal/storage"
 	"kestrel/internal/toolguard"
+	"kestrel/web"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -1571,23 +1572,47 @@ func setupRoutes(
 	// OpenAPI spec (requires auth to avoid exposing API structure info)
 	protected.GET("/openapi/spec", openAPIHandler.GetOpenAPISpec)
 
-	// API documentation page (publicly accessible, but API requires login)
-	router.GET("/api-docs", func(c *gin.Context) {
-		c.HTML(http.StatusOK, "api-docs.html", nil)
-	})
-
-	// static files
-	router.Static("/static", "./web/static")
-	router.LoadHTMLGlob("web/templates/*")
-
-	// frontend pages
-	router.GET("/", func(c *gin.Context) {
-		version := app.config.Version
-		if version == "" {
-			version = "v1.0.0"
+	// Embedded React SPA & static assets
+	distServerFS, distFS, err := web.ServerFS()
+	if err != nil {
+		app.logger.Error("failed to initialize embedded web filesystem", zap.Error(err))
+	} else {
+		indexBytes, readErr := web.DistFS.ReadFile("dist/index.html")
+		if readErr != nil {
+			app.logger.Error("failed to read embedded index.html", zap.Error(readErr))
 		}
-		c.HTML(http.StatusOK, "index.html", gin.H{"Version": version})
-	})
+
+		fileServer := http.FileServer(distServerFS)
+
+		router.NoRoute(func(c *gin.Context) {
+			reqPath := c.Request.URL.Path
+			if strings.HasPrefix(reqPath, "/api/") {
+				c.JSON(http.StatusNotFound, gin.H{"error": "endpoint not found"})
+				return
+			}
+			cleanPath := strings.TrimPrefix(reqPath, "/")
+			if cleanPath != "" {
+				if f, openErr := distFS.Open(cleanPath); openErr == nil {
+					_ = f.Close()
+					fileServer.ServeHTTP(c.Writer, c.Request)
+					return
+				}
+			}
+			if len(indexBytes) > 0 {
+				c.Data(http.StatusOK, "text/html; charset=utf-8", indexBytes)
+				return
+			}
+			c.String(http.StatusNotFound, "frontend not available")
+		})
+
+		router.GET("/", func(c *gin.Context) {
+			if len(indexBytes) > 0 {
+				c.Data(http.StatusOK, "text/html; charset=utf-8", indexBytes)
+				return
+			}
+			c.String(http.StatusOK, "Kestrel Security Ops")
+		})
+	}
 }
 
 // registerWebshellTools registers WebShell-related MCP tools for AI assistant to execute commands and file operations on specified connections

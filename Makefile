@@ -39,8 +39,8 @@ test:
 test-js:
 	node --test web/static/js/*.test.cjs
 
-## test-all: Run Go tests + frontend tests
-test-all: test test-js
+## test-all: Run Go tests
+test-all: test
 
 ## test-short: Run tests without network calls
 test-short:

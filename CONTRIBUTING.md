@@ -82,7 +82,6 @@ web/
 
 - **Go**: `gofmt`, `go vet`, standard library preferred over heavy deps
 - **Commits**: conventional commits — `feat:`, `fix:`, `chore:`, `docs:`, `test:`
-- **API changes**: update `web/src/api.js` (React SPA) or `web/static/js/` (legacy assets) and document in `CHANGELOG.md`
 - **New DB tables**: add DDL in `internal/database/schema.go`, CRUD in a matching `<domain>.go` file
 - **Tests**: each new package should have at minimum a smoke test
 - **No audit-log mutation**: the `audit_logs` table is append-only — never add UPDATE/DELETE paths for it
@@ -94,7 +93,6 @@ web/
 - [ ] `go build ./...` passes with no warnings
 - [ ] `go vet ./...` passes clean
 - [ ] `CGO_ENABLED=1 go test ./...` passes (requires gcc; CI enforces this on Linux)
-- [ ] `node --test web/static/js/*.test.cjs` passes (run from project root; or `make test-js`)
 - [ ] `npm run build` (in `web/`) produces no errors
 - [ ] No new dependencies added without justification in the PR description
 - [ ] `CHANGELOG.md` updated under `[Unreleased]`

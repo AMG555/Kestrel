@@ -59,5 +59,3 @@ jobs:
         working-directory: web
         run: npm run build
 
-      - name: Run frontend unit tests
-        run: node --test web/static/js/*.test.cjs

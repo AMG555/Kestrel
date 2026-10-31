@@ -40,8 +40,6 @@ RUN apk add --no-cache \
 COPY --from=backend-builder /app/kestrel-server /opt/kestrel/kestrel-server
 COPY --from=backend-builder /app/kestrel-mcp /opt/kestrel/kestrel-mcp
 COPY --from=backend-builder /app/web/dist /opt/kestrel/web/dist
-COPY web/templates /opt/kestrel/web/templates
-COPY web/static /opt/kestrel/web/static
 COPY config.example.yaml /opt/kestrel/config.example.yaml
 COPY agents /opt/kestrel/agents
 COPY roles /opt/kestrel/roles
