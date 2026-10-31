@@ -158,7 +158,7 @@ func (w *watchdog) close() error {
 }
 
 func serveGuardian(dec *json.Decoder, enc *json.Encoder, apply func(watchRequest) error, cleanup func() error) error {
-	defer cleanup()
+	defer func() { _ = cleanup() }()
 	if err := enc.Encode(watchReply{PID: os.Getpid()}); err != nil {
 		return err
 	}

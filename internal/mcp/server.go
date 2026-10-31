@@ -283,7 +283,7 @@ func (s *Server) HandleHTTP(w http.ResponseWriter, r *http.Request) {
 
 	response := s.handleMessage(r.Context(), &msg)
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 }
 
 // serveSSESessionMessage handles a POST sent to an SSE session: reads the JSON-RPC request, processes it, and pushes the response via that session's SSE stream
@@ -1740,5 +1740,5 @@ func (s *Server) sendError(w http.ResponseWriter, id interface{}, code int, mess
 		Error:   &Error{Code: code, Message: message, Data: data},
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 }

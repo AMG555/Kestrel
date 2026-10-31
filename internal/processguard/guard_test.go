@@ -103,7 +103,7 @@ func TestGuardianOwnerHelper(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	go cmd.Wait()
+	go func() { _ = cmd.Wait() }()
 	select {}
 }
 func TestGroupCloseAndAdmission(t *testing.T) {

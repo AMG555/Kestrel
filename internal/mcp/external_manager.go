@@ -273,7 +273,7 @@ func (m *ExternalMCPManager) AddOrUpdateConfig(name string, serverCfg config.Ext
 
 	// if enabled, auto-connect
 	if m.isEnabled(serverCfg) {
-		go m.connectClient(name, serverCfg)
+		go func() { _ = m.connectClient(name, serverCfg) }()
 	}
 
 	return nil

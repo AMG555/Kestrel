@@ -194,7 +194,7 @@ func (s *SSEServer) handleMessage(w http.ResponseWriter, r *http.Request) {
 	// also return response directly (compatibility with non-SSE mode)
 	if response != nil {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	} else {
 		w.WriteHeader(http.StatusOK)
 	}

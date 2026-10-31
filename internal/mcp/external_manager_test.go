@@ -92,7 +92,7 @@ func TestExternalMCPManager_RemoveConfig(t *testing.T) {
 		ExternalMCPEnable: false,
 	}
 
-	manager.AddOrUpdateConfig("test-remove", cfg)
+	_ = manager.AddOrUpdateConfig("test-remove", cfg)
 
 	// remove config
 	err := manager.RemoveConfig("test-remove")
@@ -111,17 +111,17 @@ func TestExternalMCPManager_GetStats(t *testing.T) {
 	manager := NewExternalMCPManager(logger)
 
 	// add multiple configs
-	manager.AddOrUpdateConfig("enabled1", config.ExternalMCPServerConfig{
+	_ = manager.AddOrUpdateConfig("enabled1", config.ExternalMCPServerConfig{
 		Command:           "python3",
 		ExternalMCPEnable: true,
 	})
 
-	manager.AddOrUpdateConfig("enabled2", config.ExternalMCPServerConfig{
+	_ = manager.AddOrUpdateConfig("enabled2", config.ExternalMCPServerConfig{
 		URL:               "http://127.0.0.1:8081/mcp",
 		ExternalMCPEnable: true,
 	})
 
-	manager.AddOrUpdateConfig("disabled1", config.ExternalMCPServerConfig{
+	_ = manager.AddOrUpdateConfig("disabled1", config.ExternalMCPServerConfig{
 		Command:           "python3",
 		ExternalMCPEnable: false,
 	})
@@ -206,7 +206,7 @@ func TestExternalMCPManager_StartStopClient(t *testing.T) {
 		ExternalMCPEnable: false,
 	}
 
-	manager.AddOrUpdateConfig("test-start-stop", cfg)
+	_ = manager.AddOrUpdateConfig("test-start-stop", cfg)
 
 	// attempt to start (may fail since there is no real server)
 	err := manager.StartClient("test-start-stop")
