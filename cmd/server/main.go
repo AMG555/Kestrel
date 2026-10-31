@@ -259,7 +259,7 @@ func main() {
 		Disabled:      cfg.Log.DiagnosticDisabled,
 		RetentionDays: cfg.Log.DiagnosticRetentionDays,
 	})
-	defer log.Sync()
+	defer func() { _ = log.Sync() }()
 
 	if err := configureProcessIsolation(cfg); err != nil {
 		log.Fatal("process isolationinitialization failed", "error", err)

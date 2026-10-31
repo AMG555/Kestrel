@@ -333,9 +333,7 @@ func (h *ConfigHandler) GetConfig(c *gin.Context) {
 	if h.externalMCPMgr != nil {
 		ctx := context.Background()
 		externalTools := h.getExternalMCPTools(ctx)
-		for _, toolInfo := range externalTools {
-			tools = append(tools, toolInfo)
-		}
+		tools = append(tools, externalTools...)
 	}
 
 	subAgentCount := len(h.config.MultiAgent.SubAgents)

@@ -78,7 +78,7 @@ func (h *AgentHandler) runRoleWorkflowStreamIfBound(
 	var taskRunID string
 	defer func() {
 		if taskOwned {
-			h.tasks.FinishTaskRun(conversationID, taskRunID, taskStatus)
+			_ = h.tasks.FinishTaskRun(conversationID, taskRunID, taskStatus)
 		}
 	}()
 
@@ -222,7 +222,7 @@ func (h *AgentHandler) runRoleWorkflowJSONIfBound(c *gin.Context, req *ChatReque
 	var taskRunID string
 	defer func() {
 		if taskOwned {
-			h.tasks.FinishTaskRun(conversationID, taskRunID, taskStatus)
+			_ = h.tasks.FinishTaskRun(conversationID, taskRunID, taskStatus)
 		}
 	}()
 

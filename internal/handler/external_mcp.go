@@ -436,7 +436,7 @@ func updateExternalMCPConfig(doc *yaml.Node, cfg config.ExternalMCPConfig) {
 		if len(serverCfg.Args) > 0 {
 			setStringArrayInMap(serverNode, "args", serverCfg.Args)
 		}
-		if serverCfg.Env != nil && len(serverCfg.Env) > 0 {
+		if len(serverCfg.Env) > 0 {
 			envNode := ensureMap(serverNode, "env")
 			for envKey, envValue := range serverCfg.Env {
 				setStringInMap(envNode, envKey, envValue)
@@ -445,7 +445,7 @@ func updateExternalMCPConfig(doc *yaml.Node, cfg config.ExternalMCPConfig) {
 		if serverCfg.URL != "" {
 			setStringInMap(serverNode, "url", serverCfg.URL)
 		}
-		if serverCfg.Headers != nil && len(serverCfg.Headers) > 0 {
+		if len(serverCfg.Headers) > 0 {
 			headersNode := ensureMap(serverNode, "headers")
 			for k, v := range serverCfg.Headers {
 				setStringInMap(headersNode, k, v)
@@ -477,7 +477,7 @@ func updateExternalMCPConfig(doc *yaml.Node, cfg config.ExternalMCPConfig) {
 		}
 
 		setBoolInMap(serverNode, "external_mcp_enable", serverCfg.ExternalMCPEnable)
-		if serverCfg.ToolEnabled != nil && len(serverCfg.ToolEnabled) > 0 {
+		if len(serverCfg.ToolEnabled) > 0 {
 			toolEnabledNode := ensureMap(serverNode, "tool_enabled")
 			for toolName, enabled := range serverCfg.ToolEnabled {
 				setBoolInMap(toolEnabledNode, toolName, enabled)

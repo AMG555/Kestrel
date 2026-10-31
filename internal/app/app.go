@@ -681,7 +681,7 @@ func (a *App) mcpHandlerWithAuth(w http.ResponseWriter, r *http.Request) {
 		a.logger.Logger.Debug("MCP auth failed: header missing or value mismatch", zap.String("header", cfg.AuthHeader))
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte(`{"error":"unauthorized"}`))
+		_, _ = w.Write([]byte(`{"error":"unauthorized"}`))
 		return
 	}
 	permissions := make(map[string]bool, len(security.PermissionCatalog))

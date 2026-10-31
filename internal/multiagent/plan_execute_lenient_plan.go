@@ -108,13 +108,9 @@ func splitStepsHeuristically(body string) []string {
 	body = strings.ReplaceAll(body, "\\n", "\n")
 	var parts []string
 	if strings.Contains(body, "\n") {
-		for _, line := range strings.Split(body, "\n") {
-			parts = append(parts, line)
-		}
+		parts = append(parts, strings.Split(body, "\n")...)
 	} else {
-		for _, seg := range strings.Split(body, ",") {
-			parts = append(parts, seg)
-		}
+		parts = append(parts, strings.Split(body, ",")...)
 	}
 
 	out := make([]string, 0, len(parts))

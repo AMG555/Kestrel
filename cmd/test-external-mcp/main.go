@@ -24,7 +24,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if cfg.ExternalMCP.Servers == nil || len(cfg.ExternalMCP.Servers) == 0 {
+	if len(cfg.ExternalMCP.Servers) == 0 {
 		fmt.Println("No external MCP servers configured")
 		os.Exit(0)
 	}

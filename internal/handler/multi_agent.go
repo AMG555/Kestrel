@@ -150,7 +150,7 @@ func (h *AgentHandler) MultiAgentLoopStream(c *gin.Context) {
 	var taskRunID string
 	defer func() {
 		if taskOwned {
-			h.tasks.FinishTaskRun(conversationID, taskRunID, taskStatus)
+			_ = h.tasks.FinishTaskRun(conversationID, taskRunID, taskStatus)
 		}
 	}()
 

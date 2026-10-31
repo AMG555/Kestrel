@@ -74,7 +74,7 @@ func toolInfoFromDefinition(d agent.Tool) (*schema.ToolInfo, error) {
 		js.Type = string(schema.Object)
 	}
 	if js.Properties == nil && js.Type == string(schema.Object) {
-		// empty parameters object
+		js.Properties = make(map[string]*jsonschema.Schema)
 	}
 	return &schema.ToolInfo{
 		Name:        fn.Name,

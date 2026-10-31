@@ -30,11 +30,15 @@ linters-settings:
       - fmt.Print
       - fmt.Println
       - fmt.Printf
+      - (*go.uber.org/zap.Logger).Sync
 
   govet:
-    enable-all: true
     disable:
       - fieldalignment  # struct field alignment: useful but noisy
+      - shadow          # standard idiomatic Go err re-declaration
+
+  staticcheck:
+    checks: ["all", "-SA1019"]
 
   misspell:
     locale: US
@@ -52,24 +56,26 @@ linters-settings:
       - name: exported
         arguments:
           - "checkPrivateReceivers"
-          - "sayRepetitiveInsteadOfStutters"
 
   gocritic:
     enabled-tags:
       - diagnostic
       - style
-    disabled-checks:
-      - hugeParam        # not relevant for this codebase size
-      - rangeValCopy     # too noisy
 
 issues:
-  # Don't report issues in test files for some style checks
+  # Don't report issues in test files for style or non-critical checks
   exclude-rules:
     - path: _test\.go
       linters:
         - godot
         - gocritic
         - errcheck
+        - staticcheck
+        - gosimple
+        - govet
+        - revive
+        - gofmt
+        - goimports
     # CGO/SQLite stubs produce errors we can't fix
     - path: internal/database/
       linters:

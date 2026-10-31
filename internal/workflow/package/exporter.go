@@ -59,8 +59,7 @@ func Export(source Document) ([]byte, ExportMetadata, error) {
 		{name: "manifest.json", data: manifestBytes},
 		{name: workflowPath, data: payload},
 	} {
-		header := &zip.FileHeader{Name: entry.name, Method: zip.Store}
-		header.SetModTime(time.Unix(0, 0).UTC())
+		header := &zip.FileHeader{Name: entry.name, Method: zip.Store, Modified: time.Unix(0, 0).UTC()}
 		writer, err := zw.CreateHeader(header)
 		if err != nil {
 			return nil, ExportMetadata{}, fmt.Errorf("write %s: %w", entry.name, err)

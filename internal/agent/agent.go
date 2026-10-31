@@ -604,9 +604,11 @@ func (a *Agent) executeToolViaMCP(ctx context.Context, toolName string, args map
 
 	// format result
 	var resultText strings.Builder
-	for _, content := range result.Content {
-		resultText.WriteString(content.Text)
-		resultText.WriteString("\n")
+	if result != nil {
+		for _, content := range result.Content {
+			resultText.WriteString(content.Text)
+			resultText.WriteString("\n")
+		}
 	}
 
 	resultStr := resultText.String()

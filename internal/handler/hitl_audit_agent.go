@@ -207,9 +207,7 @@ func auditAgentJSONCandidates(s string) []string {
 func stripMarkdownCodeFence(s string) string {
 	s = strings.TrimSpace(s)
 	for _, fence := range []string{"```json", "```JSON", "```"} {
-		if strings.HasPrefix(s, fence) {
-			s = strings.TrimPrefix(s, fence)
-		}
+		s = strings.TrimPrefix(s, fence)
 	}
 	s = strings.TrimSuffix(s, "```")
 	return strings.TrimSpace(s)

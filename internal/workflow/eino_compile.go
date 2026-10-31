@@ -36,16 +36,14 @@ func invokeEinoGraph(ctx context.Context, args RunArgs, runID string, workflowID
 	runCtx = attachWorkflowCallbacks(runCtx, args.AppCfg, args, workflowID)
 
 	invokeOpts := []compose.Option{compose.WithCheckPointID(runID)}
-	for {
-		_, err = art.runnable.Invoke(runCtx, wfInput, invokeOpts...)
-		if err == nil {
-			return false, nil
-		}
-		if hitlErr := extractAwaitingHITL(err, art, runID, args, state); hitlErr != nil {
-			return true, hitlErr
-		}
-		return false, err
+	_, err = art.runnable.Invoke(runCtx, wfInput, invokeOpts...)
+	if err == nil {
+		return false, nil
 	}
+	if hitlErr := extractAwaitingHITL(err, art, runID, args, state); hitlErr != nil {
+		return true, hitlErr
+	}
+	return false, err
 }
 
 func extractAwaitingHITL(err error, art *compiledArtifact, runID string, args RunArgs, state *WorkflowLocalState) error {
