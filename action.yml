@@ -1,0 +1,102 @@
+name: 'Kestrel Security Scan'
+description: 'Autonomous AI penetration testing, vulnerability scanning, and SARIF export with GitHub Code Scanning alerts.'
+author: 'AMG555'
+branding:
+  icon: 'shield'
+  color: 'red'
+
+inputs:
+  target:
+    description: 'Target URL or host to test'
+    required: false
+    default: ''
+  project_id:
+    description: 'Project ID filter for vulnerability export'
+    required: false
+    default: ''
+  fail_on:
+    description: 'Vulnerability severity threshold to fail CI (critical, high, medium, low, info, none)'
+    required: false
+    default: 'high'
+  sarif_file:
+    description: 'File path for SARIF report export'
+    required: false
+    default: 'kestrel-findings.sarif'
+  seed_fixture:
+    description: 'Seed sample vulnerability fixture (for pipeline verification)'
+    required: false
+    default: 'false'
+  upload_sarif:
+    description: 'Whether to upload generated SARIF to GitHub Code Scanning'
+    required: false
+    default: 'true'
+
+outputs:
+  sarif_file:
+    description: 'Generated SARIF report path'
+    value: ${{ steps.scan.outputs.sarif_file }}
+  status:
+    description: 'Scan completion status (passed, failed)'
+    value: ${{ steps.scan.outputs.status }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.26'
+        cache: true
+
+    - name: Build Kestrel Scanner
+      shell: bash
+      run: |
+        go build -o "${{ runner.temp }}/kestrel-bin" ./cmd/server
+      env:
+        CGO_ENABLED: '1'
+
+    - name: Execute Kestrel Security Scan
+      id: scan
+      shell: bash
+      run: |
+        BIN="${{ runner.temp }}/kestrel-bin"
+        ARGS=(-export-sarif -sarif-out "${{ inputs.sarif_file }}")
+        if [ -n "${{ inputs.project_id }}" ]; then
+          ARGS+=(-sarif-project "${{ inputs.project_id }}")
+        fi
+        if [ "${{ inputs.seed_fixture }}" = "true" ]; then
+          ARGS+=(-sarif-seed-fixture)
+        fi
+        if [ -n "${{ inputs.fail_on }}" ] && [ "${{ inputs.fail_on }}" != "none" ]; then
+          ARGS+=(-sarif-fail-on "${{ inputs.fail_on }}")
+        fi
+
+        echo "sarif_file=${{ inputs.sarif_file }}" >> "$GITHUB_OUTPUT"
+
+        EXIT_CODE=0
+        "$BIN" "${ARGS[@]}" || EXIT_CODE=$?
+
+        # Output Step Summary for GitHub Action View
+        echo "## 🦅 Kestrel Security Scan Report" >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        echo "- **Report File**: \`${{ inputs.sarif_file }}\`" >> "$GITHUB_STEP_SUMMARY"
+        echo "- **Fail Threshold**: \`${{ inputs.fail_on }}\`" >> "$GITHUB_STEP_SUMMARY"
+        if [ "$EXIT_CODE" -eq 0 ]; then
+          echo "- **Status**: ✅ **Passed**" >> "$GITHUB_STEP_SUMMARY"
+          echo "status=passed" >> "$GITHUB_OUTPUT"
+        else
+          echo "- **Status**: ❌ **Failed (Findings detected meeting or exceeding threshold)**" >> "$GITHUB_STEP_SUMMARY"
+          echo "status=failed" >> "$GITHUB_OUTPUT"
+        fi
+
+        if [ "$EXIT_CODE" -ne 0 ]; then
+          echo "::error::Kestrel security quality gate failed with exit code $EXIT_CODE"
+          exit "$EXIT_CODE"
+        fi
+
+    - name: Upload SARIF to GitHub Code Scanning
+      if: inputs.upload_sarif == 'true' && (success() || failure())
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: ${{ inputs.sarif_file }}
+        category: kestrel-secops
