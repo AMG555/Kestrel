@@ -204,4 +204,3 @@ func TestIntegration_RBACScanArityIntegrity(t *testing.T) {
 	}
 	_ = logs
 }
-

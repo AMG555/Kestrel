@@ -480,7 +480,7 @@ func runAuditCheckpoint(cfg *config.Config, outFile string) error {
 	}
 
 	if outFile != "" {
-		if err := os.WriteFile(outFile, data, 0644); err != nil {
+		if err := os.WriteFile(outFile, data, 0o644); err != nil {
 			return fmt.Errorf("failed to write audit checkpoint to %s: %w", outFile, err)
 		}
 		fmt.Fprintf(os.Stdout, "SUCCESS: Created audit checkpoint for head %s (%d records) -> %s\n", cp.HeadHash, cp.ChainedCount, outFile)

@@ -122,4 +122,3 @@ func (db *DB) VerifyAuditCheckpoint(cp *AuditCheckpoint) (bool, error) {
 
 	return true, nil
 }
-
