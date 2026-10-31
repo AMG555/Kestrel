@@ -224,8 +224,8 @@ func TestSSESanitizer_PassesNonSSEResponseUntouched(t *testing.T) {
 	}
 }
 
-// 6) Error responses (4xx/5xx) must not be sanitized, even if Content-Type is SSE,
-//    to avoid swallowing error bodies that contain text other than "data:".
+//  6. Error responses (4xx/5xx) must not be sanitized, even if Content-Type is SSE,
+//     to avoid swallowing error bodies that contain text other than "data:".
 func TestSSESanitizer_PassesNon200Untouched(t *testing.T) {
 	body := `{"error":{"message":"rate limit"}}`
 	srv := newSSEServer(t, body, "text/event-stream", 429)

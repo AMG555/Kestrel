@@ -9,12 +9,12 @@ import (
 
 func TestExtractPoCDetails_RawHTTP(t *testing.T) {
 	vuln := &database.Vulnerability{
-		ID:          "v-test-1",
-		Title:       "SQL Injection in /api/users",
-		Severity:    "high",
-		Target:      "http://api.staging.internal:8000/api/users",
-		ReproSteps:  "Execute the following request:\nPOST /api/users HTTP/1.1\nHost: api.staging.internal\nContent-Type: application/json\nX-Custom-Auth: secret123\n\n{\"id\": \"1' OR '1'='1\"}",
-		Evidence:    "HTTP/1.1 500 Internal Server Error\nsyntax error at or near 'OR'",
+		ID:         "v-test-1",
+		Title:      "SQL Injection in /api/users",
+		Severity:   "high",
+		Target:     "http://api.staging.internal:8000/api/users",
+		ReproSteps: "Execute the following request:\nPOST /api/users HTTP/1.1\nHost: api.staging.internal\nContent-Type: application/json\nX-Custom-Auth: secret123\n\n{\"id\": \"1' OR '1'='1\"}",
+		Evidence:   "HTTP/1.1 500 Internal Server Error\nsyntax error at or near 'OR'",
 	}
 
 	d := ExtractPoCDetails(vuln)
@@ -40,12 +40,12 @@ func TestExtractPoCDetails_RawHTTP(t *testing.T) {
 
 func TestGeneratePoC_Python(t *testing.T) {
 	vuln := &database.Vulnerability{
-		ID:          "v-test-2",
-		Title:       "Information Disclosure via .env",
-		Severity:    "critical",
-		Target:      "https://target.com/.env",
-		ReproSteps:  "GET /.env HTTP/1.1\nHost: target.com",
-		Evidence:    "DB_PASSWORD=secret_production_pass",
+		ID:         "v-test-2",
+		Title:      "Information Disclosure via .env",
+		Severity:   "critical",
+		Target:     "https://target.com/.env",
+		ReproSteps: "GET /.env HTTP/1.1\nHost: target.com",
+		Evidence:   "DB_PASSWORD=secret_production_pass",
 	}
 
 	pyScript, err := GeneratePoC(vuln, "python")
@@ -66,12 +66,12 @@ func TestGeneratePoC_Python(t *testing.T) {
 
 func TestGeneratePoC_Bash(t *testing.T) {
 	vuln := &database.Vulnerability{
-		ID:          "v-test-3",
-		Title:       "Open Redirect",
-		Severity:    "medium",
-		Target:      "http://example.com/redirect?url=https://attacker.com",
-		ReproSteps:  "curl -s http://example.com/redirect?url=https://attacker.com",
-		Evidence:    "Location: https://attacker.com",
+		ID:         "v-test-3",
+		Title:      "Open Redirect",
+		Severity:   "medium",
+		Target:     "http://example.com/redirect?url=https://attacker.com",
+		ReproSteps: "curl -s http://example.com/redirect?url=https://attacker.com",
+		Evidence:   "Location: https://attacker.com",
 	}
 
 	shScript, err := GeneratePoC(vuln, "bash")

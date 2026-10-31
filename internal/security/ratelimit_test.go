@@ -37,4 +37,3 @@ func TestRateLimiter_Allow(t *testing.T) {
 		t.Fatalf("expected request after window expiry to be allowed")
 	}
 }
-

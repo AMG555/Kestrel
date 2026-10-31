@@ -1,4 +1,4 @@
-﻿package attackchain
+package attackchain
 
 import (
 	"strings"

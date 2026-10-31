@@ -1,4 +1,4 @@
-﻿package processguard
+package processguard
 
 import (
 	"context"

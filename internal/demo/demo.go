@@ -38,22 +38,25 @@ func SeedDemoProject(db *database.DB, jwtSecret []byte, baseURL string) (*DemoSe
 	adminUser := "admin"
 	adminPass := "kestrel-demo-admin"
 
-	// 1. Ensure admin user exists
+	// 1. Ensure admin user and system roles exist
+	hash, err := security.HashPassword(adminPass)
+	if err != nil {
+		return nil, fmt.Errorf("failed to hash demo password: %w", err)
+	}
+	_ = db.BootstrapRBAC(hash, security.PermissionCatalog)
+
 	user, err := db.GetRBACUserByUsername(adminUser)
 	if err != nil || user == nil {
-		hash, err := security.HashPassword(adminPass)
-		if err != nil {
-			return nil, fmt.Errorf("failed to hash demo password: %w", err)
-		}
 		user, err = db.CreateRBACUser(adminUser, "Kestrel Demo Administrator", hash, true, []string{"admin"})
 		if err != nil {
 			// If already created concurrently, retrieve it
 			user, _ = db.GetRBACUserByUsername(adminUser)
 		}
 	}
-	if user != nil {
-		_ = db.SetRBACUserMustChangePassword(user.ID, true)
+	if user == nil {
+		return nil, fmt.Errorf("failed to initialize demo admin user: %v", err)
 	}
+	_ = db.SetRBACUserMustChangePassword(user.ID, true)
 
 	// 2. Mint admin JWT token
 	claims := security.JWTClaims{

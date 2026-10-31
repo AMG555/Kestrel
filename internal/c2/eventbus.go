@@ -35,12 +35,12 @@ type EventBus struct {
 
 // Subscription is a subscription handle.
 type Subscription struct {
-	ID         string
-	Ch         chan *Event
-	SessionID  string // empty string means no restriction
-	Category   string // empty string means no restriction
-	Levels     map[string]struct{}
-	dropCount  atomic.Int64
+	ID        string
+	Ch        chan *Event
+	SessionID string // empty string means no restriction
+	Category  string // empty string means no restriction
+	Levels    map[string]struct{}
+	dropCount atomic.Int64
 }
 
 // NewEventBus creates a new event bus.

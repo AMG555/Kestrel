@@ -1,4 +1,4 @@
-﻿// Package runlease binds asynchronous tool workers to a task run even when
+// Package runlease binds asynchronous tool workers to a task run even when
 // their contexts detach from a per-call timeout or an SSE connection.
 package runlease
 

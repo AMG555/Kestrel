@@ -1,4 +1,4 @@
-﻿package workflowpackage
+package workflowpackage
 
 import (
 	"archive/zip"
@@ -84,13 +84,13 @@ func Export(source Document) ([]byte, ExportMetadata, error) {
 
 // DocumentHashes returns the canonical package item and graph hashes together
 // with the canonical item bytes used by export and inspection persistence.
-func DocumentHashes(source Document) (string, string, []byte, error) {
+func DocumentHashes(source Document) (itemHash string, graphHash string, payload []byte, err error) {
 	graph, err := canonicalJSON([]byte(source.GraphJSON))
 	if err != nil {
 		return "", "", nil, fmt.Errorf("canonicalize graph_json: %w", err)
 	}
 	source.GraphJSON = string(graph)
-	payload, err := json.Marshal(source)
+	payload, err = json.Marshal(source)
 	if err != nil {
 		return "", "", nil, fmt.Errorf("marshal workflow payload: %w", err)
 	}

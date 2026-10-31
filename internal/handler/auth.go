@@ -116,10 +116,10 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		"token":                token,
 		"expires_at":           expiresAt.UTC().Format(time.RFC3339),
 		"session_duration_hr":  h.manager.SessionDurationHours(),
-		"id":                  session.UserID,
-		"user_id":             session.UserID,
-		"username":            session.Username,
-		"display_name":        session.DisplayName,
+		"id":                   session.UserID,
+		"user_id":              session.UserID,
+		"username":             session.Username,
+		"display_name":         session.DisplayName,
 		"must_change_password": session.MustChangePassword,
 		"user": gin.H{
 			"id":                   session.UserID,
@@ -263,10 +263,10 @@ func (h *AuthHandler) Validate(c *gin.Context) {
 		"username":             session.Username,
 		"display_name":         session.DisplayName,
 		"must_change_password": session.MustChangePassword,
-		"roles":             session.Roles,
-		"permissions":       permissionKeys(session.Permissions),
-		"permission_scopes": session.PermissionScopes,
-		"scope":             session.Scope,
+		"roles":                session.Roles,
+		"permissions":          permissionKeys(session.Permissions),
+		"permission_scopes":    session.PermissionScopes,
+		"scope":                session.Scope,
 	})
 }
 

@@ -23,20 +23,20 @@ type WechatConfigSaver interface {
 }
 
 type wechatLoginSession struct {
-	QRCode           string
-	QRCodeImgURL     string
-	PendingVerify    string
-	CurrentBaseURL   string
-	StartedAt        time.Time
+	QRCode         string
+	QRCodeImgURL   string
+	PendingVerify  string
+	CurrentBaseURL string
+	StartedAt      time.Time
 }
 
 // WechatRobotHandler handles WeChat iLink robot operations (QR code bind + config).
 type WechatRobotHandler struct {
-	config       *config.Config
-	configSaver  WechatConfigSaver
-	logger       *zap.Logger
-	mu           sync.Mutex
-	logins       map[string]*wechatLoginSession
+	config      *config.Config
+	configSaver WechatConfigSaver
+	logger      *zap.Logger
+	mu          sync.Mutex
+	logins      map[string]*wechatLoginSession
 }
 
 // NewWechatRobotHandler creates a WeChat robot handler.

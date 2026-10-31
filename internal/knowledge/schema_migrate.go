@@ -1,4 +1,4 @@
-﻿package knowledge
+package knowledge
 
 import (
 	"database/sql"

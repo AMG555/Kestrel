@@ -1,4 +1,4 @@
-﻿package typesafe
+package typesafe
 
 import (
 	"context"

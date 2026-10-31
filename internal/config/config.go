@@ -560,8 +560,8 @@ type MultiAgentAPIUpdate struct {
 }
 
 type ServerConfig struct {
-	Host string `yaml:"host" json:"host"`
-	Port int    `yaml:"port" json:"port"`
+	Host           string   `yaml:"host" json:"host"`
+	Port           int      `yaml:"port" json:"port"`
 	TrustedProxies []string `yaml:"trusted_proxies,omitempty" json:"trusted_proxies,omitempty"`
 	// CORSAllowedOrigins contains additional, exact origins that may call the API.
 	// Same-origin browser requests are always allowed. Wildcards are intentionally unsupported.
@@ -855,9 +855,9 @@ type ProcessIsolationConfig struct {
 type SecurityConfig struct {
 	ProcessIsolation ProcessIsolationConfig `yaml:"process_isolation,omitempty" json:"process_isolation"`
 
-	Tools               []ToolConfig `yaml:"tools,omitempty"`                 // backward compatible: supports defining tools in main config file
-	ToolsDir            string       `yaml:"tools_dir,omitempty"`             // tool configuration file directory (new method)
-	ToolDescriptionMode string       `yaml:"tool_description_mode,omitempty"` // tool description mode: "short" | "full", default short
+	Tools               []ToolConfig `yaml:"tools,omitempty"`                                                      // backward compatible: supports defining tools in main config file
+	ToolsDir            string       `yaml:"tools_dir,omitempty"`                                                  // tool configuration file directory (new method)
+	ToolDescriptionMode string       `yaml:"tool_description_mode,omitempty"`                                      // tool description mode: "short" | "full", default short
 	WebhookURL          string       `yaml:"webhook_url,omitempty" json:"webhook_url,omitempty"`                   // optional outgoing webhook for finding alerts
 	WebhookMinSeverity  string       `yaml:"webhook_min_severity,omitempty" json:"webhook_min_severity,omitempty"` // minimum severity: critical, high, medium, low
 }

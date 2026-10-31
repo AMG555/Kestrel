@@ -18,16 +18,16 @@ type ImagePayload struct {
 
 // PreprocessMeta records scaling and encoding results for tool output and debugging.
 type PreprocessMeta struct {
-	OriginalPath      string
-	OriginalBytes     int64
-	OriginalWidth     int
-	OriginalHeight    int
-	OutputWidth       int
-	OutputHeight      int
-	OutputBytes       int
-	OutputMIMEType    string
-	JPEGQuality       int    // 0 means no JPEG re-encoding (original image passed through)
-	PreprocessMode    string // passthrough | jpeg
+	OriginalPath   string
+	OriginalBytes  int64
+	OriginalWidth  int
+	OriginalHeight int
+	OutputWidth    int
+	OutputHeight   int
+	OutputBytes    int
+	OutputMIMEType string
+	JPEGQuality    int    // 0 means no JPEG re-encoding (original image passed through)
+	PreprocessMode string // passthrough | jpeg
 }
 
 // PreprocessOptions holds image preprocessing parameters.

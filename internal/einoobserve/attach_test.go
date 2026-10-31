@@ -1,4 +1,4 @@
-﻿package einoobserve
+package einoobserve
 
 import (
 	"context"

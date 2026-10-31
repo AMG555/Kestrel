@@ -8,11 +8,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 	"kestrel/internal/audit"
 	"kestrel/internal/database"
 	"kestrel/internal/security"
-	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
 )
 
 // ConversationTaskStopper cancels in-flight agent work when a conversation is removed.

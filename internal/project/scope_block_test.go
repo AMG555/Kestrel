@@ -1,4 +1,4 @@
-﻿package project
+package project
 
 import (
 	"strings"
@@ -9,8 +9,8 @@ import (
 
 func TestBuildScopeBlock_targetsExcludeNotes(t *testing.T) {
 	proj := &database.Project{
-		ID:   "p1",
-		Name: "Acme",
+		ID:        "p1",
+		Name:      "Acme",
 		ScopeJSON: `{"targets":["https://app.example.com"],"exclude":["*.cdn.example.com"],"notes":"Web layer only"}`,
 	}
 	block := BuildScopeBlock(proj)

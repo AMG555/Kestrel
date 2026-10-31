@@ -1,13 +1,13 @@
-﻿package handler
+package handler
 
 import (
 	"context"
 	"path/filepath"
 	"testing"
 
+	"go.uber.org/zap"
 	"kestrel/internal/database"
 	"kestrel/internal/multiagent"
-	"go.uber.org/zap"
 )
 
 func TestRobotDeliversPlainTextWithoutToolEvidence(t *testing.T) {

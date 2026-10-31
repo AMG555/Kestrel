@@ -56,10 +56,10 @@ func TestRobotStatusCommandPermission(t *testing.T) {
 
 func TestRobotBestPracticeCommandPermissions(t *testing.T) {
 	cases := map[string]string{
-		"task":           "chat:read",
+		"task":            "chat:read",
 		"rename newtitle": "chat:write",
-		"rename x":       "chat:write",
-		"doctor":         "config:read",
+		"rename x":        "chat:write",
+		"doctor":          "config:read",
 	}
 	for command, want := range cases {
 		permission, recognized := robotCommandPermission(command)

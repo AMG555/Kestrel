@@ -1,4 +1,4 @@
-﻿package authctx
+package authctx
 
 import (
 	"context"

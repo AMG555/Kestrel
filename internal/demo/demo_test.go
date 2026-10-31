@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"kestrel/internal/database"
 	"go.uber.org/zap"
+	"kestrel/internal/database"
 )
 
 func TestSeedDemoProject(t *testing.T) {

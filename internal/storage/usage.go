@@ -1,4 +1,4 @@
-﻿package storage
+package storage
 
 // Filesystem describes the capacity of the filesystem at a given path.
 type Filesystem struct {

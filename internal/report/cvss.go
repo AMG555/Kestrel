@@ -20,9 +20,9 @@ type CVSSMetrics struct {
 
 // CVSSResult holds calculated CVSS v3.1 score, severity, and vector.
 type CVSSResult struct {
-	Score    float64 `json:"score"`
-	Severity string  `json:"severity"` // None, Low, Medium, High, Critical
-	Vector   string  `json:"vector"`
+	Score    float64     `json:"score"`
+	Severity string      `json:"severity"` // None, Low, Medium, High, Critical
+	Vector   string      `json:"vector"`
 	Metrics  CVSSMetrics `json:"metrics"`
 }
 

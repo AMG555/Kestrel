@@ -149,13 +149,13 @@ func normalizeWindowsCmdPath(p string) string {
 	return strings.ReplaceAll(s, "/", "\\")
 }
 
-// quotePsSingle escapes a string according to PowerShell single-quoted string rules (internal ' → '').
+// quotePsSingle escapes a string according to PowerShell single-quoted string rules (internal ' → ”).
 // For use as PowerShell script parameters; script uses only single quotes, and the outer cmd wraps with double quotes for safe passing.
 func quotePsSingle(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", "''") + "'"
 }
 
-// quoteShellSinglePosix escapes a path according to POSIX sh single-quote rules (internal ' → '\''
+// quoteShellSinglePosix escapes a path according to POSIX sh single-quote rules (internal ' → '\”
 func quoteShellSinglePosix(p string) string {
 	if p == "" {
 		return "."
@@ -327,10 +327,11 @@ func (e simpleError) Error() string { return string(e) }
 
 // WebShellHandler proxies WebShell command execution (similar to Behinder/AntSword), avoiding frontend CORS issues and providing unified request construction
 type WebShellHandler struct {
-	logger *zap.Logger
-	client *http.Client
-	db     *database.DB
-	audit  *audit.Service
+	logger        *zap.Logger
+	client        *http.Client
+	db            *database.DB
+	audit         *audit.Service
+	AllowLoopback bool
 }
 
 // SetAudit wires platform audit logging.
@@ -342,27 +343,28 @@ func (h *WebShellHandler) SetAudit(s *audit.Service) {
 const maxWebshellResponseBytes = 10 * 1024 * 1024 // 10MB response cap
 
 func NewWebShellHandler(logger *zap.Logger, db *database.DB) *WebShellHandler {
-	return &WebShellHandler{
+	h := &WebShellHandler{
 		logger: logger,
-		client: &http.Client{
-			Timeout: 30 * time.Second,
-			CheckRedirect: func(req *http.Request, via []*http.Request) error {
-				if len(via) >= 10 {
-					return errors.New("stopped after 10 redirects")
-				}
-				if err := validateWebshellTargetURL(req.URL.String()); err != nil {
-					return fmt.Errorf("redirect blocked: %w", err)
-				}
-				return nil
-			},
-			Transport: &http.Transport{
-				DisableKeepAlives: false,
-				// Self-signed certificates or IP access (certificate has no IP SAN) are common in WebShell scenarios; skip verification by default, consistent with AntSword and similar clients.
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // intentional for webshell proxy
-			},
-		},
-		db: db,
+		db:     db,
 	}
+	h.client = &http.Client{
+		Timeout: 30 * time.Second,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if len(via) >= 10 {
+				return errors.New("stopped after 10 redirects")
+			}
+			if err := h.validateTargetURL(req.URL.String()); err != nil {
+				return fmt.Errorf("redirect blocked: %w", err)
+			}
+			return nil
+		},
+		Transport: &http.Transport{
+			DisableKeepAlives: false,
+			// Self-signed certificates or IP access (certificate has no IP SAN) are common in WebShell scenarios; skip verification by default, consistent with AntSword and similar clients.
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // intentional for webshell proxy
+		},
+	}
+	return h
 }
 
 // CreateConnectionRequest is the request body for creating a connection
@@ -430,7 +432,7 @@ func (h *WebShellHandler) CreateConnection(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "url is required"})
 		return
 	}
-	if err := validateWebshellTargetURL(req.URL); err != nil {
+	if err := h.validateTargetURL(req.URL); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -501,7 +503,7 @@ func (h *WebShellHandler) UpdateConnection(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "url is required"})
 		return
 	}
-	if err := validateWebshellTargetURL(req.URL); err != nil {
+	if err := h.validateTargetURL(req.URL); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -785,7 +787,7 @@ func (h *WebShellHandler) Exec(c *gin.Context) {
 		return
 	}
 
-	if err := validateWebshellTargetURL(req.URL); err != nil {
+	if err := h.validateTargetURL(req.URL); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -871,7 +873,18 @@ func isPrivateOrReservedIP(ip net.IP) bool {
 	return false
 }
 
+func (h *WebShellHandler) validateTargetURL(rawURL string) error {
+	if h != nil && h.AllowLoopback {
+		return validateWebshellTargetURLWithOptions(rawURL, true)
+	}
+	return validateWebshellTargetURL(rawURL)
+}
+
 func validateWebshellTargetURL(rawURL string) error {
+	return validateWebshellTargetURLWithOptions(rawURL, false)
+}
+
+func validateWebshellTargetURLWithOptions(rawURL string, allowLoopback bool) error {
 	parsed, err := url.Parse(rawURL)
 	if err != nil {
 		return fmt.Errorf("invalid url: %w", err)
@@ -892,17 +905,25 @@ func validateWebshellTargetURL(rawURL string) error {
 	}
 
 	lowerHost := strings.ToLower(hostname)
-	if lowerHost == "localhost" ||
-		lowerHost == "metadata.google.internal" ||
+	if lowerHost == "metadata.google.internal" ||
 		lowerHost == "instance-data" ||
 		lowerHost == "metadata.azure.com" ||
 		strings.HasSuffix(lowerHost, ".internal") ||
-		strings.HasSuffix(lowerHost, ".local") ||
-		strings.HasSuffix(lowerHost, ".localhost") {
+		strings.HasSuffix(lowerHost, ".local") {
+		return fmt.Errorf("access to internal or cloud metadata service is prohibited")
+	}
+
+	if lowerHost == "localhost" || strings.HasSuffix(lowerHost, ".localhost") {
+		if allowLoopback {
+			return nil
+		}
 		return fmt.Errorf("access to internal or cloud metadata service is prohibited")
 	}
 
 	if ip := net.ParseIP(hostname); ip != nil {
+		if allowLoopback && ip.IsLoopback() {
+			return nil
+		}
 		if isPrivateOrReservedIP(ip) {
 			return fmt.Errorf("access to private or reserved IP %s is prohibited", hostname)
 		}
@@ -917,6 +938,9 @@ func validateWebshellTargetURL(rawURL string) error {
 		return fmt.Errorf("no IP addresses resolved for %s", hostname)
 	}
 	for _, ip := range ips {
+		if allowLoopback && ip.IsLoopback() {
+			continue
+		}
 		if isPrivateOrReservedIP(ip) {
 			return fmt.Errorf("hostname %s resolves to private or reserved IP %s", hostname, ip.String())
 		}
@@ -1097,7 +1121,7 @@ func (h *WebShellHandler) ExecWithConnection(conn *database.WebShellConnection, 
 	if conn == nil {
 		return "", false, "connection is nil"
 	}
-	if err := validateWebshellTargetURL(conn.URL); err != nil {
+	if err := h.validateTargetURL(conn.URL); err != nil {
 		return "", false, err.Error()
 	}
 	command = strings.TrimSpace(command)
@@ -1263,4 +1287,3 @@ func (h *WebShellHandler) ExecConnection(c *gin.Context) {
 		"duration_ms": duration,
 	})
 }
-

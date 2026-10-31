@@ -1,4 +1,4 @@
-﻿// Package einoobserve attaches CloudWeGo Eino [callbacks.Handler] to ADK Runner contexts for
+// Package einoobserve attaches CloudWeGo Eino [callbacks.Handler] to ADK Runner contexts for
 // structured logging and optional SSE trace events (eino_trace_*).
 package einoobserve
 

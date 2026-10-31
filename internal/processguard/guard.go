@@ -1,4 +1,4 @@
-﻿// Package processguard provides OS containment and out-of-process crash cleanup.
+// Package processguard provides OS containment and out-of-process crash cleanup.
 // It is intentionally independent of the Agent/MCP packages so it can be
 // cross-compiled and exercised without starting the application.
 package processguard

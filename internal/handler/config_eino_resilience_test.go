@@ -1,10 +1,10 @@
-﻿package handler
+package handler
 
 import (
 	"testing"
 
-	"kestrel/internal/config"
 	"gopkg.in/yaml.v3"
+	"kestrel/internal/config"
 )
 
 func TestUpdateMultiAgentConfigWritesEinoModelResilience(t *testing.T) {

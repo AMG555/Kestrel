@@ -1,4 +1,4 @@
-﻿// Package skillpackage provides filesystem-backed Agent Skills layout (SKILL.md + package files)
+// Package skillpackage provides filesystem-backed Agent Skills layout (SKILL.md + package files)
 // for HTTP admin APIs. Runtime discovery and progressive loading for agents use Eino ADK skill middleware.
 package skillpackage
 

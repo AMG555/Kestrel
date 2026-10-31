@@ -1,4 +1,4 @@
-﻿package handler
+package handler
 
 import (
 	"bytes"
@@ -8,10 +8,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"kestrel/internal/c2"
-	"kestrel/internal/database"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
+	"kestrel/internal/c2"
+	"kestrel/internal/database"
 )
 
 func TestC2ProfilePreservesFieldsAndRejectsInvalidJitter(t *testing.T) {

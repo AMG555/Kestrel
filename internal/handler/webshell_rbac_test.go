@@ -113,7 +113,7 @@ func setupWebshellRBACTest(t *testing.T) (*database.DB, *database.RBACUser, *dat
 	}
 	allowed := &database.WebShellConnection{
 		ID:        "ws_allowed",
-		URL:       "http://127.0.0.1/allowed.php",
+		URL:       "http://8.8.8.8/allowed.php",
 		Type:      "php",
 		Method:    "post",
 		CmdParam:  "cmd",
@@ -121,7 +121,7 @@ func setupWebshellRBACTest(t *testing.T) (*database.DB, *database.RBACUser, *dat
 	}
 	hidden := &database.WebShellConnection{
 		ID:        "ws_hidden",
-		URL:       "http://127.0.0.1/hidden.php",
+		URL:       "http://8.8.8.8/hidden.php",
 		Type:      "php",
 		Method:    "post",
 		CmdParam:  "cmd",

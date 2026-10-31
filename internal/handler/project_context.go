@@ -1,10 +1,10 @@
-﻿package handler
+package handler
 
 import (
 	"strings"
 
-	"kestrel/internal/project"
 	"go.uber.org/zap"
+	"kestrel/internal/project"
 )
 
 // agentSessionContextBlock injects the session working directory and project blackboard (used as an appended block in the system prompt).

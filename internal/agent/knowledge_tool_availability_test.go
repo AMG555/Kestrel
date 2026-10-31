@@ -1,9 +1,9 @@
-﻿package agent
+package agent
 
 import (
+	"go.uber.org/zap"
 	"kestrel/internal/knowledge"
 	"kestrel/internal/mcp/builtin"
-	"go.uber.org/zap"
 	"testing"
 )
 

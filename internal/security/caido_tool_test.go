@@ -4,8 +4,8 @@ import (
 	"os"
 	"testing"
 
-	"kestrel/internal/config"
 	"gopkg.in/yaml.v3"
+	"kestrel/internal/config"
 )
 
 func TestCaidoToolConfigurationAndArgumentBuilding(t *testing.T) {

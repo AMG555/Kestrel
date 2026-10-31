@@ -4,18 +4,18 @@ import "strings"
 
 // VisionConfig holds independent vision model and analyze_image tool parameters; when enabled, registers the MCP tool analyze_image.
 type VisionConfig struct {
-	Enabled         bool     `yaml:"enabled" json:"enabled"`
-	APIKey          string   `yaml:"api_key,omitempty" json:"api_key,omitempty"`
-	BaseURL         string   `yaml:"base_url,omitempty" json:"base_url,omitempty"`
-	Model           string   `yaml:"model,omitempty" json:"model,omitempty"`
-	Provider        string   `yaml:"provider,omitempty" json:"provider,omitempty"`
-	TimeoutSeconds  int      `yaml:"timeout_seconds,omitempty" json:"timeout_seconds,omitempty"`
-	MaxImageBytes   int64    `yaml:"max_image_bytes,omitempty" json:"max_image_bytes,omitempty"`
-	MaxDimension    int      `yaml:"max_dimension,omitempty" json:"max_dimension,omitempty"`
-	JPEGQuality     int      `yaml:"jpeg_quality,omitempty" json:"jpeg_quality,omitempty"`
-	MaxPayloadBytes          int64 `yaml:"max_payload_bytes,omitempty" json:"max_payload_bytes,omitempty"`
-	SkipPreprocessBelowBytes int64 `yaml:"skip_preprocess_below_bytes,omitempty" json:"skip_preprocess_below_bytes,omitempty"` // 0=always compress; default: pass-through original if <2MB and long edge <=max_dimension
-	Detail string `yaml:"detail,omitempty" json:"detail,omitempty"` // low | high | auto
+	Enabled                  bool   `yaml:"enabled" json:"enabled"`
+	APIKey                   string `yaml:"api_key,omitempty" json:"api_key,omitempty"`
+	BaseURL                  string `yaml:"base_url,omitempty" json:"base_url,omitempty"`
+	Model                    string `yaml:"model,omitempty" json:"model,omitempty"`
+	Provider                 string `yaml:"provider,omitempty" json:"provider,omitempty"`
+	TimeoutSeconds           int    `yaml:"timeout_seconds,omitempty" json:"timeout_seconds,omitempty"`
+	MaxImageBytes            int64  `yaml:"max_image_bytes,omitempty" json:"max_image_bytes,omitempty"`
+	MaxDimension             int    `yaml:"max_dimension,omitempty" json:"max_dimension,omitempty"`
+	JPEGQuality              int    `yaml:"jpeg_quality,omitempty" json:"jpeg_quality,omitempty"`
+	MaxPayloadBytes          int64  `yaml:"max_payload_bytes,omitempty" json:"max_payload_bytes,omitempty"`
+	SkipPreprocessBelowBytes int64  `yaml:"skip_preprocess_below_bytes,omitempty" json:"skip_preprocess_below_bytes,omitempty"` // 0=always compress; default: pass-through original if <2MB and long edge <=max_dimension
+	Detail                   string `yaml:"detail,omitempty" json:"detail,omitempty"`                                           // low | high | auto
 }
 
 func (v VisionConfig) TimeoutSecondsEffective() int {

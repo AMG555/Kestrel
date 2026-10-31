@@ -1,4 +1,4 @@
-﻿// Package tooloutput spills oversized tool stdout/results to local files under
+// Package tooloutput spills oversized tool stdout/results to local files under
 // the reduction cache tree (tmp/reduction/...), so agents can read_file the
 // full text after context truncation.
 package tooloutput

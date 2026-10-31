@@ -29,11 +29,11 @@ type TCPReverseListener struct {
 	manager *Manager
 	logger  *zap.Logger
 
-	mu        sync.Mutex
-	listener  net.Listener
-	stopCh    chan struct{}
-	conns     map[string]*tcpReverseConn // session_id → connection
-	stopOnce  sync.Once
+	mu       sync.Mutex
+	listener net.Listener
+	stopCh   chan struct{}
+	conns    map[string]*tcpReverseConn // session_id → connection
+	stopOnce sync.Once
 }
 
 // tcpReverseConn is the runtime status of a single reverse shell session

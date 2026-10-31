@@ -686,7 +686,6 @@ func (h *ProjectHandler) PromoteAttackChain(c *gin.Context) {
 	c.JSON(http.StatusOK, result)
 }
 
-
 type createShareRequest struct {
 	TTLDays    int    `json:"ttl_days"`
 	Passphrase string `json:"passphrase"`

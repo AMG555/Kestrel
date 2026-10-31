@@ -1,13 +1,13 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"kestrel/internal/config"
 	"kestrel/internal/logger"
 	"kestrel/internal/mcp"
 	"kestrel/internal/security"
 	"kestrel/internal/toolguard"
-	"flag"
-	"fmt"
 	"os"
 
 	"go.uber.org/zap"

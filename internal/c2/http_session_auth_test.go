@@ -1,11 +1,11 @@
-﻿package c2
+package c2
 
 import (
 	"crypto/sha256"
-	"kestrel/internal/database"
 	"encoding/hex"
 	"encoding/json"
 	"go.uber.org/zap"
+	"kestrel/internal/database"
 	"net/http"
 	"net/http/httptest"
 	"os"

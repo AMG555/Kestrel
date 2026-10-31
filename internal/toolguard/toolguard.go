@@ -1,4 +1,4 @@
-﻿// Package toolguard applies configurable blocking rules before tool execution.
+// Package toolguard applies configurable blocking rules before tool execution.
 // It inspects tool names and arguments, including JSON string values and common
 // percent escapes. It does not resolve hosts or inspect redirects, files, or
 // arbitrary encoded payloads, and is not an exhaustive target authorization check.

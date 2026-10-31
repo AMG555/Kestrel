@@ -6,8 +6,8 @@
 //   - Listener is an abstract interface, with concrete implementations for tcp_reverse / http_beacon / https_beacon / websocket
 //     and other transports, all created through the listener.Registry factory.
 //   - Task scheduling uses a hybrid of database (c2_tasks table) + in-memory event bus (EventBus):
-//     * status changes and history use SQLite for persistence and restart recovery;
-//     * high-frequency real-time notifications (e.g. new task results) are pushed via EventBus to SSE/WS subscribers, avoiding polling.
+//   - status changes and history use SQLite for persistence and restart recovery;
+//   - high-frequency real-time notifications (e.g. new task results) are pushed via EventBus to SSE/WS subscribers, avoiding polling.
 //   - Crypto layer uses fixed AES-256-GCM; each Listener has its own 32-byte key; keys are only held server-side
 //     and injected into the implant at compile time; the event stream must never export plaintext keys.
 package c2
@@ -22,10 +22,10 @@ import (
 type ListenerType string
 
 const (
-	ListenerTypeTCPReverse   ListenerType = "tcp_reverse"
-	ListenerTypeHTTPBeacon   ListenerType = "http_beacon"
-	ListenerTypeHTTPSBeacon  ListenerType = "https_beacon"
-	ListenerTypeWebSocket    ListenerType = "websocket"
+	ListenerTypeTCPReverse  ListenerType = "tcp_reverse"
+	ListenerTypeHTTPBeacon  ListenerType = "http_beacon"
+	ListenerTypeHTTPSBeacon ListenerType = "https_beacon"
+	ListenerTypeWebSocket   ListenerType = "websocket"
 )
 
 // AllListenerTypes lists all supported listener types, for validation and frontend enumeration
@@ -129,9 +129,9 @@ type ListenerConfig struct {
 	BeaconUploadPath  string `json:"beacon_upload_path,omitempty"`   // default "/upload"
 	BeaconFilePath    string `json:"beacon_file_path,omitempty"`     // default "/file/"
 	// HTTPS-only
-	TLSCertPath string `json:"tls_cert_path,omitempty"`
-	TLSKeyPath  string `json:"tls_key_path,omitempty"`
-	TLSAutoSelfSign bool `json:"tls_auto_self_sign,omitempty"` // true: auto-generate self-signed cert when no cert is found
+	TLSCertPath     string `json:"tls_cert_path,omitempty"`
+	TLSKeyPath      string `json:"tls_key_path,omitempty"`
+	TLSAutoSelfSign bool   `json:"tls_auto_self_sign,omitempty"` // true: auto-generate self-signed cert when no cert is found
 	// Client default parameters (written to c2_sessions initial value; beacon can override at check-in)
 	DefaultSleep  int `json:"default_sleep,omitempty"`  // seconds, default 5
 	DefaultJitter int `json:"default_jitter,omitempty"` // 0-100, default 0
@@ -175,28 +175,28 @@ func (c *ListenerConfig) ApplyDefaults() {
 
 // ImplantCheckInRequest is the registration/heartbeat request body sent from a beacon to the server (decrypted plaintext).
 type ImplantCheckInRequest struct {
-	ImplantUUID  string                 `json:"uuid"`
-	Hostname     string                 `json:"hostname"`
-	Username     string                 `json:"username"`
-	OS           string                 `json:"os"`
-	Arch         string                 `json:"arch"`
-	PID          int                    `json:"pid"`
-	ProcessName  string                 `json:"process_name"`
-	IsAdmin      bool                   `json:"is_admin"`
-	InternalIP   string                 `json:"internal_ip"`
-	UserAgent    string                 `json:"user_agent,omitempty"`
-	SleepSeconds int                    `json:"sleep_seconds"`
-	JitterPercent int                   `json:"jitter_percent"`
-	Metadata     map[string]interface{} `json:"metadata,omitempty"`
+	ImplantUUID   string                 `json:"uuid"`
+	Hostname      string                 `json:"hostname"`
+	Username      string                 `json:"username"`
+	OS            string                 `json:"os"`
+	Arch          string                 `json:"arch"`
+	PID           int                    `json:"pid"`
+	ProcessName   string                 `json:"process_name"`
+	IsAdmin       bool                   `json:"is_admin"`
+	InternalIP    string                 `json:"internal_ip"`
+	UserAgent     string                 `json:"user_agent,omitempty"`
+	SleepSeconds  int                    `json:"sleep_seconds"`
+	JitterPercent int                    `json:"jitter_percent"`
+	Metadata      map[string]interface{} `json:"metadata,omitempty"`
 }
 
 // ImplantCheckInResponse is the server acknowledgement.
 type ImplantCheckInResponse struct {
-	SessionID    string `json:"session_id"`
-	NextSleep    int    `json:"next_sleep"`
-	NextJitter   int    `json:"next_jitter"`
-	HasTasks     bool   `json:"has_tasks"`
-	ServerTime   int64  `json:"server_time"`
+	SessionID  string `json:"session_id"`
+	NextSleep  int    `json:"next_sleep"`
+	NextJitter int    `json:"next_jitter"`
+	HasTasks   bool   `json:"has_tasks"`
+	ServerTime int64  `json:"server_time"`
 }
 
 // TaskEnvelope is the task dispatch carrier from the server to a beacon.
@@ -214,7 +214,7 @@ type TaskResultReport struct {
 	OutputB64  string `json:"output_b64,omitempty"` // raw console bytes (base64) to avoid JSON breaking non-UTF-8 output
 	Error      string `json:"error,omitempty"`
 	ErrorB64   string `json:"error_b64,omitempty"`
-	BlobBase64 string `json:"blob_b64,omitempty"` // e.g. screenshot binary
+	BlobBase64 string `json:"blob_b64,omitempty"`    // e.g. screenshot binary
 	BlobSuffix string `json:"blob_suffix,omitempty"` // e.g. ".png"
 	StartedAt  int64  `json:"started_at"`
 	EndedAt    int64  `json:"ended_at"`

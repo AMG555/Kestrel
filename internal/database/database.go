@@ -2,8 +2,8 @@ package database
 
 import (
 	"database/sql"
-	"net/url"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"

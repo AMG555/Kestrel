@@ -1,4 +1,4 @@
-﻿package termout
+package termout
 
 import (
 	"bytes"

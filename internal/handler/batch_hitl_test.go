@@ -1,12 +1,12 @@
-﻿package handler
+package handler
 
 import (
 	"path/filepath"
 	"testing"
 
+	"go.uber.org/zap"
 	"kestrel/internal/config"
 	"kestrel/internal/database"
-	"go.uber.org/zap"
 )
 
 func TestBatchHITLPolicyPersistence(t *testing.T) {

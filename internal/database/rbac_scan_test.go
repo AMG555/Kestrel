@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"kestrel/internal/database"
 	"go.uber.org/zap"
+	"kestrel/internal/database"
 )
 
 func TestRBACUserScanArityAndFields(t *testing.T) {

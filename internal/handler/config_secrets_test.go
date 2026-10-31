@@ -1,4 +1,4 @@
-﻿package handler
+package handler
 
 import (
 	"bytes"
@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"kestrel/internal/config"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
+	"kestrel/internal/config"
 )
 
 func TestConfigResponseMasksSecretsAndSavePreservesThem(t *testing.T) {

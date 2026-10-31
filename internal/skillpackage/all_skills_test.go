@@ -68,4 +68,3 @@ func TestListSkillSummaries(t *testing.T) {
 		}
 	}
 }
-

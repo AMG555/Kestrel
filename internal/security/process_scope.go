@@ -1,4 +1,4 @@
-﻿package security
+package security
 
 import (
 	"context"
@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"kestrel/internal/processguard"
 	"github.com/google/uuid"
+	"kestrel/internal/processguard"
 )
 
 var ErrProcessScopeClosed = errors.New("task is ending; new processes are not allowed")

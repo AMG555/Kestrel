@@ -1,4 +1,4 @@
-﻿package llm
+package llm
 
 import (
 	"context"
@@ -16,6 +16,7 @@ type AgenticChatModelAdapter struct {
 	tools []*schema.ToolInfo
 }
 
+//nolint:staticcheck // SA1019: model.ChatModel is deprecated upstream in Eino but required for compatibility
 func NewAgenticChatModelAdapter(agenticModel model.AgenticModel) model.ChatModel {
 	return &AgenticChatModelAdapter{model: agenticModel}
 }

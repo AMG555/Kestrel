@@ -1,4 +1,4 @@
-﻿package multiagent
+package multiagent
 
 import (
 	"errors"

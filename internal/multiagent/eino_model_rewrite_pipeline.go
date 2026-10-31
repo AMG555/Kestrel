@@ -1,4 +1,4 @@
-﻿package multiagent
+package multiagent
 
 import (
 	"context"
@@ -35,4 +35,3 @@ func applyBeforeModelRewriteHandlers(
 	}
 	return state.Messages, nil
 }
-

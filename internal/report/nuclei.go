@@ -5,14 +5,14 @@ import (
 	"regexp"
 	"strings"
 
-	"kestrel/internal/database"
 	"gopkg.in/yaml.v3"
+	"kestrel/internal/database"
 )
 
 // NucleiTemplate represents a ProjectDiscovery Nuclei v3 detection template.
 type NucleiTemplate struct {
-	ID   string     `yaml:"id"`
-	Info NucleiInfo `yaml:"info"`
+	ID   string       `yaml:"id"`
+	Info NucleiInfo   `yaml:"info"`
 	HTTP []NucleiHTTP `yaml:"http"`
 }
 

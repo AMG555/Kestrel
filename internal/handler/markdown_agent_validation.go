@@ -1,4 +1,4 @@
-﻿package handler
+package handler
 
 import (
 	"fmt"
@@ -6,8 +6,8 @@ import (
 	"regexp"
 	"strings"
 
-	"kestrel/internal/agents"
 	"gopkg.in/yaml.v3"
+	"kestrel/internal/agents"
 )
 
 var markdownAgentIDPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$`)

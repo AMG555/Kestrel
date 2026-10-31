@@ -1,8 +1,8 @@
-﻿package security
+package security
 
 import (
-	"kestrel/internal/config"
 	"gopkg.in/yaml.v3"
+	"kestrel/internal/config"
 	"os"
 	"reflect"
 	"testing"

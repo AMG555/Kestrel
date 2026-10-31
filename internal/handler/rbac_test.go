@@ -1,12 +1,12 @@
-﻿package handler
+package handler
 
 import (
 	"bytes"
+	"encoding/json"
 	"kestrel/internal/audit"
 	"kestrel/internal/config"
 	"kestrel/internal/database"
 	"kestrel/internal/security"
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"

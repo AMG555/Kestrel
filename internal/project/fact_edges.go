@@ -12,10 +12,10 @@ import (
 var PathGraphCategories = map[string]struct{}{
 	FactCategoryTarget:  {},
 	FactCategoryFinding: {},
-	FactCategoryChain:            {},
-	FactCategoryExploit:          {},
-	FactCategoryPOC:              {},
-	"vuln":                       {},
+	FactCategoryChain:   {},
+	FactCategoryExploit: {},
+	FactCategoryPOC:     {},
+	"vuln":              {},
 }
 
 // GraphNodeType maps a fact category to a graph node type (for frontend styling and ELK layering).

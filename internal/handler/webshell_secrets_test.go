@@ -1,4 +1,4 @@
-﻿package handler
+package handler
 
 import (
 	"net/http"
@@ -59,6 +59,7 @@ func TestWebshellExecUsesStoredPasswordForMaskedConnection(t *testing.T) {
 		t.Fatal(err)
 	}
 	h := NewWebShellHandler(zap.NewNop(), db)
+	h.AllowLoopback = true
 	w := performWebshellJSON(user, http.MethodPost, "/exec", map[string]interface{}{"url": allowed.URL, "connection_id": allowed.ID, "password": maskedSecret, "command": "printf OK"}, h.Exec)
 	if w.Code != http.StatusOK {
 		t.Fatalf("saved exec: %d %s", w.Code, w.Body.String())

@@ -8,10 +8,10 @@ import (
 	"strings"
 	"testing"
 
-	"kestrel/internal/config"
-	"kestrel/internal/database"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
+	"kestrel/internal/config"
+	"kestrel/internal/database"
 )
 
 func TestRoleNameValidation(t *testing.T) {

@@ -4,19 +4,19 @@ import (
 	"strings"
 	"testing"
 
-	"kestrel/internal/database"
 	"gopkg.in/yaml.v3"
+	"kestrel/internal/database"
 )
 
 func TestGenerateNucleiTemplate(t *testing.T) {
 	vuln := &database.Vulnerability{
-		ID:          "v-sql-100",
-		Title:       "Blind SQL Injection in Account Lookup",
-		Severity:    "high",
-		Type:        "sqli",
-		Target:      "http://test.corp.local:8080/api/lookup?user=admin",
-		ReproSteps:  "POST /api/lookup HTTP/1.1\nHost: test.corp.local\nContent-Type: application/json\n\n{\"query\": \"admin' OR 1=1--\"}",
-		Evidence:    "SQL syntax error near admin",
+		ID:         "v-sql-100",
+		Title:      "Blind SQL Injection in Account Lookup",
+		Severity:   "high",
+		Type:       "sqli",
+		Target:     "http://test.corp.local:8080/api/lookup?user=admin",
+		ReproSteps: "POST /api/lookup HTTP/1.1\nHost: test.corp.local\nContent-Type: application/json\n\n{\"query\": \"admin' OR 1=1--\"}",
+		Evidence:   "SQL syntax error near admin",
 	}
 
 	yamlStr, err := GenerateNucleiTemplate(vuln)

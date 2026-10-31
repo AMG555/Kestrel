@@ -59,4 +59,3 @@ func TestBuildSQLiteDSN(t *testing.T) {
 		})
 	}
 }
-

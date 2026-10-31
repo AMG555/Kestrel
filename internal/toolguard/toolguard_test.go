@@ -1,4 +1,4 @@
-﻿package toolguard
+package toolguard
 
 import (
 	"encoding/json"

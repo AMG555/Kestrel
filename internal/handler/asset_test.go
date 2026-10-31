@@ -1,4 +1,4 @@
-﻿package handler
+package handler
 
 import (
 	"encoding/json"
@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"kestrel/internal/database"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
+	"kestrel/internal/database"
 )
 
 func TestAssetListPaginatesWithinProject(t *testing.T) {

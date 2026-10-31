@@ -88,12 +88,12 @@ type RobotHandler struct {
 	agentHandler         *AgentHandler
 	logger               *zap.Logger
 	mu                   sync.RWMutex
-	sessions             map[string]string             // key: "platform_userID", value: conversationID
-	sessionRoles         map[string]string             // key: "platform_userID", value: roleName (default "default")
-	sessionModes         map[string]string             // key: "platform_userID", value: agent mode
-	cancelMu             sync.Mutex                    // protects runningCancels
-	runningCancels       map[string]robotRunningTask   // key: "platform_userID", used to interrupt tasks via stop command
-	nextTaskID           uint64                        // monotonic ID generator for running tasks
+	sessions             map[string]string           // key: "platform_userID", value: conversationID
+	sessionRoles         map[string]string           // key: "platform_userID", value: roleName (default "default")
+	sessionModes         map[string]string           // key: "platform_userID", value: agent mode
+	cancelMu             sync.Mutex                  // protects runningCancels
+	runningCancels       map[string]robotRunningTask // key: "platform_userID", used to interrupt tasks via stop command
+	nextTaskID           uint64                      // monotonic ID generator for running tasks
 	wecomReplay          map[string]time.Time
 	pendingConfirmations map[string]robotPendingConfirmation
 	alertWake            chan struct{}

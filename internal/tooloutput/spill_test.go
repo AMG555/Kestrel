@@ -1,4 +1,4 @@
-﻿package tooloutput
+package tooloutput
 
 import (
 	"os"

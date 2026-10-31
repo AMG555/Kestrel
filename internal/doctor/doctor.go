@@ -12,11 +12,11 @@ import (
 	"strings"
 	"time"
 
+	"go.uber.org/zap"
 	"kestrel/internal/config"
 	"kestrel/internal/database"
 	"kestrel/internal/processguard"
 	"kestrel/web"
-	"go.uber.org/zap"
 )
 
 // CheckStatus indicates severity level of a check.
@@ -39,10 +39,10 @@ type CheckResult struct {
 
 // Report contains all diagnostic check results.
 type Report struct {
-	Checks     []CheckResult `json:"checks"`
-	HasErrors  bool          `json:"has_errors"`
-	HasWarnings bool         `json:"has_warnings"`
-	Timestamp  time.Time     `json:"timestamp"`
+	Checks      []CheckResult `json:"checks"`
+	HasErrors   bool          `json:"has_errors"`
+	HasWarnings bool          `json:"has_warnings"`
+	Timestamp   time.Time     `json:"timestamp"`
 }
 
 // RunDiagnostics executes system health checks against environment and configuration.

@@ -11,14 +11,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 	"kestrel/internal/audit"
 	"kestrel/internal/config"
 	"kestrel/internal/database"
 	"kestrel/internal/mcp"
 	"kestrel/internal/monitor"
 	"kestrel/internal/security"
-	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
 )
 
 // MonitorHandler is the monitoring handler
@@ -1100,7 +1100,7 @@ func (h *MonitorHandler) GetSystemStatus(c *gin.Context) {
 			"users":           usersCount,
 			"projects":        projectsCount,
 			"assets":          assetsCount,
-			"vulnerabilities":  vulnsCount,
+			"vulnerabilities": vulnsCount,
 			"sessions":        sessionsCount,
 			"tool_executions": toolExecsCount,
 			"audit_logs":      auditLogsCount,
@@ -1163,7 +1163,7 @@ func (h *MonitorHandler) GetDashboardStats(c *gin.Context) {
 		"agent_sessions":  sessionsCount,
 		"tool_executions": toolExecsCount,
 		"assets":          assetsCount,
-		"vulnerabilities":  vulnsCount,
+		"vulnerabilities": vulnsCount,
 		"vulns_total":     vulnsCount,
 		"critical_vulns":  criticalVulns,
 		"vulns_critical":  criticalVulns,
@@ -1188,4 +1188,3 @@ func (h *MonitorHandler) GetDashboardStats(c *gin.Context) {
 		"vulns_trend_7d":  trend,
 	})
 }
-

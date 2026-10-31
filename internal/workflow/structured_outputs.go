@@ -1,4 +1,4 @@
-﻿package workflow
+package workflow
 
 type NodeOutputEnvelope struct {
 	Kind     string `json:"kind"`

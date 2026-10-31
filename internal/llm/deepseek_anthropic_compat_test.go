@@ -1,7 +1,8 @@
-﻿package llm
+package llm
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"net/http"
 	"strings"
@@ -30,7 +31,8 @@ func TestDeepSeekAnthropicCompatStripsOnlyCustomToolType(t *testing.T) {
 	t.Parallel()
 	capture := &captureRoundTripper{}
 	client := newDeepSeekAnthropicCompatibleClient(&http.Client{Transport: capture})
-	req, err := http.NewRequest(
+	req, err := http.NewRequestWithContext(
+		context.Background(),
 		http.MethodPost,
 		"https://api.deepseek.com/anthropic/v1/messages",
 		strings.NewReader(`{"tools":[{"type":"custom","name":"mcp_tool","input_schema":{"type":"object"}},{"type":"web_search_20260209","name":"web_search"}]}`),

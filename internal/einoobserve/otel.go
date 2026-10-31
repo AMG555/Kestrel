@@ -1,4 +1,4 @@
-﻿package einoobserve
+package einoobserve
 
 import (
 	"context"
@@ -18,9 +18,9 @@ import (
 )
 
 var (
-	otelMu           sync.Mutex
-	otelShutdown     func(context.Context) error
-	otelInitialized  bool
+	otelMu          sync.Mutex
+	otelShutdown    func(context.Context) error
+	otelInitialized bool
 )
 
 // InitOtelFromConfig installs the global OpenTelemetry TracerProvider when

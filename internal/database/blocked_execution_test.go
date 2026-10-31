@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"kestrel/internal/mcp"
 	"go.uber.org/zap"
+	"kestrel/internal/mcp"
 )
 
 func TestBlockedExecutionPersistenceStatsAndReconciliation(t *testing.T) {

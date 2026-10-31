@@ -2932,4 +2932,3 @@ func (h *ConfigHandler) UpdateRobotsConfig(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, h.config.Robots)
 }
-

@@ -1,4 +1,4 @@
-﻿package handler
+package handler
 
 import (
 	"bytes"
@@ -9,11 +9,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 	"kestrel/internal/c2"
 	"kestrel/internal/database"
 	"kestrel/internal/security"
-	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
 )
 
 func TestC2ListenerEditRejectsInvalidFieldsWithoutSaving(t *testing.T) {

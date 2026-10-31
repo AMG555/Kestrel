@@ -1,4 +1,4 @@
-﻿package handler
+package handler
 
 import (
 	"bytes"
@@ -10,14 +10,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 	agentpkg "kestrel/internal/agent"
 	"kestrel/internal/agentfinalizer"
 	"kestrel/internal/config"
 	"kestrel/internal/database"
 	"kestrel/internal/mcp"
 	workflowrunner "kestrel/internal/workflow"
-	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
 )
 
 const bugSheetLinearGraph = `{"nodes":[{"id":"start-1","type":"start","config":{}},{"id":"out","type":"output","config":{"output_key":"result","source_binding":{"from":"inputs","field":"message"}}}],"edges":[{"source":"start-1","target":"out"}],"config":{"schema_version":1}}`

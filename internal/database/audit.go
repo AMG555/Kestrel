@@ -1,4 +1,4 @@
-﻿package database
+package database
 
 import (
 	"crypto/sha256"
@@ -157,6 +157,7 @@ func (db *DB) AppendAuditLog(row *AuditLog) error {
 	}
 	return tx.Commit()
 }
+
 // GetAuditLogByID returns one row.
 func (db *DB) GetAuditLogByID(id string) (*AuditLog, error) {
 	id = strings.TrimSpace(id)

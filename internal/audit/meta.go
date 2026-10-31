@@ -1,4 +1,4 @@
-﻿package audit
+package audit
 
 // RetentionDays returns configured retention; 0 means keep forever.
 func (s *Service) RetentionDays() int {

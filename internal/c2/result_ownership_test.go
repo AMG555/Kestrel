@@ -1,4 +1,4 @@
-﻿package c2
+package c2
 
 import (
 	"encoding/json"
@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"kestrel/internal/database"
 	"go.uber.org/zap"
+	"kestrel/internal/database"
 )
 
 func TestResultTransportOwnershipRejectsForeignTask(t *testing.T) {

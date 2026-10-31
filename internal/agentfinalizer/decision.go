@@ -1,4 +1,4 @@
-﻿package agentfinalizer
+package agentfinalizer
 
 import (
 	"strings"

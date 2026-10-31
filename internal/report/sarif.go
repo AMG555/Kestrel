@@ -43,10 +43,10 @@ type Tool struct {
 
 // Driver represents the primary tool component
 type Driver struct {
-	Name           string   `json:"name"`
-	Version        string   `json:"version"`
-	InformationURI string   `json:"informationUri,omitempty"`
-	Rules          []Rule   `json:"rules"`
+	Name           string `json:"name"`
+	Version        string `json:"version"`
+	InformationURI string `json:"informationUri,omitempty"`
+	Rules          []Rule `json:"rules"`
 }
 
 // Rule describes a vulnerability class or inspection rule
@@ -73,11 +73,11 @@ type MultiformatMessage struct {
 
 // Result describes a single finding or vulnerability detected
 type Result struct {
-	RuleID    string                 `json:"ruleId"`
-	RuleIndex int                    `json:"ruleIndex"`
-	Level     string                 `json:"level"` // "error", "warning", "note", "none"
-	Message   MultiformatMessage     `json:"message"`
-	Locations []Location             `json:"locations,omitempty"`
+	RuleID     string                 `json:"ruleId"`
+	RuleIndex  int                    `json:"ruleIndex"`
+	Level      string                 `json:"level"` // "error", "warning", "note", "none"
+	Message    MultiformatMessage     `json:"message"`
+	Locations  []Location             `json:"locations,omitempty"`
 	Properties map[string]interface{} `json:"properties,omitempty"`
 }
 

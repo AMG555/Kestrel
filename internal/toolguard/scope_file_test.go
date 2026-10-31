@@ -52,10 +52,10 @@ options:
 	ctx := context.Background()
 
 	tests := []struct {
-		name       string
-		dest       string
-		wantAllow  bool
-		reasonSub  string
+		name      string
+		dest      string
+		wantAllow bool
+		reasonSub string
 	}{
 		{
 			name:      "In-scope domain direct match",
@@ -231,4 +231,3 @@ func mustParseCIDR(cidr string) *net.IPNet {
 	}
 	return ipNet
 }
-

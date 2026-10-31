@@ -1,4 +1,4 @@
-﻿package handler
+package handler
 
 import (
 	"net/http"
@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"kestrel/internal/database"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
+	"kestrel/internal/database"
 )
 
 func TestProjectUpdateRejectsBlankNameWithoutPartialSave(t *testing.T) {

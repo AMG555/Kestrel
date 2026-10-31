@@ -1,4 +1,4 @@
-﻿package multiagent
+package multiagent
 
 import (
 	"context"
@@ -130,4 +130,3 @@ func logPlanExecuteModelInputEstimate(
 		zap.Int("input_tokens_estimated", tokens),
 	)
 }
-

@@ -1,4 +1,4 @@
-﻿package c2
+package c2
 
 import (
 	"bufio"

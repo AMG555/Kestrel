@@ -1,4 +1,4 @@
-﻿package multiagent
+package multiagent
 
 import (
 	"testing"
@@ -42,4 +42,3 @@ func TestNormalizeSingleLeadingSystemMessage_NoSystemKeepsFlow(t *testing.T) {
 		t.Fatalf("message order changed unexpectedly")
 	}
 }
-

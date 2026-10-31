@@ -6,8 +6,8 @@ import (
 	"runtime"
 	"testing"
 
-	"kestrel/internal/config"
 	"gopkg.in/yaml.v3"
+	"kestrel/internal/config"
 )
 
 func TestInteractshToolConfigurationAndArgumentBuilding(t *testing.T) {

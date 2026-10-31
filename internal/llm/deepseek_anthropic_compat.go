@@ -1,4 +1,4 @@
-﻿package llm
+package llm
 
 import (
 	"bytes"
@@ -43,7 +43,7 @@ func (rt *deepSeekAnthropicCompatRoundTripper) RoundTrip(req *http.Request) (*ht
 	_ = req.Body.Close()
 
 	var payload map[string]any
-	if err := json.Unmarshal(body, &payload); err != nil {
+	if uerr := json.Unmarshal(body, &payload); uerr != nil {
 		req.Body = io.NopCloser(bytes.NewReader(body))
 		return rt.base.RoundTrip(req)
 	}

@@ -1,4 +1,4 @@
-﻿package audit
+package audit
 
 // Entry describes one platform audit record (not chat/tool execution bodies).
 type Entry struct {
@@ -11,6 +11,6 @@ type Entry struct {
 	ResourceType string
 	ResourceID   string
 	Message      string
-	Detail   map[string]interface{}
-	ClientIP string // optional when c is nil (robot, batch, DB hook)
+	Detail       map[string]interface{}
+	ClientIP     string // optional when c is nil (robot, batch, DB hook)
 }

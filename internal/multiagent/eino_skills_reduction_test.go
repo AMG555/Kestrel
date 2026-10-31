@@ -46,4 +46,3 @@ func TestPrepareEinoAgenticSkillsWithRealSkillsDirectory(t *testing.T) {
 		t.Fatal("expected non-empty skillsRoot")
 	}
 }
-

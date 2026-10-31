@@ -1,4 +1,4 @@
-﻿package skillpackage
+package skillpackage
 
 import (
 	"fmt"

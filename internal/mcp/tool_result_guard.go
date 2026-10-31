@@ -1,4 +1,4 @@
-﻿package mcp
+package mcp
 
 import "kestrel/internal/tooloutput"
 

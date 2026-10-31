@@ -1,4 +1,4 @@
-﻿package handler
+package handler
 
 import (
 	"context"
@@ -269,8 +269,8 @@ func RegisterBatchTaskMCPTools(mcpServer *mcp.Server, h *AgentHandler, logger *z
 
 	// --- start ---
 	reg(mcp.Tool{
-		Name: builtin.ToolBatchTaskStart,
-		Description: `Start or resume execution of a batch task queue (pending / paused). Use together with batch_task_create: creating a queue does not execute it automatically; call this tool to start running sub-tasks.\n\n⚠️ Call constraint: this tool belongs to the [task management] module and may only be called when the user explicitly requests starting/resuming a batch task. Do not call without the user asking.`,
+		Name:             builtin.ToolBatchTaskStart,
+		Description:      `Start or resume execution of a batch task queue (pending / paused). Use together with batch_task_create: creating a queue does not execute it automatically; call this tool to start running sub-tasks.\n\n⚠️ Call constraint: this tool belongs to the [task management] module and may only be called when the user explicitly requests starting/resuming a batch task. Do not call without the user asking.`,
 		ShortDescription: "Start/resume batch task queue (must be called after creation to execute)",
 		InputSchema: map[string]interface{}{
 			"type": "object",

@@ -1,8 +1,8 @@
-﻿package c2
+package c2
 
 import (
-	"kestrel/internal/database"
 	"go.uber.org/zap"
+	"kestrel/internal/database"
 	"net/http"
 	"net/http/httptest"
 	"os"

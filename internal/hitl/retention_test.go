@@ -1,4 +1,4 @@
-﻿package hitl
+package hitl
 
 import (
 	"path/filepath"

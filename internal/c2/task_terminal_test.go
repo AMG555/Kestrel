@@ -1,12 +1,12 @@
-﻿package c2
+package c2
 
 import (
 	"path/filepath"
 	"testing"
 	"time"
 
-	"kestrel/internal/database"
 	"go.uber.org/zap"
+	"kestrel/internal/database"
 )
 
 func terminalTestManager(t *testing.T) (*Manager, *database.DB) {

@@ -28,7 +28,7 @@ type Retriever struct {
 	rerankMu sync.RWMutex
 	reranker DocumentReranker
 
-	pipeline retriever.Retriever
+	pipeline   retriever.Retriever
 	wireOpenAI *config.OpenAIConfig
 }
 

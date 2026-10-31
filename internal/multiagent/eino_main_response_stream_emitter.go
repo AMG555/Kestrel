@@ -1,4 +1,4 @@
-﻿package multiagent
+package multiagent
 
 import "kestrel/internal/openai"
 

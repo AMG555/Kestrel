@@ -1,4 +1,4 @@
-﻿package einomcp
+package einomcp
 
 import (
 	"strings"

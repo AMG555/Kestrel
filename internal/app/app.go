@@ -14,6 +14,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
+	"golang.org/x/net/http2"
 	"kestrel/internal/agent"
 	"kestrel/internal/audit"
 	"kestrel/internal/authctx"
@@ -33,9 +36,6 @@ import (
 	"kestrel/internal/skillpackage"
 	"kestrel/internal/storage"
 	"kestrel/internal/toolguard"
-	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
-	"golang.org/x/net/http2"
 )
 
 // App is the main application struct
