@@ -92,6 +92,15 @@ func New(cfg *config.Config, log *logger.Logger, configPath string) (*App, error
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
 
+	// Restrict trusted proxies to prevent client IP spoofing via X-Forwarded-For
+	trustedProxies := cfg.Server.TrustedProxies
+	if len(trustedProxies) == 0 {
+		trustedProxies = []string{"127.0.0.1", "::1"}
+	}
+	if err := router.SetTrustedProxies(trustedProxies); err != nil {
+		log.Warn("failed to configure trusted proxies", zap.Error(err))
+	}
+
 	// CORS middleware
 	router.Use(corsMiddleware(cfg.Server.CORSAllowedOrigins))
 	// Security headers middleware

@@ -793,6 +793,7 @@ func (c RobotsConfig) ServiceAccountUserIDs() map[string]string {
 type ServerConfig struct {
 	Host string `yaml:"host" json:"host"`
 	Port int    `yaml:"port" json:"port"`
+	TrustedProxies []string `yaml:"trusted_proxies,omitempty" json:"trusted_proxies,omitempty"`
 	// CORSAllowedOrigins contains additional, exact origins that may call the API.
 	// Same-origin browser requests are always allowed. Wildcards are intentionally unsupported.
 	CORSAllowedOrigins []string `yaml:"cors_allowed_origins,omitempty" json:"cors_allowed_origins,omitempty"`

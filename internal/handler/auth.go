@@ -16,11 +16,12 @@ import (
 
 // AuthHandler handles authentication-related endpoints.
 type AuthHandler struct {
-	manager    *security.AuthManager
-	config     *config.Config
-	configPath string
-	logger     *zap.Logger
-	audit      *audit.Service
+	manager     *security.AuthManager
+	config      *config.Config
+	configPath  string
+	logger      *zap.Logger
+	audit       *audit.Service
+	userLimiter *security.RateLimiter
 }
 
 // SetAudit wires platform audit logging.
@@ -31,10 +32,11 @@ func (h *AuthHandler) SetAudit(s *audit.Service) {
 // NewAuthHandler creates a new AuthHandler.
 func NewAuthHandler(manager *security.AuthManager, cfg *config.Config, configPath string, logger *zap.Logger) *AuthHandler {
 	return &AuthHandler{
-		manager:    manager,
-		config:     cfg,
-		configPath: configPath,
-		logger:     logger,
+		manager:     manager,
+		config:      cfg,
+		configPath:  configPath,
+		logger:      logger,
+		userLimiter: security.NewRateLimiter(5, 1*time.Minute),
 	}
 }
 
@@ -58,6 +60,22 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	req.Username = strings.TrimSpace(req.Username)
 	if req.Username == "" || utf8.RuneCountInString(req.Username) > 64 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "username cannot be empty and must not exceed 64 characters"})
+		return
+	}
+
+	userKey := strings.ToLower(req.Username)
+	if h.userLimiter != nil && !h.userLimiter.Allow(userKey) {
+		if h.audit != nil {
+			h.audit.Record(c, audit.Entry{
+				Level:    "warn",
+				Category: "auth",
+				Action:   "login",
+				Result:   "failure",
+				Message:  "login rate limit exceeded for username",
+				Actor:    req.Username,
+			})
+		}
+		c.JSON(http.StatusTooManyRequests, gin.H{"error": "too many login attempts for this account, please try again later"})
 		return
 	}
 

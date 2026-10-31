@@ -8,13 +8,13 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// rateLimitEntry records the request window info for an IP address.
+// rateLimitEntry records the request window info for an IP address or key.
 type rateLimitEntry struct {
 	count    int
 	windowAt time.Time
 }
 
-// RateLimiter is an IP-based sliding-window rate limiter.
+// RateLimiter is a sliding-window rate limiter keyed by string (IP, username, etc.).
 type RateLimiter struct {
 	mu      sync.Mutex
 	entries map[string]*rateLimitEntry
@@ -41,24 +41,24 @@ func (rl *RateLimiter) cleanup() {
 	for range ticker.C {
 		rl.mu.Lock()
 		now := time.Now()
-		for ip, entry := range rl.entries {
+		for key, entry := range rl.entries {
 			if now.Sub(entry.windowAt) > rl.window {
-				delete(rl.entries, ip)
+				delete(rl.entries, key)
 			}
 		}
 		rl.mu.Unlock()
 	}
 }
 
-// allow checks whether the specified IP is allowed through.
-func (rl *RateLimiter) allow(ip string) bool {
+// Allow checks whether the specified key (IP, username, etc.) is allowed through.
+func (rl *RateLimiter) Allow(key string) bool {
 	rl.mu.Lock()
 	defer rl.mu.Unlock()
 
 	now := time.Now()
-	entry, ok := rl.entries[ip]
+	entry, ok := rl.entries[key]
 	if !ok || now.Sub(entry.windowAt) > rl.window {
-		rl.entries[ip] = &rateLimitEntry{count: 1, windowAt: now}
+		rl.entries[key] = &rateLimitEntry{count: 1, windowAt: now}
 		return true
 	}
 
@@ -66,11 +66,15 @@ func (rl *RateLimiter) allow(ip string) bool {
 	return entry.count <= rl.limit
 }
 
+func (rl *RateLimiter) allow(ip string) bool {
+	return rl.Allow(ip)
+}
+
 // RateLimitMiddleware returns a Gin middleware that responds with 429 for requests that exceed the rate limit.
 func RateLimitMiddleware(rl *RateLimiter) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ip := c.ClientIP()
-		if !rl.allow(ip) {
+		if !rl.Allow(ip) {
 			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
 				"error": "rate limit exceeded, please try again later",
 			})
