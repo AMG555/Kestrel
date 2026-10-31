@@ -1241,6 +1241,8 @@ func (db *DB) UpsertRBACRole(id, name, description, scope string, permissionKeys
 			return nil, err
 		}
 	}
+	// Invalidate active sessions for all users assigned this role by bumping their updated_at timestamp
+	_, _ = tx.Exec(`UPDATE rbac_users SET updated_at = ? WHERE id IN (SELECT user_id FROM rbac_user_roles WHERE role_id = ?)`, now, id)
 	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
@@ -1255,8 +1257,17 @@ func (db *DB) DeleteRBACRole(id string) error {
 	if id == RBACSystemRoleAdmin || id == RBACSystemRoleOperator || id == RBACSystemRoleAuditor || id == RBACSystemRoleViewer {
 		return errors.New("system role cannot be deleted")
 	}
-	_, err := db.Exec(`DELETE FROM rbac_roles WHERE id = ? AND is_system = 0`, id)
-	return err
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	now := time.Now().UTC()
+	_, _ = tx.Exec(`UPDATE rbac_users SET updated_at = ? WHERE id IN (SELECT user_id FROM rbac_user_roles WHERE role_id = ?)`, now, id)
+	if _, err := tx.Exec(`DELETE FROM rbac_roles WHERE id = ? AND is_system = 0`, id); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (db *DB) UpdateRBACUserPassword(userID, passwordHash string) error {
@@ -1473,11 +1484,37 @@ func (db *DB) DeleteRBACResourceAssignmentWithDetails(id string) (*RBACResourceA
 }
 
 func (db *DB) AssignRBACUserRole(userID, roleID string) error {
-	_, err := db.Exec(`INSERT OR IGNORE INTO rbac_user_roles (user_id, role_id, created_at) VALUES (?, ?, ?)`, strings.TrimSpace(userID), strings.TrimSpace(roleID), time.Now())
-	return err
+	userID = strings.TrimSpace(userID)
+	roleID = strings.TrimSpace(roleID)
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	now := time.Now().UTC()
+	if _, err := tx.Exec(`INSERT OR IGNORE INTO rbac_user_roles (user_id, role_id, created_at) VALUES (?, ?, ?)`, userID, roleID, now); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`UPDATE rbac_users SET updated_at = ? WHERE id = ?`, now, userID); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (db *DB) RevokeRBACUserRole(userID, roleID string) error {
-	_, err := db.Exec(`DELETE FROM rbac_user_roles WHERE user_id = ? AND role_id = ?`, strings.TrimSpace(userID), strings.TrimSpace(roleID))
-	return err
+	userID = strings.TrimSpace(userID)
+	roleID = strings.TrimSpace(roleID)
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	now := time.Now().UTC()
+	if _, err := tx.Exec(`DELETE FROM rbac_user_roles WHERE user_id = ? AND role_id = ?`, userID, roleID); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`UPDATE rbac_users SET updated_at = ? WHERE id = ?`, now, userID); err != nil {
+		return err
+	}
+	return tx.Commit()
 }

@@ -72,8 +72,8 @@ jobs:
       - name: Vet
         run: go vet ./...
 
-      - name: Run unit tests
-        run: go test -v -race ./internal/...
+      - name: Run unit & integration tests
+        run: go test -v -race ./internal/... ./test/...
         env:
           CGO_ENABLED: "1"
 

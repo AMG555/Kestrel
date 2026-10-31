@@ -104,7 +104,6 @@ func setupRoutes(
 	router.GET("/healthz", healthHandler)
 	router.GET("/readyz", readyHandler)
 	router.GET("/api/healthz", healthHandler)
-	router.GET("/api/system/info", healthHandler)
 
 	// API routes
 	api := router.Group("/api")
@@ -153,7 +152,6 @@ func setupRoutes(
 		}
 	}))
 	{
-		protected.GET("/auth/me", authHandler.Validate)
 		protected.GET("/rbac/me", rbacHandler.Me)
 		protected.GET("/rbac/metadata", rbacHandler.Metadata)
 		protected.GET("/rbac/users", rbacHandler.ListUsers)

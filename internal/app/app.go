@@ -935,6 +935,11 @@ func (a *App) DB() *database.DB {
 	return a.db
 }
 
+// Router returns the HTTP router engine.
+func (a *App) Router() *gin.Engine {
+	return a.router
+}
+
 // Auth returns the authentication manager.
 func (a *App) Auth() *security.AuthManager {
 	return a.auth

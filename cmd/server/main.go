@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -32,6 +33,9 @@ func main() {
 	isDoctorSubcommand := false
 	isDemoSubcommand := false
 	isEvalSubcommand := false
+	isAuditCheckpointSubcommand := false
+	isAuditVerifySubcommand := false
+	var auditArgPath string
 	if len(os.Args) > 1 {
 		if os.Args[1] == "doctor" {
 			isDoctorSubcommand = true
@@ -42,6 +46,25 @@ func main() {
 		} else if os.Args[1] == "eval" {
 			isEvalSubcommand = true
 			os.Args = append(os.Args[:1], os.Args[2:]...)
+		} else if os.Args[1] == "audit" && len(os.Args) > 2 {
+			sub := strings.ToLower(strings.TrimSpace(os.Args[2]))
+			if sub == "checkpoint" {
+				isAuditCheckpointSubcommand = true
+				if len(os.Args) > 3 && !strings.HasPrefix(os.Args[3], "-") {
+					auditArgPath = os.Args[3]
+					os.Args = append(os.Args[:1], os.Args[4:]...)
+				} else {
+					os.Args = append(os.Args[:1], os.Args[3:]...)
+				}
+			} else if sub == "verify" {
+				isAuditVerifySubcommand = true
+				if len(os.Args) > 3 && !strings.HasPrefix(os.Args[3], "-") {
+					auditArgPath = os.Args[3]
+					os.Args = append(os.Args[:1], os.Args[4:]...)
+				} else {
+					os.Args = append(os.Args[:1], os.Args[3:]...)
+				}
+			}
 		}
 	}
 	var configPath = flag.String("config", "config.yaml", "Path to the configuration file")
@@ -66,6 +89,9 @@ func main() {
 	var scopeFilePath = flag.String("scope-file", "", "Path to engagement scope.yaml file to enforce network-layer egress filtering")
 	var scopeExempt = flag.String("scope-exempt", "", "Comma-separated list of additional hosts/domains exempt from scope egress blocking")
 	var allowIMDS = flag.Bool("allow-imds", false, "Explicitly permit network egress to cloud instance metadata services (IMDS / 169.254.169.254)")
+	var auditCheckpointFlag = flag.String("audit-checkpoint", "", "Create an external signed cryptographic checkpoint receipt of the audit chain to file and exit")
+	var auditVerifyFlag = flag.Bool("audit-verify", false, "Verify cryptographic integrity of audit chain and exit (0=valid, 2=broken)")
+	var auditAnchorFlag = flag.String("audit-anchor", "", "Optional external checkpoint JSON file to assert against during audit verification")
 	flag.Parse()
 
 	// Check bare subcommands from flag.Args()
@@ -147,32 +173,63 @@ func main() {
 		return
 	}
 
+	// Network egress guard is unconditionally active: blocks IMDS/link-local by default
+	var scopePolicy *toolguard.ScopeFilePolicy
 	if strings.TrimSpace(*scopeFilePath) != "" {
-		scopePolicy, err := toolguard.LoadScopeFile(strings.TrimSpace(*scopeFilePath))
+		var err error
+		scopePolicy, err = toolguard.LoadScopeFile(strings.TrimSpace(*scopeFilePath))
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Scope file error: %v\n", err)
 			os.Exit(2)
 		}
-		egressGuard := toolguard.NewEgressGuard(scopePolicy)
-		if *allowIMDS {
-			egressGuard.SetAllowIMDS(true)
-		}
+	}
+	egressGuard := toolguard.NewEgressGuard(scopePolicy)
+	if *allowIMDS {
+		egressGuard.SetAllowIMDS(true)
+	}
 
-		// Auto-exempt LLM endpoints so model inference is never blocked by scope guard
-		for _, ch := range cfg.AI.Channels {
-			if ch.BaseURL != "" {
-				egressGuard.AddExemptHosts(ch.BaseURL)
-			}
+	// Auto-exempt LLM endpoints so model inference is never blocked by scope guard
+	for _, ch := range cfg.AI.Channels {
+		if ch.BaseURL != "" {
+			egressGuard.AddExemptHosts(ch.BaseURL)
 		}
-		if strings.TrimSpace(*scopeExempt) != "" {
-			for _, h := range strings.Split(*scopeExempt, ",") {
-				egressGuard.AddExemptHosts(h)
-			}
+	}
+	if strings.TrimSpace(*scopeExempt) != "" {
+		for _, h := range strings.Split(*scopeExempt, ",") {
+			egressGuard.AddExemptHosts(h)
 		}
+	}
 
-		toolguard.SetGlobalEgressGuard(egressGuard)
+	toolguard.SetGlobalEgressGuard(egressGuard)
+	if scopePolicy != nil {
 		fmt.Printf("[SCOPE GUARD] Enforcing network-layer egress policy from %s (target=%q, in_scope_cidrs=%d, in_scope_domains=%d, out_of_scope_cidrs=%d, fail_closed=%v, allow_imds=%v)\n",
 			*scopeFilePath, scopePolicy.TargetName, len(scopePolicy.InScopeCIDRs), len(scopePolicy.InScopeDomains), len(scopePolicy.OutOfScopeCIDRs), scopePolicy.FailClosed, *allowIMDS)
+	} else {
+		fmt.Printf("[EGRESS GUARD] Enforcing baseline network protection (cloud metadata IMDS blocked, allow_imds=%v)\n", *allowIMDS)
+	}
+
+	if isAuditCheckpointSubcommand || *auditCheckpointFlag != "" {
+		outFile := auditArgPath
+		if outFile == "" {
+			outFile = *auditCheckpointFlag
+		}
+		if err := runAuditCheckpoint(cfg, outFile); err != nil {
+			fmt.Fprintf(os.Stderr, "FAILURE: %v\n", err)
+			os.Exit(2)
+		}
+		return
+	}
+
+	if isAuditVerifySubcommand || *auditVerifyFlag {
+		anchorFile := auditArgPath
+		if anchorFile == "" {
+			anchorFile = *auditAnchorFlag
+		}
+		if err := runAuditVerify(cfg, anchorFile); err != nil {
+			fmt.Fprintf(os.Stderr, "FAILURE: %v\n", err)
+			os.Exit(2)
+		}
+		return
 	}
 
 	if *checkIsolation {
@@ -398,6 +455,74 @@ func runResetAdminPassword(cfg *config.Config) error {
 	fmt.Println()
 	fmt.Println("Admin password has been reset.")
 	fmt.Println("All existing login sessions have been revoked.")
+	return nil
+}
+
+func runAuditCheckpoint(cfg *config.Config, outFile string) error {
+	dbPath := strings.TrimSpace(cfg.Database.Path)
+	if dbPath == "" {
+		dbPath = "data/conversations.db"
+	}
+	db, err := database.NewDB(dbPath, zap.NewNop())
+	if err != nil {
+		return fmt.Errorf("failed to open database: %w", err)
+	}
+	defer db.Close()
+
+	cp, err := db.CreateAuditCheckpoint()
+	if err != nil {
+		return fmt.Errorf("audit checkpoint creation failed: %w", err)
+	}
+
+	data, err := json.MarshalIndent(cp, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to encode checkpoint: %w", err)
+	}
+
+	if outFile != "" {
+		if err := os.WriteFile(outFile, data, 0644); err != nil {
+			return fmt.Errorf("failed to write audit checkpoint to %s: %w", outFile, err)
+		}
+		fmt.Fprintf(os.Stdout, "SUCCESS: Created audit checkpoint for head %s (%d records) -> %s\n", cp.HeadHash, cp.ChainedCount, outFile)
+	} else {
+		fmt.Println(string(data))
+	}
+	return nil
+}
+
+func runAuditVerify(cfg *config.Config, anchorFile string) error {
+	dbPath := strings.TrimSpace(cfg.Database.Path)
+	if dbPath == "" {
+		dbPath = "data/conversations.db"
+	}
+	db, err := database.NewDB(dbPath, zap.NewNop())
+	if err != nil {
+		return fmt.Errorf("failed to open database: %w", err)
+	}
+	defer db.Close()
+
+	if anchorFile != "" {
+		content, err := os.ReadFile(anchorFile)
+		if err != nil {
+			return fmt.Errorf("failed to read external checkpoint file %s: %w", anchorFile, err)
+		}
+		var cp database.AuditCheckpoint
+		if err := json.Unmarshal(content, &cp); err != nil {
+			return fmt.Errorf("failed to parse checkpoint file %s: %w", anchorFile, err)
+		}
+		valid, err := db.VerifyAuditCheckpoint(&cp)
+		if err != nil || !valid {
+			return fmt.Errorf("audit verification against external anchor failed: %w", err)
+		}
+		fmt.Fprintf(os.Stdout, "SUCCESS: Audit log chain verified against external anchor %s (checkpoint head=%s, verified=%d records)\n", anchorFile, cp.HeadHash, cp.ChainedCount)
+		return nil
+	}
+
+	valid, err := db.VerifyAuditLogChain()
+	if err != nil || !valid {
+		return fmt.Errorf("audit chain integrity verification failed: %w", err)
+	}
+	fmt.Println("SUCCESS: Audit log chain verified (internal consistency and pinned head valid)")
 	return nil
 }
 

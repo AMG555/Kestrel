@@ -1,4 +1,4 @@
-# ⚔ Kestrel — AI-Native Security Operations Platform
+# ⚔ Kestrel — Pentest Workbench for Small Teams
 
 <div align="center">
 
@@ -8,25 +8,33 @@
 ![License](https://img.shields.io/badge/license-Apache%202.0-blue)
 ![SARIF](https://img.shields.io/badge/SARIF-2.1.0-blueviolet)
 ![CI](https://github.com/AMG555/Kestrel/actions/workflows/ci.yml/badge.svg)
-![Go Report](https://img.shields.io/badge/Go_Report-A%2B-brightgreen)
 
-**Kestrel is a self-hosted, Go-powered security operations platform that puts an LLM agent at the center of your recon and triage workflow — with full RBAC, append-only audit logging, human-in-the-loop approvals, and a graph-based workflow engine, all in a single binary.**
-
-> ⚠ **AUTHORIZED USE ONLY** — Use Kestrel only on systems you own or are explicitly authorized to test. All tool executions are logged.
+> **Kestrel is a self-hosted pentest workbench for small teams. Run your existing tools, capture evidence, prove you stayed in scope, and hand the client a report that survives scrutiny.**
 
 </div>
 
 ---
 
+## Threat Model & Audit Invariants
+
+### Adversary Definition
+The primary adversary for Kestrel's audit and scope record is **not** an external attacker who breached the database, but **a disputed client or counter-party in an engagement liability, billing, or authorization conflict**.
+
+1. **The Scope Guarantee**: Proves conclusively that all tool execution, probes, and automated agent steps stayed strictly within authorized host/CIDR boundaries, with DNS-pinning to prevent SSRF rebinding bypasses.
+2. **The Cryptographic Audit Anchor**: An operator cannot retroactively tamper with, reorder, or selectively delete actions without invalidating the chain. 
+3. **External Checkpoints**: To survive scrutiny in a billing or legal dispute where the client claims operator database control voids local evidence, Kestrel supports external signed head checkpoints (`kestrel audit checkpoint`) stored in external storage or notary logs.
+
+---
+
 ## Why Kestrel?
 
-Most security tooling is either a CLI script or a heavyweight SaaS. Kestrel sits in the middle:
+Most security tooling is either a loose collection of bash scripts or complex enterprise SaaS:
 
-- **No cloud dependency** — runs fully on-premise, single binary + SQLite
-- **LLM-agnostic** — swap between OpenAI, Anthropic, Ollama, or the built-in rule-based stub with one config line
-- **Operator-first** — every agent action can require a human sign-off before it runs
-- **Auditable by design** — the audit log is append-only and cannot be modified or deleted through any API
-- **Extensible** — connect any MCP-compatible tool server; bring your own recon tooling
+- **Self-Hosted & Single Binary** — Runs on-premise or cloud VM; Go backend with embedded React SPA and SQLite.
+- **Verbatim Tool Evidence** — Preserves raw tool outputs, execution arguments, target IPs, and exit codes.
+- **Fail-Closed Egress Guard** — Enforces CIDR and domain scope boundaries at the socket level; blocks cloud IMDS (169.254.169.254) and link-local by default.
+- **Cryptographic Audit Trail** — SHA-256 hash-chained operation ledger with immutable database triggers, pinned head verification, and offline checkpointing.
+- **Standardized Client Delivery** — Direct OASIS SARIF 2.1.0, Markdown, JSON, and CSV exports with CVSS/CWE mappings.
 
 ---
 
