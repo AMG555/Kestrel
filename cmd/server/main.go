@@ -5,6 +5,7 @@ import (
 	"kestrel/internal/app"
 	"kestrel/internal/demo"
 	"kestrel/internal/doctor"
+	"kestrel/internal/eval"
 	"kestrel/internal/toolguard"
 	"kestrel/internal/config"
 	"kestrel/internal/database"
@@ -29,12 +30,16 @@ import (
 func main() {
 	isDoctorSubcommand := false
 	isDemoSubcommand := false
+	isEvalSubcommand := false
 	if len(os.Args) > 1 {
 		if os.Args[1] == "doctor" {
 			isDoctorSubcommand = true
 			os.Args = append(os.Args[:1], os.Args[2:]...)
 		} else if os.Args[1] == "demo" {
 			isDemoSubcommand = true
+			os.Args = append(os.Args[:1], os.Args[2:]...)
+		} else if os.Args[1] == "eval" {
+			isEvalSubcommand = true
 			os.Args = append(os.Args[:1], os.Args[2:]...)
 		}
 	}
@@ -56,6 +61,7 @@ func main() {
 	var shareBaseURL = flag.String("share-base-url", "", "Base URL for share links and badges (default: http(s)://<host>:<port>)")
 	var doctorFlag = flag.Bool("doctor", false, "Run diagnostic health checks on runtime, storage, isolation, and tools")
 	var demoFlag = flag.Bool("demo", false, "Run in one-command demo mode seeded with OWASP Juice Shop project, admin login, and findings")
+	var evalFlag = flag.Bool("eval", false, "Run golden security benchmark evaluation against OWASP targets and exit")
 	var scopeFilePath = flag.String("scope-file", "", "Path to engagement scope.yaml file to enforce network-layer egress filtering")
 	flag.Parse()
 
@@ -99,6 +105,15 @@ func main() {
 		rep := doctor.RunDiagnostics(context.Background(), cfg)
 		doctor.PrintReport(os.Stdout, rep)
 		if rep.HasErrors {
+			os.Exit(1)
+		}
+		return
+	}
+
+	if isEvalSubcommand || *evalFlag {
+		rep := eval.RunEvalSuite(context.Background(), "juice-shop-golden")
+		eval.PrintEvalReport(os.Stdout, rep)
+		if rep.FalseNegatives > 0 || rep.FalsePositives > 0 {
 			os.Exit(1)
 		}
 		return
