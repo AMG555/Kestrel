@@ -115,6 +115,7 @@ func New(cfg *config.Config, log *logger.Logger, configPath string) (*App, error
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize database: %w", err)
 	}
+	db.StartJanitor(context.Background(), 30*time.Minute)
 
 	// auth manager (RBAC mounted after database initialization)
 	jwtSecret := strings.TrimSpace(cfg.Auth.JWTSecret)

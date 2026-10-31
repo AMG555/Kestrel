@@ -298,7 +298,9 @@ func (h *RBACHandler) UpdateUser(c *gin.Context) {
 		h.audit.RecordOK(c, "rbac", "update_user", "update platform user", "user", id, nil)
 	}
 	if h.auth != nil {
-		h.auth.RevokeUserSessions(id)
+		if err := h.auth.RevokeUserSessions(id); err != nil && h.logger != nil {
+		h.logger.Warn("failed to revoke user sessions", zap.String("user_id", id), zap.Error(err))
+	}
 	}
 	updated, _ := h.db.GetRBACUserByID(id)
 	c.JSON(http.StatusOK, gin.H{"user": updated})
@@ -314,7 +316,9 @@ func (h *RBACHandler) DeleteUser(c *gin.Context) {
 		h.audit.RecordOK(c, "rbac", "delete_user", "delete platform user", "user", id, nil)
 	}
 	if h.auth != nil {
-		h.auth.RevokeUserSessions(id)
+		if err := h.auth.RevokeUserSessions(id); err != nil && h.logger != nil {
+		h.logger.Warn("failed to revoke user sessions", zap.String("user_id", id), zap.Error(err))
+	}
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true})
 }
@@ -473,7 +477,9 @@ func (h *RBACHandler) AssignUserRole(c *gin.Context) {
 		h.audit.RecordOK(c, "rbac", "assign_role", "assign role to user", "user", uid, map[string]interface{}{"role_id": rid})
 	}
 	if h.auth != nil {
-		h.auth.RevokeUserSessions(uid)
+		if err := h.auth.RevokeUserSessions(uid); err != nil && h.logger != nil {
+		h.logger.Warn("failed to revoke user sessions", zap.String("user_id", uid), zap.Error(err))
+	}
 	}
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
@@ -493,7 +499,9 @@ func (h *RBACHandler) RevokeUserRole(c *gin.Context) {
 		h.audit.RecordOK(c, "rbac", "revoke_role", "revoke role from user", "user", uid, map[string]interface{}{"role_id": rid})
 	}
 	if h.auth != nil {
-		h.auth.RevokeUserSessions(uid)
+		if err := h.auth.RevokeUserSessions(uid); err != nil && h.logger != nil {
+		h.logger.Warn("failed to revoke user sessions", zap.String("user_id", uid), zap.Error(err))
+	}
 	}
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }

@@ -121,6 +121,11 @@ func (g *EgressGuard) CheckDestination(ctx context.Context, hostOrAddr string) e
 		host = h
 	}
 
+	// 0. Cloud instance metadata (IMDS) must NEVER be bypassed, even if host is in exempt list
+	if IsCloudMetadataEndpoint(host) {
+		return fmt.Errorf("%w: %s (cloud metadata endpoint IMDS access forbidden)", ErrScopeEgressBlocked, hostOrAddr)
+	}
+
 	// 1. Plumbing exemption check
 	if g.IsExempt(host) {
 		return nil

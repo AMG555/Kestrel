@@ -1,6 +1,7 @@
 package database
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -12,8 +13,9 @@ func (db *DB) IsTokenRevoked(tokenOrJTI string) bool {
 		return false
 	}
 	var count int
+	// Bind UTC RFC3339Nano string to match formatSQLiteUTC storage format
 	err := db.QueryRow(`SELECT COUNT(1) FROM revoked_tokens WHERE token_or_jti = ? AND expires_at > ?`,
-		strings.TrimSpace(tokenOrJTI), time.Now().UTC()).Scan(&count)
+		strings.TrimSpace(tokenOrJTI), formatSQLiteUTC(time.Now().UTC())).Scan(&count)
 	return err == nil && count > 0
 }
 
@@ -39,6 +41,54 @@ func (db *DB) PurgeExpiredRevokedTokens() error {
 	}
 	_, err := db.Exec(`DELETE FROM revoked_tokens WHERE expires_at <= ?`, formatSQLiteUTC(time.Now().UTC()))
 	return err
+}
+
+// SetRevocationCutoff persists the global session revocation cutoff.
+func (db *DB) SetRevocationCutoff(cutoff time.Time) error {
+	if db == nil {
+		return nil
+	}
+	_, err := db.Exec(`
+		INSERT INTO auth_metadata (key, value, updated_at)
+		VALUES ('global_revocation_cutoff', ?, ?)
+		ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+	`, formatSQLiteUTC(cutoff.UTC()), formatSQLiteUTC(time.Now().UTC()))
+	return err
+}
+
+// GetRevocationCutoff retrieves the persistent global session revocation cutoff.
+func (db *DB) GetRevocationCutoff() (time.Time, error) {
+	if db == nil {
+		return time.Time{}, nil
+	}
+	var val string
+	err := db.QueryRow(`SELECT value FROM auth_metadata WHERE key = 'global_revocation_cutoff'`).Scan(&val)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return parseDBTime(val), nil
+}
+
+// StartJanitor starts a periodic background sweep of expired revocation records.
+func (db *DB) StartJanitor(ctx context.Context, interval time.Duration) {
+	if db == nil {
+		return
+	}
+	if interval <= 0 {
+		interval = 30 * time.Minute
+	}
+	go func() {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				_ = db.PurgeExpiredRevokedTokens()
+			}
+		}
+	}()
 }
 
 // TouchRBACUser updates the user's updated_at timestamp to invalidate earlier tokens.

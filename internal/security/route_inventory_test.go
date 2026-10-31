@@ -1,17 +1,22 @@
-﻿package security
+package security
 
 import (
 	"go/ast"
 	"go/parser"
 	"go/token"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strconv"
 	"testing"
 )
 
 func TestEveryProtectedRouteHasCatalogPermission(t *testing.T) {
-	file, err := parser.ParseFile(token.NewFileSet(), filepath.Join("..", "app", "app.go"), nil, 0)
+	routeFile := filepath.Join("..", "app", "routes.go")
+	if _, err := os.Stat(routeFile); err != nil {
+		routeFile = filepath.Join("..", "app", "app.go")
+	}
+	file, err := parser.ParseFile(token.NewFileSet(), routeFile, nil, 0)
 	if err != nil {
 		t.Fatal(err)
 	}

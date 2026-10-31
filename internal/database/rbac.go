@@ -411,7 +411,7 @@ func (db *DB) GetRBACUserByUsername(username string) (*RBACUser, error) {
 		return nil, sql.ErrNoRows
 	}
 	return db.scanRBACUser(db.QueryRow(`
-		SELECT id, username, display_name, password_hash, enabled, is_builtin, created_at, updated_at
+		SELECT id, username, display_name, password_hash, enabled, is_builtin, must_change_password, created_at, updated_at
 		FROM rbac_users WHERE username = ?
 	`, username))
 }
@@ -422,7 +422,7 @@ func (db *DB) GetRBACUserByID(id string) (*RBACUser, error) {
 		return nil, sql.ErrNoRows
 	}
 	return db.scanRBACUser(db.QueryRow(`
-		SELECT id, username, display_name, password_hash, enabled, is_builtin, created_at, updated_at
+		SELECT id, username, display_name, password_hash, enabled, is_builtin, must_change_password, created_at, updated_at
 		FROM rbac_users WHERE id = ?
 	`, id))
 }
@@ -1126,7 +1126,7 @@ func (db *DB) AssignResourcesToUserAuto(userID string, resourceIDs []string) (in
 }
 
 func (db *DB) ListRBACUsers() ([]RBACUser, error) {
-	rows, err := db.Query(`SELECT id, username, display_name, password_hash, enabled, is_builtin, created_at, updated_at FROM rbac_users ORDER BY username ASC`)
+	rows, err := db.Query(`SELECT id, username, display_name, password_hash, enabled, is_builtin, must_change_password, created_at, updated_at FROM rbac_users ORDER BY username ASC`)
 	if err != nil {
 		return nil, err
 	}
@@ -1134,13 +1134,14 @@ func (db *DB) ListRBACUsers() ([]RBACUser, error) {
 	var out []RBACUser
 	for rows.Next() {
 		var u RBACUser
-		var enabled, builtin int
+		var enabled, builtin, mustChange int
 		var createdAt, updatedAt string
-		if err := rows.Scan(&u.ID, &u.Username, &u.DisplayName, &u.PasswordHash, &enabled, &builtin, &createdAt, &updatedAt); err != nil {
+		if err := rows.Scan(&u.ID, &u.Username, &u.DisplayName, &u.PasswordHash, &enabled, &builtin, &mustChange, &createdAt, &updatedAt); err != nil {
 			return nil, err
 		}
 		u.Enabled = enabled != 0
 		u.IsBuiltin = builtin != 0
+		u.MustChangePassword = mustChange != 0
 		u.CreatedAt = parseDBTime(createdAt)
 		u.UpdatedAt = parseDBTime(updatedAt)
 		out = append(out, u)

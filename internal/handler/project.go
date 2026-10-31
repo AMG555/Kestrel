@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"crypto/subtle"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -816,7 +817,7 @@ func (h *ProjectHandler) RenderPublicShare(c *gin.Context) {
 	if share.PassphraseHash != "" {
 		cookieVal, _ := c.Cookie("unlocked_share_" + share.ID)
 		expectedCookie := report.SignUnlockCookie(share.ID, secret)
-		if cookieVal == "" || cookieVal != expectedCookie {
+		if cookieVal == "" || subtle.ConstantTimeCompare([]byte(cookieVal), []byte(expectedCookie)) != 1 {
 			htmlContent := report.RenderHTMLReport(report.HTMLReportOptions{
 				Project:            project,
 				ShareToken:         token,
@@ -880,7 +881,8 @@ func (h *ProjectHandler) UnlockPublicShare(c *gin.Context) {
 	}
 
 	cookieVal := report.SignUnlockCookie(share.ID, secret)
-	c.SetCookie("unlocked_share_"+share.ID, cookieVal, 3600*24, "/", "", false, true)
+	isSecure := c.Request.TLS != nil || c.Request.Header.Get("X-Forwarded-Proto") == "https"
+	c.SetCookie("unlocked_share_"+share.ID, cookieVal, 3600*24, "/", "", isSecure, true)
 	c.Redirect(http.StatusFound, "/r/"+token)
 }
 

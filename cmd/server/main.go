@@ -114,6 +114,12 @@ func main() {
 		termout.PrintConfigCreated()
 	}
 
+	// ensure persistent jwt_secret is configured with 0600 file permissions
+	if err := config.EnsureJWTSecret(cp, cfg); err != nil {
+		fmt.Printf("Failed to configure JWT secret: %v\n", err)
+		return
+	}
+
 	if isDoctorSubcommand || *doctorFlag {
 		rep := doctor.RunDiagnostics(context.Background(), cfg)
 		doctor.PrintReport(os.Stdout, rep)
@@ -233,12 +239,6 @@ func main() {
 		SelfSigned:   scheme == "https" && cfg.Server.TLSAutoSelfSign,
 		HTTPRedirect: scheme == "https" && config.ServerHTTPRedirectEnabled(&cfg.Server),
 	})
-
-	// ensure persistent jwt_secret is configured with 0600 file permissions
-	if err := config.EnsureJWTSecret(cp, cfg); err != nil {
-		fmt.Printf("Failed to configure JWT secret: %v\n", err)
-		return
-	}
 
 	// when MCP is enabled and auth_header_value is empty, auto-generate a random key and write back to config
 	if err := config.EnsureMCPAuth(cp, cfg); err != nil {

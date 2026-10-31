@@ -816,6 +816,13 @@ func (db *DB) initTables() error {
 		expires_at DATETIME NOT NULL
 	);`
 
+	createAuthMetadataTable := `
+	CREATE TABLE IF NOT EXISTS auth_metadata (
+		key TEXT PRIMARY KEY,
+		value TEXT NOT NULL,
+		updated_at DATETIME NOT NULL
+	);`
+
 	// createindex
 	createIndexes := `
 	CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON messages(conversation_id);
@@ -962,6 +969,7 @@ func (db *DB) initTables() error {
 		{"c2_profiles", createC2ProfilesTable},
 		{"report_shares", createReportSharesTable},
 		{"revoked_tokens", createRevokedTokensTable},
+		{"auth_metadata", createAuthMetadataTable},
 	}
 
 	for _, item := range tableDDLs {
