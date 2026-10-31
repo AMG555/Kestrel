@@ -40,7 +40,7 @@ type Config struct {
 	Storage     StorageConfig         `yaml:"storage,omitempty" json:"storage,omitempty"`
 	ExternalMCP ExternalMCPConfig     `yaml:"external_mcp,omitempty"`
 	Knowledge   KnowledgeConfig       `yaml:"knowledge,omitempty"`
-	C2          C2Config              `yaml:"c2,omitempty" json:"c2,omitempty"`                 // Built-in C2 master switch; enabled by default if not configured
+	C2          C2Config              `yaml:"c2,omitempty" json:"c2,omitempty"`                 // Built-in C2 attack-lab module switch; disabled by default (opt-in)
 	Robots      RobotsConfig          `yaml:"robots,omitempty" json:"robots,omitempty"`         // Bot configuration for WeCom/DingTalk/Feishu/Telegram/Slack etc.
 	RolesDir    string                `yaml:"roles_dir,omitempty" json:"roles_dir,omitempty"`   // Role configuration file directory (new method)
 	Roles       map[string]RoleConfig `yaml:"roles,omitempty" json:"roles,omitempty"`           // Backward compatible: supports defining roles in main config file
@@ -2055,16 +2055,16 @@ func Default() *Config {
 	}
 }
 
-// C2Config is the built-in C2 module toggle (same semantics as knowledge base enabled: when disabled, listeners are not initialized and C2 MCP tools are not registered).
+// C2Config is the built-in C2 attack-lab module toggle (disabled by default; listeners are not initialized and C2 MCP tools are not registered unless explicitly enabled).
 type C2Config struct {
-	// Enabled being nil means not configured, treated as true (for backward compatibility with old config.yaml)
+	// Enabled being nil means not configured, treated as false (opt-in for lab/research).
 	Enabled *bool `yaml:"enabled,omitempty" json:"enabled,omitempty"`
 }
 
-// EnabledEffective returns whether C2 is enabled; defaults to true when not explicitly configured.
+// EnabledEffective returns whether C2 is enabled; defaults to false when not explicitly configured.
 func (c C2Config) EnabledEffective() bool {
 	if c.Enabled == nil {
-		return true
+		return false
 	}
 	return *c.Enabled
 }

@@ -1,4 +1,4 @@
-﻿# ============================================
+# ============================================
 # Kestrel Configuration File
 # ============================================
 # This configuration file supports visual configuration through the Web interface
@@ -494,9 +494,10 @@ external_mcp:
       external_mcp_enable: false
       env:
         GITHUB_TOKEN: "${GITHUB_TOKEN}"
-# Built-in C2: set to false if this instance only handles conversations/knowledge; disables listener and C2 MCP tools. Defaults to enabled when this section is omitted.
+# Built-in C2 (Attack-Lab / Experimental): disabled by default for pentest workbench deployments.
+# Set enabled to true only for isolated research or attack-simulation lab environments.
 c2:
-  enabled: true
+  enabled: false
 # ============================================
 # Knowledge base configuration
 # ============================================

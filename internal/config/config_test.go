@@ -50,6 +50,23 @@ server:
 	}
 }
 
+func TestC2ConfigDefaultOptIn(t *testing.T) {
+	var c C2Config
+	if c.EnabledEffective() {
+		t.Fatal("expected C2Config to be disabled by default")
+	}
+	tTrue := true
+	c.Enabled = &tTrue
+	if !c.EnabledEffective() {
+		t.Fatal("expected C2Config to be enabled when explicitly set to true")
+	}
+	tFalse := false
+	c.Enabled = &tFalse
+	if c.EnabledEffective() {
+		t.Fatal("expected C2Config to be disabled when explicitly set to false")
+	}
+}
+
 func TestLoadIgnoresLegacyAuthPasswordField(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.yaml")

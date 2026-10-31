@@ -12,6 +12,7 @@ import (
 	"kestrel/internal/demo"
 	"kestrel/internal/doctor"
 	"kestrel/internal/eval"
+	"kestrel/internal/importer"
 	"kestrel/internal/logger"
 	"kestrel/internal/processguard"
 	"kestrel/internal/report"
@@ -35,7 +36,11 @@ func main() {
 	isEvalSubcommand := false
 	isAuditCheckpointSubcommand := false
 	isAuditVerifySubcommand := false
+	isReplaySubcommand := false
+	isImportSubcommand := false
 	var auditArgPath string
+	var replayVulnID string
+	var importArgFile string
 	if len(os.Args) > 1 {
 		if os.Args[1] == "doctor" {
 			isDoctorSubcommand = true
@@ -46,6 +51,22 @@ func main() {
 		} else if os.Args[1] == "eval" {
 			isEvalSubcommand = true
 			os.Args = append(os.Args[:1], os.Args[2:]...)
+		} else if os.Args[1] == "import" && len(os.Args) > 2 {
+			isImportSubcommand = true
+			if !strings.HasPrefix(os.Args[2], "-") {
+				importArgFile = os.Args[2]
+				os.Args = append(os.Args[:1], os.Args[3:]...)
+			} else {
+				os.Args = append(os.Args[:1], os.Args[2:]...)
+			}
+		} else if (os.Args[1] == "replay" || os.Args[1] == "retest") && len(os.Args) > 2 {
+			isReplaySubcommand = true
+			if !strings.HasPrefix(os.Args[2], "-") {
+				replayVulnID = os.Args[2]
+				os.Args = append(os.Args[:1], os.Args[3:]...)
+			} else {
+				os.Args = append(os.Args[:1], os.Args[2:]...)
+			}
 		} else if os.Args[1] == "audit" && len(os.Args) > 2 {
 			sub := strings.ToLower(strings.TrimSpace(os.Args[2]))
 			if sub == "checkpoint" {
@@ -92,6 +113,9 @@ func main() {
 	var auditCheckpointFlag = flag.String("audit-checkpoint", "", "Create an external signed cryptographic checkpoint receipt of the audit chain to file and exit")
 	var auditVerifyFlag = flag.Bool("audit-verify", false, "Verify cryptographic integrity of audit chain and exit (0=valid, 2=broken)")
 	var auditAnchorFlag = flag.String("audit-anchor", "", "Optional external checkpoint JSON file to assert against during audit verification")
+	var importFileFlag = flag.String("import-file", "", "Path to scan file to import (nmap XML, nuclei JSONL, or burp XML)")
+	var importFormatFlag = flag.String("import-format", "", "Explicit scan format: nmap, nuclei, burp (auto-detected if omitted)")
+	var importProjectFlag = flag.String("import-project", "", "Project ID to associate imported assets and vulnerabilities with")
 	flag.Parse()
 
 	// Check bare subcommands from flag.Args()
@@ -269,8 +293,24 @@ func main() {
 		return
 	}
 
-	if *retestVuln != "" {
-		if err := runRetestVuln(cfg, *retestVuln, *retestTarget); err != nil {
+	if isImportSubcommand || *importFileFlag != "" {
+		filePath := importArgFile
+		if filePath == "" {
+			filePath = *importFileFlag
+		}
+		if err := runImportScan(cfg, filePath, *importFormatFlag, *importProjectFlag); err != nil {
+			fmt.Fprintf(os.Stderr, "Import error: %v\n", err)
+			os.Exit(2)
+		}
+		return
+	}
+
+	if isReplaySubcommand || *retestVuln != "" {
+		targetVulnID := replayVulnID
+		if targetVulnID == "" {
+			targetVulnID = *retestVuln
+		}
+		if err := runRetestVuln(cfg, targetVulnID, *retestTarget); err != nil {
 			var retestErr *retestExitError
 			if errors.As(err, &retestErr) {
 				os.Exit(retestErr.exitCode)
@@ -523,6 +563,43 @@ func runAuditVerify(cfg *config.Config, anchorFile string) error {
 		return fmt.Errorf("audit chain integrity verification failed: %w", err)
 	}
 	fmt.Println("SUCCESS: Audit log chain verified (internal consistency and pinned head valid)")
+	return nil
+}
+
+func runImportScan(cfg *config.Config, filePath, format, projectID string) error {
+	filePath = strings.TrimSpace(filePath)
+	if filePath == "" {
+		return errors.New("import file path is required")
+	}
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to read import file %s: %w", filePath, err)
+	}
+
+	dbPath := strings.TrimSpace(cfg.Database.Path)
+	if dbPath == "" {
+		dbPath = "data/conversations.db"
+	}
+	db, err := database.NewDB(dbPath, zap.NewNop())
+	if err != nil {
+		return fmt.Errorf("failed to open database: %w", err)
+	}
+	defer db.Close()
+
+	res, err := importer.ImportData(db, data, format, projectID, "cli-operator")
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprintf(os.Stdout, "SUCCESS: Imported %s scan from %s\n", res.Format, filePath)
+	fmt.Fprintf(os.Stdout, "  Assets: %d created, %d updated, %d skipped\n", res.AssetsCreated, res.AssetsUpdated, res.AssetsSkipped)
+	fmt.Fprintf(os.Stdout, "  Vulnerabilities: %d created, %d skipped\n", res.VulnsCreated, res.VulnsSkipped)
+	if len(res.Errors) > 0 {
+		fmt.Fprintf(os.Stderr, "  Warnings/Errors (%d):\n", len(res.Errors))
+		for _, e := range res.Errors {
+			fmt.Fprintf(os.Stderr, "    - %s\n", e)
+		}
+	}
 	return nil
 }
 
