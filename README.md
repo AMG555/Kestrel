@@ -158,11 +158,11 @@ ai:
     openai:
       provider: openai
       api_key: ${OPENAI_API_KEY}
-      model: gpt-4o
+      model: gpt-6
     anthropic:
       provider: anthropic
       api_key: ${ANTHROPIC_API_KEY}
-      model: claude-3-5-sonnet-20241022
+      model: claude-5-5-sonnet
     local:
       provider: ollama
       base_url: http://localhost:11434
