@@ -56,6 +56,7 @@ linters-settings:
       - name: exported
         arguments:
           - "checkPrivateReceivers"
+          - "disableStutteringCheck"
 
   gocritic:
     enabled-tags:
