@@ -13,6 +13,7 @@ import (
 	"kestrel/internal/doctor"
 	"kestrel/internal/eval"
 	"kestrel/internal/importer"
+	"kestrel/internal/initcmd"
 	"kestrel/internal/logger"
 	"kestrel/internal/processguard"
 	"kestrel/internal/report"
@@ -38,9 +39,11 @@ func main() {
 	isAuditVerifySubcommand := false
 	isReplaySubcommand := false
 	isImportSubcommand := false
+	isInitSubcommand := false
 	var auditArgPath string
 	var replayVulnID string
 	var importArgFile string
+	var initArgName string
 	if len(os.Args) > 1 {
 		if os.Args[1] == "doctor" {
 			isDoctorSubcommand = true
@@ -51,6 +54,14 @@ func main() {
 		} else if os.Args[1] == "eval" {
 			isEvalSubcommand = true
 			os.Args = append(os.Args[:1], os.Args[2:]...)
+		} else if os.Args[1] == "init" {
+			isInitSubcommand = true
+			if len(os.Args) > 2 && !strings.HasPrefix(os.Args[2], "-") {
+				initArgName = os.Args[2]
+				os.Args = append(os.Args[:1], os.Args[3:]...)
+			} else {
+				os.Args = append(os.Args[:1], os.Args[2:]...)
+			}
 		} else if os.Args[1] == "import" && len(os.Args) > 2 {
 			isImportSubcommand = true
 			if !strings.HasPrefix(os.Args[2], "-") {
@@ -116,6 +127,9 @@ func main() {
 	var importFileFlag = flag.String("import-file", "", "Path to scan file to import (nmap XML, nuclei JSONL, or burp XML)")
 	var importFormatFlag = flag.String("import-format", "", "Explicit scan format: nmap, nuclei, burp (auto-detected if omitted)")
 	var importProjectFlag = flag.String("import-project", "", "Project ID to associate imported assets and vulnerabilities with")
+	var initFlag = flag.Bool("init", false, "Initialize a new engagement with scope.yaml, project, and cryptographic audit anchor")
+	var initTargetFlag = flag.String("init-target", "", "Target domain, CIDR, or URL for the new engagement")
+	var initOutFlag = flag.String("init-out", "", "Directory to output scope.yaml and audit-checkpoint.json (defaults to current dir)")
 	flag.Parse()
 
 	// Check bare subcommands from flag.Args()
@@ -290,6 +304,41 @@ func main() {
 			fmt.Fprintf(os.Stderr, "SARIF export error: %v\n", err)
 			os.Exit(1)
 		}
+		return
+	}
+
+	if isInitSubcommand || *initFlag {
+		engName := initArgName
+		if engName == "" && flag.NArg() > 0 {
+			engName = flag.Arg(0)
+		}
+		if engName == "" {
+			engName = "Engagement-" + time.Now().UTC().Format("2006-01-02")
+		}
+		target := *initTargetFlag
+		outDir := *initOutFlag
+		res, err := initcmd.RunEngagementInit(cfg, initcmd.InitOptions{
+			Name:   engName,
+			Target: target,
+			OutDir: outDir,
+			Actor:  "operator",
+		})
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Initialization error: %v\n", err)
+			os.Exit(2)
+		}
+
+		fmt.Fprintln(os.Stdout, "ENGAGEMENT INITIALIZED SUCCESSFULLY")
+		fmt.Fprintln(os.Stdout, strings.Repeat("─", 60))
+		fmt.Fprintf(os.Stdout, "  Project ID:       %s\n", res.ProjectID)
+		fmt.Fprintf(os.Stdout, "  Project Name:     %s\n", res.ProjectName)
+		fmt.Fprintf(os.Stdout, "  Scope File:       %s\n", res.ScopeFile)
+		fmt.Fprintf(os.Stdout, "  Checkpoint File:  %s\n", res.CheckpointFile)
+		fmt.Fprintf(os.Stdout, "  Audit Head Hash:  %s\n", res.HeadHash)
+		fmt.Fprintf(os.Stdout, "  Checkpoint Seal:  %s\n", res.Seal)
+		fmt.Fprintln(os.Stdout, strings.Repeat("─", 60))
+		fmt.Fprintln(os.Stdout, "  ! Provide audit-checkpoint.json to the client before starting tests.")
+		fmt.Fprintln(os.Stdout, "    This anchors the genesis state and proves subsequent logs have not been tampered.")
 		return
 	}
 
