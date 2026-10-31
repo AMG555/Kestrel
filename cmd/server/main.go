@@ -5,6 +5,7 @@ import (
 	"kestrel/internal/app"
 	"kestrel/internal/demo"
 	"kestrel/internal/doctor"
+	"kestrel/internal/toolguard"
 	"kestrel/internal/config"
 	"kestrel/internal/database"
 	"kestrel/internal/logger"
@@ -55,6 +56,7 @@ func main() {
 	var shareBaseURL = flag.String("share-base-url", "", "Base URL for share links and badges (default: http(s)://<host>:<port>)")
 	var doctorFlag = flag.Bool("doctor", false, "Run diagnostic health checks on runtime, storage, isolation, and tools")
 	var demoFlag = flag.Bool("demo", false, "Run in one-command demo mode seeded with OWASP Juice Shop project, admin login, and findings")
+	var scopeFilePath = flag.String("scope-file", "", "Path to engagement scope.yaml file to enforce network-layer egress filtering")
 	flag.Parse()
 
 	// environment variable compatibility (for systemd/docker scenarios where args are not passed)
@@ -100,6 +102,18 @@ func main() {
 			os.Exit(1)
 		}
 		return
+	}
+
+	if strings.TrimSpace(*scopeFilePath) != "" {
+		scopePolicy, err := toolguard.LoadScopeFile(strings.TrimSpace(*scopeFilePath))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Scope file error: %v\n", err)
+			os.Exit(2)
+		}
+		egressGuard := toolguard.NewEgressGuard(scopePolicy)
+		toolguard.SetGlobalEgressGuard(egressGuard)
+		fmt.Printf("[SCOPE GUARD] Enforcing network-layer egress policy from %s (target=%q, in_scope_cidrs=%d, in_scope_domains=%d, out_of_scope_cidrs=%d, fail_closed=%v)\n",
+			*scopeFilePath, scopePolicy.TargetName, len(scopePolicy.InScopeCIDRs), len(scopePolicy.InScopeDomains), len(scopePolicy.OutOfScopeCIDRs), scopePolicy.FailClosed)
 	}
 
 	if *checkIsolation {

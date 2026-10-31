@@ -1,0 +1,35 @@
+# Kestrel Engagement Scope Configuration
+# Enforced at the network layer: drops disallowed outbound connections before SYN packets egress.
+version: 1
+target_name: "Example Client Penetration Test"
+
+# Authorized targets (allowlist)
+in_scope:
+  cidrs:
+    - "192.168.1.0/24"
+    - "10.0.0.0/8"
+  domains:
+    - "example.com"
+    - "*.example.com"
+  urls:
+    - "http://localhost:3000"
+    - "https://staging.example.com/api"
+
+# Prohibited targets (denylist - takes precedence over in_scope)
+out_of_scope:
+  cidrs:
+    - "10.0.100.0/24"
+  domains:
+    - "production.example.com"
+    - "admin.example.com"
+    - "*.gov"
+    - "*.mil"
+
+# Enforcement options
+options:
+  # When true, unresolvable hosts or unlisted targets are rejected immediately
+  fail_closed: true
+  # Always block AWS/GCP/Azure cloud instance metadata services (169.254.169.254)
+  block_cloud_metadata: true
+  # Allow loopback (127.0.0.1, ::1) for local targets (e.g. Juice Shop)
+  allow_localhost: true
