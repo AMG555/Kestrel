@@ -241,15 +241,83 @@ Live status badges can be embedded in your project README:
 
 ```bash
 # Export findings as OASIS SARIF 2.1.0 and fail build if severity >= HIGH
-./kestrel --export-sarif --sarif-out=results.sarif --sarif-fail-on=high
+./kestrel export sarif results.sarif --sarif-fail-on=high
 
 # Headless automated PoC retest verification (exit 0=resolved/fixed, 1=vulnerable, 2=error)
-./kestrel --retest-vuln=<vuln-id> --retest-target=https://staging.example.com
+./kestrel replay <vuln-id> --retest-target=https://staging.example.com
 ```
 
 Pre-configured CI workflows:
 - [GitHub Actions Security Scan](.github/workflows/kestrel-scan.yml)
 - [GitLab CI Pipeline](.gitlab-ci.yml)
+
+---
+
+## 🛠 CLI Command Reference & Operator Tooling
+
+Kestrel provides single-command CLI utilities designed for headless environments, CI pipelines, and operator workflows:
+
+### 1. One-Step Engagement Init (`kestrel init`)
+Scaffolds an engagement in one command: generates `scope.yaml`, registers the project in SQLite, writes a genesis audit record, and outputs an external `audit-checkpoint.json` receipt to deliver to the client before probing starts:
+```bash
+# Initialize engagement with target CIDR or domain
+./kestrel init "Acme Pentest Q4" --init-target="192.168.1.0/24"
+
+# Outputs:
+#   - scope.yaml (pre-configured network egress policy)
+#   - audit-checkpoint.json (cryptographic genesis receipt for client sign-off)
+```
+
+### 2. External Audit Sealing & Verification (`kestrel audit`)
+Ensures audit logs survive client billing and liability scrutiny by sealing state externally and verifying cryptographic hash continuity:
+```bash
+# Create signed external checkpoint receipt
+./kestrel audit checkpoint audit-checkpoint-q4.json
+
+# Offline verification: assert DB chain against external anchor receipt
+./kestrel audit verify audit-checkpoint-q4.json
+# Exits 0 on intact chain; exits 2 if any record was modified, dropped, or re-anchored
+```
+
+### 3. Scan Ingestion (`kestrel import`)
+Ingests findings and assets from standard security tools directly into project assets and vulnerabilities without requiring agent loops:
+```bash
+# Auto-detects format (Nmap XML, Nuclei JSONL, or Burp XML)
+./kestrel import scan-results.xml --project="proj-acme-q4"
+
+# Explicit format ingestion
+./kestrel import nuclei-findings.jsonl --format=nuclei --project="proj-acme-q4"
+```
+
+### 4. Tool Output Reproduction & Replay (`kestrel replay`)
+Re-executes tool executions verbatim and verifies whether a discovered vulnerability is fixed or still active:
+```bash
+# Replay vulnerability PoC against original target
+./kestrel replay <vuln-id>
+
+# Replay against a staging or patched target override
+./kestrel replay <vuln-id> --retest-target="https://staging.example.com"
+# Exits 0 if resolved/fixed, exits 1 if still vulnerable, exits 2 on runtime error
+```
+
+### 5. Audit-Ready Markdown Report Export (`kestrel export report`)
+Generates comprehensive client pentest assessment reports in Markdown, including executive summary, finding taxonomy, and verbatim forensic tool execution logs:
+```bash
+# Export Markdown report to file
+./kestrel export report report.md --project="proj-acme-q4"
+
+# Stream Markdown report directly to stdout
+./kestrel export report --project="proj-acme-q4"
+```
+
+### 6. Benchmark Evaluation & Pre-Flight Doctor (`kestrel eval` / `kestrel doctor`)
+```bash
+# Run deterministic golden evaluation benchmark suite against OWASP targets
+./kestrel eval
+
+# Run diagnostic health check (storage, port, process containment, tools)
+./kestrel doctor
+```
 
 ---
 

@@ -40,10 +40,14 @@ func main() {
 	isReplaySubcommand := false
 	isImportSubcommand := false
 	isInitSubcommand := false
+	isExportReportSubcommand := false
+	isExportSarifSubcommand := false
 	var auditArgPath string
 	var replayVulnID string
 	var importArgFile string
 	var initArgName string
+	var exportReportArgOut string
+	var exportSarifArgOut string
 	if len(os.Args) > 1 {
 		if os.Args[1] == "doctor" {
 			isDoctorSubcommand = true
@@ -78,6 +82,25 @@ func main() {
 			} else {
 				os.Args = append(os.Args[:1], os.Args[2:]...)
 			}
+		} else if os.Args[1] == "export" && len(os.Args) > 2 {
+			sub := strings.ToLower(strings.TrimSpace(os.Args[2]))
+			if sub == "report" {
+				isExportReportSubcommand = true
+				if len(os.Args) > 3 && !strings.HasPrefix(os.Args[3], "-") {
+					exportReportArgOut = os.Args[3]
+					os.Args = append(os.Args[:1], os.Args[4:]...)
+				} else {
+					os.Args = append(os.Args[:1], os.Args[3:]...)
+				}
+			} else if sub == "sarif" {
+				isExportSarifSubcommand = true
+				if len(os.Args) > 3 && !strings.HasPrefix(os.Args[3], "-") {
+					exportSarifArgOut = os.Args[3]
+					os.Args = append(os.Args[:1], os.Args[4:]...)
+				} else {
+					os.Args = append(os.Args[:1], os.Args[3:]...)
+				}
+			}
 		} else if os.Args[1] == "audit" && len(os.Args) > 2 {
 			sub := strings.ToLower(strings.TrimSpace(os.Args[2]))
 			if sub == "checkpoint" {
@@ -109,6 +132,11 @@ func main() {
 	var sarifOut = flag.String("sarif-out", "", "Output destination file path for SARIF export (defaults to stdout)")
 	var sarifFailOn = flag.String("sarif-fail-on", "", "CI quality gate: exit with code 2 if any finding severity >= threshold (critical, high, medium, low, info)")
 	var sarifSeedFixture = flag.Bool("sarif-seed-fixture", false, "Seed database with a test vulnerability fixture before SARIF export")
+	var exportReport = flag.Bool("export-report", false, "Export assessment report as Markdown to stdout or -report-out file and exit")
+	var reportProject = flag.String("report-project", "", "Filter findings for specific project ID in Markdown report export")
+	var reportOut = flag.String("report-out", "", "Output destination file path for Markdown report export (defaults to stdout)")
+	var projectFlag = flag.String("project", "", "Optional project ID filter for export/import operations")
+	var outFlag = flag.String("out", "", "Optional destination output file path for export operations")
 	var retestVuln = flag.String("retest-vuln", "", "Vulnerability ID to automatically retest using PoC verification (exit 0=resolved/fixed, 1=vulnerable, 2=error)")
 	var retestTarget = flag.String("retest-target", "", "Optional target URL override for -retest-vuln")
 	var reportShare = flag.String("report-share", "", "Generate a signed read-only share permalink for project ID and exit")
@@ -294,8 +322,38 @@ func main() {
 		return
 	}
 
-	if *exportSarif || *sarifProject != "" {
-		if err := runExportSarif(cfg, *sarifProject, *sarifOut, *sarifFailOn, *sarifSeedFixture); err != nil {
+	if isExportReportSubcommand || *exportReport {
+		outFile := exportReportArgOut
+		if outFile == "" {
+			outFile = *reportOut
+		}
+		if outFile == "" && *outFlag != "" {
+			outFile = *outFlag
+		}
+		projID := *reportProject
+		if projID == "" && *projectFlag != "" {
+			projID = *projectFlag
+		}
+		if err := runExportReport(cfg, projID, outFile); err != nil {
+			fmt.Fprintf(os.Stderr, "Report export error: %v\n", err)
+			os.Exit(1)
+		}
+		return
+	}
+
+	if isExportSarifSubcommand || *exportSarif || *sarifProject != "" {
+		outFile := exportSarifArgOut
+		if outFile == "" {
+			outFile = *sarifOut
+		}
+		if outFile == "" && *outFlag != "" {
+			outFile = *outFlag
+		}
+		projID := *sarifProject
+		if projID == "" && *projectFlag != "" {
+			projID = *projectFlag
+		}
+		if err := runExportSarif(cfg, projID, outFile, *sarifFailOn, *sarifSeedFixture); err != nil {
 			var qgErr *qualityGateFailedError
 			if errors.As(err, &qgErr) {
 				fmt.Fprintln(os.Stderr, err)
@@ -347,7 +405,11 @@ func main() {
 		if filePath == "" {
 			filePath = *importFileFlag
 		}
-		if err := runImportScan(cfg, filePath, *importFormatFlag, *importProjectFlag); err != nil {
+		projID := *importProjectFlag
+		if projID == "" && *projectFlag != "" {
+			projID = *projectFlag
+		}
+		if err := runImportScan(cfg, filePath, *importFormatFlag, projID); err != nil {
 			fmt.Fprintf(os.Stderr, "Import error: %v\n", err)
 			os.Exit(2)
 		}
@@ -683,13 +745,77 @@ func (e *retestExitError) Error() string {
 	return fmt.Sprintf("retest completed with exit code %d", e.exitCode)
 }
 
+func runExportReport(cfg *config.Config, projectID, outFile string) error {
+	dbPath := strings.TrimSpace(cfg.Database.Path)
+	if dbPath == "" {
+		dbPath = "data/conversations.db"
+	}
+	if dir := filepath.Dir(dbPath); dir != "" && dir != "." {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return fmt.Errorf("failed to create database directory: %w", err)
+		}
+	}
+
+	db, err := database.NewDB(dbPath, zap.NewNop())
+	if err != nil {
+		return fmt.Errorf("failed to open database: %w", err)
+	}
+	defer db.Close()
+
+	var proj *database.Project
+	if strings.TrimSpace(projectID) != "" {
+		var projErr error
+		proj, projErr = db.GetProject(strings.TrimSpace(projectID))
+		if projErr != nil {
+			return fmt.Errorf("project %q not found: %w", projectID, projErr)
+		}
+	}
+
+	filter := database.VulnerabilityListFilter{
+		ProjectID: strings.TrimSpace(projectID),
+	}
+	access := database.RBACListAccess{Scope: database.RBACScopeAll}
+
+	total, err := db.CountVulnerabilitiesForAccess(filter, access)
+	if err != nil {
+		return fmt.Errorf("failed to count vulnerabilities: %w", err)
+	}
+
+	vulns := make([]*database.Vulnerability, 0)
+	if total > 0 {
+		vulns, err = db.ListVulnerabilitiesForAccess(total, 0, filter, access)
+		if err != nil {
+			return fmt.Errorf("failed to list vulnerabilities: %w", err)
+		}
+	}
+
+	execs, _ := db.GetToolExecutionsForProject(strings.TrimSpace(projectID), 200)
+
+	mdContent := report.RenderMarkdownReport(report.MarkdownReportOptions{
+		Project:        proj,
+		Vulns:          vulns,
+		ToolExecutions: execs,
+		GeneratedAt:    time.Now().UTC(),
+	})
+
+	if outFile != "" {
+		if err := os.WriteFile(outFile, []byte(mdContent), 0o644); err != nil {
+			return fmt.Errorf("failed to write report output to %s: %w", outFile, err)
+		}
+		fmt.Fprintf(os.Stderr, "Exported assessment report (%d findings, %d tool executions) to %s\n", len(vulns), len(execs), outFile)
+	} else {
+		fmt.Print(mdContent)
+	}
+	return nil
+}
+
 func runExportSarif(cfg *config.Config, projectID, outFile, failOn string, seedFixture bool) error {
 	dbPath := strings.TrimSpace(cfg.Database.Path)
 	if dbPath == "" {
 		dbPath = "data/conversations.db"
 	}
 	if dir := filepath.Dir(dbPath); dir != "" && dir != "." {
-		if err := os.MkdirAll(dir, 0755); err != nil {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
 			return fmt.Errorf("failed to create database directory: %w", err)
 		}
 	}

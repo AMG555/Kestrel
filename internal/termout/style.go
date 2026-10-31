@@ -76,4 +76,3 @@ func (s *Style) Printf(format string, args ...interface{}) {
 func (s *Style) BlankLine() {
 	s.Println("")
 }
-

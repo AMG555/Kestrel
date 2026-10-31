@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"kestrel/internal/database"
+	"kestrel/internal/mcp"
 )
 
 func TestCreateAndVerifyShareToken(t *testing.T) {
@@ -98,8 +99,50 @@ func TestRenderHTMLReport_OpenGraphMeta(t *testing.T) {
 	if !strings.Contains(content, "SQL Injection in Customer Portal") {
 		t.Errorf("missing vulnerability title in report html")
 	}
-	if !strings.Contains(content, "curl -sSL https://raw.githubusercontent.com/AMG555/Kestrel/main/run.sh | bash") {
-		t.Errorf("missing quickstart CTA command in report html")
+	if !strings.Contains(content, "Self-hosted pentest workbench for small teams") {
+		t.Errorf("missing updated positioning CTA copy in report html")
+	}
+}
+
+func TestRenderHTMLReport_ToolExecutions(t *testing.T) {
+	project := &database.Project{
+		ID:   "p-1",
+		Name: "ACME Production Web",
+	}
+	execs := []*mcp.ToolExecution{
+		{
+			ID:        "exec-101",
+			ToolName:  "nmap_scan",
+			Status:    "completed",
+			Arguments: map[string]interface{}{"target": "192.168.1.1", "ports": "80,443"},
+			StartTime: time.Date(2026, 11, 1, 10, 0, 0, 0, time.UTC),
+			Duration:  2500 * time.Millisecond,
+			Result: &mcp.ToolResult{
+				Content: []mcp.Content{
+					{Type: "text", Text: "80/tcp open http\n443/tcp open https"},
+				},
+			},
+		},
+	}
+
+	htmlBytes := RenderHTMLReport(HTMLReportOptions{
+		Project:        project,
+		ToolExecutions: execs,
+		ShareToken:     "tok-execs",
+	})
+	content := string(htmlBytes)
+
+	if !strings.Contains(content, "Tool Execution &amp; Verbatim Evidence Log") && !strings.Contains(content, "Tool Execution & Verbatim Evidence Log") {
+		t.Errorf("expected tool execution log section in report html")
+	}
+	if !strings.Contains(content, "nmap_scan") {
+		t.Errorf("expected tool name nmap_scan in report html")
+	}
+	if !strings.Contains(content, "80/tcp open http") {
+		t.Errorf("expected verbatim stdout in report html")
+	}
+	if !strings.Contains(content, "exec-101") {
+		t.Errorf("expected execution ID in report html")
 	}
 }
 

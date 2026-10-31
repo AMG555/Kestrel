@@ -829,15 +829,28 @@ func (h *ProjectHandler) RenderPublicShare(c *gin.Context) {
 
 	access := database.RBACListAccess{Scope: database.RBACScopeAll}
 	vulns, _ := h.db.ListVulnerabilitiesForAccess(500, 0, database.VulnerabilityListFilter{ProjectID: projectID}, access)
+	execs, _ := h.db.GetToolExecutionsForProject(projectID, 200)
 
 	go func() {
 		_ = h.db.IncrementReportShareViews(share.ID)
 	}()
 
+	if c.Query("format") == "markdown" || c.Query("format") == "md" {
+		mdContent := report.RenderMarkdownReport(report.MarkdownReportOptions{
+			Project:        project,
+			Vulns:          vulns,
+			ToolExecutions: execs,
+			GeneratedAt:    time.Now().UTC(),
+		})
+		c.Data(http.StatusOK, "text/markdown; charset=utf-8", []byte(mdContent))
+		return
+	}
+
 	if c.Query("format") == "json" || strings.Contains(c.GetHeader("Accept"), "application/json") {
 		c.JSON(http.StatusOK, gin.H{
 			"project":         project,
 			"vulnerabilities": vulns,
+			"tool_executions": execs,
 			"views":           share.Views + 1,
 			"expires_at":      share.ExpiresAt,
 		})
@@ -845,9 +858,10 @@ func (h *ProjectHandler) RenderPublicShare(c *gin.Context) {
 	}
 
 	htmlContent := report.RenderHTMLReport(report.HTMLReportOptions{
-		Project:    project,
-		Vulns:      vulns,
-		ShareToken: token,
+		Project:        project,
+		Vulns:          vulns,
+		ToolExecutions: execs,
+		ShareToken:     token,
 	})
 	c.Data(http.StatusOK, "text/html; charset=utf-8", htmlContent)
 }

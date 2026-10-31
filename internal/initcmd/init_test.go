@@ -81,4 +81,3 @@ func TestRunEngagementInit(t *testing.T) {
 		t.Error("expected block_cloud_metadata=true in generated scope")
 	}
 }
-

@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"html"
@@ -14,6 +15,7 @@ import (
 	"time"
 
 	"kestrel/internal/database"
+	"kestrel/internal/mcp"
 )
 
 var (
@@ -98,6 +100,7 @@ func SignUnlockCookie(shareID string, secret []byte) string {
 type HTMLReportOptions struct {
 	Project            *database.Project
 	Vulns              []*database.Vulnerability
+	ToolExecutions     []*mcp.ToolExecution
 	BaseURL            string
 	ShareToken         string
 	PassphraseRequired bool
@@ -270,12 +273,73 @@ function copyCLI() {
 		}
 	}
 
+	if len(opts.ToolExecutions) > 0 {
+		sb.WriteString(`<h2 style="font-size:16px; font-weight:600; margin:28px 0 14px;">Tool Execution & Verbatim Evidence Log</h2>`)
+		for _, exec := range opts.ToolExecutions {
+			statusClass := "badge-info"
+			switch strings.ToLower(exec.Status) {
+			case "completed":
+				statusClass = "badge-low"
+			case "failed", "hard_timeout":
+				statusClass = "badge-critical"
+			case "blocked":
+				statusClass = "badge-high"
+			}
+
+			argsStr := "{}"
+			if len(exec.Arguments) > 0 {
+				if b, err := json.MarshalIndent(exec.Arguments, "", "  "); err == nil {
+					argsStr = string(b)
+				}
+			}
+
+			durationStr := ""
+			if exec.Duration > 0 {
+				durationStr = fmt.Sprintf(" (%s)", exec.Duration.Round(time.Millisecond))
+			}
+
+			sb.WriteString(`<div class="card">
+        <div class="card-header">
+          <div style="font-size:15px; font-weight:600; font-family:monospace;">` + html.EscapeString(exec.ToolName) + `</div>
+          <span class="badge ` + statusClass + `">` + html.EscapeString(exec.Status) + `</span>
+        </div>
+        <div style="font-size:12px; color:var(--muted); margin-bottom:8px;">
+          ` + html.EscapeString(exec.StartTime.UTC().Format("2006-01-02 15:04:05 UTC")) + durationStr + ` &bull; Execution ID: <code style="color:var(--text);">` + html.EscapeString(exec.ID) + `</code>
+        </div>
+        <div style="margin-top:6px;"><strong style="font-size:12px; color:var(--muted);">Arguments:</strong></div>
+        <div class="evidence-box">` + html.EscapeString(argsStr) + `</div>`)
+
+			var outTexts []string
+			if exec.Result != nil {
+				for _, c := range exec.Result.Content {
+					if c.Text != "" {
+						outTexts = append(outTexts, c.Text)
+					}
+				}
+			}
+			if len(outTexts) == 0 && exec.PartialOutput != "" {
+				outTexts = append(outTexts, exec.PartialOutput)
+			}
+			if len(outTexts) > 0 {
+				sb.WriteString(`<div style="margin-top:8px;"><strong style="font-size:12px; color:var(--muted);">Output / Result:</strong></div>
+        <div class="evidence-box">` + html.EscapeString(strings.Join(outTexts, "\n")) + `</div>`)
+			}
+
+			if exec.Error != "" {
+				sb.WriteString(`<div style="margin-top:8px;"><strong style="font-size:12px; color:var(--danger);">Error / Stderr:</strong></div>
+        <div class="evidence-box" style="border-left-color:var(--danger); color:var(--danger);">` + html.EscapeString(exec.Error) + `</div>`)
+			}
+
+			sb.WriteString(`</div>`)
+		}
+	}
+
 	// Growth mechanism CTA & attribution footer
 	sb.WriteString(`
   <div class="cta-box">
     <h3 style="font-size:16px; font-weight:700; margin-bottom:6px;">Automate Security Posture Verification with Kestrel</h3>
     <p style="color:var(--muted); font-size:13px; max-width:600px; margin:0 auto 12px;">
-      Autonomous agentic penetration testing, continuous reconnaissance, and verifiable SARIF quality gates.
+      Self-hosted pentest workbench for small teams. Run your tools, capture evidence, prove scope, and deliver reports that survive scrutiny.
     </p>
     <div style="background:var(--surface2); padding:10px; border-radius:6px; font-family:monospace; font-size:12px; display:inline-block;">
       curl -sSL https://raw.githubusercontent.com/AMG555/Kestrel/main/run.sh | bash
