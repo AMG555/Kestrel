@@ -1481,6 +1481,6 @@ func (m *BatchTaskManager) DeleteQueue(queueID string) error {
 // generateShortID generates a short ID
 func generateShortID() string {
 	b := make([]byte, 4)
-	rand.Read(b)
+	_, _ = rand.Read(b)
 	return time.Now().Format("150405") + "-" + hex.EncodeToString(b)
 }

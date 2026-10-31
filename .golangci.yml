@@ -69,6 +69,7 @@ issues:
       linters:
         - godot
         - gocritic
+        - errcheck
     # CGO/SQLite stubs produce errors we can't fix
     - path: internal/database/
       linters:

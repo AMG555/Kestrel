@@ -48,12 +48,7 @@ func (db *DB) SetRevocationCutoff(cutoff time.Time) error {
 	if db == nil {
 		return nil
 	}
-	_, err := db.Exec(`
-		INSERT INTO auth_metadata (key, value, updated_at)
-		VALUES ('global_revocation_cutoff', ?, ?)
-		ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
-	`, formatSQLiteUTC(cutoff.UTC()), formatSQLiteUTC(time.Now().UTC()))
-	return err
+	return db.SetAuthMetadata("global_revocation_cutoff", formatSQLiteUTC(cutoff.UTC()))
 }
 
 // GetRevocationCutoff retrieves the persistent global session revocation cutoff.
@@ -61,10 +56,12 @@ func (db *DB) GetRevocationCutoff() (time.Time, error) {
 	if db == nil {
 		return time.Time{}, nil
 	}
-	var val string
-	err := db.QueryRow(`SELECT value FROM auth_metadata WHERE key = 'global_revocation_cutoff'`).Scan(&val)
+	val, err := db.GetAuthMetadata("global_revocation_cutoff")
 	if err != nil {
 		return time.Time{}, err
+	}
+	if strings.TrimSpace(val) == "" {
+		return time.Time{}, nil
 	}
 	return parseDBTime(val), nil
 }

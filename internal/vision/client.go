@@ -12,6 +12,7 @@ import (
 	"kestrel/internal/config"
 	"kestrel/internal/llm"
 	"kestrel/internal/openai"
+	"kestrel/internal/toolguard"
 
 	einoopenai "github.com/cloudwego/eino-ext/components/model/openai"
 	"github.com/cloudwego/eino/schema"
@@ -49,13 +50,14 @@ func (c *Client) Analyze(ctx context.Context, img ImagePayload, question string)
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
+	dialer := &net.Dialer{
+		Timeout:   60 * time.Second,
+		KeepAlive: 60 * time.Second,
+	}
 	httpClient := &http.Client{
 		Timeout: timeout + 15*time.Second,
 		Transport: &http.Transport{
-			DialContext: (&net.Dialer{
-				Timeout:   60 * time.Second,
-				KeepAlive: 60 * time.Second,
-			}).DialContext,
+			DialContext:           toolguard.WrapDialContextWithGlobal(dialer.DialContext),
 			ResponseHeaderTimeout: timeout + 10*time.Second,
 		},
 	}

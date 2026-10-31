@@ -18,6 +18,7 @@ import (
 	"kestrel/internal/mcp"
 	"kestrel/internal/mcp/builtin"
 	"kestrel/internal/openai"
+	"kestrel/internal/toolguard"
 
 	"go.uber.org/zap"
 )
@@ -68,11 +69,12 @@ func NewAgent(cfg *config.OpenAIConfig, agentCfg *config.AgentConfig, mcpServer 
 	}
 
 	// configure HTTP Transport, optimize connection management and timeout settings
+	dialer := &net.Dialer{
+		Timeout:   300 * time.Second,
+		KeepAlive: 300 * time.Second,
+	}
 	transport := &http.Transport{
-		DialContext: (&net.Dialer{
-			Timeout:   300 * time.Second,
-			KeepAlive: 300 * time.Second,
-		}).DialContext,
+		DialContext:           toolguard.WrapDialContextWithGlobal(dialer.DialContext),
 		MaxIdleConns:          100,
 		MaxIdleConnsPerHost:   10,
 		IdleConnTimeout:       90 * time.Second,

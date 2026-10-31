@@ -64,6 +64,7 @@ func main() {
 	var evalFlag = flag.Bool("eval", false, "Run golden security benchmark evaluation against OWASP targets and exit")
 	var scopeFilePath = flag.String("scope-file", "", "Path to engagement scope.yaml file to enforce network-layer egress filtering")
 	var scopeExempt = flag.String("scope-exempt", "", "Comma-separated list of additional hosts/domains exempt from scope egress blocking")
+	var allowIMDS = flag.Bool("allow-imds", false, "Explicitly permit network egress to cloud instance metadata services (IMDS / 169.254.169.254)")
 	flag.Parse()
 
 	// Check bare subcommands from flag.Args()
@@ -152,6 +153,9 @@ func main() {
 			os.Exit(2)
 		}
 		egressGuard := toolguard.NewEgressGuard(scopePolicy)
+		if *allowIMDS {
+			egressGuard.SetAllowIMDS(true)
+		}
 
 		// Auto-exempt LLM endpoints so model inference is never blocked by scope guard
 		for _, ch := range cfg.AI.Channels {
@@ -166,8 +170,8 @@ func main() {
 		}
 
 		toolguard.SetGlobalEgressGuard(egressGuard)
-		fmt.Printf("[SCOPE GUARD] Enforcing network-layer egress policy from %s (target=%q, in_scope_cidrs=%d, in_scope_domains=%d, out_of_scope_cidrs=%d, fail_closed=%v)\n",
-			*scopeFilePath, scopePolicy.TargetName, len(scopePolicy.InScopeCIDRs), len(scopePolicy.InScopeDomains), len(scopePolicy.OutOfScopeCIDRs), scopePolicy.FailClosed)
+		fmt.Printf("[SCOPE GUARD] Enforcing network-layer egress policy from %s (target=%q, in_scope_cidrs=%d, in_scope_domains=%d, out_of_scope_cidrs=%d, fail_closed=%v, allow_imds=%v)\n",
+			*scopeFilePath, scopePolicy.TargetName, len(scopePolicy.InScopeCIDRs), len(scopePolicy.InScopeDomains), len(scopePolicy.OutOfScopeCIDRs), scopePolicy.FailClosed, *allowIMDS)
 	}
 
 	if *checkIsolation {

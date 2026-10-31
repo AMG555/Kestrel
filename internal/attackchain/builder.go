@@ -15,6 +15,7 @@ import (
 	"kestrel/internal/config"
 	"kestrel/internal/database"
 	"kestrel/internal/openai"
+	"kestrel/internal/toolguard"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -45,6 +46,7 @@ type Chain struct {
 // NewBuilder creates a new attack chain builder
 func NewBuilder(db *database.DB, openAIConfig *config.OpenAIConfig, logger *zap.Logger) *Builder {
 	transport := &http.Transport{
+		DialContext:         toolguard.WrapDialContextWithGlobal(nil),
 		MaxIdleConns:        100,
 		MaxIdleConnsPerHost: 10,
 		IdleConnTimeout:     90 * time.Second,

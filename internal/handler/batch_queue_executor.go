@@ -178,7 +178,7 @@ func (h *AgentHandler) executeOneBatchSubTask(queueID string, queue *BatchTaskQu
 		h.batchTaskManager.SetTaskCancel(queueID, task.ID, nil)
 		timeoutCancel()
 		if registered {
-			h.tasks.FinishTaskRun(conversationID, taskRunID, finishStatus)
+			_ = h.tasks.FinishTaskRun(conversationID, taskRunID, finishStatus)
 		}
 		cancelWithCause(nil)
 	}()

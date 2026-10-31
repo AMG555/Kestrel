@@ -62,3 +62,28 @@ func TestEgressGuard_BlocksIMDSEvenWithoutPolicy(t *testing.T) {
 		}
 	}
 }
+
+func TestEgressGuard_AllowIMDSOptIn(t *testing.T) {
+	guard := NewEgressGuard(nil)
+	if guard.AllowIMDS() {
+		t.Fatalf("expected AllowIMDS to default to false")
+	}
+
+	guard.SetAllowIMDS(true)
+	if !guard.AllowIMDS() {
+		t.Fatalf("expected AllowIMDS to be true after SetAllowIMDS(true)")
+	}
+
+	// With nil policy and allowIMDS=true, IMDS endpoints should pass without error
+	err := guard.CheckDestination(context.Background(), "169.254.169.254:80")
+	if err != nil {
+		t.Errorf("expected 169.254.169.254 to be allowed when allowIMDS=true and policy=nil, got: %v", err)
+	}
+
+	// Disable again
+	guard.SetAllowIMDS(false)
+	err = guard.CheckDestination(context.Background(), "169.254.169.254:80")
+	if err == nil || !strings.Contains(err.Error(), "cloud metadata endpoint IMDS access forbidden") {
+		t.Errorf("expected 169.254.169.254 to be blocked when allowIMDS=false, got: %v", err)
+	}
+}

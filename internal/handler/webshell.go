@@ -20,6 +20,7 @@ import (
 	"kestrel/internal/audit"
 	"kestrel/internal/database"
 	"kestrel/internal/security"
+	"kestrel/internal/toolguard"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -359,6 +360,7 @@ func NewWebShellHandler(logger *zap.Logger, db *database.DB) *WebShellHandler {
 			return nil
 		},
 		Transport: &http.Transport{
+			DialContext:       toolguard.WrapDialContextWithGlobal(nil),
 			DisableKeepAlives: false,
 			// Self-signed certificates or IP access (certificate has no IP SAN) are common in WebShell scenarios; skip verification by default, consistent with AntSword and similar clients.
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // intentional for webshell proxy

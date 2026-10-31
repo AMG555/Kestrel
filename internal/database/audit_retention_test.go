@@ -140,5 +140,61 @@ func TestAuditRetention_ArchiveThenDelete(t *testing.T) {
 	if err != nil || !valid {
 		t.Fatalf("expected remaining active chain to be valid, got valid=%v, err=%v", valid, err)
 	}
-}
 
+	// Verify archive immutability triggers
+	_, err = db.Exec("UPDATE audit_log_archive SET client_ip = '10.0.0.1' WHERE id = 'audit-old-1'")
+	if err == nil || !strings.Contains(err.Error(), "audit log archives are immutable") {
+		t.Fatalf("expected archive UPDATE to be blocked by trigger, got %v", err)
+	}
+	_, err = db.Exec("DELETE FROM audit_log_archive WHERE id = 'audit-old-1'")
+	if err == nil || !strings.Contains(err.Error(), "audit log archives are immutable") {
+		t.Fatalf("expected archive DELETE to be blocked by trigger, got %v", err)
+	}
+
+	// Purge all remaining rows (empty active table)
+	deleted, err = db.DeleteAuditLogsBefore(now.Add(24 * time.Hour))
+	if err != nil {
+		t.Fatalf("second purge failed: %v", err)
+	}
+	if deleted != 2 {
+		t.Fatalf("expected 2 deleted rows, got %d", deleted)
+	}
+
+	// Active table is now empty; archive has all 4 rows
+	valid, err = db.VerifyAuditLogChain()
+	if err != nil || !valid {
+		t.Fatalf("expected valid chain when active table is empty and archive holds full history, got valid=%v, err=%v", valid, err)
+	}
+
+	// Append a new log when active table is empty: must chain from archive tail, NOT GENESIS
+	followUpLog := &AuditLog{
+		ID:        "audit-follow-up-1",
+		CreatedAt: now.Add(48 * time.Hour),
+		Level:     "info",
+		Category:  "scan",
+		Action:    "run",
+		Result:    "success",
+		Actor:     "operator",
+		Message:   "follow-up execution",
+	}
+	if err := db.AppendAuditLog(followUpLog); err != nil {
+		t.Fatalf("AppendAuditLog after live table emptied failed: %v", err)
+	}
+	if followUpLog.PrevHash == "GENESIS" {
+		t.Fatalf("expected followUpLog.PrevHash to chain to archive tail, got GENESIS")
+	}
+
+	valid, err = db.VerifyAuditLogChain()
+	if err != nil || !valid {
+		t.Fatalf("expected valid chain after appending to empty live table, got valid=%v, err=%v", valid, err)
+	}
+
+	// Tamper pinned head: must be detected
+	if err := db.SetAuthMetadata("audit_chain_head", "tampered_head_hash"); err != nil {
+		t.Fatalf("failed to tamper pinned head: %v", err)
+	}
+	valid, err = db.VerifyAuditLogChain()
+	if valid || err == nil || !strings.Contains(err.Error(), "audit log head mismatch") {
+		t.Fatalf("expected audit log head mismatch, got valid=%v, err=%v", valid, err)
+	}
+}

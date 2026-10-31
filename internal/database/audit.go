@@ -131,10 +131,9 @@ func (db *DB) AppendAuditLog(row *AuditLog) error {
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	var lastHash string
-	_ = tx.QueryRow(`SELECT hash FROM audit_logs WHERE hash != '' ORDER BY rowid DESC LIMIT 1`).Scan(&lastHash)
-	if lastHash == "" {
-		lastHash = "GENESIS"
+	lastHash, err := lastAuditChainHash(tx)
+	if err != nil {
+		return fmt.Errorf("failed to determine audit chain predecessor: %w", err)
 	}
 	row.PrevHash = lastHash
 	row.Hash = computeAuditHash(lastHash, row, detailJSON)
@@ -154,6 +153,9 @@ func (db *DB) AppendAuditLog(row *AuditLog) error {
 	)
 	if err != nil {
 		return err
+	}
+	if err := setAuthMetadata(tx, "audit_chain_head", row.Hash); err != nil {
+		return fmt.Errorf("failed to pin audit chain head: %w", err)
 	}
 	return tx.Commit()
 }
@@ -281,13 +283,23 @@ func (db *DB) DeleteAuditLogsBefore(cutoff time.Time) (int64, error) {
 			archived_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 		);
 		CREATE INDEX IF NOT EXISTS idx_audit_log_archive_created ON audit_log_archive(created_at);
+		CREATE TRIGGER IF NOT EXISTS trg_audit_archive_no_update
+		BEFORE UPDATE ON audit_log_archive
+		BEGIN
+			SELECT RAISE(ABORT, 'audit log archives are immutable and cannot be updated');
+		END;
+		CREATE TRIGGER IF NOT EXISTS trg_audit_archive_no_delete
+		BEFORE DELETE ON audit_log_archive
+		BEGIN
+			SELECT RAISE(ABORT, 'audit log archives are immutable and cannot be deleted');
+		END;
 	`
 	if _, err := tx.Exec(createArchiveStmt); err != nil {
 		return 0, fmt.Errorf("failed to ensure audit_log_archive schema: %w", err)
 	}
 
 	archiveQuery := `
-		INSERT OR REPLACE INTO audit_log_archive (
+		INSERT OR IGNORE INTO audit_log_archive (
 			id, created_at, level, category, action, result, actor, session_hint,
 			client_ip, user_agent, resource_type, resource_id, message, detail_json,
 			prev_hash, hash, archived_at
@@ -298,6 +310,7 @@ func (db *DB) DeleteAuditLogsBefore(cutoff time.Time) (int64, error) {
 			prev_hash, hash, CURRENT_TIMESTAMP
 		FROM audit_logs
 		WHERE created_at < ?
+		ORDER BY rowid ASC
 	`
 	res, err := tx.Exec(archiveQuery, cutoffStr)
 	if err != nil {
@@ -357,8 +370,64 @@ func computeAuditHash(prevHash string, row *AuditLog, detailJSON string) string 
 	return hex.EncodeToString(h[:])
 }
 
-// VerifyAuditLogChain checks the integrity of the audit log cryptographic hash chain, safely handling pre-migration unchained prefixes.
+// VerifyAuditLogChain checks the integrity of the audit log cryptographic hash chain across both active and archived logs, safely handling pre-migration unchained prefixes and verifying against the pinned head.
 func (db *DB) VerifyAuditLogChain() (bool, error) {
+	if db == nil {
+		return true, nil
+	}
+
+	pinnedHead, _ := getAuthMetadata(db.DB, "audit_chain_head")
+
+	var archiveExists int
+	_ = db.QueryRow(`SELECT COUNT(1) FROM sqlite_master WHERE type='table' AND name='audit_log_archive'`).Scan(&archiveExists)
+
+	expectedPrev := "GENESIS"
+	hasVerifiedAny := false
+
+	if archiveExists > 0 {
+		aRows, err := db.Query(`
+			SELECT id, created_at, level, category, action, result, actor,
+				COALESCE(session_hint, ''), COALESCE(client_ip, ''), COALESCE(user_agent, ''),
+				COALESCE(resource_type, ''), COALESCE(resource_id, ''), message, COALESCE(detail_json, ''),
+				COALESCE(prev_hash, ''), COALESCE(hash, '')
+			FROM audit_log_archive
+			ORDER BY rowid ASC
+		`)
+		if err != nil {
+			return false, err
+		}
+		defer aRows.Close()
+
+		for aRows.Next() {
+			var row AuditLog
+			var createdAt, detailJSON, prevHash, hash string
+			if err := aRows.Scan(
+				&row.ID, &createdAt, &row.Level, &row.Category, &row.Action, &row.Result, &row.Actor,
+				&row.SessionHint, &row.ClientIP, &row.UserAgent,
+				&row.ResourceType, &row.ResourceID, &row.Message, &detailJSON,
+				&prevHash, &hash,
+			); err != nil {
+				return false, err
+			}
+			if hash == "" {
+				continue
+			}
+			row.CreatedAt = parseDBTime(createdAt).UTC()
+			if prevHash != expectedPrev {
+				return false, fmt.Errorf("hash chain broken in archive at log ID %s: expected prev_hash %s, got %s", row.ID, expectedPrev, prevHash)
+			}
+			computed := computeAuditHash(prevHash, &row, detailJSON)
+			if computed != hash {
+				return false, fmt.Errorf("audit log archive tampered at ID %s: expected hash %s, got %s", row.ID, computed, hash)
+			}
+			expectedPrev = hash
+			hasVerifiedAny = true
+		}
+		if err := aRows.Err(); err != nil {
+			return false, err
+		}
+	}
+
 	rows, err := db.Query(`
 		SELECT id, created_at, level, category, action, result, actor,
 			COALESCE(session_hint, ''), COALESCE(client_ip, ''), COALESCE(user_agent, ''),
@@ -372,8 +441,6 @@ func (db *DB) VerifyAuditLogChain() (bool, error) {
 	}
 	defer rows.Close()
 
-	expectedPrev := ""
-	firstChained := true
 	for rows.Next() {
 		var row AuditLog
 		var createdAt, detailJSON, prevHash, hash string
@@ -389,11 +456,7 @@ func (db *DB) VerifyAuditLogChain() (bool, error) {
 			// Unchained prefix from pre-migration schema — skip without failing integrity
 			continue
 		}
-		row.CreatedAt = parseDBTime(createdAt)
-		if firstChained {
-			firstChained = false
-			expectedPrev = prevHash
-		}
+		row.CreatedAt = parseDBTime(createdAt).UTC()
 		if prevHash != expectedPrev {
 			return false, fmt.Errorf("hash chain broken at log ID %s: expected prev_hash %s, got %s", row.ID, expectedPrev, prevHash)
 		}
@@ -402,6 +465,17 @@ func (db *DB) VerifyAuditLogChain() (bool, error) {
 			return false, fmt.Errorf("audit log tampered at ID %s: expected hash %s, got %s", row.ID, computed, hash)
 		}
 		expectedPrev = hash
+		hasVerifiedAny = true
 	}
-	return true, rows.Err()
+	if err := rows.Err(); err != nil {
+		return false, err
+	}
+
+	if pinnedHead != "" {
+		if !hasVerifiedAny || expectedPrev != pinnedHead {
+			return false, fmt.Errorf("audit log head mismatch: expected pinned head %s, got %s", pinnedHead, expectedPrev)
+		}
+	}
+
+	return true, nil
 }

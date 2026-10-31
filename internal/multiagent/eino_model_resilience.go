@@ -14,6 +14,7 @@ import (
 	"kestrel/internal/llm"
 	"kestrel/internal/openai"
 	"kestrel/internal/reasoning"
+	"kestrel/internal/toolguard"
 
 	agenticopenai "github.com/cloudwego/eino-ext/components/model/agenticopenai"
 	einoopenai "github.com/cloudwego/eino-ext/components/model/openai"
@@ -34,13 +35,14 @@ type einoModelFactory func(ctx context.Context, oa config.OpenAIConfig, mode ein
 type einoAgenticModelConfigFactory func(ctx context.Context, oa config.OpenAIConfig, mode einoModelMode) (model.AgenticModel, error)
 
 func newEinoBaseHTTPClient() *http.Client {
+	dialer := &net.Dialer{
+		Timeout:   300 * time.Second,
+		KeepAlive: 300 * time.Second,
+	}
 	return &http.Client{
 		Timeout: 30 * time.Minute,
 		Transport: &http.Transport{
-			DialContext: (&net.Dialer{
-				Timeout:   300 * time.Second,
-				KeepAlive: 300 * time.Second,
-			}).DialContext,
+			DialContext:           toolguard.WrapDialContextWithGlobal(dialer.DialContext),
 			MaxIdleConns:          100,
 			MaxIdleConnsPerHost:   10,
 			IdleConnTimeout:       90 * time.Second,

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -25,6 +26,7 @@ type EgressGuard struct {
 	resolver    *net.Resolver
 	exemptMu    sync.RWMutex
 	exemptHosts map[string]bool
+	allowIMDS   atomic.Bool
 }
 
 // NewEgressGuard creates an EgressGuard with the given policy and default plumbing exemptions.
@@ -105,6 +107,22 @@ func (g *EgressGuard) IsExempt(host string) bool {
 	return false
 }
 
+// SetAllowIMDS controls whether cloud instance metadata (IMDS) destinations are permitted.
+func (g *EgressGuard) SetAllowIMDS(allow bool) {
+	if g == nil {
+		return
+	}
+	g.allowIMDS.Store(allow)
+}
+
+// AllowIMDS returns whether cloud instance metadata (IMDS) destinations are permitted.
+func (g *EgressGuard) AllowIMDS() bool {
+	if g == nil {
+		return false
+	}
+	return g.allowIMDS.Load()
+}
+
 // Policy returns the underlying scope policy.
 func (g *EgressGuard) Policy() *ScopeFilePolicy {
 	return g.policy
@@ -124,8 +142,8 @@ func (g *EgressGuard) CheckDestination(ctx context.Context, hostOrAddr string) e
 		}
 	}
 
-	// 0. Cloud instance metadata (IMDS) must NEVER be bypassed, even if host is in exempt list or policy is nil
-	if IsCloudMetadataEndpoint(host) {
+	// 0. Cloud instance metadata (IMDS) check
+	if !g.AllowIMDS() && IsCloudMetadataEndpoint(host) {
 		return fmt.Errorf("%w: %s (cloud metadata endpoint IMDS access forbidden)", ErrScopeEgressBlocked, hostOrAddr)
 	}
 
@@ -191,4 +209,20 @@ func GetGlobalEgressGuard() *EgressGuard {
 	globalGuardMu.RLock()
 	defer globalGuardMu.RUnlock()
 	return globalGuard
+}
+
+// WrapDialContextWithGlobal wraps a dial function to check outbound addresses against the global egress guard.
+func WrapDialContextWithGlobal(baseDial func(ctx context.Context, network, addr string) (net.Conn, error)) func(ctx context.Context, network, addr string) (net.Conn, error) {
+	if baseDial == nil {
+		dialer := &net.Dialer{Timeout: 30 * time.Second, KeepAlive: 30 * time.Second}
+		baseDial = dialer.DialContext
+	}
+	return func(ctx context.Context, network, addr string) (net.Conn, error) {
+		if g := GetGlobalEgressGuard(); g != nil {
+			if err := g.CheckDestination(ctx, addr); err != nil {
+				return nil, err
+			}
+		}
+		return baseDial(ctx, network, addr)
+	}
 }
