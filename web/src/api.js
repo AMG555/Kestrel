@@ -92,21 +92,8 @@ export const api = {
   createUser:     (d)     => request('POST', '/rbac/users', d),
   updateUser:     (id, d) => request('PUT',  `/rbac/users/${id}`, d),
   deleteUser:     (id)    => request('DELETE', `/rbac/users/${id}`),
-  assignRole:     async (uid, rid) => {
-    const u = await request('GET', `/rbac/users`)
-    const user = (u.users || []).find(x => x.id === uid)
-    const currentRoles = user?.roles || []
-    if (!currentRoles.includes(rid)) {
-      return request('PUT', `/rbac/users/${uid}`, { roles: [...currentRoles, rid] })
-    }
-    return { ok: true }
-  },
-  revokeRole:     async (uid, rid) => {
-    const u = await request('GET', `/rbac/users`)
-    const user = (u.users || []).find(x => x.id === uid)
-    const currentRoles = user?.roles || []
-    return request('PUT', `/rbac/users/${uid}`, { roles: currentRoles.filter(r => r !== rid) })
-  },
+  assignRole:     (uid, rid) => request('POST', `/rbac/users/${uid}/roles/${rid}`),
+  revokeRole:     (uid, rid) => request('DELETE', `/rbac/users/${uid}/roles/${rid}`),
 
   // Roles
   listRoles:      ()      => request('GET',  '/rbac/roles'),

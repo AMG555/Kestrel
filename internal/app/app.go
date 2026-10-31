@@ -1053,9 +1053,12 @@ func setupRoutes(
 		protected.GET("/rbac/me", rbacHandler.Me)
 		protected.GET("/rbac/metadata", rbacHandler.Metadata)
 		protected.GET("/rbac/users", rbacHandler.ListUsers)
+		protected.GET("/rbac/users/:id", rbacHandler.GetUser)
 		protected.POST("/rbac/users", rbacHandler.CreateUser)
 		protected.PUT("/rbac/users/:id", rbacHandler.UpdateUser)
 		protected.DELETE("/rbac/users/:id", rbacHandler.DeleteUser)
+		protected.POST("/rbac/users/:id/roles/:roleId", rbacHandler.AssignUserRole)
+		protected.DELETE("/rbac/users/:id/roles/:roleId", rbacHandler.RevokeUserRole)
 
 		// users management aliases
 		protected.GET("/users", rbacHandler.ListUsers)

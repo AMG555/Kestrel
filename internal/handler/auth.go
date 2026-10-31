@@ -46,8 +46,10 @@ type loginRequest struct {
 }
 
 type changePasswordRequest struct {
-	OldPassword string `json:"oldPassword"`
-	NewPassword string `json:"newPassword"`
+	OldPassword     string `json:"oldPassword"`
+	NewPassword     string `json:"newPassword"`
+	CurrentPassword string `json:"current_password"`
+	NewPasswordAlt  string `json:"new_password"`
 }
 
 // Login verifies password and returns a session token.
@@ -111,13 +113,19 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"token":               token,
-		"expires_at":          expiresAt.UTC().Format(time.RFC3339),
-		"session_duration_hr": h.manager.SessionDurationHours(),
+		"token":                token,
+		"expires_at":           expiresAt.UTC().Format(time.RFC3339),
+		"session_duration_hr":  h.manager.SessionDurationHours(),
+		"id":                  session.UserID,
+		"user_id":             session.UserID,
+		"username":            session.Username,
+		"display_name":        session.DisplayName,
+		"must_change_password": session.MustChangePassword,
 		"user": gin.H{
-			"id":           session.UserID,
-			"username":     session.Username,
-			"display_name": session.DisplayName,
+			"id":                   session.UserID,
+			"username":             session.Username,
+			"display_name":         session.DisplayName,
+			"must_change_password": session.MustChangePassword,
 		},
 		"roles":             session.Roles,
 		"permissions":       permissionKeys(session.Permissions),
@@ -158,8 +166,14 @@ func (h *AuthHandler) ChangePassword(c *gin.Context) {
 		return
 	}
 
-	oldPassword := strings.TrimSpace(req.OldPassword)
-	newPassword := strings.TrimSpace(req.NewPassword)
+	oldPassword := req.OldPassword
+	if oldPassword == "" {
+		oldPassword = req.CurrentPassword
+	}
+	newPassword := req.NewPassword
+	if newPassword == "" {
+		newPassword = req.NewPasswordAlt
+	}
 
 	if oldPassword == "" || newPassword == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "current password and new password cannot be empty"})
@@ -239,13 +253,16 @@ func (h *AuthHandler) Validate(c *gin.Context) {
 		"token":      session.Token,
 		"expires_at": session.ExpiresAt.UTC().Format(time.RFC3339),
 		"user": gin.H{
-			"id":           session.UserID,
-			"username":     session.Username,
-			"display_name": session.DisplayName,
+			"id":                   session.UserID,
+			"username":             session.Username,
+			"display_name":         session.DisplayName,
+			"must_change_password": session.MustChangePassword,
 		},
-		"id":           session.UserID,
-		"username":     session.Username,
-		"display_name": session.DisplayName,
+		"id":                   session.UserID,
+		"user_id":              session.UserID,
+		"username":             session.Username,
+		"display_name":         session.DisplayName,
+		"must_change_password": session.MustChangePassword,
 		"roles":             session.Roles,
 		"permissions":       permissionKeys(session.Permissions),
 		"permission_scopes": session.PermissionScopes,

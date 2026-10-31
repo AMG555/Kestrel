@@ -19,15 +19,16 @@ var (
 
 // Session represents an authenticated user session.
 type Session struct {
-	Token            string
-	ExpiresAt        time.Time
-	UserID           string
-	Username         string
-	DisplayName      string
-	Roles            []string
-	Permissions      map[string]bool
-	PermissionScopes map[string]string
-	Scope            string
+	Token              string
+	ExpiresAt          time.Time
+	UserID             string
+	Username           string
+	DisplayName        string
+	MustChangePassword bool
+	Roles              []string
+	Permissions        map[string]bool
+	PermissionScopes   map[string]string
+	Scope              string
 }
 
 // AuthManager manages password-based authentication and session lifecycle.
@@ -131,15 +132,16 @@ func (a *AuthManager) authenticateSession(username, password string) (Session, e
 		roleIDs = append(roleIDs, role.ID)
 	}
 	return Session{
-		Token:            token,
-		ExpiresAt:        expiresAt,
-		UserID:           user.ID,
-		Username:         user.Username,
-		DisplayName:      user.DisplayName,
-		Roles:            roleIDs,
-		Permissions:      access.Permissions,
-		PermissionScopes: access.PermissionScopes,
-		Scope:            access.Scope,
+		Token:              token,
+		ExpiresAt:          expiresAt,
+		UserID:             user.ID,
+		Username:           user.Username,
+		DisplayName:        user.DisplayName,
+		MustChangePassword: user.MustChangePassword,
+		Roles:              roleIDs,
+		Permissions:        access.Permissions,
+		PermissionScopes:   access.PermissionScopes,
+		Scope:              access.Scope,
 	}, nil
 }
 

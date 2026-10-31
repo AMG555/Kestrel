@@ -20,6 +20,38 @@ export default function SettingsPage() {
   const [saving, setSaving]     = useState(false)
   const [saveMsg, setSaveMsg]   = useState('')
   const [theme, setTheme]       = useState(getStoredTheme)
+  const [currentPw, setCurrentPw] = useState('')
+  const [newPw, setNewPw]       = useState('')
+  const [confirmPw, setConfirmPw] = useState('')
+  const [pwError, setPwError]   = useState('')
+  const [pwSuccess, setPwSuccess] = useState('')
+  const [pwSaving, setPwSaving] = useState(false)
+
+  const handlePasswordChange = async (e) => {
+    e.preventDefault()
+    setPwError('')
+    setPwSuccess('')
+    if (newPw.length < 8) {
+      setPwError('New password must be at least 8 characters')
+      return
+    }
+    if (newPw !== confirmPw) {
+      setPwError('New passwords do not match')
+      return
+    }
+    setPwSaving(true)
+    try {
+      await api.changePassword(currentPw, newPw)
+      setPwSuccess('Password changed successfully')
+      setCurrentPw('')
+      setNewPw('')
+      setConfirmPw('')
+    } catch (err) {
+      setPwError(err.message || 'Failed to change password')
+    } finally {
+      setPwSaving(false)
+    }
+  }
 
   const toggleTheme = () => {
     const next = theme === 'dark' ? 'light' : 'dark'
@@ -239,14 +271,39 @@ export default function SettingsPage() {
             )}
           </section>
 
+          {/* Security / Password Change */}
+          <section style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: 20 }}>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: 15 }}>Security & Credentials</h3>
+            <form onSubmit={handlePasswordChange} style={{ display: 'grid', gap: 12, maxWidth: 400 }}>
+              <div>
+                <label style={{ fontSize: 11, color: 'var(--muted)', display: 'block', marginBottom: 4 }}>Current Password</label>
+                <input type="password" required value={currentPw} onChange={e => setCurrentPw(e.target.value)} style={{ width: '100%' }} />
+              </div>
+              <div>
+                <label style={{ fontSize: 11, color: 'var(--muted)', display: 'block', marginBottom: 4 }}>New Password (min 8 characters)</label>
+                <input type="password" required value={newPw} onChange={e => setNewPw(e.target.value)} style={{ width: '100%' }} />
+              </div>
+              <div>
+                <label style={{ fontSize: 11, color: 'var(--muted)', display: 'block', marginBottom: 4 }}>Confirm New Password</label>
+                <input type="password" required value={confirmPw} onChange={e => setConfirmPw(e.target.value)} style={{ width: '100%' }} />
+              </div>
+              {pwError && <div style={{ color: 'var(--danger)', fontSize: 12 }}>{pwError}</div>}
+              {pwSuccess && <div style={{ color: '#2ea043', fontSize: 12 }}>{pwSuccess}</div>}
+              <div>
+                <button type="submit" disabled={pwSaving} className="primary" style={{ fontSize: 12 }}>
+                  {pwSaving ? 'Updating…' : 'Update Password'}
+                </button>
+              </div>
+            </form>
+          </section>
+
           {/* Disclaimer */}
           <section style={{ background: '#d2992208', border: '1px solid var(--warn)', borderRadius: 8, padding: 16 }}>
             <div style={{ fontWeight: 600, color: 'var(--warn)', marginBottom: 6 }}>⚠ Authorized Use Only</div>
             <div style={{ color: 'var(--muted)', fontSize: 13, lineHeight: 1.6 }}>
               Kestrel is an authorized security operations platform. Use only on systems you own or
-              are explicitly permitted to test. All tool executions are logged to an append-only
-              audit trail. The default tool set is scoped to read-only recon; exploitation,
-              credential-dumping, and remote-shell tool classes are deliberately excluded.
+              are explicitly permitted to test. All tool executions and operations are governed by
+              RBAC authorization controls and recorded to an immutable audit trail.
             </div>
           </section>
 

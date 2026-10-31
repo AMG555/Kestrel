@@ -427,3 +427,73 @@ func (h *RBACHandler) DeleteResourceAssignment(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true})
 }
+
+func (h *RBACHandler) GetUser(c *gin.Context) {
+	id := strings.TrimSpace(c.Param("id"))
+	user, err := h.db.GetRBACUserByID(id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+		return
+	}
+	roleIDs, _ := h.db.ListRBACUserRoleIDs(user.ID)
+	c.JSON(http.StatusOK, gin.H{
+		"user": gin.H{
+			"id":                   user.ID,
+			"username":             user.Username,
+			"display_name":         user.DisplayName,
+			"enabled":              user.Enabled,
+			"is_builtin":           user.IsBuiltin,
+			"must_change_password": user.MustChangePassword,
+			"roles":                roleIDs,
+			"created_at":           user.CreatedAt,
+			"updated_at":           user.UpdatedAt,
+		},
+		"id":                   user.ID,
+		"username":             user.Username,
+		"display_name":         user.DisplayName,
+		"enabled":              user.Enabled,
+		"is_builtin":           user.IsBuiltin,
+		"must_change_password": user.MustChangePassword,
+		"roles":                roleIDs,
+	})
+}
+
+func (h *RBACHandler) AssignUserRole(c *gin.Context) {
+	uid := strings.TrimSpace(c.Param("id"))
+	rid := strings.TrimSpace(c.Param("roleId"))
+	if uid == "" || rid == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "user id and role id are required"})
+		return
+	}
+	if err := h.db.AssignRBACUserRole(uid, rid); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if h.audit != nil {
+		h.audit.RecordOK(c, "rbac", "assign_role", "assign role to user", "user", uid, map[string]interface{}{"role_id": rid})
+	}
+	if h.auth != nil {
+		h.auth.RevokeUserSessions(uid)
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+func (h *RBACHandler) RevokeUserRole(c *gin.Context) {
+	uid := strings.TrimSpace(c.Param("id"))
+	rid := strings.TrimSpace(c.Param("roleId"))
+	if uid == "" || rid == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "user id and role id are required"})
+		return
+	}
+	if err := h.db.RevokeRBACUserRole(uid, rid); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if h.audit != nil {
+		h.audit.RecordOK(c, "rbac", "revoke_role", "revoke role from user", "user", uid, map[string]interface{}{"role_id": rid})
+	}
+	if h.auth != nil {
+		h.auth.RevokeUserSessions(uid)
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}

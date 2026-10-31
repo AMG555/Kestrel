@@ -35,14 +35,15 @@ var rbacAssignableResourceTables = map[string]string{
 
 // RBACUser is a local platform account.
 type RBACUser struct {
-	ID           string    `json:"id"`
-	Username     string    `json:"username"`
-	DisplayName  string    `json:"displayName,omitempty"`
-	PasswordHash string    `json:"-"`
-	Enabled      bool      `json:"enabled"`
-	IsBuiltin    bool      `json:"isBuiltin"`
-	CreatedAt    time.Time `json:"createdAt"`
-	UpdatedAt    time.Time `json:"updatedAt"`
+	ID                 string    `json:"id"`
+	Username           string    `json:"username"`
+	DisplayName        string    `json:"displayName,omitempty"`
+	PasswordHash       string    `json:"-"`
+	Enabled            bool      `json:"enabled"`
+	IsBuiltin          bool      `json:"isBuiltin"`
+	MustChangePassword bool      `json:"must_change_password"`
+	CreatedAt          time.Time `json:"createdAt"`
+	UpdatedAt          time.Time `json:"updatedAt"`
 }
 
 // RBACRole groups permissions and a resource visibility scope.
@@ -96,6 +97,7 @@ func (db *DB) initRBACTables() error {
 			password_hash TEXT NOT NULL,
 			enabled INTEGER NOT NULL DEFAULT 1,
 			is_builtin INTEGER NOT NULL DEFAULT 0,
+			must_change_password INTEGER NOT NULL DEFAULT 0,
 			created_at DATETIME NOT NULL,
 			updated_at DATETIME NOT NULL
 		);`,
@@ -203,6 +205,7 @@ func (db *DB) migrateRBACOwnershipColumns() error {
 		{"c2_listeners", "owner_user_id", "ALTER TABLE c2_listeners ADD COLUMN owner_user_id TEXT"},
 		{"tool_executions", "owner_user_id", "ALTER TABLE tool_executions ADD COLUMN owner_user_id TEXT"},
 		{"tool_executions", "conversation_id", "ALTER TABLE tool_executions ADD COLUMN conversation_id TEXT"},
+		{"rbac_users", "must_change_password", "ALTER TABLE rbac_users ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0"},
 	} {
 		if err := db.addColumnIfMissing(col.table, col.name, col.stmt); err != nil {
 			return err
@@ -420,13 +423,14 @@ func (db *DB) GetRBACUserByID(id string) (*RBACUser, error) {
 
 func (db *DB) scanRBACUser(row *sql.Row) (*RBACUser, error) {
 	var u RBACUser
-	var enabled, builtin int
+	var enabled, builtin, mustChange int
 	var createdAt, updatedAt string
-	if err := row.Scan(&u.ID, &u.Username, &u.DisplayName, &u.PasswordHash, &enabled, &builtin, &createdAt, &updatedAt); err != nil {
+	if err := row.Scan(&u.ID, &u.Username, &u.DisplayName, &u.PasswordHash, &enabled, &builtin, &mustChange, &createdAt, &updatedAt); err != nil {
 		return nil, err
 	}
 	u.Enabled = enabled != 0
 	u.IsBuiltin = builtin != 0
+	u.MustChangePassword = mustChange != 0
 	u.CreatedAt = parseDBTime(createdAt)
 	u.UpdatedAt = parseDBTime(updatedAt)
 	return &u, nil
@@ -1254,7 +1258,7 @@ func (db *DB) UpdateRBACUserPassword(userID, passwordHash string) error {
 	if userID == "" || passwordHash == "" {
 		return errors.New("user_id and password_hash are required")
 	}
-	_, err := db.Exec(`UPDATE rbac_users SET password_hash = ?, updated_at = ? WHERE id = ?`, passwordHash, time.Now(), userID)
+	_, err := db.Exec(`UPDATE rbac_users SET password_hash = ?, must_change_password = 0, updated_at = ? WHERE id = ?`, passwordHash, time.Now(), userID)
 	return err
 }
 
@@ -1275,8 +1279,8 @@ func (db *DB) CreateRBACUser(username, displayName, passwordHash string, enabled
 	}
 	defer func() { _ = tx.Rollback() }()
 	if _, err := tx.Exec(`
-		INSERT INTO rbac_users (id, username, display_name, password_hash, enabled, is_builtin, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, 0, ?, ?)
+		INSERT INTO rbac_users (id, username, display_name, password_hash, enabled, is_builtin, must_change_password, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, 0, 0, ?, ?)
 	`, id, username, strings.TrimSpace(displayName), passwordHash, boolToInt(enabled), now, now); err != nil {
 		return nil, err
 	}
@@ -1450,4 +1454,14 @@ func (db *DB) DeleteRBACResourceAssignmentWithDetails(id string) (*RBACResourceA
 		return nil, err
 	}
 	return &row, nil
+}
+
+func (db *DB) AssignRBACUserRole(userID, roleID string) error {
+	_, err := db.Exec(`INSERT OR IGNORE INTO rbac_user_roles (user_id, role_id, created_at) VALUES (?, ?, ?)`, strings.TrimSpace(userID), strings.TrimSpace(roleID), time.Now())
+	return err
+}
+
+func (db *DB) RevokeRBACUserRole(userID, roleID string) error {
+	_, err := db.Exec(`DELETE FROM rbac_user_roles WHERE user_id = ? AND role_id = ?`, strings.TrimSpace(userID), strings.TrimSpace(roleID))
+	return err
 }
