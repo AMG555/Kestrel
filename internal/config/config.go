@@ -1611,6 +1611,70 @@ func persistMCPAuth(path string, mcp *MCPConfig) error {
 	return os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0644)
 }
 
+// EnsureJWTSecret ensures auth.jwt_secret is populated with a strong secret and persisted with 0600 permissions.
+func EnsureJWTSecret(path string, cfg *Config) error {
+	if strings.TrimSpace(cfg.Auth.JWTSecret) != "" {
+		return nil
+	}
+	if envSecret := strings.TrimSpace(os.Getenv("JWT_SECRET")); envSecret != "" {
+		cfg.Auth.JWTSecret = envSecret
+		return nil
+	}
+	token, err := generateRandomToken()
+	if err != nil {
+		return fmt.Errorf("generate JWT secret failed: %w", err)
+	}
+	cfg.Auth.JWTSecret = token
+	return persistJWTSecret(path, token)
+}
+
+func persistJWTSecret(path string, secret string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	lines := strings.Split(string(data), "\n")
+	inAuthBlock := false
+	authIndent := -1
+	foundKey := false
+
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if !inAuthBlock {
+			if strings.HasPrefix(trimmed, "auth:") {
+				inAuthBlock = true
+				authIndent = len(line) - len(strings.TrimLeft(line, " "))
+			}
+			continue
+		}
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		leadingSpaces := len(line) - len(strings.TrimLeft(line, " "))
+		if leadingSpaces <= authIndent {
+			inAuthBlock = false
+			continue
+		}
+		rest := strings.TrimSpace(line[leadingSpaces:])
+		if strings.HasPrefix(rest, "jwt_secret:") {
+			prefix := line[:leadingSpaces]
+			lines[i] = fmt.Sprintf("%sjwt_secret: %q", prefix, secret)
+			foundKey = true
+			break
+		}
+	}
+	if !foundKey {
+		for i, line := range lines {
+			if strings.TrimSpace(line) == "auth:" {
+				lines = append(lines[:i+1], append([]string{"  jwt_secret: " + fmt.Sprintf("%q", secret)}, lines[i+1:]...)...)
+				foundKey = true
+				break
+			}
+		}
+	}
+	return os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0600)
+}
+
 // EnsureMCPAuth only provisions the privileged static service credential when
 // global service access was explicitly enabled.
 func EnsureMCPAuth(path string, cfg *Config) error {

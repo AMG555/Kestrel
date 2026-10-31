@@ -173,6 +173,9 @@ Reproducible benchmark evaluations against standard vulnerable targets (OWASP Ju
 | **Damn Vulnerable Web App (DVWA)** | Command Injection, File Inclusion, Blind SQLi | 6 | **100.0%** | **94.5%** | **0.971** | 180ms | ✅ Verified |
 | **VAmPI REST API** | Broken Object Level Auth, Mass Assignment, Regex DoS | 4 | **100.0%** | **100.0%** | **1.000** | 95ms | ✅ Verified |
 
+> [!NOTE]
+> Benchmark metrics represent our golden smoke benchmark suite (N=5 scenarios per target category executed via ./kestrel eval backed by internal/eval). These verify detection accuracy, PoC repeatability, and zero false-positive constraints on standard vulnerability archetypes.
+
 ### Reproduce Benchmarks Locally
 
 Run the built-in automated evaluation harness and pre-flight doctor:

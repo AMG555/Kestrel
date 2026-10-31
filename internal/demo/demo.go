@@ -51,15 +51,20 @@ func SeedDemoProject(db *database.DB, jwtSecret []byte, baseURL string) (*DemoSe
 			user, _ = db.GetRBACUserByUsername(adminUser)
 		}
 	}
+	if user != nil {
+		_ = db.SetRBACUserMustChangePassword(user.ID, true)
+	}
 
 	// 2. Mint admin JWT token
 	claims := security.JWTClaims{
-		Subject:   user.ID,
-		Username:  user.Username,
-		Roles:     []string{"admin"},
-		Scope:     "all",
-		IssuedAt:  time.Now().Unix(),
-		ExpiresAt: time.Now().Add(24 * time.Hour * 7).Unix(),
+		Subject:            user.ID,
+		Username:           user.Username,
+		DisplayName:        user.DisplayName,
+		MustChangePassword: true,
+		Roles:              []string{"admin"},
+		Scope:              "all",
+		IssuedAt:           time.Now().Unix() + 1,
+		ExpiresAt:          time.Now().Add(24 * time.Hour * 7).Unix(),
 	}
 	adminToken, err := security.SignJWT(claims, jwtSecret)
 	if err != nil {

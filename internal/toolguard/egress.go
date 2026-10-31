@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 )
@@ -20,18 +21,88 @@ var (
 
 // EgressGuard enforces network-layer outbound connection filtering against a ScopeFilePolicy.
 type EgressGuard struct {
-	policy   *ScopeFilePolicy
-	resolver *net.Resolver
+	policy      *ScopeFilePolicy
+	resolver    *net.Resolver
+	exemptMu    sync.RWMutex
+	exemptHosts map[string]bool
 }
 
-// NewEgressGuard creates an EgressGuard with the given policy.
+// NewEgressGuard creates an EgressGuard with the given policy and default plumbing exemptions.
 func NewEgressGuard(policy *ScopeFilePolicy) *EgressGuard {
-	return &EgressGuard{
+	g := &EgressGuard{
 		policy: policy,
 		resolver: &net.Resolver{
 			PreferGo: true,
 		},
+		exemptHosts: make(map[string]bool),
 	}
+
+	// Default infrastructure plumbing exemptions:
+	// LLM providers, local inference, alert bots, DNS/loopback
+	g.AddExemptHosts(
+		"api.openai.com",
+		"api.anthropic.com",
+		"generativelanguage.googleapis.com",
+		"api.groq.com",
+		"api.deepseek.com",
+		"localhost",
+		"127.0.0.1",
+		"::1",
+		"api.telegram.org",
+		"hooks.slack.com",
+		"discord.com",
+		"open.feishu.cn",
+		"oapi.dingtalk.com",
+		"qyapi.weixin.qq.com",
+	)
+
+	return g
+}
+
+// AddExemptHosts registers hostnames or URLs that represent infrastructure plumbing.
+func (g *EgressGuard) AddExemptHosts(hosts ...string) {
+	if g == nil {
+		return
+	}
+	g.exemptMu.Lock()
+	defer g.exemptMu.Unlock()
+	for _, h := range hosts {
+		trimmed := strings.ToLower(strings.TrimSpace(h))
+		if trimmed == "" {
+			continue
+		}
+		canonical := ExtractHost(trimmed)
+		if canonical != "" {
+			g.exemptHosts[canonical] = true
+		} else {
+			g.exemptHosts[trimmed] = true
+		}
+	}
+}
+
+// IsExempt checks if a host is an exempt plumbing service.
+func (g *EgressGuard) IsExempt(host string) bool {
+	if g == nil {
+		return false
+	}
+	g.exemptMu.RLock()
+	defer g.exemptMu.RUnlock()
+
+	canonical := ExtractHost(host)
+	if canonical == "" {
+		canonical = strings.ToLower(strings.TrimSpace(host))
+	}
+
+	if g.exemptHosts[canonical] {
+		return true
+	}
+
+	for ex := range g.exemptHosts {
+		if MatchDomainPattern(canonical, ex) {
+			return true
+		}
+	}
+	return false
 }
 
 // Policy returns the underlying scope policy.
@@ -48,6 +119,11 @@ func (g *EgressGuard) CheckDestination(ctx context.Context, hostOrAddr string) e
 	host := hostOrAddr
 	if h, _, err := net.SplitHostPort(hostOrAddr); err == nil {
 		host = h
+	}
+
+	// 1. Plumbing exemption check
+	if g.IsExempt(host) {
+		return nil
 	}
 
 	allowed, reason := g.policy.EvaluateDestination(ctx, host, g.resolver)

@@ -87,6 +87,13 @@ func VerifyShareToken(token string, secret []byte) (string, time.Time, error) {
 	return projectID, expiresAt, nil
 }
 
+// SignUnlockCookie creates an HMAC-SHA256 signature for a passphrase unlock cookie.
+func SignUnlockCookie(shareID string, secret []byte) string {
+	mac := hmac.New(sha256.New, secret)
+	mac.Write([]byte("unlocked_share:" + shareID))
+	return hex.EncodeToString(mac.Sum(nil))
+}
+
 // HTMLReportOptions holds data for rendering a read-only report permalink.
 type HTMLReportOptions struct {
 	Project            *database.Project
@@ -314,3 +321,4 @@ button { width: 100%; padding: 10px; background: #58a6ff; color: #000; font-weig
 </body>
 </html>`)
 }
+

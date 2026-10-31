@@ -29,14 +29,19 @@ func clampProjectDescription(s string) string {
 
 // ProjectHandler handles project management requests.
 type ProjectHandler struct {
-	db          *database.DB
-	logger      *zap.Logger
-	authManager *security.AuthManager
+	db            *database.DB
+	logger        *zap.Logger
+	authManager   *security.AuthManager
+	unlockLimiter *security.RateLimiter
 }
 
 // NewProjectHandler creates a project management handler.
 func NewProjectHandler(db *database.DB, logger *zap.Logger) *ProjectHandler {
-	return &ProjectHandler{db: db, logger: logger}
+	return &ProjectHandler{
+		db:            db,
+		logger:        logger,
+		unlockLimiter: security.NewRateLimiter(5, 1*time.Minute),
+	}
 }
 
 // SetAuthManager injects AuthManager for share token signing.
@@ -810,7 +815,8 @@ func (h *ProjectHandler) RenderPublicShare(c *gin.Context) {
 
 	if share.PassphraseHash != "" {
 		cookieVal, _ := c.Cookie("unlocked_share_" + share.ID)
-		if cookieVal != "1" {
+		expectedCookie := report.SignUnlockCookie(share.ID, secret)
+		if cookieVal == "" || cookieVal != expectedCookie {
 			htmlContent := report.RenderHTMLReport(report.HTMLReportOptions{
 				Project:            project,
 				ShareToken:         token,
@@ -846,8 +852,12 @@ func (h *ProjectHandler) RenderPublicShare(c *gin.Context) {
 	c.Data(http.StatusOK, "text/html; charset=utf-8", htmlContent)
 }
 
-// UnlockPublicShare POST /r/:token/unlock verifies passphrase and unlocks report.
+// UnlockPublicShare POST /r/:token/unlock verifies passphrase and unlocks report with rate limiting.
 func (h *ProjectHandler) UnlockPublicShare(c *gin.Context) {
+	if h.unlockLimiter != nil && !h.unlockLimiter.Allow(c.ClientIP()) {
+		c.String(http.StatusTooManyRequests, "too many unlock attempts; please wait a moment")
+		return
+	}
 	token := strings.TrimSpace(c.Param("token"))
 	secret := h.getJWTSecret()
 	_, _, err := report.VerifyShareToken(token, secret)
@@ -869,7 +879,8 @@ func (h *ProjectHandler) UnlockPublicShare(c *gin.Context) {
 		return
 	}
 
-	c.SetCookie("unlocked_share_"+share.ID, "1", 3600*24, "/", "", false, true)
+	cookieVal := report.SignUnlockCookie(share.ID, secret)
+	c.SetCookie("unlocked_share_"+share.ID, cookieVal, 3600*24, "/", "", false, true)
 	c.Redirect(http.StatusFound, "/r/"+token)
 }
 

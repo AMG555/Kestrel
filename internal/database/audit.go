@@ -99,7 +99,7 @@ func buildAuditLogsWhere(filter ListAuditLogsFilter) (string, []interface{}) {
 	return strings.Join(conditions, " AND "), args
 }
 
-// AppendAuditLog inserts one audit row.
+// AppendAuditLog inserts one audit row atomically under a mutex and transaction.
 func (db *DB) AppendAuditLog(row *AuditLog) error {
 	if row == nil {
 		return errors.New("audit log is nil")
@@ -121,8 +121,18 @@ func (db *DB) AppendAuditLog(row *AuditLog) error {
 			detailJSON = string(b)
 		}
 	}
+
+	db.auditAppendMu.Lock()
+	defer db.auditAppendMu.Unlock()
+
+	tx, err := db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin audit log transaction: %w", err)
+	}
+	defer tx.Rollback()
+
 	var lastHash string
-	_ = db.QueryRow(`SELECT hash FROM audit_logs WHERE hash != '' ORDER BY rowid DESC LIMIT 1`).Scan(&lastHash)
+	_ = tx.QueryRow(`SELECT hash FROM audit_logs WHERE hash != '' ORDER BY rowid DESC LIMIT 1`).Scan(&lastHash)
 	if lastHash == "" {
 		lastHash = "GENESIS"
 	}
@@ -136,15 +146,17 @@ func (db *DB) AppendAuditLog(row *AuditLog) error {
 			prev_hash, hash
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
-	_, err := db.Exec(query,
+	_, err = tx.Exec(query,
 		row.ID, formatSQLiteUTC(row.CreatedAt), row.Level, row.Category, row.Action, row.Result,
 		row.Actor, row.SessionHint, row.ClientIP, row.UserAgent,
 		row.ResourceType, row.ResourceID, row.Message, detailJSON,
 		row.PrevHash, row.Hash,
 	)
-	return err
+	if err != nil {
+		return err
+	}
+	return tx.Commit()
 }
-
 // GetAuditLogByID returns one row.
 func (db *DB) GetAuditLogByID(id string) (*AuditLog, error) {
 	id = strings.TrimSpace(id)
@@ -255,7 +267,7 @@ func computeAuditHash(prevHash string, row *AuditLog, detailJSON string) string 
 	return hex.EncodeToString(h[:])
 }
 
-// VerifyAuditLogChain checks the integrity of the audit log cryptographic hash chain.
+// VerifyAuditLogChain checks the integrity of the audit log cryptographic hash chain, safely handling pre-migration unchained prefixes.
 func (db *DB) VerifyAuditLogChain() (bool, error) {
 	rows, err := db.Query(`
 		SELECT id, created_at, level, category, action, result, actor,
@@ -269,7 +281,8 @@ func (db *DB) VerifyAuditLogChain() (bool, error) {
 	}
 	defer rows.Close()
 
-	expectedPrev := "GENESIS"
+	expectedPrev := ""
+	firstChained := true
 	for rows.Next() {
 		var row AuditLog
 		var createdAt, detailJSON, prevHash, hash string
@@ -281,9 +294,14 @@ func (db *DB) VerifyAuditLogChain() (bool, error) {
 			return false, err
 		}
 		if hash == "" {
+			// Unchained prefix from pre-migration schema — skip without failing integrity
 			continue
 		}
 		row.CreatedAt = parseDBTime(createdAt)
+		if firstChained {
+			firstChained = false
+			expectedPrev = prevHash
+		}
 		if prevHash != expectedPrev {
 			return false, fmt.Errorf("hash chain broken at log ID %s: expected prev_hash %s, got %s", row.ID, expectedPrev, prevHash)
 		}

@@ -81,6 +81,7 @@ func configureSQLitePragmas(db *sql.DB) error {
 type DB struct {
 	*sql.DB
 	logger                   *zap.Logger
+	auditAppendMu            sync.Mutex
 	conversationArtifactsDir string
 	einoPlantaskBaseDir      string // skills_dir + plantask_rel_dir (per-conversation subdirs)
 	einoCheckpointBaseDir    string // checkpoint_dir root (per-conversation subdirs)
@@ -808,6 +809,13 @@ func (db *DB) initTables() error {
 		FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 	);`
 
+	createRevokedTokensTable := `
+	CREATE TABLE IF NOT EXISTS revoked_tokens (
+		token_or_jti TEXT PRIMARY KEY,
+		revoked_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		expires_at DATETIME NOT NULL
+	);`
+
 	// createindex
 	createIndexes := `
 	CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON messages(conversation_id);
@@ -891,6 +899,7 @@ func (db *DB) initTables() error {
 	CREATE INDEX IF NOT EXISTS idx_workflow_definitions_enabled ON workflow_definitions(enabled);
 	CREATE INDEX IF NOT EXISTS idx_report_shares_project ON report_shares(project_id);
 	CREATE INDEX IF NOT EXISTS idx_report_shares_token_hash ON report_shares(token_hash);
+	CREATE INDEX IF NOT EXISTS idx_revoked_tokens_exp ON revoked_tokens(expires_at);
 	CREATE INDEX IF NOT EXISTS idx_workflow_runs_workflow ON workflow_runs(workflow_id);
 	CREATE INDEX IF NOT EXISTS idx_workflow_runs_conversation ON workflow_runs(conversation_id);
 	CREATE INDEX IF NOT EXISTS idx_workflow_runs_status ON workflow_runs(status);
@@ -952,6 +961,7 @@ func (db *DB) initTables() error {
 		{"c2_events", createC2EventsTable},
 		{"c2_profiles", createC2ProfilesTable},
 		{"report_shares", createReportSharesTable},
+		{"revoked_tokens", createRevokedTokensTable},
 	}
 
 	for _, item := range tableDDLs {

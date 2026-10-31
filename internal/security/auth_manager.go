@@ -38,9 +38,10 @@ type AuthManager struct {
 	jwtSecret       []byte
 	db              *database.DB
 
-	mu          sync.RWMutex
-	sessions    map[string]Session
-	revokedJTIs map[string]time.Time
+	mu                     sync.RWMutex
+	sessions               map[string]Session
+	revokedJTIs            map[string]time.Time
+	globalRevocationCutoff time.Time
 }
 
 // NewAuthManager creates a new AuthManager instance.
@@ -208,7 +209,7 @@ func (s Session) ScopeFor(permission string) string {
 	return strings.TrimSpace(s.Scope)
 }
 
-// ValidateToken checks whether the provided token is still valid.
+// ValidateToken checks whether the provided token is still valid, enforcing DB revocation and user state.
 func (a *AuthManager) ValidateToken(token string) (Session, bool) {
 	token = strings.TrimSpace(token)
 	if token == "" {
@@ -216,26 +217,34 @@ func (a *AuthManager) ValidateToken(token string) (Session, bool) {
 	}
 
 	a.mu.RLock()
+	secret := a.jwtSecret
+	cutoff := a.globalRevocationCutoff
 	if _, revoked := a.revokedJTIs[token]; revoked {
 		a.mu.RUnlock()
 		return Session{}, false
 	}
-	session, ok := a.sessions[token]
+	session, inMem := a.sessions[token]
+	db := a.db
 	a.mu.RUnlock()
 
-	if ok {
+	if inMem {
 		if time.Now().After(session.ExpiresAt) {
 			return Session{}, false
 		}
-		return session, true
 	}
 
-	// Try validating as signed JWT token (stateless fallback)
-	claims, err := VerifyJWT(token, a.jwtSecret)
+	// Verify cryptographic signature and expiration envelope
+	claims, err := VerifyJWT(token, secret)
 	if err != nil || claims == nil {
 		return Session{}, false
 	}
 
+	// Check global revocation cutoff (e.g. from RevokeAllSessions)
+	if !cutoff.IsZero() && claims.IssuedAt <= cutoff.Unix() {
+		return Session{}, false
+	}
+
+	// Check in-memory JTI revocation
 	a.mu.RLock()
 	if _, revoked := a.revokedJTIs[claims.ID]; revoked {
 		a.mu.RUnlock()
@@ -243,13 +252,35 @@ func (a *AuthManager) ValidateToken(token string) (Session, bool) {
 	}
 	a.mu.RUnlock()
 
+	// If DB is attached, enforce persistent revocation and user account validity
+	if db != nil {
+		if db.IsTokenRevoked(claims.ID) || db.IsTokenRevoked(token) {
+			return Session{}, false
+		}
+		user, err := db.GetRBACUserByID(claims.Subject)
+		if err != nil || user == nil || !user.Enabled {
+			return Session{}, false
+		}
+		// If password was reset or user modified after token was issued, invalidate immediately
+		if claims.IssuedAt < user.UpdatedAt.Unix()-1 {
+			return Session{}, false
+		}
+	}
+
+	mustChange := claims.MustChangePassword
+	if db != nil {
+		if u, err := db.GetRBACUserByID(claims.Subject); err == nil && u != nil {
+			mustChange = u.MustChangePassword
+		}
+	}
+
 	session = Session{
 		Token:              token,
 		ExpiresAt:          time.Unix(claims.ExpiresAt, 0),
 		UserID:             claims.Subject,
 		Username:           claims.Username,
 		DisplayName:        claims.DisplayName,
-		MustChangePassword: claims.MustChangePassword,
+		MustChangePassword: mustChange,
 		Roles:              claims.Roles,
 		Permissions:        claims.Permissions,
 		PermissionScopes:   claims.PermissionScopes,
@@ -311,7 +342,7 @@ func (a *AuthManager) UpdateUserPassword(userID, password string) error {
 	return nil
 }
 
-// RevokeToken invalidates the specified token.
+// RevokeToken invalidates the specified token and stores revocation in DB and memory.
 func (a *AuthManager) RevokeToken(token string) {
 	token = strings.TrimSpace(token)
 	if token == "" {
@@ -324,15 +355,29 @@ func (a *AuthManager) RevokeToken(token string) {
 		a.revokedJTIs = make(map[string]time.Time)
 	}
 	a.revokedJTIs[token] = time.Now()
+	db := a.db
+	secret := a.jwtSecret
 	a.mu.Unlock()
 
-	if claims, err := VerifyJWT(token, a.jwtSecret); err == nil && claims != nil && claims.ID != "" {
-		a.mu.Lock()
-		a.revokedJTIs[claims.ID] = time.Now()
-		a.mu.Unlock()
+	exp := time.Now().Add(a.sessionDuration)
+	if claims, err := VerifyJWT(token, secret); err == nil && claims != nil {
+		if claims.ID != "" {
+			a.mu.Lock()
+			a.revokedJTIs[claims.ID] = time.Now()
+			a.mu.Unlock()
+			if db != nil {
+				_ = db.RecordRevokedToken(claims.ID, time.Unix(claims.ExpiresAt, 0))
+			}
+		}
+		exp = time.Unix(claims.ExpiresAt, 0)
+	}
+
+	if db != nil {
+		_ = db.RecordRevokedToken(token, exp)
 	}
 }
 
+// RevokeUserSessions revokes all sessions for a user, updating user timestamp to reject active JWTs.
 func (a *AuthManager) RevokeUserSessions(userID string) {
 	userID = strings.TrimSpace(userID)
 	if userID == "" {
@@ -348,12 +393,20 @@ func (a *AuthManager) RevokeUserSessions(userID string) {
 			a.revokedJTIs[token] = time.Now()
 		}
 	}
+	db := a.db
 	a.mu.Unlock()
+
+	if db != nil {
+		_ = db.TouchRBACUser(userID)
+	}
 }
 
+// RevokeAllSessions invalidates all currently active sessions and JWTs.
 func (a *AuthManager) RevokeAllSessions() {
 	a.mu.Lock()
+	a.globalRevocationCutoff = time.Now()
 	a.sessions = make(map[string]Session)
+	a.revokedJTIs = make(map[string]time.Time)
 	a.mu.Unlock()
 }
 

@@ -63,7 +63,20 @@ func main() {
 	var demoFlag = flag.Bool("demo", false, "Run in one-command demo mode seeded with OWASP Juice Shop project, admin login, and findings")
 	var evalFlag = flag.Bool("eval", false, "Run golden security benchmark evaluation against OWASP targets and exit")
 	var scopeFilePath = flag.String("scope-file", "", "Path to engagement scope.yaml file to enforce network-layer egress filtering")
+	var scopeExempt = flag.String("scope-exempt", "", "Comma-separated list of additional hosts/domains exempt from scope egress blocking")
 	flag.Parse()
+
+	// Check bare subcommands from flag.Args()
+	for _, arg := range flag.Args() {
+		switch strings.ToLower(strings.TrimSpace(arg)) {
+		case "doctor":
+			isDoctorSubcommand = true
+		case "demo":
+			isDemoSubcommand = true
+		case "eval":
+			isEvalSubcommand = true
+		}
+	}
 
 	// environment variable compatibility (for systemd/docker scenarios where args are not passed)
 	if *httpsBootstrap && *httpBootstrap {
@@ -110,6 +123,13 @@ func main() {
 		return
 	}
 
+	if isDemoSubcommand || *demoFlag {
+		*httpBootstrap = true
+		if strings.TrimSpace(cfg.Database.Path) == "" || cfg.Database.Path == "data/conversations.db" {
+			cfg.Database.Path = "data/demo.db"
+		}
+	}
+
 	if isEvalSubcommand || *evalFlag {
 		rep := eval.RunEvalSuite(context.Background(), "juice-shop-golden")
 		eval.PrintEvalReport(os.Stdout, rep)
@@ -126,6 +146,19 @@ func main() {
 			os.Exit(2)
 		}
 		egressGuard := toolguard.NewEgressGuard(scopePolicy)
+
+		// Auto-exempt LLM endpoints so model inference is never blocked by scope guard
+		for _, ch := range cfg.AI.Channels {
+			if ch.BaseURL != "" {
+				egressGuard.AddExemptHosts(ch.BaseURL)
+			}
+		}
+		if strings.TrimSpace(*scopeExempt) != "" {
+			for _, h := range strings.Split(*scopeExempt, ",") {
+				egressGuard.AddExemptHosts(h)
+			}
+		}
+
 		toolguard.SetGlobalEgressGuard(egressGuard)
 		fmt.Printf("[SCOPE GUARD] Enforcing network-layer egress policy from %s (target=%q, in_scope_cidrs=%d, in_scope_domains=%d, out_of_scope_cidrs=%d, fail_closed=%v)\n",
 			*scopeFilePath, scopePolicy.TargetName, len(scopePolicy.InScopeCIDRs), len(scopePolicy.InScopeDomains), len(scopePolicy.OutOfScopeCIDRs), scopePolicy.FailClosed)
@@ -200,6 +233,12 @@ func main() {
 		SelfSigned:   scheme == "https" && cfg.Server.TLSAutoSelfSign,
 		HTTPRedirect: scheme == "https" && config.ServerHTTPRedirectEnabled(&cfg.Server),
 	})
+
+	// ensure persistent jwt_secret is configured with 0600 file permissions
+	if err := config.EnsureJWTSecret(cp, cfg); err != nil {
+		fmt.Printf("Failed to configure JWT secret: %v\n", err)
+		return
+	}
 
 	// when MCP is enabled and auth_header_value is empty, auto-generate a random key and write back to config
 	if err := config.EnsureMCPAuth(cp, cfg); err != nil {
@@ -429,6 +468,9 @@ func runExportSarif(cfg *config.Config, projectID, outFile, failOn string, seedF
 	if failOn != "" {
 		thresholdMet := false
 		for _, v := range vulns {
+			if strings.HasPrefix(v.ID, "kestrel-fixture-") {
+				continue // do not trip CI quality gate on seeded test validation fixture
+			}
 			if meetsSeverityThreshold(v.Severity, failOn) {
 				thresholdMet = true
 				break

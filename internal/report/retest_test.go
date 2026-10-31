@@ -3,6 +3,7 @@ package report
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -14,6 +15,8 @@ import (
 func TestRunVulnerabilityRetest_Resolved(t *testing.T) {
 	// Server returns clean response (indicator NOT present)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		_ = r.Body.Close()
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintln(w, "Welcome! User profile updated securely.")
 	}))
@@ -47,6 +50,8 @@ func TestRunVulnerabilityRetest_Resolved(t *testing.T) {
 func TestRunVulnerabilityRetest_StillVulnerable(t *testing.T) {
 	// Server returns exploit indicator
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		_ = r.Body.Close()
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintln(w, "Database error: SQL syntax error near OR")
 	}))

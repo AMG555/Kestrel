@@ -1272,6 +1272,15 @@ func (db *DB) UpdateRBACAdminPassword(passwordHash string) error {
 	return db.UpdateRBACUserPassword("admin", passwordHash)
 }
 
+func (db *DB) SetRBACUserMustChangePassword(userID string, mustChange bool) error {
+	userID = strings.TrimSpace(userID)
+	if userID == "" {
+		return errors.New("user_id is required")
+	}
+	_, err := db.Exec(`UPDATE rbac_users SET must_change_password = ?, updated_at = ? WHERE id = ?`, boolToInt(mustChange), time.Now(), userID)
+	return err
+}
+
 func (db *DB) CreateRBACUser(username, displayName, passwordHash string, enabled bool, roleIDs []string) (*RBACUser, error) {
 	username = strings.TrimSpace(strings.ToLower(username))
 	if username == "" || passwordHash == "" {

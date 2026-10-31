@@ -179,6 +179,38 @@ func TestEgressGuard_WrapDialContext_DropsBlockedSockets(t *testing.T) {
 	}
 }
 
+func TestEgressGuard_PlumbingExemptions(t *testing.T) {
+	// Policy allows ONLY a single client host, strictly fail-closed
+	policy := &ScopeFilePolicy{
+		FailClosed:         true,
+		BlockCloudMetadata: true,
+		AllowLocalhost:     false,
+		InScopeDomains:     []string{"target-client.com"},
+	}
+
+	guard := NewEgressGuard(policy)
+	guard.AddExemptHosts("https://custom-webhook.internal:9000/alerts")
+
+	// Standard LLM endpoints must pass through as exempt
+	if err := guard.CheckDestination(context.Background(), "api.openai.com:443"); err != nil {
+		t.Fatalf("expected api.openai.com to be exempt, got error: %v", err)
+	}
+	if err := guard.CheckDestination(context.Background(), "api.anthropic.com:443"); err != nil {
+		t.Fatalf("expected api.anthropic.com to be exempt, got error: %v", err)
+	}
+	if err := guard.CheckDestination(context.Background(), "api.telegram.org:443"); err != nil {
+		t.Fatalf("expected api.telegram.org to be exempt, got error: %v", err)
+	}
+	if err := guard.CheckDestination(context.Background(), "custom-webhook.internal:9000"); err != nil {
+		t.Fatalf("expected custom-webhook.internal to be exempt, got error: %v", err)
+	}
+
+	// Unauthorized external target must be blocked
+	if err := guard.CheckDestination(context.Background(), "unauthorized-external.com:443"); err == nil {
+		t.Fatal("expected unauthorized-external.com to be blocked")
+	}
+}
+
 func containsIgnoreCase(s, sub string) bool {
 	return len(s) >= len(sub) && (sub == "" || stringContains(s, sub))
 }
@@ -199,3 +231,4 @@ func mustParseCIDR(cidr string) *net.IPNet {
 	}
 	return ipNet
 }
+
