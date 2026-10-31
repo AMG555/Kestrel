@@ -972,86 +972,6 @@ func (m *ExternalMCPManager) externalMCPRuntimeLocked(mcpName string) *externalM
 	return rt
 }
 
-func (m *ExternalMCPManager) applyAbortUserNoteToCancelledToolResult(executionID string, result **ToolResult, err *error) (cancelledWithUserNote bool) {
-	note := strings.TrimSpace(m.readAbortUserNote(executionID))
-	if note == "" {
-		return false
-	}
-	hasErr := err != nil && *err != nil
-	hasRes := result != nil && *result != nil
-	if hasRes && (*result).Blocked {
-		return false
-	}
-	if !hasErr && !hasRes {
-		return false
-	}
-	_ = m.takeAbortUserNote(executionID)
-	partial := ""
-	if hasRes {
-		partial = ToolResultPlainText(*result)
-	}
-	if partial == "" && hasErr {
-		partial = (*err).Error()
-	}
-	merged := MergePartialToolOutputAndAbortNote(partial, note)
-	*err = nil
-	*result = &ToolResult{Content: []Content{{Type: "text", Text: merged}}, IsError: true}
-	return true
-}
-
-func (m *ExternalMCPManager) readAbortUserNote(id string) string {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if m.abortUserNotes == nil {
-		return ""
-	}
-	return m.abortUserNotes[id]
-}
-
-func (m *ExternalMCPManager) takeAbortUserNote(id string) string {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if m.abortUserNotes == nil {
-		return ""
-	}
-	n := m.abortUserNotes[id]
-	delete(m.abortUserNotes, id)
-	return n
-}
-
-// cleanupOldExecutions removes old execution records (keeps in-memory record count within limit)
-func (m *ExternalMCPManager) cleanupOldExecutions() {
-	const maxExecutionsInMemory = 1000
-	if len(m.executions) <= maxExecutionsInMemory {
-		return
-	}
-
-	// sort by start time, delete oldest records
-	type execTime struct {
-		id        string
-		startTime time.Time
-	}
-	var execs []execTime
-	for id, exec := range m.executions {
-		execs = append(execs, execTime{id: id, startTime: exec.StartTime})
-	}
-
-	// sort by time
-	for i := 0; i < len(execs)-1; i++ {
-		for j := i + 1; j < len(execs); j++ {
-			if execs[i].startTime.After(execs[j].startTime) {
-				execs[i], execs[j] = execs[j], execs[i]
-			}
-		}
-	}
-
-	// delete oldest records
-	toDelete := len(m.executions) - maxExecutionsInMemory
-	for i := 0; i < toDelete && i < len(execs); i++ {
-		delete(m.executions, execs[i].id)
-	}
-}
-
 // GetExecution returns an execution record (checks memory first, then database)
 func (m *ExternalMCPManager) GetExecution(id string) (*ToolExecution, bool) {
 	if m.executionService != nil {
@@ -1075,18 +995,6 @@ func (m *ExternalMCPManager) GetExecution(id string) (*ToolExecution, bool) {
 	}
 
 	return nil, false
-}
-
-func (m *ExternalMCPManager) registerRunningCancel(id string, cancel context.CancelFunc) {
-	m.mu.Lock()
-	m.runningCancels[id] = cancel
-	m.mu.Unlock()
-}
-
-func (m *ExternalMCPManager) unregisterRunningCancel(id string) {
-	m.mu.Lock()
-	delete(m.runningCancels, id)
-	m.mu.Unlock()
 }
 
 // CancelToolExecutionWithNote cancels an external MCP tool; if note is non-empty it is merged with the tool's returned output before being passed to the model.

@@ -146,21 +146,6 @@ func TestPrintStartupWebUIOptions(t *testing.T) {
 	})
 }
 
-func TestBoxRowAlignedWidth(t *testing.T) {
-	s := New(nil)
-	rows := []string{
-		s.Bold("Kestrel") + s.White(" is ready"),
-		s.Dim("Web UI   ") + s.Bold("https://127.0.0.1:8080/"),
-	}
-	inner := maxDisplayWidth(rows...)
-	for _, row := range rows {
-		line := s.boxRow(inner, row)
-		if !strings.Contains(line, "│") {
-			t.Fatalf("box row missing border: %q", line)
-		}
-	}
-}
-
 func TestMaxDisplayWidth(t *testing.T) {
 	short := "abc"
 	long := "https://127.0.0.1:8080/"

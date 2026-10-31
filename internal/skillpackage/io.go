@@ -188,13 +188,3 @@ func listScripts(skillsRoot, skillID string) ([]SkillScriptInfo, error) {
 	})
 	return out, err
 }
-
-func countNonDirFiles(files []PackageFileInfo) int {
-	n := 0
-	for _, f := range files {
-		if !f.IsDir && f.Path != "SKILL.md" {
-			n++
-		}
-	}
-	return n
-}
