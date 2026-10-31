@@ -31,6 +31,7 @@ server:
   tls_auto_self_sign: true
 # Authentication configuration
 auth:
+  jwt_secret: "" # JWT signing secret; set or use JWT_SECRET env var (auto-generated if empty)
   session_duration_hours: 12 # login session duration (hours); re-login required after expiry
 # Logging configuration
 log:

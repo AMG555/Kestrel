@@ -123,7 +123,11 @@ func New(cfg *config.Config, log *logger.Logger, configPath string) (*App, error
 	}
 
 	// auth manager (RBAC mounted after database initialization)
-	authManager := security.NewAuthManager(cfg.Auth.SessionDurationHours)
+	jwtSecret := strings.TrimSpace(cfg.Auth.JWTSecret)
+	if jwtSecret == "" {
+		jwtSecret = strings.TrimSpace(os.Getenv("JWT_SECRET"))
+	}
+	authManager := security.NewAuthManager(cfg.Auth.SessionDurationHours, jwtSecret)
 	if generatedPassword, err := authManager.AttachRBACStore(db); err != nil {
 		return nil, fmt.Errorf("initializing RBAC failed: %w", err)
 	} else if generatedPassword != "" {

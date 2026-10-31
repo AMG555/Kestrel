@@ -132,7 +132,9 @@ func extractTokenFromRequest(c *gin.Context) string {
 		if len(authHeader) > 7 && strings.EqualFold(authHeader[0:7], "Bearer ") {
 			return strings.TrimSpace(authHeader[7:])
 		}
-		return strings.TrimSpace(authHeader)
+		if strings.Count(authHeader, ".") == 2 {
+			return strings.TrimSpace(authHeader)
+		}
 	}
 
 	if token := c.Query("token"); token != "" && c.Request.Method == http.MethodGet {

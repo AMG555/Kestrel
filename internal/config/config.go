@@ -1354,7 +1354,8 @@ func normalizeHitlModeForPrompt(mode string) string {
 }
 
 type AuthConfig struct {
-	SessionDurationHours int `yaml:"session_duration_hours" json:"session_duration_hours"`
+	SessionDurationHours int    `yaml:"session_duration_hours" json:"session_duration_hours"`
+	JWTSecret            string `yaml:"jwt_secret" json:"jwt_secret"`
 }
 
 // MonitorConfig holds the MCP status monitoring (tool_executions) retention policy.

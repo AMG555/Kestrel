@@ -2,6 +2,7 @@
 
 import (
 	"database/sql"
+	"os"
 	"errors"
 	"strings"
 	"sync"
@@ -34,22 +35,54 @@ type Session struct {
 // AuthManager manages password-based authentication and session lifecycle.
 type AuthManager struct {
 	sessionDuration time.Duration
+	jwtSecret       []byte
 	db              *database.DB
 
-	mu       sync.RWMutex
-	sessions map[string]Session
+	mu          sync.RWMutex
+	sessions    map[string]Session
+	revokedJTIs map[string]time.Time
 }
 
 // NewAuthManager creates a new AuthManager instance.
-func NewAuthManager(sessionDurationHours int) *AuthManager {
+func NewAuthManager(sessionDurationHours int, secret ...string) *AuthManager {
 	if sessionDurationHours <= 0 {
 		sessionDurationHours = 12
 	}
 
+	var jwtKey []byte
+	if len(secret) > 0 && strings.TrimSpace(secret[0]) != "" {
+		jwtKey = []byte(strings.TrimSpace(secret[0]))
+	} else if envSecret := strings.TrimSpace(os.Getenv("JWT_SECRET")); envSecret != "" {
+		jwtKey = []byte(envSecret)
+	} else {
+		key, err := GenerateRandomKey(32)
+		if err != nil {
+			jwtKey = []byte("kestrel-default-session-secret-key-32b")
+		} else {
+			jwtKey = key
+		}
+	}
+
 	return &AuthManager{
 		sessionDuration: time.Duration(sessionDurationHours) * time.Hour,
+		jwtSecret:       jwtKey,
 		sessions:        make(map[string]Session),
+		revokedJTIs:     make(map[string]time.Time),
 	}
+}
+
+func (a *AuthManager) SetJWTSecret(secret string) {
+	if s := strings.TrimSpace(secret); s != "" {
+		a.mu.Lock()
+		a.jwtSecret = []byte(s)
+		a.mu.Unlock()
+	}
+}
+
+func (a *AuthManager) JWTSecret() []byte {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.jwtSecret
 }
 
 // AttachRBACStore enables multi-user RBAC authentication. When no users exist yet,
@@ -92,8 +125,31 @@ func (a *AuthManager) Authenticate(username, password string) (string, time.Time
 	if err != nil {
 		return "", time.Time{}, err
 	}
+
+	jti := uuid.NewString()
+	claims := JWTClaims{
+		Subject:            session.UserID,
+		Username:           session.Username,
+		DisplayName:        session.DisplayName,
+		MustChangePassword: session.MustChangePassword,
+		Roles:              session.Roles,
+		Permissions:        session.Permissions,
+		PermissionScopes:   session.PermissionScopes,
+		Scope:              session.Scope,
+		ID:                 jti,
+		IssuedAt:           time.Now().Unix(),
+		ExpiresAt:          session.ExpiresAt.Unix(),
+	}
+
+	signedToken, err := SignJWT(claims, a.jwtSecret)
+	if err != nil {
+		signedToken = session.Token
+	}
+
+	session.Token = signedToken
+
 	a.mu.Lock()
-	a.sessions[session.Token] = session
+	a.sessions[signedToken] = session
 	a.mu.Unlock()
 	return session.Token, session.ExpiresAt, nil
 }
@@ -154,23 +210,55 @@ func (s Session) ScopeFor(permission string) string {
 
 // ValidateToken checks whether the provided token is still valid.
 func (a *AuthManager) ValidateToken(token string) (Session, bool) {
-	if strings.TrimSpace(token) == "" {
+	token = strings.TrimSpace(token)
+	if token == "" {
 		return Session{}, false
 	}
 
 	a.mu.RLock()
+	if _, revoked := a.revokedJTIs[token]; revoked {
+		a.mu.RUnlock()
+		return Session{}, false
+	}
 	session, ok := a.sessions[token]
 	a.mu.RUnlock()
-	if !ok {
+
+	if ok {
+		if time.Now().After(session.ExpiresAt) {
+			return Session{}, false
+		}
+		return session, true
+	}
+
+	// Try validating as signed JWT token (stateless fallback)
+	claims, err := VerifyJWT(token, a.jwtSecret)
+	if err != nil || claims == nil {
 		return Session{}, false
 	}
 
-	if time.Now().After(session.ExpiresAt) {
-		a.mu.Lock()
-		delete(a.sessions, token)
-		a.mu.Unlock()
+	a.mu.RLock()
+	if _, revoked := a.revokedJTIs[claims.ID]; revoked {
+		a.mu.RUnlock()
 		return Session{}, false
 	}
+	a.mu.RUnlock()
+
+	session = Session{
+		Token:              token,
+		ExpiresAt:          time.Unix(claims.ExpiresAt, 0),
+		UserID:             claims.Subject,
+		Username:           claims.Username,
+		DisplayName:        claims.DisplayName,
+		MustChangePassword: claims.MustChangePassword,
+		Roles:              claims.Roles,
+		Permissions:        claims.Permissions,
+		PermissionScopes:   claims.PermissionScopes,
+		Scope:              claims.Scope,
+	}
+
+	a.mu.Lock()
+	a.sessions[token] = session
+	a.mu.Unlock()
 
 	return session, true
 }
@@ -225,13 +313,24 @@ func (a *AuthManager) UpdateUserPassword(userID, password string) error {
 
 // RevokeToken invalidates the specified token.
 func (a *AuthManager) RevokeToken(token string) {
-	if strings.TrimSpace(token) == "" {
+	token = strings.TrimSpace(token)
+	if token == "" {
 		return
 	}
 
 	a.mu.Lock()
 	delete(a.sessions, token)
+	if a.revokedJTIs == nil {
+		a.revokedJTIs = make(map[string]time.Time)
+	}
+	a.revokedJTIs[token] = time.Now()
 	a.mu.Unlock()
+
+	if claims, err := VerifyJWT(token, a.jwtSecret); err == nil && claims != nil && claims.ID != "" {
+		a.mu.Lock()
+		a.revokedJTIs[claims.ID] = time.Now()
+		a.mu.Unlock()
+	}
 }
 
 func (a *AuthManager) RevokeUserSessions(userID string) {
@@ -240,9 +339,13 @@ func (a *AuthManager) RevokeUserSessions(userID string) {
 		return
 	}
 	a.mu.Lock()
+	if a.revokedJTIs == nil {
+		a.revokedJTIs = make(map[string]time.Time)
+	}
 	for token, session := range a.sessions {
 		if session.UserID == userID {
 			delete(a.sessions, token)
+			a.revokedJTIs[token] = time.Now()
 		}
 	}
 	a.mu.Unlock()
