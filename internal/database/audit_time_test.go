@@ -33,13 +33,13 @@ func TestBuildAuditLogsWhere_timeFilterSQL(t *testing.T) {
 
 func TestBuildAuditLogsWhere_relatedUserID(t *testing.T) {
 	where, args := buildAuditLogsWhere(ListAuditLogsFilter{Category: "rbac", RelatedUserID: "user-123"})
-	if !strings.Contains(where, "resource_id = ?") || !strings.Contains(where, "detail_json LIKE ?") {
+	if !strings.Contains(where, "actor = ?") || !strings.Contains(where, "resource_id = ?") || !strings.Contains(where, "detail_json LIKE ?") {
 		t.Fatalf("expected related-user predicates, got %q", where)
 	}
-	if len(args) != 4 {
-		t.Fatalf("expected category plus 3 related-user args, got %#v", args)
+	if len(args) != 5 {
+		t.Fatalf("expected category plus 4 related-user args, got %#v", args)
 	}
-	if args[1] != "user-123" || args[2] != `%"user_id":"user-123"%` || args[3] != `%"userId":"user-123"%` {
+	if args[1] != "user-123" || args[2] != "user-123" || args[3] != `%"user_id":"user-123"%` || args[4] != `%"userId":"user-123"%` {
 		t.Fatalf("unexpected related-user args: %#v", args)
 	}
 }

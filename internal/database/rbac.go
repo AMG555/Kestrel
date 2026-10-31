@@ -183,12 +183,18 @@ func (db *DB) initRBACTables() error {
 		`CREATE INDEX IF NOT EXISTS idx_chat_upload_artifacts_owner ON chat_upload_artifacts(owner_user_id);`,
 		`CREATE INDEX IF NOT EXISTS idx_c2_payload_artifacts_listener ON c2_payload_artifacts(listener_id);`,
 	}
+	tx, err := db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin rbac init transaction: %w", err)
+	}
+	defer tx.Rollback()
+
 	for _, stmt := range stmts {
-		if _, err := db.Exec(stmt); err != nil {
+		if _, err := tx.Exec(stmt); err != nil {
 			return err
 		}
 	}
-	return nil
+	return tx.Commit()
 }
 
 func (db *DB) migrateRBACOwnershipColumns() error {

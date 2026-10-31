@@ -2,6 +2,7 @@ package database
 
 import (
 	"database/sql"
+	"net/url"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -26,6 +27,38 @@ const (
 )
 
 // configureDBPool configures SQLite connection pool parameters to improve concurrency stability
+
+func buildSQLiteDSN(dbPath string) string {
+	q := url.Values{}
+	q.Set("_journal_mode", "WAL")
+	q.Set("_foreign_keys", "1")
+	q.Set("_busy_timeout", "5000")
+	q.Set("_synchronous", "NORMAL")
+
+	if strings.HasPrefix(dbPath, "file:") {
+		u, err := url.Parse(dbPath)
+		if err == nil {
+			existing := u.Query()
+			for k, v := range existing {
+				q[k] = v
+			}
+			u.RawQuery = q.Encode()
+			return u.String()
+		}
+	}
+	if strings.Contains(dbPath, "?") {
+		parts := strings.SplitN(dbPath, "?", 2)
+		existing, err := url.ParseQuery(parts[1])
+		if err == nil {
+			for k, v := range existing {
+				q[k] = v
+			}
+		}
+		return parts[0] + "?" + q.Encode()
+	}
+	return dbPath + "?" + q.Encode()
+}
+
 func configureDBPool(db *sql.DB) {
 	// SQLite only allows one writer at a time; too many connections amplify lock contention and WAL reclamation latency.
 	db.SetMaxOpenConns(sqliteMaxOpenConns)
@@ -123,7 +156,7 @@ func (db *DB) runPassiveCheckpoint(trigger string) {
 
 // NewDB creates a database connection
 func NewDB(dbPath string, logger *zap.Logger) (*DB, error) {
-	db, err := sql.Open("sqlite3", dbPath+"?_journal_mode=WAL&_foreign_keys=1&_busy_timeout=5000&_synchronous=NORMAL")
+	db, err := sql.Open("sqlite3", buildSQLiteDSN(dbPath))
 	if err != nil {
 		return nil, fmt.Errorf("open database failed: %w", err)
 	}
@@ -189,8 +222,35 @@ func (db *DB) SetChatUploadsDir(dir string) {
 	db.chatUploadsDir = strings.TrimSpace(dir)
 }
 
+// recordMigration records an applied schema migration version
+func (db *DB) recordMigration(version int, name string) error {
+	_, err := db.Exec(`
+		INSERT INTO schema_migrations (version, name, applied_at)
+		VALUES (?, ?, ?)
+		ON CONFLICT(version) DO UPDATE SET name = excluded.name, applied_at = excluded.applied_at
+	`, version, name, time.Now())
+	return err
+}
+
+// IsMigrationApplied reports whether the specified schema migration has been applied
+func (db *DB) IsMigrationApplied(version int) (bool, error) {
+	var count int
+	err := db.QueryRow("SELECT COUNT(*) FROM schema_migrations WHERE version = ?", version).Scan(&count)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
 // initTables initialises database tables
 func (db *DB) initTables() error {
+	createSchemaMigrationsTable := `
+	CREATE TABLE IF NOT EXISTS schema_migrations (
+		version INTEGER PRIMARY KEY,
+		name TEXT NOT NULL,
+		applied_at DATETIME NOT NULL
+	);`
+
 	// create conversations table (last_react_input / last_react_output store agent message trace JSON and assistant summary; column names retained for compatibility with existing databases)
 	createConversationsTable := `
 	CREATE TABLE IF NOT EXISTS conversations (
@@ -825,188 +885,137 @@ func (db *DB) initTables() error {
 	CREATE UNIQUE INDEX IF NOT EXISTS uq_workflow_package_imports_inspection_success ON workflow_package_imports(inspection_id) WHERE result IN ('created','overwritten','renamed','kept_existing','skipped_identical');
 	`
 
-	if _, err := db.Exec(createConversationsTable); err != nil {
-		return fmt.Errorf("failed to create conversations table: %w", err)
+	tx, err := db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin schema tables transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	tableDDLs := []struct {
+		name string
+		ddl  string
+	}{
+		{"schema_migrations", createSchemaMigrationsTable},
+		{"conversations", createConversationsTable},
+		{"messages", createMessagesTable},
+		{"process_details", createProcessDetailsTable},
+		{"model_token_usage", createModelTokenUsageTable},
+		{"tool_executions", createToolExecutionsTable},
+		{"tool_stats", createToolStatsTable},
+		{"skill_stats", createSkillStatsTable},
+		{"attack_chain_nodes", createAttackChainNodesTable},
+		{"attack_chain_edges", createAttackChainEdgesTable},
+		{"knowledge_retrieval_logs", createKnowledgeRetrievalLogsTable},
+		{"robot_user_sessions", createRobotUserSessionsTable},
+		{"projects", createProjectsTable},
+		{"project_facts", createProjectFactsTable},
+		{"project_fact_edges", createProjectFactEdgesTable},
+		{"vulnerabilities", createVulnerabilitiesTable},
+		{"assets", createAssetsTable},
+		{"batch_task_queues", createBatchTaskQueuesTable},
+		{"batch_tasks", createBatchTasksTable},
+		{"webshell_connections", createWebshellConnectionsTable},
+		{"webshell_connection_states", createWebshellConnectionStatesTable},
+		{"audit_logs", createAuditLogsTable},
+		{"vulnerability_alert_subscriptions", createVulnerabilityAlertSubscriptionsTable},
+		{"vulnerability_alert_deliveries", createVulnerabilityAlertDeliveriesTable},
+		{"workflow_definitions", createWorkflowDefinitionsTable},
+		{"workflow_runs", createWorkflowRunsTable},
+		{"workflow_node_runs", createWorkflowNodeRunsTable},
+		{"workflow_package_inspections", createWorkflowPackageInspectionsTable},
+		{"workflow_package_imports", createWorkflowPackageImportsTable},
+		{"c2_listeners", createC2ListenersTable},
+		{"c2_sessions", createC2SessionsTable},
+		{"c2_http_session_auth", `CREATE TABLE IF NOT EXISTS c2_http_session_auth (
+          implant_uuid TEXT PRIMARY KEY,
+          listener_id TEXT NOT NULL,
+          token_hash TEXT NOT NULL,
+          FOREIGN KEY (listener_id) REFERENCES c2_listeners(id) ON DELETE CASCADE
+        );`},
+		{"c2_tasks", createC2TasksTable},
+		{"c2_files", createC2FilesTable},
+		{"c2_events", createC2EventsTable},
+		{"c2_profiles", createC2ProfilesTable},
 	}
 
-	if _, err := db.Exec(createMessagesTable); err != nil {
-		return fmt.Errorf("failed to create messages table: %w", err)
+	for _, item := range tableDDLs {
+		if _, err := tx.Exec(item.ddl); err != nil {
+			return fmt.Errorf("failed to create %s table: %w", item.name, err)
+		}
 	}
 
-	if _, err := db.Exec(createProcessDetailsTable); err != nil {
-		return fmt.Errorf("failed to create process_details table: %w", err)
-	}
-
-	if _, err := db.Exec(createModelTokenUsageTable); err != nil {
-		return fmt.Errorf("failed to create model_token_usage table: %w", err)
-	}
-
-	if _, err := db.Exec(createToolExecutionsTable); err != nil {
-		return fmt.Errorf("failed to create tool_executions table: %w", err)
-	}
-
-	if _, err := db.Exec(createToolStatsTable); err != nil {
-		return fmt.Errorf("failed to create tool_stats table: %w", err)
-	}
-
-	if _, err := db.Exec(createSkillStatsTable); err != nil {
-		return fmt.Errorf("failed to create skill_stats table: %w", err)
-	}
-
-	if _, err := db.Exec(createAttackChainNodesTable); err != nil {
-		return fmt.Errorf("failed to create attack_chain_nodes table: %w", err)
-	}
-
-	if _, err := db.Exec(createAttackChainEdgesTable); err != nil {
-		return fmt.Errorf("failed to create attack_chain_edges table: %w", err)
-	}
-
-	if _, err := db.Exec(createKnowledgeRetrievalLogsTable); err != nil {
-		return fmt.Errorf("failed to create knowledge_retrieval_logs table: %w", err)
-	}
-
-	if _, err := db.Exec(createRobotUserSessionsTable); err != nil {
-		return fmt.Errorf("failed to create robot_user_sessions table: %w", err)
-	}
-	if err := db.migrateRobotUserSessionsTable(); err != nil {
-		return fmt.Errorf("failed to migrate robot_user_sessions table: %w", err)
-	}
-
-	if _, err := db.Exec(createProjectsTable); err != nil {
-		return fmt.Errorf("failed to create projects table: %w", err)
-	}
-
-	if _, err := db.Exec(createProjectFactsTable); err != nil {
-		return fmt.Errorf("failed to create project_facts table: %w", err)
-	}
-
-	if _, err := db.Exec(createProjectFactEdgesTable); err != nil {
-		return fmt.Errorf("failed to create project_fact_edges table: %w", err)
-	}
-
-	if _, err := db.Exec(createVulnerabilitiesTable); err != nil {
-		return fmt.Errorf("failed to create vulnerabilities table: %w", err)
-	}
-	if _, err := db.Exec(createAssetsTable); err != nil {
-		return fmt.Errorf("failed to create assets table: %w", err)
-	}
-	if err := db.migrateAssetsTable(); err != nil {
-		return fmt.Errorf("failed to migrate assets table: %w", err)
-	}
-
-	if _, err := db.Exec(createBatchTaskQueuesTable); err != nil {
-		return fmt.Errorf("failed to create batch_task_queues table: %w", err)
-	}
-
-	if _, err := db.Exec(createBatchTasksTable); err != nil {
-		return fmt.Errorf("failed to create batch_tasks table: %w", err)
-	}
-
-	if _, err := db.Exec(createWebshellConnectionsTable); err != nil {
-		return fmt.Errorf("failed to create webshell_connections table: %w", err)
-	}
-
-	if _, err := db.Exec(createWebshellConnectionStatesTable); err != nil {
-		return fmt.Errorf("failed to create webshell_connection_states table: %w", err)
-	}
-
-	if _, err := db.Exec(createAuditLogsTable); err != nil {
-		return fmt.Errorf("failed to create audit_logs table: %w", err)
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit schema tables transaction: %w", err)
 	}
 
 	if err := db.initRBACTables(); err != nil {
 		return fmt.Errorf("failed to create RBAC tables: %w", err)
 	}
-	if _, err := db.Exec(createVulnerabilityAlertSubscriptionsTable); err != nil {
-		return fmt.Errorf("failed to create vulnerability alert subscription table: %w", err)
-	}
-	if _, err := db.Exec(createVulnerabilityAlertDeliveriesTable); err != nil {
-		return fmt.Errorf("failed to create vulnerability alert delivery table: %w", err)
-	}
 
-	for tableName, ddl := range map[string]string{
-		"workflow_definitions":         createWorkflowDefinitionsTable,
-		"workflow_runs":                createWorkflowRunsTable,
-		"workflow_node_runs":           createWorkflowNodeRunsTable,
-		"workflow_package_inspections": createWorkflowPackageInspectionsTable,
-		"workflow_package_imports":     createWorkflowPackageImportsTable,
-	} {
-		if _, err := db.Exec(ddl); err != nil {
-			return fmt.Errorf("failed to create %s table: %w", tableName, err)
-		}
+	// run migrations before index creation
+	if err := db.migrateRobotUserSessionsTable(); err != nil {
+		return fmt.Errorf("failed to migrate robot_user_sessions table: %w", err)
 	}
-
-	for tableName, ddl := range map[string]string{
-		"c2_listeners": createC2ListenersTable,
-		"c2_sessions":  createC2SessionsTable,
-		"c2_http_session_auth": `CREATE TABLE IF NOT EXISTS c2_http_session_auth (
-          implant_uuid TEXT PRIMARY KEY,
-          listener_id TEXT NOT NULL,
-          token_hash TEXT NOT NULL,
-          FOREIGN KEY (listener_id) REFERENCES c2_listeners(id) ON DELETE CASCADE
-        );`,
-		"c2_tasks":    createC2TasksTable,
-		"c2_files":    createC2FilesTable,
-		"c2_events":   createC2EventsTable,
-		"c2_profiles": createC2ProfilesTable,
-	} {
-		if _, err := db.Exec(ddl); err != nil {
-			return fmt.Errorf("failed to create %s table: %w", tableName, err)
-		}
+	if err := db.migrateAssetsTable(); err != nil {
+		return fmt.Errorf("failed to migrate assets table: %w", err)
 	}
-
-	// add new columns to existing tables (if not present) — must run before creating indexes
 	if err := db.migrateConversationsTable(); err != nil {
-		db.logger.Warn("failed to migrate conversations table", zap.Error(err))
-		// do not return error; allow execution to continue
+		return fmt.Errorf("failed to migrate conversations table: %w", err)
 	}
-
 	if err := db.migrateMessagesTable(); err != nil {
-		db.logger.Warn("failed to migrate messages table", zap.Error(err))
-		// do not return error; allow execution to continue
+		return fmt.Errorf("failed to migrate messages table: %w", err)
 	}
-
 	if err := db.migrateBatchTaskQueuesTable(); err != nil {
-		db.logger.Warn("failed to migrate batch_task_queues table", zap.Error(err))
-		// do not return error; allow execution to continue
+		return fmt.Errorf("failed to migrate batch_task_queues table: %w", err)
 	}
 	if err := db.migrateVulnerabilitiesTable(); err != nil {
-		db.logger.Warn("failed to migrate vulnerabilities table", zap.Error(err))
-		// do not return error; allow execution to continue
+		return fmt.Errorf("failed to migrate vulnerabilities table: %w", err)
 	}
 	if err := db.migrateVulnerabilitiesConversationFK(); err != nil {
-		db.logger.Warn("failed to migrate vulnerabilities conversation foreign key", zap.Error(err))
+		return fmt.Errorf("failed to migrate vulnerabilities conversation foreign key: %w", err)
 	}
-
 	if err := db.migrateProjectsTable(); err != nil {
-		db.logger.Warn("failed to migrate projects-related tables", zap.Error(err))
+		return fmt.Errorf("failed to migrate projects-related tables: %w", err)
 	}
 	if err := db.dropProjectFactVersionsTable(); err != nil {
-		db.logger.Warn("cleanup project_fact_versions table failed", zap.Error(err))
+		return fmt.Errorf("cleanup project_fact_versions table failed: %w", err)
 	}
-
 	if err := db.migrateWebshellConnectionsTable(); err != nil {
-		db.logger.Warn("migrate webshell_connections table failed", zap.Error(err))
-		// do not return error; allow execution to continue
+		return fmt.Errorf("migrate webshell_connections table failed: %w", err)
 	}
 	if err := db.migrateC2ListenersTable(); err != nil {
-		db.logger.Warn("migrate c2_listeners table failed", zap.Error(err))
+		return fmt.Errorf("migrate c2_listeners table failed: %w", err)
 	}
 	if err := db.migrateWorkflowRunsTable(); err != nil {
-		db.logger.Warn("migrate workflow_runs table failed", zap.Error(err))
+		return fmt.Errorf("migrate workflow_runs table failed: %w", err)
 	}
 	if err := db.migrateToolExecutionsPartialOutputColumns(); err != nil {
-		db.logger.Warn("migrate tool_executions partial output field failed", zap.Error(err))
+		return fmt.Errorf("migrate tool_executions partial output field failed: %w", err)
 	}
 	if err := db.migrateRBACOwnershipColumns(); err != nil {
-		db.logger.Warn("migrate RBAC resource ownership field failed", zap.Error(err))
+		return fmt.Errorf("migrate RBAC resource ownership field failed: %w", err)
 	}
 	if err := db.migrateAuditLogsTable(); err != nil {
-		db.logger.Warn("migrate audit_logs table failed", zap.Error(err))
+		return fmt.Errorf("migrate audit_logs table failed: %w", err)
 	}
 
-	if _, err := db.Exec(createIndexes); err != nil {
+	// create indexes inside a dedicated transaction
+	idxTx, err := db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin index transaction: %w", err)
+	}
+	defer idxTx.Rollback()
+
+	if _, err := idxTx.Exec(createIndexes); err != nil {
 		return fmt.Errorf("create index failed: %w", err)
+	}
+
+	if err := idxTx.Commit(); err != nil {
+		return fmt.Errorf("commit index transaction failed: %w", err)
+	}
+
+	if err := db.recordMigration(1, "001_initial_schema_and_indexes"); err != nil {
+		return fmt.Errorf("record migration 1 failed: %w", err)
 	}
 
 	if err := db.BackfillModelTokenUsageFromProcessDetails(); err != nil {
@@ -1665,7 +1674,7 @@ func (db *DB) migrateC2ListenersTable() error {
 
 // NewKnowledgeDB creates a knowledge base database connection (only includes knowledge base related tables)
 func NewKnowledgeDB(dbPath string, logger *zap.Logger) (*DB, error) {
-	sqlDB, err := sql.Open("sqlite3", dbPath+"?_journal_mode=WAL&_foreign_keys=1&_busy_timeout=5000&_synchronous=NORMAL")
+	sqlDB, err := sql.Open("sqlite3", buildSQLiteDSN(dbPath))
 	if err != nil {
 		return nil, fmt.Errorf("open knowledge base database failed: %w", err)
 	}
@@ -1746,24 +1755,40 @@ func (db *DB) initKnowledgeTables() error {
 	CREATE INDEX IF NOT EXISTS idx_knowledge_retrieval_logs_created_at ON knowledge_retrieval_logs(created_at);
 	`
 
-	if _, err := db.Exec(createKnowledgeBaseItemsTable); err != nil {
+	tx, err := db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin knowledge tables transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.Exec(createKnowledgeBaseItemsTable); err != nil {
 		return fmt.Errorf("failed to create knowledge_base_items table: %w", err)
 	}
-
-	if _, err := db.Exec(createKnowledgeEmbeddingsTable); err != nil {
+	if _, err := tx.Exec(createKnowledgeEmbeddingsTable); err != nil {
 		return fmt.Errorf("failed to create knowledge_embeddings table: %w", err)
 	}
-
-	if _, err := db.Exec(createKnowledgeRetrievalLogsTable); err != nil {
+	if _, err := tx.Exec(createKnowledgeRetrievalLogsTable); err != nil {
 		return fmt.Errorf("failed to create knowledge_retrieval_logs table: %w", err)
 	}
-
-	if _, err := db.Exec(createIndexes); err != nil {
-		return fmt.Errorf("create index failed: %w", err)
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit knowledge tables transaction: %w", err)
 	}
 
 	if err := db.migrateKnowledgeEmbeddingsColumns(); err != nil {
 		return fmt.Errorf("failed to migrate knowledge_embeddings columns: %w", err)
+	}
+
+	idxTx, err := db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin knowledge indexes transaction: %w", err)
+	}
+	defer idxTx.Rollback()
+
+	if _, err := idxTx.Exec(createIndexes); err != nil {
+		return fmt.Errorf("create knowledge index failed: %w", err)
+	}
+	if err := idxTx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit knowledge index transaction: %w", err)
 	}
 
 	db.logger.Info("knowledge base database tables initialised successfully")

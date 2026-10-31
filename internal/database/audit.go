@@ -80,8 +80,8 @@ func buildAuditLogsWhere(filter ListAuditLogsFilter) (string, []interface{}) {
 		args = append(args, filter.ResourceID)
 	}
 	if relatedUserID := strings.TrimSpace(filter.RelatedUserID); relatedUserID != "" {
-		conditions = append(conditions, `(resource_id = ? OR detail_json LIKE ? OR detail_json LIKE ?)`)
-		args = append(args, relatedUserID, `%"user_id":"`+relatedUserID+`"%`, `%"userId":"`+relatedUserID+`"%`)
+		conditions = append(conditions, `(actor = ? OR resource_id = ? OR detail_json LIKE ? OR detail_json LIKE ?)`)
+		args = append(args, relatedUserID, relatedUserID, `%"user_id":"`+relatedUserID+`"%`, `%"userId":"`+relatedUserID+`"%`)
 	}
 	if filter.Since != nil {
 		conditions = append(conditions, sqliteEpochGE("created_at", ">="))
