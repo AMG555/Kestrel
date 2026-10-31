@@ -67,3 +67,4 @@ func TestAuthHandler_LoginUsernameRateLimiting(t *testing.T) {
 		t.Fatalf("expected different username not to be rate limited, got 429")
 	}
 }
+

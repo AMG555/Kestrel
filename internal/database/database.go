@@ -795,6 +795,19 @@ func (db *DB) initTables() error {
 		FOREIGN KEY (inspection_id) REFERENCES workflow_package_inspections(id)
 	);`
 
+	createReportSharesTable := `
+	CREATE TABLE IF NOT EXISTS report_shares (
+		id TEXT PRIMARY KEY,
+		project_id TEXT NOT NULL,
+		token_hash TEXT NOT NULL,
+		passphrase_hash TEXT NOT NULL DEFAULT '',
+		expires_at DATETIME NOT NULL,
+		views INTEGER NOT NULL DEFAULT 0,
+		revoked INTEGER NOT NULL DEFAULT 0,
+		created_at DATETIME NOT NULL,
+		FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+	);`
+
 	// createindex
 	createIndexes := `
 	CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON messages(conversation_id);
@@ -876,6 +889,8 @@ func (db *DB) initTables() error {
 	CREATE INDEX IF NOT EXISTS idx_audit_logs_hash ON audit_logs(hash);
 	CREATE INDEX IF NOT EXISTS idx_workflow_definitions_updated_at ON workflow_definitions(updated_at);
 	CREATE INDEX IF NOT EXISTS idx_workflow_definitions_enabled ON workflow_definitions(enabled);
+	CREATE INDEX IF NOT EXISTS idx_report_shares_project ON report_shares(project_id);
+	CREATE INDEX IF NOT EXISTS idx_report_shares_token_hash ON report_shares(token_hash);
 	CREATE INDEX IF NOT EXISTS idx_workflow_runs_workflow ON workflow_runs(workflow_id);
 	CREATE INDEX IF NOT EXISTS idx_workflow_runs_conversation ON workflow_runs(conversation_id);
 	CREATE INDEX IF NOT EXISTS idx_workflow_runs_status ON workflow_runs(status);
@@ -936,6 +951,7 @@ func (db *DB) initTables() error {
 		{"c2_files", createC2FilesTable},
 		{"c2_events", createC2EventsTable},
 		{"c2_profiles", createC2ProfilesTable},
+		{"report_shares", createReportSharesTable},
 	}
 
 	for _, item := range tableDDLs {

@@ -17,3 +17,4 @@ func ServerFS() (http.FileSystem, fs.FS, error) {
 	}
 	return http.FS(sub), sub, nil
 }
+

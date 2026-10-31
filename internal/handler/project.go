@@ -9,7 +9,9 @@ import (
 	"kestrel/internal/attackchain"
 	"kestrel/internal/database"
 	"kestrel/internal/project"
+	"kestrel/internal/report"
 	"kestrel/internal/security"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -27,13 +29,19 @@ func clampProjectDescription(s string) string {
 
 // ProjectHandler handles project management requests.
 type ProjectHandler struct {
-	db     *database.DB
-	logger *zap.Logger
+	db          *database.DB
+	logger      *zap.Logger
+	authManager *security.AuthManager
 }
 
 // NewProjectHandler creates a project management handler.
 func NewProjectHandler(db *database.DB, logger *zap.Logger) *ProjectHandler {
 	return &ProjectHandler{db: db, logger: logger}
+}
+
+// SetAuthManager injects AuthManager for share token signing.
+func (h *ProjectHandler) SetAuthManager(am *security.AuthManager) {
+	h.authManager = am
 }
 
 type createProjectRequest struct {
@@ -670,4 +678,241 @@ func (h *ProjectHandler) PromoteAttackChain(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, result)
+}
+
+
+type createShareRequest struct {
+	TTLDays    int    `json:"ttl_days"`
+	Passphrase string `json:"passphrase"`
+}
+
+// CreateSharePermalink POST /api/projects/:id/share creates a signed read-only permalink.
+func (h *ProjectHandler) CreateSharePermalink(c *gin.Context) {
+	projectID := strings.TrimSpace(c.Param("id"))
+	if projectID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "project ID is required"})
+		return
+	}
+	session, ok := security.CurrentSession(c)
+	if !ok || !h.db.UserCanAccessResource(session.UserID, session.Scope, "project", projectID) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "access denied for this project"})
+		return
+	}
+
+	var req createShareRequest
+	_ = c.ShouldBindJSON(&req)
+	if req.TTLDays <= 0 {
+		req.TTLDays = 30
+	}
+	if req.TTLDays > 365 {
+		req.TTLDays = 365
+	}
+
+	expiresAt := time.Now().Add(time.Duration(req.TTLDays) * 24 * time.Hour)
+	secret := h.getJWTSecret()
+
+	token, tokenHash, err := report.CreateShareToken(projectID, expiresAt, secret)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate share token: " + err.Error()})
+		return
+	}
+
+	passphraseHash := ""
+	if strings.TrimSpace(req.Passphrase) != "" {
+		hsh, err := security.HashPassword(strings.TrimSpace(req.Passphrase))
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to hash passphrase"})
+			return
+		}
+		passphraseHash = hsh
+	}
+
+	share := &database.ReportShare{
+		ProjectID:      projectID,
+		TokenHash:      tokenHash,
+		PassphraseHash: passphraseHash,
+		ExpiresAt:      expiresAt,
+		CreatedAt:      time.Now(),
+	}
+	if err := h.db.CreateReportShare(share); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to store share link: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"id":         share.ID,
+		"token":      token,
+		"share_url":  "/r/" + token,
+		"badge_url":  "/badge/" + projectID + "?token=" + token,
+		"expires_at": expiresAt,
+	})
+}
+
+// ListSharePermalinks GET /api/projects/:id/shares lists active permalinks.
+func (h *ProjectHandler) ListSharePermalinks(c *gin.Context) {
+	projectID := strings.TrimSpace(c.Param("id"))
+	session, ok := security.CurrentSession(c)
+	if !ok || !h.db.UserCanAccessResource(session.UserID, session.Scope, "project", projectID) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "access denied for this project"})
+		return
+	}
+	shares, err := h.db.ListReportSharesForProject(projectID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"shares": shares})
+}
+
+// RevokeSharePermalink DELETE /api/projects/:id/shares/:shareId marks permalink as revoked.
+func (h *ProjectHandler) RevokeSharePermalink(c *gin.Context) {
+	projectID := strings.TrimSpace(c.Param("id"))
+	shareID := strings.TrimSpace(c.Param("shareId"))
+	session, ok := security.CurrentSession(c)
+	if !ok || !h.db.UserCanAccessResource(session.UserID, session.Scope, "project", projectID) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "access denied for this project"})
+		return
+	}
+	if err := h.db.RevokeReportShare(shareID, projectID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "revoked"})
+}
+
+// RenderPublicShare GET /r/:token renders public read-only HTML assessment report.
+func (h *ProjectHandler) RenderPublicShare(c *gin.Context) {
+	token := strings.TrimSpace(c.Param("token"))
+	if token == "" {
+		c.String(http.StatusBadRequest, "missing share token")
+		return
+	}
+
+	secret := h.getJWTSecret()
+	projectID, _, err := report.VerifyShareToken(token, secret)
+	if err != nil {
+		c.String(http.StatusUnauthorized, "invalid or expired report link")
+		return
+	}
+
+	tokenHash := database.HashShareToken(token)
+	share, err := h.db.GetReportShareByTokenHash(tokenHash)
+	if err != nil || share == nil || share.Revoked || time.Now().After(share.ExpiresAt) {
+		c.String(http.StatusNotFound, "report share not found or revoked")
+		return
+	}
+
+	project, err := h.db.GetProject(projectID)
+	if err != nil || project == nil {
+		c.String(http.StatusNotFound, "project not found")
+		return
+	}
+
+	if share.PassphraseHash != "" {
+		cookieVal, _ := c.Cookie("unlocked_share_" + share.ID)
+		if cookieVal != "1" {
+			htmlContent := report.RenderHTMLReport(report.HTMLReportOptions{
+				Project:            project,
+				ShareToken:         token,
+				PassphraseRequired: true,
+			})
+			c.Data(http.StatusOK, "text/html; charset=utf-8", htmlContent)
+			return
+		}
+	}
+
+	access := database.RBACListAccess{Scope: database.RBACScopeAll}
+	vulns, _ := h.db.ListVulnerabilitiesForAccess(500, 0, database.VulnerabilityListFilter{ProjectID: projectID}, access)
+
+	go func() {
+		_ = h.db.IncrementReportShareViews(share.ID)
+	}()
+
+	if c.Query("format") == "json" || strings.Contains(c.GetHeader("Accept"), "application/json") {
+		c.JSON(http.StatusOK, gin.H{
+			"project":         project,
+			"vulnerabilities": vulns,
+			"views":           share.Views + 1,
+			"expires_at":      share.ExpiresAt,
+		})
+		return
+	}
+
+	htmlContent := report.RenderHTMLReport(report.HTMLReportOptions{
+		Project:    project,
+		Vulns:      vulns,
+		ShareToken: token,
+	})
+	c.Data(http.StatusOK, "text/html; charset=utf-8", htmlContent)
+}
+
+// UnlockPublicShare POST /r/:token/unlock verifies passphrase and unlocks report.
+func (h *ProjectHandler) UnlockPublicShare(c *gin.Context) {
+	token := strings.TrimSpace(c.Param("token"))
+	secret := h.getJWTSecret()
+	_, _, err := report.VerifyShareToken(token, secret)
+	if err != nil {
+		c.String(http.StatusUnauthorized, "invalid share token")
+		return
+	}
+
+	tokenHash := database.HashShareToken(token)
+	share, err := h.db.GetReportShareByTokenHash(tokenHash)
+	if err != nil || share == nil || share.Revoked || time.Now().After(share.ExpiresAt) {
+		c.String(http.StatusNotFound, "report not found or expired")
+		return
+	}
+
+	passphrase := c.PostForm("passphrase")
+	if !security.VerifyPasswordHash(passphrase, share.PassphraseHash) {
+		c.String(http.StatusForbidden, "incorrect passphrase")
+		return
+	}
+
+	c.SetCookie("unlocked_share_"+share.ID, "1", 3600*24, "/", "", false, true)
+	c.Redirect(http.StatusFound, "/r/"+token)
+}
+
+// RenderProjectBadge GET /badge/:project_id generates shields.io SVG status badge.
+func (h *ProjectHandler) RenderProjectBadge(c *gin.Context) {
+	projectID := strings.TrimSpace(c.Param("project_id"))
+	token := strings.TrimSpace(c.Query("token"))
+
+	if token != "" {
+		secret := h.getJWTSecret()
+		tokProj, _, err := report.VerifyShareToken(token, secret)
+		if err != nil || tokProj != projectID {
+			c.String(http.StatusUnauthorized, "invalid badge token")
+			return
+		}
+	}
+
+	access := database.RBACListAccess{Scope: database.RBACScopeAll}
+	vulns, _ := h.db.ListVulnerabilitiesForAccess(500, 0, database.VulnerabilityListFilter{ProjectID: projectID}, access)
+
+	var critical, high, medium, low int
+	for _, v := range vulns {
+		switch strings.ToLower(strings.TrimSpace(v.Severity)) {
+		case "critical":
+			critical++
+		case "high":
+			high++
+		case "medium":
+			medium++
+		case "low":
+			low++
+		}
+	}
+
+	svgData := report.GenerateBadgeSVG(critical, high, medium, low)
+	c.Header("Content-Type", "image/svg+xml; charset=utf-8")
+	c.Header("Cache-Control", "no-cache, max-age=60")
+	c.Data(http.StatusOK, "image/svg+xml; charset=utf-8", svgData)
+}
+
+func (h *ProjectHandler) getJWTSecret() []byte {
+	if h.authManager != nil {
+		return h.authManager.JWTSecret()
+	}
+	return []byte("kestrel-default-share-secret-key-32b")
 }

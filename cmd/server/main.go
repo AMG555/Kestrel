@@ -36,6 +36,10 @@ func main() {
 	var sarifSeedFixture = flag.Bool("sarif-seed-fixture", false, "Seed database with a test vulnerability fixture before SARIF export")
 	var retestVuln = flag.String("retest-vuln", "", "Vulnerability ID to automatically retest using PoC verification (exit 0=resolved/fixed, 1=vulnerable, 2=error)")
 	var retestTarget = flag.String("retest-target", "", "Optional target URL override for -retest-vuln")
+	var reportShare = flag.String("report-share", "", "Generate a signed read-only share permalink for project ID and exit")
+	var shareTTL = flag.Duration("share-ttl", 30*24*time.Hour, "Validity duration for the generated share permalink (e.g. 720h, 30d)")
+	var sharePassphrase = flag.String("share-passphrase", "", "Optional passphrase protection for the generated share permalink")
+	var shareBaseURL = flag.String("share-base-url", "", "Base URL for share links and badges (default: http(s)://<host>:<port>)")
 	flag.Parse()
 
 	// environment variable compatibility (for systemd/docker scenarios where args are not passed)
@@ -110,6 +114,14 @@ func main() {
 		if err := runRetestVuln(cfg, *retestVuln, *retestTarget); err != nil {
 			fmt.Fprintf(os.Stderr, "Retest error: %v\n", err)
 			os.Exit(2)
+		}
+		return
+	}
+
+	if *reportShare != "" {
+		if err := runReportShare(cfg, *reportShare, *shareTTL, *sharePassphrase, *shareBaseURL); err != nil {
+			fmt.Fprintf(os.Stderr, "Report share error: %v\n", err)
+			os.Exit(1)
 		}
 		return
 	}
@@ -428,5 +440,91 @@ func runRetestVuln(cfg *config.Config, vulnID, targetOverride string) error {
 		os.Exit(2)
 	}
 
+	return nil
+}
+
+func runReportShare(cfg *config.Config, projectID string, ttl time.Duration, passphrase, baseURL string) error {
+	dbPath := strings.TrimSpace(cfg.Database.Path)
+	if dbPath == "" {
+		dbPath = "data/conversations.db"
+	}
+	if _, err := os.Stat(dbPath); err != nil {
+		return fmt.Errorf("database does not exist: %s", dbPath)
+	}
+
+	db, err := database.NewDB(dbPath, zap.NewNop())
+	if err != nil {
+		return fmt.Errorf("failed to open database: %w", err)
+	}
+	defer db.Close()
+
+	proj, err := db.GetProject(projectID)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve project: %w", err)
+	}
+	if proj == nil {
+		return fmt.Errorf("project %q not found", projectID)
+	}
+
+	jwtSecret := []byte(cfg.Auth.JWTSecret)
+	if len(jwtSecret) == 0 {
+		jwtSecret = []byte("kestrel-share-signing-key-default")
+	}
+
+	expiresAt := time.Now().Add(ttl)
+	token, tokenHash, err := report.CreateShareToken(projectID, expiresAt, jwtSecret)
+	if err != nil {
+		return fmt.Errorf("failed to generate share token: %w", err)
+	}
+
+	var passphraseHash string
+	if strings.TrimSpace(passphrase) != "" {
+		hsh, err := security.HashPassword(strings.TrimSpace(passphrase))
+		if err != nil {
+			return fmt.Errorf("failed to hash passphrase: %w", err)
+		}
+		passphraseHash = hsh
+	}
+
+	share := &database.ReportShare{
+		ProjectID:      projectID,
+		TokenHash:      tokenHash,
+		PassphraseHash: passphraseHash,
+		ExpiresAt:      expiresAt,
+		CreatedAt:      time.Now(),
+	}
+	if err := db.CreateReportShare(share); err != nil {
+		return fmt.Errorf("failed to store share link: %w", err)
+	}
+
+	if baseURL == "" {
+		scheme := "http"
+		if config.MainWebUIUsesHTTPS(&cfg.Server) {
+			scheme = "https"
+		}
+		host := cfg.Server.Host
+		if host == "" || host == "0.0.0.0" {
+			host = "localhost"
+		}
+		port := cfg.Server.Port
+		if port <= 0 {
+			port = 8080
+		}
+		baseURL = fmt.Sprintf("%s://%s:%d", scheme, host, port)
+	}
+	baseURL = strings.TrimRight(baseURL, "/")
+
+	shareURL := fmt.Sprintf("%s/r/%s", baseURL, token)
+	badgeURL := fmt.Sprintf("%s/badge/%s?token=%s", baseURL, projectID, token)
+
+	fmt.Printf("\n=== Kestrel Report Share Permalink ===\n")
+	fmt.Printf("Project:      %s (%s)\n", proj.Name, proj.ID)
+	fmt.Printf("Share Link:   %s\n", shareURL)
+	fmt.Printf("Status Badge: %s\n", badgeURL)
+	if passphrase != "" {
+		fmt.Printf("Passphrase:   %s\n", passphrase)
+	}
+	fmt.Printf("Expires At:   %s\n", expiresAt.Format(time.RFC3339))
+	fmt.Printf("\nMarkdown Badge:\n[![Kestrel Security Status](%s)](%s)\n\n", badgeURL, shareURL)
 	return nil
 }

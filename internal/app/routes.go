@@ -135,6 +135,12 @@ func setupRoutes(
 		robotGroup.POST("/lark", robotHandler.HandleLarkPOST)
 	}
 
+	// Public report share permalinks & status badges (unauthenticated)
+	router.GET("/r/:token", projectHandler.RenderPublicShare)
+	router.POST("/r/:token/unlock", projectHandler.UnlockPublicShare)
+	router.GET("/badge/:project_id", projectHandler.RenderProjectBadge)
+	api.GET("/r/:token", projectHandler.RenderPublicShare)
+
 	protected := api.Group("")
 	protected.Use(security.AuthMiddleware(authManager))
 	protected.Use(security.RBACMiddlewareWithDenyHook(app.db, func(c *gin.Context, reason, permission string) {
@@ -552,6 +558,9 @@ func setupRoutes(
 		protected.DELETE("/projects/:id/facts/:factId", projectHandler.DeleteFact)
 		protected.POST("/projects/:id/facts/deprecate", projectHandler.DeprecateFact)
 		protected.POST("/projects/:id/facts/restore", projectHandler.RestoreFact)
+		protected.POST("/projects/:id/share", projectHandler.CreateSharePermalink)
+		protected.GET("/projects/:id/shares", projectHandler.ListSharePermalinks)
+		protected.DELETE("/projects/:id/shares/:shareId", projectHandler.RevokeSharePermalink)
 
 		// WebShell management (proxy execution + connection config stored in SQLite)
 		protected.GET("/webshell/connections", webshellHandler.ListConnections)

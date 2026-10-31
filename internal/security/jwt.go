@@ -102,3 +102,4 @@ func VerifyJWT(tokenString string, secret []byte) (*JWTClaims, error) {
 
 	return &claims, nil
 }
+
