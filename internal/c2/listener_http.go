@@ -238,7 +238,7 @@ func (l *HTTPBeaconListener) handleCheckIn(w http.ResponseWriter, r *http.Reques
 	}
 	if isPlaintext {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	} else {
 		l.writeEncrypted(w, resp)
 	}
@@ -274,7 +274,7 @@ func (l *HTTPBeaconListener) handleTasks(w http.ResponseWriter, r *http.Request)
 	resp := map[string]interface{}{"tasks": envelopes}
 	if l.isPlaintextClient(r) {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	} else {
 		l.writeEncrypted(w, resp)
 	}
@@ -321,7 +321,7 @@ func (l *HTTPBeaconListener) handleResult(w http.ResponseWriter, r *http.Request
 	resp := map[string]string{"ok": "1"}
 	if l.isPlaintextClient(r) {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	} else {
 		l.writeEncrypted(w, resp)
 	}

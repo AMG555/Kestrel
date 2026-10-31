@@ -856,7 +856,7 @@ func (m *Manager) GetRetrievalLogs(conversationID, messageID string, limit int) 
 
 		// parse retrieved items
 		if itemsJSON.Valid {
-			json.Unmarshal([]byte(itemsJSON.String), &log.RetrievedItems)
+			_ = json.Unmarshal([]byte(itemsJSON.String), &log.RetrievedItems)
 		}
 
 		logs = append(logs, log)

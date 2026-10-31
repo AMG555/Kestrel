@@ -150,9 +150,9 @@ func (l *WebSocketListener) handleWS(w http.ResponseWriter, r *http.Request) {
 // handleConn handles the full lifecycle of a WS connection: wait for checkin → register session → read loop.
 func (l *WebSocketListener) handleConn(ws *websocket.Conn) {
 	ws.SetReadLimit(64 << 20)
-	ws.SetReadDeadline(time.Now().Add(60 * time.Second))
+	_ = ws.SetReadDeadline(time.Now().Add(60 * time.Second))
 	ws.SetPongHandler(func(string) error {
-		ws.SetReadDeadline(time.Now().Add(60 * time.Second))
+		_ = ws.SetReadDeadline(time.Now().Add(60 * time.Second))
 		return nil
 	})
 

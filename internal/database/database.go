@@ -1038,7 +1038,7 @@ func (db *DB) initTables() error {
 	if err != nil {
 		return fmt.Errorf("failed to begin index transaction: %w", err)
 	}
-	defer idxTx.Rollback()
+	defer func() { _ = idxTx.Rollback() }()
 
 	if _, err := idxTx.Exec(createIndexes); err != nil {
 		return fmt.Errorf("create index failed: %w", err)
@@ -1816,7 +1816,7 @@ func (db *DB) initKnowledgeTables() error {
 	if err != nil {
 		return fmt.Errorf("failed to begin knowledge indexes transaction: %w", err)
 	}
-	defer idxTx.Rollback()
+	defer func() { _ = idxTx.Rollback() }()
 
 	if _, err := idxTx.Exec(createIndexes); err != nil {
 		return fmt.Errorf("create knowledge index failed: %w", err)

@@ -30,7 +30,7 @@ func main() {
 		Disabled:      cfg.Log.DiagnosticDisabled,
 		RetentionDays: cfg.Log.DiagnosticRetentionDays,
 	})
-	defer log.Sync()
+	defer func() { _ = log.Sync() }()
 
 	// create MCP server
 	mcpServer := mcp.NewServer(log.Logger)

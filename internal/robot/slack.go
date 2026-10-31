@@ -59,7 +59,7 @@ func runSlackSocket(ctx context.Context, cfg config.RobotSlackConfig, h MessageH
 				if !ok {
 					continue
 				}
-				client.Ack(*evt.Request)
+				_ = client.Ack(*evt.Request)
 				if eventsAPIEvent.Type != slackevents.CallbackEvent {
 					continue
 				}

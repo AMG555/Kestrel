@@ -141,3 +141,4 @@ func TestAuditRetention_ArchiveThenDelete(t *testing.T) {
 		t.Fatalf("expected remaining active chain to be valid, got valid=%v, err=%v", valid, err)
 	}
 }
+
