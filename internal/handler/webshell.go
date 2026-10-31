@@ -6,10 +6,13 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -336,11 +339,22 @@ func (h *WebShellHandler) SetAudit(s *audit.Service) {
 }
 
 // NewWebShellHandler creates a WebShell handler; db may be nil (connection config interface will be unavailable)
+const maxWebshellResponseBytes = 10 * 1024 * 1024 // 10MB response cap
+
 func NewWebShellHandler(logger *zap.Logger, db *database.DB) *WebShellHandler {
 	return &WebShellHandler{
 		logger: logger,
 		client: &http.Client{
 			Timeout: 30 * time.Second,
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+				if len(via) >= 10 {
+					return errors.New("stopped after 10 redirects")
+				}
+				if err := validateWebshellTargetURL(req.URL.String()); err != nil {
+					return fmt.Errorf("redirect blocked: %w", err)
+				}
+				return nil
+			},
 			Transport: &http.Transport{
 				DisableKeepAlives: false,
 				// Self-signed certificates or IP access (certificate has no IP SAN) are common in WebShell scenarios; skip verification by default, consistent with AntSword and similar clients.
@@ -416,8 +430,8 @@ func (h *WebShellHandler) CreateConnection(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "url is required"})
 		return
 	}
-	if _, err := url.Parse(req.URL); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid url"})
+	if err := validateWebshellTargetURL(req.URL); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	projectID := strings.TrimSpace(req.ProjectID)
@@ -487,8 +501,8 @@ func (h *WebShellHandler) UpdateConnection(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "url is required"})
 		return
 	}
-	if _, err := url.Parse(req.URL); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid url"})
+	if err := validateWebshellTargetURL(req.URL); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	projectID := strings.TrimSpace(req.ProjectID)
@@ -806,7 +820,7 @@ func (h *WebShellHandler) Exec(c *gin.Context) {
 	}
 	defer resp.Body.Close()
 
-	out, readErr := io.ReadAll(resp.Body)
+	out, readErr := io.ReadAll(io.LimitReader(resp.Body, maxWebshellResponseBytes))
 	if readErr != nil {
 		h.logger.Warn("webshell exec read body", zap.Error(readErr))
 	}
@@ -830,6 +844,33 @@ func (h *WebShellHandler) Exec(c *gin.Context) {
 	})
 }
 
+func isPrivateOrReservedIP(ip net.IP) bool {
+	if ip == nil {
+		return true
+	}
+	if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsInterfaceLocalMulticast() || ip.IsUnspecified() {
+		return true
+	}
+	if ip4 := ip.To4(); ip4 != nil {
+		if ip4[0] == 169 && ip4[1] == 254 {
+			return true
+		}
+		if ip4[0] == 0 || ip4[0] == 127 || ip4[0] >= 224 {
+			return true
+		}
+		if ip4[0] == 100 && (ip4[1]&0xC0) == 64 {
+			return true
+		}
+		if ip4[0] == 192 && ip4[1] == 0 && ip4[2] == 0 {
+			return true
+		}
+		if ip4[0] == 198 && (ip4[1]&0xFE) == 18 {
+			return true
+		}
+	}
+	return false
+}
+
 func validateWebshellTargetURL(rawURL string) error {
 	parsed, err := url.Parse(rawURL)
 	if err != nil {
@@ -838,10 +879,49 @@ func validateWebshellTargetURL(rawURL string) error {
 	if parsed.Scheme != "http" && parsed.Scheme != "https" {
 		return fmt.Errorf("only http(s) allowed")
 	}
-	host := parsed.Hostname()
-	if strings.EqualFold(host, "169.254.169.254") || strings.EqualFold(host, "metadata.google.internal") || strings.EqualFold(host, "instance-data") {
-		return fmt.Errorf("access to cloud metadata service is prohibited")
+	hostname := parsed.Hostname()
+	if hostname == "" {
+		return fmt.Errorf("hostname is required")
 	}
+
+	if portStr := parsed.Port(); portStr != "" {
+		port, err := strconv.Atoi(portStr)
+		if err != nil || port <= 0 || port > 65535 {
+			return fmt.Errorf("invalid port %q: must be between 1 and 65535", portStr)
+		}
+	}
+
+	lowerHost := strings.ToLower(hostname)
+	if lowerHost == "localhost" ||
+		lowerHost == "metadata.google.internal" ||
+		lowerHost == "instance-data" ||
+		lowerHost == "metadata.azure.com" ||
+		strings.HasSuffix(lowerHost, ".internal") ||
+		strings.HasSuffix(lowerHost, ".local") ||
+		strings.HasSuffix(lowerHost, ".localhost") {
+		return fmt.Errorf("access to internal or cloud metadata service is prohibited")
+	}
+
+	if ip := net.ParseIP(hostname); ip != nil {
+		if isPrivateOrReservedIP(ip) {
+			return fmt.Errorf("access to private or reserved IP %s is prohibited", hostname)
+		}
+		return nil
+	}
+
+	ips, err := net.LookupIP(hostname)
+	if err != nil {
+		return fmt.Errorf("cannot resolve hostname %s: %w", hostname, err)
+	}
+	if len(ips) == 0 {
+		return fmt.Errorf("no IP addresses resolved for %s", hostname)
+	}
+	for _, ip := range ips {
+		if isPrivateOrReservedIP(ip) {
+			return fmt.Errorf("hostname %s resolves to private or reserved IP %s", hostname, ip.String())
+		}
+	}
+
 	return nil
 }
 
@@ -962,7 +1042,7 @@ func (h *WebShellHandler) FileOp(c *gin.Context) {
 	}
 	defer resp.Body.Close()
 
-	out, readErr := io.ReadAll(resp.Body)
+	out, readErr := io.ReadAll(io.LimitReader(resp.Body, maxWebshellResponseBytes))
 	if readErr != nil {
 		h.logger.Warn("webshell fileop read body", zap.Error(readErr))
 	}
@@ -1017,6 +1097,9 @@ func (h *WebShellHandler) ExecWithConnection(conn *database.WebShellConnection, 
 	if conn == nil {
 		return "", false, "connection is nil"
 	}
+	if err := validateWebshellTargetURL(conn.URL); err != nil {
+		return "", false, err.Error()
+	}
 	command = strings.TrimSpace(command)
 	if command == "" {
 		return "", false, "command is required"
@@ -1045,7 +1128,7 @@ func (h *WebShellHandler) ExecWithConnection(conn *database.WebShellConnection, 
 		return "", false, err.Error()
 	}
 	defer resp.Body.Close()
-	out, readErr := io.ReadAll(resp.Body)
+	out, readErr := io.ReadAll(io.LimitReader(resp.Body, maxWebshellResponseBytes))
 	if readErr != nil {
 		h.logger.Warn("webshell ExecWithConnection read body", zap.Error(readErr))
 	}
@@ -1114,7 +1197,7 @@ func (h *WebShellHandler) FileOpWithConnection(conn *database.WebShellConnection
 		return "", false, err.Error()
 	}
 	defer resp.Body.Close()
-	out, readErr := io.ReadAll(resp.Body)
+	out, readErr := io.ReadAll(io.LimitReader(resp.Body, maxWebshellResponseBytes))
 	if readErr != nil {
 		h.logger.Warn("webshell FileOpWithConnection read body", zap.Error(readErr))
 	}
