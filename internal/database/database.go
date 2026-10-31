@@ -647,7 +647,9 @@ func (db *DB) initTables() error {
 		resource_type TEXT,
 		resource_id TEXT,
 		message TEXT NOT NULL,
-		detail_json TEXT
+		detail_json TEXT,
+		prev_hash TEXT NOT NULL DEFAULT '',
+		hash TEXT NOT NULL DEFAULT ''
 	);`
 
 	createC2ProfilesTable := `
@@ -810,6 +812,8 @@ func (db *DB) initTables() error {
 	CREATE INDEX IF NOT EXISTS idx_audit_logs_result ON audit_logs(result);
 	CREATE INDEX IF NOT EXISTS idx_audit_logs_actor_created ON audit_logs(actor, created_at);
 	CREATE INDEX IF NOT EXISTS idx_audit_logs_category_created ON audit_logs(category, created_at);
+	CREATE INDEX IF NOT EXISTS idx_audit_logs_resource ON audit_logs(resource_type, resource_id);
+	CREATE INDEX IF NOT EXISTS idx_audit_logs_hash ON audit_logs(hash);
 	CREATE INDEX IF NOT EXISTS idx_workflow_definitions_updated_at ON workflow_definitions(updated_at);
 	CREATE INDEX IF NOT EXISTS idx_workflow_definitions_enabled ON workflow_definitions(enabled);
 	CREATE INDEX IF NOT EXISTS idx_workflow_runs_workflow ON workflow_runs(workflow_id);
@@ -996,6 +1000,9 @@ func (db *DB) initTables() error {
 	}
 	if err := db.migrateRBACOwnershipColumns(); err != nil {
 		db.logger.Warn("migrate RBAC resource ownership field failed", zap.Error(err))
+	}
+	if err := db.migrateAuditLogsTable(); err != nil {
+		db.logger.Warn("migrate audit_logs table failed", zap.Error(err))
 	}
 
 	if _, err := db.Exec(createIndexes); err != nil {
@@ -1813,4 +1820,23 @@ func (db *DB) Close() error {
 		}
 	})
 	return db.closeErr
+}
+
+func (db *DB) migrateAuditLogsTable() error {
+	_ = db.addColumnIfMissing("audit_logs", "prev_hash", "ALTER TABLE audit_logs ADD COLUMN prev_hash TEXT NOT NULL DEFAULT ''")
+	_ = db.addColumnIfMissing("audit_logs", "hash", "ALTER TABLE audit_logs ADD COLUMN hash TEXT NOT NULL DEFAULT ''")
+	triggers := `
+	CREATE TRIGGER IF NOT EXISTS trg_audit_logs_no_update
+	BEFORE UPDATE ON audit_logs
+	BEGIN
+		SELECT RAISE(ABORT, 'audit logs are immutable and cannot be updated');
+	END;
+
+	CREATE TRIGGER IF NOT EXISTS trg_audit_logs_no_delete
+	BEFORE DELETE ON audit_logs
+	BEGIN
+		SELECT RAISE(ABORT, 'audit logs are immutable and cannot be deleted');
+	END;`
+	_, err := db.Exec(triggers)
+	return err
 }

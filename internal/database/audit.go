@@ -1,8 +1,11 @@
 ﻿package database
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 )
@@ -24,6 +27,8 @@ type AuditLog struct {
 	ResourceAvailable *bool                  `json:"resourceAvailable,omitempty"` // API-only: whether linked resource still exists
 	Message           string                 `json:"message"`
 	Detail            map[string]interface{} `json:"detail,omitempty"`
+	PrevHash          string                 `json:"prevHash,omitempty"`
+	Hash              string                 `json:"hash,omitempty"`
 }
 
 // ListAuditLogsFilter query parameters.
@@ -116,16 +121,26 @@ func (db *DB) AppendAuditLog(row *AuditLog) error {
 			detailJSON = string(b)
 		}
 	}
+	var lastHash string
+	_ = db.QueryRow(`SELECT hash FROM audit_logs WHERE hash != '' ORDER BY rowid DESC LIMIT 1`).Scan(&lastHash)
+	if lastHash == "" {
+		lastHash = "GENESIS"
+	}
+	row.PrevHash = lastHash
+	row.Hash = computeAuditHash(lastHash, row, detailJSON)
+
 	query := `
 		INSERT INTO audit_logs (
 			id, created_at, level, category, action, result, actor, session_hint,
-			client_ip, user_agent, resource_type, resource_id, message, detail_json
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			client_ip, user_agent, resource_type, resource_id, message, detail_json,
+			prev_hash, hash
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	_, err := db.Exec(query,
 		row.ID, formatSQLiteUTC(row.CreatedAt), row.Level, row.Category, row.Action, row.Result,
 		row.Actor, row.SessionHint, row.ClientIP, row.UserAgent,
 		row.ResourceType, row.ResourceID, row.Message, detailJSON,
+		row.PrevHash, row.Hash,
 	)
 	return err
 }
@@ -139,7 +154,8 @@ func (db *DB) GetAuditLogByID(id string) (*AuditLog, error) {
 	query := `
 		SELECT id, created_at, level, category, action, result, actor,
 			COALESCE(session_hint, ''), COALESCE(client_ip, ''), COALESCE(user_agent, ''),
-			COALESCE(resource_type, ''), COALESCE(resource_id, ''), message, COALESCE(detail_json, '')
+			COALESCE(resource_type, ''), COALESCE(resource_id, ''), message, COALESCE(detail_json, ''),
+			COALESCE(prev_hash, ''), COALESCE(hash, '')
 		FROM audit_logs WHERE id = ?
 	`
 	var row AuditLog
@@ -148,6 +164,7 @@ func (db *DB) GetAuditLogByID(id string) (*AuditLog, error) {
 		&row.ID, &row.CreatedAt, &row.Level, &row.Category, &row.Action, &row.Result, &row.Actor,
 		&row.SessionHint, &row.ClientIP, &row.UserAgent,
 		&row.ResourceType, &row.ResourceID, &row.Message, &detailJSON,
+		&row.PrevHash, &row.Hash,
 	)
 	if err != nil {
 		return nil, err
@@ -181,7 +198,8 @@ func (db *DB) ListAuditLogs(filter ListAuditLogsFilter) ([]*AuditLog, error) {
 	query := `
 		SELECT id, created_at, level, category, action, result, actor,
 			COALESCE(session_hint, ''), COALESCE(client_ip, ''), COALESCE(user_agent, ''),
-			COALESCE(resource_type, ''), COALESCE(resource_id, ''), message, COALESCE(detail_json, '')
+			COALESCE(resource_type, ''), COALESCE(resource_id, ''), message, COALESCE(detail_json, ''),
+			COALESCE(prev_hash, ''), COALESCE(hash, '')
 		FROM audit_logs
 		WHERE ` + where + `
 		ORDER BY created_at DESC
@@ -201,6 +219,7 @@ func (db *DB) ListAuditLogs(filter ListAuditLogsFilter) ([]*AuditLog, error) {
 			&row.ID, &row.CreatedAt, &row.Level, &row.Category, &row.Action, &row.Result, &row.Actor,
 			&row.SessionHint, &row.ClientIP, &row.UserAgent,
 			&row.ResourceType, &row.ResourceID, &row.Message, &detailJSON,
+			&row.PrevHash, &row.Hash,
 		); err != nil {
 			continue
 		}
@@ -214,9 +233,65 @@ func (db *DB) ListAuditLogs(filter ListAuditLogsFilter) ([]*AuditLog, error) {
 
 // DeleteAuditLogsBefore removes rows older than cutoff.
 func (db *DB) DeleteAuditLogsBefore(cutoff time.Time) (int64, error) {
-	res, err := db.Exec(`DELETE FROM audit_logs WHERE `+sqliteEpochGE("created_at", "<"), formatSQLiteUTC(cutoff))
+	return 0, errors.New("audit logs are immutable: deletion is prohibited by database triggers")
+}
+
+func computeAuditHash(prevHash string, row *AuditLog, detailJSON string) string {
+	raw := fmt.Sprintf("%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s",
+		prevHash,
+		row.ID,
+		row.CreatedAt.Format(time.RFC3339Nano),
+		row.Level,
+		row.Category,
+		row.Action,
+		row.Result,
+		row.Actor,
+		row.ResourceType,
+		row.ResourceID,
+		row.Message,
+		detailJSON,
+	)
+	h := sha256.Sum256([]byte(raw))
+	return hex.EncodeToString(h[:])
+}
+
+// VerifyAuditLogChain checks the integrity of the audit log cryptographic hash chain.
+func (db *DB) VerifyAuditLogChain() (bool, error) {
+	rows, err := db.Query(`
+		SELECT id, created_at, level, category, action, result, actor,
+			COALESCE(resource_type, ''), COALESCE(resource_id, ''), message, COALESCE(detail_json, ''),
+			COALESCE(prev_hash, ''), COALESCE(hash, '')
+		FROM audit_logs
+		ORDER BY rowid ASC
+	`)
 	if err != nil {
-		return 0, err
+		return false, err
 	}
-	return res.RowsAffected()
+	defer rows.Close()
+
+	expectedPrev := "GENESIS"
+	for rows.Next() {
+		var row AuditLog
+		var createdAt, detailJSON, prevHash, hash string
+		if err := rows.Scan(
+			&row.ID, &createdAt, &row.Level, &row.Category, &row.Action, &row.Result, &row.Actor,
+			&row.ResourceType, &row.ResourceID, &row.Message, &detailJSON,
+			&prevHash, &hash,
+		); err != nil {
+			return false, err
+		}
+		if hash == "" {
+			continue
+		}
+		row.CreatedAt = parseDBTime(createdAt)
+		if prevHash != expectedPrev {
+			return false, fmt.Errorf("hash chain broken at log ID %s: expected prev_hash %s, got %s", row.ID, expectedPrev, prevHash)
+		}
+		computed := computeAuditHash(prevHash, &row, detailJSON)
+		if computed != hash {
+			return false, fmt.Errorf("audit log tampered at ID %s: expected hash %s, got %s", row.ID, computed, hash)
+		}
+		expectedPrev = hash
+	}
+	return true, rows.Err()
 }
