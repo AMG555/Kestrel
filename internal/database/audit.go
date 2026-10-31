@@ -236,7 +236,7 @@ func (db *DB) ListAuditLogs(filter ListAuditLogsFilter) ([]*AuditLog, error) {
 			&row.ResourceType, &row.ResourceID, &row.Message, &detailJSON,
 			&row.PrevHash, &row.Hash,
 		); err != nil {
-			continue
+			return nil, fmt.Errorf("failed to scan audit log row: %w", err)
 		}
 		if detailJSON != "" {
 			_ = json.Unmarshal([]byte(detailJSON), &row.Detail)
@@ -340,6 +340,49 @@ func (db *DB) DeleteAuditLogsBefore(cutoff time.Time) (int64, error) {
 	`
 	if _, err := tx.Exec(recreateTrigger); err != nil {
 		return 0, fmt.Errorf("failed to restore delete trigger: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
+	return deletedCount, nil
+}
+
+// PruneAuditLogArchiveBefore removes archived audit rows older than cutoff.
+// Suspends and restores trg_audit_archive_no_delete within an exclusive transaction.
+func (db *DB) PruneAuditLogArchiveBefore(cutoff time.Time) (int64, error) {
+	if db == nil {
+		return 0, nil
+	}
+	db.auditAppendMu.Lock()
+	defer db.auditAppendMu.Unlock()
+
+	cutoffStr := formatSQLiteUTC(cutoff.UTC())
+	tx, err := db.Begin()
+	if err != nil {
+		return 0, fmt.Errorf("failed to begin archive pruning transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	if _, err := tx.Exec(`DROP TRIGGER IF EXISTS trg_audit_archive_no_delete`); err != nil {
+		return 0, fmt.Errorf("failed to suspend archive delete trigger: %w", err)
+	}
+
+	delRes, err := tx.Exec(`DELETE FROM audit_log_archive WHERE created_at < ?`, cutoffStr)
+	if err != nil {
+		return 0, fmt.Errorf("failed to prune audit log archive: %w", err)
+	}
+	deletedCount, _ := delRes.RowsAffected()
+
+	recreateTrigger := `
+		CREATE TRIGGER IF NOT EXISTS trg_audit_archive_no_delete
+		BEFORE DELETE ON audit_log_archive
+		BEGIN
+			SELECT RAISE(ABORT, 'audit log archives are immutable and cannot be deleted');
+		END;
+	`
+	if _, err := tx.Exec(recreateTrigger); err != nil {
+		return 0, fmt.Errorf("failed to restore archive delete trigger: %w", err)
 	}
 
 	if err := tx.Commit(); err != nil {

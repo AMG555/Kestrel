@@ -55,7 +55,6 @@ type ExternalMCPManager struct {
 	configs            map[string]config.ExternalMCPServerConfig
 	logger             *zap.Logger
 	storage            MonitorStorage                // optional persistent storage
-	executions         map[string]*ToolExecution     // execution records
 	stats              map[string]*ToolStats         // tool statisticsinfo
 	errors             map[string]string             // errorinfo
 	toolCounts         map[string]int                // tool count cache
@@ -68,8 +67,6 @@ type ExternalMCPManager struct {
 	refreshWg          sync.WaitGroup // wait for background refresh goroutine to finish
 	refreshing         atomic.Bool    // prevent concurrent pile-up of refreshToolCounts calls
 	mu                 sync.RWMutex
-	runningCancels     map[string]context.CancelFunc
-	abortUserNotes     map[string]string
 	reconnectMu        sync.Mutex
 	reconnecting       map[string]bool
 	reconnectLastTry   map[string]time.Time
@@ -122,15 +119,12 @@ func NewExternalMCPManagerWithStorage(logger *zap.Logger, storage MonitorStorage
 		configs:            make(map[string]config.ExternalMCPServerConfig),
 		logger:             logger,
 		storage:            storage,
-		executions:         make(map[string]*ToolExecution),
 		stats:              make(map[string]*ToolStats),
 		errors:             make(map[string]string),
 		toolCounts:         make(map[string]int),
 		toolCache:          make(map[string]toolListCacheEntry),
 		listToolsInflight:  make(map[string]*listToolsInflight),
 		stopRefresh:        make(chan struct{}),
-		runningCancels:     make(map[string]context.CancelFunc),
-		abortUserNotes:     make(map[string]string),
 		reconnecting:       make(map[string]bool),
 		reconnectLastTry:   make(map[string]time.Time),
 		reconnectAttempts:  make(map[string]int),
@@ -693,10 +687,9 @@ func (m *ExternalMCPManager) updateToolCache(name string, tools []Tool) {
 
 // CallTool calls an external MCP tool (returns execution ID)
 func (m *ExternalMCPManager) CallTool(ctx context.Context, toolName string, args map[string]interface{}) (*ToolResult, string, error) {
-	if m.executionService == nil {
-		m.executionService = NewExecutionService(m.storage, m.logger)
-		m.executionService.ConfigureToolResultMaxBytes(m.toolResultMaxBytes)
-		m.executionService.ConfigureToolResultSpillRoot(m.spillRootDir)
+	svc := m.getExecutionService()
+	if svc == nil {
+		return nil, "", fmt.Errorf("external MCP execution service is not available")
 	}
 	var ownerUserID string
 	if principal, ok := authctx.PrincipalFromContext(ctx); ok {
@@ -705,7 +698,7 @@ func (m *ExternalMCPManager) CallTool(ctx context.Context, toolName string, args
 	var mcpName, actualToolName string
 	var client ExternalMCPClient
 	var blockedByGuard bool
-	handle, err := m.executionService.Submit(ctx, ExecutionRequest{
+	handle, err := svc.Submit(ctx, ExecutionRequest{
 		ConfirmCancellation: func(confirmCtx context.Context) error {
 			if confirmer, ok := client.(ExternalCancellationConfirmer); ok {
 				return confirmer.ConfirmToolCancellation(confirmCtx, actualToolName, args)
@@ -800,7 +793,7 @@ func (m *ExternalMCPManager) CallTool(ctx context.Context, toolName string, args
 	m.mu.RLock()
 	waitTimeout := m.toolWaitTimeout
 	m.mu.RUnlock()
-	snapshot, waitErr := m.executionService.Wait(ctx, handle.ID, waitTimeout)
+	snapshot, waitErr := svc.Wait(ctx, handle.ID, waitTimeout)
 	if errors.Is(waitErr, ErrExecutionWaitTimeout) {
 		return externalMCPWaitTimeoutResult(snapshot, waitTimeout), handle.ID, nil
 	}
@@ -972,19 +965,26 @@ func (m *ExternalMCPManager) externalMCPRuntimeLocked(mcpName string) *externalM
 	return rt
 }
 
+func (m *ExternalMCPManager) getExecutionService() *ExecutionService {
+	if m == nil {
+		return nil
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.executionService == nil {
+		m.executionService = NewExecutionService(m.storage, m.logger)
+		m.executionService.ConfigureToolResultMaxBytes(m.toolResultMaxBytes)
+		m.executionService.ConfigureToolResultSpillRoot(m.spillRootDir)
+	}
+	return m.executionService
+}
+
 // GetExecution returns an execution record (checks memory first, then database)
 func (m *ExternalMCPManager) GetExecution(id string) (*ToolExecution, bool) {
-	if m.executionService != nil {
-		if snap, err := m.executionService.Get(id); err == nil && snap != nil && snap.Execution != nil {
+	if svc := m.getExecutionService(); svc != nil {
+		if snap, err := svc.Get(id); err == nil && snap != nil && snap.Execution != nil {
 			return snap.Execution, true
 		}
-	}
-	m.mu.RLock()
-	exec, exists := m.executions[id]
-	m.mu.RUnlock()
-
-	if exists {
-		return exec, true
 	}
 
 	if m.storage != nil {
@@ -999,24 +999,10 @@ func (m *ExternalMCPManager) GetExecution(id string) (*ToolExecution, bool) {
 
 // CancelToolExecutionWithNote cancels an external MCP tool; if note is non-empty it is merged with the tool's returned output before being passed to the model.
 func (m *ExternalMCPManager) CancelToolExecutionWithNote(id string, note string) bool {
-	if m.executionService != nil && m.executionService.Cancel(id, note) {
-		return true
+	if svc := m.getExecutionService(); svc != nil {
+		return svc.Cancel(id, note)
 	}
-	m.mu.Lock()
-	cancel, ok := m.runningCancels[id]
-	if !ok || cancel == nil {
-		m.mu.Unlock()
-		return false
-	}
-	if strings.TrimSpace(note) != "" {
-		if m.abortUserNotes == nil {
-			m.abortUserNotes = make(map[string]string)
-		}
-		m.abortUserNotes[id] = strings.TrimSpace(note)
-	}
-	m.mu.Unlock()
-	cancel()
-	return true
+	return false
 }
 
 // CancelToolExecution cancels a running external MCP tool (no user note).
@@ -1029,21 +1015,10 @@ func (m *ExternalMCPManager) ActiveRunningExecutionIDs() map[string]struct{} {
 	if m == nil {
 		return nil
 	}
-	if m.executionService != nil {
-		if ids := m.executionService.ActiveRunningExecutionIDs(); len(ids) > 0 {
-			return ids
-		}
+	if svc := m.getExecutionService(); svc != nil {
+		return svc.ActiveRunningExecutionIDs()
 	}
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if len(m.runningCancels) == 0 {
-		return nil
-	}
-	out := make(map[string]struct{}, len(m.runningCancels))
-	for id := range m.runningCancels {
-		out[id] = struct{}{}
-	}
-	return out
+	return nil
 }
 
 // updateStats updateStatistics info

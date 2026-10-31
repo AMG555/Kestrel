@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -163,6 +164,62 @@ func (g *EgressGuard) CheckDestination(ctx context.Context, hostOrAddr string) e
 	return nil
 }
 
+func (g *EgressGuard) checkAndPinDestination(ctx context.Context, addr string) (string, error) {
+	if g == nil {
+		return addr, nil
+	}
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		host = addr
+		port = ""
+	}
+
+	// 1. Plumbing exemption check
+	if g.IsExempt(host) {
+		return addr, nil
+	}
+
+	// 2. Validate destination through policy
+	if err := g.CheckDestination(ctx, addr); err != nil {
+		return "", err
+	}
+
+	// If host is an IP, no DNS rebinding possible
+	if ip := net.ParseIP(host); ip != nil {
+		return addr, nil
+	}
+
+	// 3. DNS rebinding prevention: resolve now and verify resolved IP(s)
+	resolver := g.resolver
+	if resolver == nil {
+		resolver = net.DefaultResolver
+	}
+	dnsCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	ips, err := resolver.LookupIPAddr(dnsCtx, host)
+	if err != nil {
+		// If DNS resolution fails here, return original addr and let dialer handle network error
+		return addr, nil
+	}
+	if len(ips) == 0 {
+		return addr, nil
+	}
+
+	// Verify all resolved IPs against forbidden IMDS
+	for _, ipAddr := range ips {
+		ipStr := ipAddr.IP.String()
+		if !g.AllowIMDS() && IsCloudMetadataEndpoint(ipStr) {
+			return "", fmt.Errorf("%w: %s resolves to cloud metadata endpoint %s", ErrScopeEgressBlocked, host, ipStr)
+		}
+	}
+
+	// Pin dial destination to first validated IP
+	if port != "" {
+		return net.JoinHostPort(ips[0].IP.String(), port), nil
+	}
+	return ips[0].IP.String(), nil
+}
+
 // WrapDialContext wraps a dial function with network egress evaluation.
 func (g *EgressGuard) WrapDialContext(baseDial func(ctx context.Context, network, addr string) (net.Conn, error)) func(ctx context.Context, network, addr string) (net.Conn, error) {
 	if baseDial == nil {
@@ -171,10 +228,14 @@ func (g *EgressGuard) WrapDialContext(baseDial func(ctx context.Context, network
 	}
 
 	return func(ctx context.Context, network, addr string) (net.Conn, error) {
-		if err := g.CheckDestination(ctx, addr); err != nil {
+		if g == nil {
+			return baseDial(ctx, network, addr)
+		}
+		targetAddr, err := g.checkAndPinDestination(ctx, addr)
+		if err != nil {
 			return nil, err
 		}
-		return baseDial(ctx, network, addr)
+		return baseDial(ctx, network, targetAddr)
 	}
 }
 
@@ -184,6 +245,19 @@ func (g *EgressGuard) WrapHTTPTransport(base *http.Transport) *http.Transport {
 		base = http.DefaultTransport.(*http.Transport).Clone()
 	} else {
 		base = base.Clone()
+	}
+
+	// Protect against proxy bypass: validate request URL host before proxying
+	origProxy := base.Proxy
+	if origProxy != nil {
+		base.Proxy = func(req *http.Request) (*url.URL, error) {
+			if g != nil && req != nil && req.URL != nil {
+				if err := g.CheckDestination(req.Context(), req.URL.Host); err != nil {
+					return nil, err
+				}
+			}
+			return origProxy(req)
+		}
 	}
 
 	base.DialContext = g.WrapDialContext(base.DialContext)
@@ -219,9 +293,11 @@ func WrapDialContextWithGlobal(baseDial func(ctx context.Context, network, addr 
 	}
 	return func(ctx context.Context, network, addr string) (net.Conn, error) {
 		if g := GetGlobalEgressGuard(); g != nil {
-			if err := g.CheckDestination(ctx, addr); err != nil {
+			targetAddr, err := g.checkAndPinDestination(ctx, addr)
+			if err != nil {
 				return nil, err
 			}
+			return baseDial(ctx, network, targetAddr)
 		}
 		return baseDial(ctx, network, addr)
 	}

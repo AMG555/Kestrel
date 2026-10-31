@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"kestrel/internal/app"
@@ -200,6 +201,11 @@ func main() {
 
 	if *exportSarif || *sarifProject != "" {
 		if err := runExportSarif(cfg, *sarifProject, *sarifOut, *sarifFailOn, *sarifSeedFixture); err != nil {
+			var qgErr *qualityGateFailedError
+			if errors.As(err, &qgErr) {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(2)
+			}
 			fmt.Fprintf(os.Stderr, "SARIF export error: %v\n", err)
 			os.Exit(1)
 		}
@@ -208,6 +214,10 @@ func main() {
 
 	if *retestVuln != "" {
 		if err := runRetestVuln(cfg, *retestVuln, *retestTarget); err != nil {
+			var retestErr *retestExitError
+			if errors.As(err, &retestErr) {
+				os.Exit(retestErr.exitCode)
+			}
 			fmt.Fprintf(os.Stderr, "Retest error: %v\n", err)
 			os.Exit(2)
 		}
@@ -381,10 +391,13 @@ func runResetAdminPassword(cfg *config.Config) error {
 	if err := db.UpdateRBACAdminPassword(hash); err != nil {
 		return err
 	}
+	if err := db.SetRevocationCutoff(time.Now().UTC()); err != nil {
+		return fmt.Errorf("failed to revoke existing login sessions: %w", err)
+	}
 
 	fmt.Println()
 	fmt.Println("Admin password has been reset.")
-	fmt.Println("If the service is running, existing login sessions remain valid until the service restarts or the sessions expire.")
+	fmt.Println("All existing login sessions have been revoked.")
 	return nil
 }
 
@@ -401,6 +414,22 @@ func readHiddenPassword(prompt string) (string, error) {
 func configureProcessIsolation(cfg *config.Config) error {
 	isolation := cfg.Security.ProcessIsolation
 	return processguard.Configure(processguard.Options{Mode: isolation.Mode, CgroupRoot: isolation.CgroupRoot, MaxProcesses: isolation.MaxProcesses, MemoryMaxBytes: isolation.MemoryMaxBytes, CPUQuotaMicros: isolation.CPUQuotaMicros})
+}
+
+type qualityGateFailedError struct {
+	threshold string
+}
+
+func (e *qualityGateFailedError) Error() string {
+	return fmt.Sprintf("quality gate failed: detected vulnerabilities with severity >= %s", e.threshold)
+}
+
+type retestExitError struct {
+	exitCode int
+}
+
+func (e *retestExitError) Error() string {
+	return fmt.Sprintf("retest completed with exit code %d", e.exitCode)
 }
 
 func runExportSarif(cfg *config.Config, projectID, outFile, failOn string, seedFixture bool) error {
@@ -475,21 +504,24 @@ func runExportSarif(cfg *config.Config, projectID, outFile, failOn string, seedF
 			if strings.HasPrefix(v.ID, "kestrel-fixture-") {
 				continue // do not trip CI quality gate on seeded test validation fixture
 			}
-			if meetsSeverityThreshold(v.Severity, failOn) {
+			matched, err := meetsSeverityThreshold(v.Severity, failOn)
+			if err != nil {
+				return err
+			}
+			if matched {
 				thresholdMet = true
 				break
 			}
 		}
 		if thresholdMet {
-			fmt.Fprintf(os.Stderr, "Quality gate failed: detected vulnerabilities with severity >= %s\n", failOn)
-			os.Exit(2)
+			return &qualityGateFailedError{threshold: failOn}
 		}
 	}
 
 	return nil
 }
 
-func meetsSeverityThreshold(severity, threshold string) bool {
+func meetsSeverityThreshold(severity, threshold string) (bool, error) {
 	weights := map[string]int{
 		"critical": 5,
 		"high":     4,
@@ -497,12 +529,14 @@ func meetsSeverityThreshold(severity, threshold string) bool {
 		"low":      2,
 		"info":     1,
 	}
-	v := weights[strings.ToLower(strings.TrimSpace(severity))]
-	t := weights[strings.ToLower(strings.TrimSpace(threshold))]
-	if t == 0 {
-		return false
+	tKey := strings.ToLower(strings.TrimSpace(threshold))
+	t, ok := weights[tKey]
+	if !ok {
+		return false, fmt.Errorf("invalid -sarif-fail-on threshold %q (must be one of: critical, high, medium, low, info)", threshold)
 	}
-	return v >= t
+	sKey := strings.ToLower(strings.TrimSpace(severity))
+	v := weights[sKey]
+	return v >= t, nil
 }
 
 func runRetestVuln(cfg *config.Config, vulnID, targetOverride string) error {
@@ -544,7 +578,7 @@ func runRetestVuln(cfg *config.Config, vulnID, targetOverride string) error {
 		if result.Output != "" {
 			fmt.Println(result.Output)
 		}
-		os.Exit(0)
+		return nil
 	} else if result.ExitCode == 0 {
 		vuln.Status = "confirmed"
 		vuln.RetestNotes = fmt.Sprintf("Automated CI retest confirmed vulnerability is STILL ACTIVE on %s.", result.Timestamp)
@@ -553,16 +587,14 @@ func runRetestVuln(cfg *config.Config, vulnID, targetOverride string) error {
 		if result.Output != "" {
 			fmt.Fprintln(os.Stderr, result.Output)
 		}
-		os.Exit(1)
+		return &retestExitError{exitCode: 1}
 	} else {
 		fmt.Fprintf(os.Stderr, "ERROR: Vulnerability %s retest inconclusive (exit_code=%d): %s\n", vuln.ID, result.ExitCode, result.Message)
 		if result.Output != "" {
 			fmt.Fprintln(os.Stderr, result.Output)
 		}
-		os.Exit(2)
+		return &retestExitError{exitCode: 2}
 	}
-
-	return nil
 }
 
 func runReportShare(cfg *config.Config, projectID string, ttl time.Duration, passphrase, baseURL string) error {

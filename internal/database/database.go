@@ -34,6 +34,7 @@ func buildSQLiteDSN(dbPath string) string {
 	q.Set("_foreign_keys", "1")
 	q.Set("_busy_timeout", "5000")
 	q.Set("_synchronous", "NORMAL")
+	q.Set("_txlock", "immediate")
 
 	if strings.HasPrefix(dbPath, "file:") {
 		u, err := url.Parse(dbPath)
@@ -902,6 +903,7 @@ func (db *DB) initTables() error {
 	CREATE INDEX IF NOT EXISTS idx_audit_logs_category_created ON audit_logs(category, created_at);
 	CREATE INDEX IF NOT EXISTS idx_audit_logs_resource ON audit_logs(resource_type, resource_id);
 	CREATE INDEX IF NOT EXISTS idx_audit_logs_hash ON audit_logs(hash);
+	CREATE UNIQUE INDEX IF NOT EXISTS uq_audit_logs_prev_hash ON audit_logs(prev_hash) WHERE prev_hash != '';
 	CREATE INDEX IF NOT EXISTS idx_workflow_definitions_updated_at ON workflow_definitions(updated_at);
 	CREATE INDEX IF NOT EXISTS idx_workflow_definitions_enabled ON workflow_definitions(enabled);
 	CREATE INDEX IF NOT EXISTS idx_report_shares_project ON report_shares(project_id);

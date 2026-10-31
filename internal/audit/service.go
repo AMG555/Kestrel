@@ -133,6 +133,20 @@ func (s *Service) PurgeExpired() {
 	if n > 0 && s.logger != nil {
 		s.logger.Info("purged expired audit logs", zap.Int64("deleted", n))
 	}
+
+	// Prune deep archive (older than 6x active retention or minimum 180 days)
+	archiveDays := days * 6
+	if archiveDays < 180 {
+		archiveDays = 180
+	}
+	archiveCutoff := time.Now().AddDate(0, 0, -archiveDays)
+	if an, err := s.db.PruneAuditLogArchiveBefore(archiveCutoff); err != nil {
+		if s.logger != nil {
+			s.logger.Warn("failed to prune expired audit log archive", zap.Error(err))
+		}
+	} else if an > 0 && s.logger != nil {
+		s.logger.Info("pruned expired audit log archive", zap.Int64("deleted", an))
+	}
 }
 
 // HintFromToken returns a short stable hash prefix for a session token.
