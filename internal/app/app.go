@@ -928,3 +928,13 @@ func (a *App) RestartRobotConnections() {
 	time.Sleep(200 * time.Millisecond)
 	a.startRobotConnections()
 }
+
+// DB returns the primary database handle.
+func (a *App) DB() *database.DB {
+	return a.db
+}
+
+// Auth returns the authentication manager.
+func (a *App) Auth() *security.AuthManager {
+	return a.auth
+}

@@ -407,6 +407,8 @@ need_rebuild() {
 main() {
     USE_HTTPS=1
     RESET_ADMIN_PASSWORD=0
+    RUN_DOCTOR=0
+    RUN_DEMO=0
     FORWARD_ARGS=()
     for arg in "$@"; do
         if [ "$arg" = "--http" ]; then
@@ -421,8 +423,29 @@ main() {
             RESET_ADMIN_PASSWORD=1
             continue
         fi
+        if [ "$arg" = "doctor" ] || [ "$arg" = "--doctor" ]; then
+            RUN_DOCTOR=1
+            continue
+        fi
+        if [ "$arg" = "demo" ] || [ "$arg" = "--demo" ]; then
+            RUN_DEMO=1
+            USE_HTTPS=0
+            continue
+        fi
         FORWARD_ARGS+=("$arg")
     done
+
+    if [ "$RUN_DOCTOR" -eq 1 ]; then
+        check_go_quiet
+        if need_rebuild; then
+            build_go_project_quiet
+        fi
+        exec "./$BINARY_NAME" -config "$CONFIG_FILE" doctor "${FORWARD_ARGS[@]}"
+    fi
+
+    if [ "$RUN_DEMO" -eq 1 ]; then
+        FORWARD_ARGS=("demo" "${FORWARD_ARGS[@]}")
+    fi
 
     if [ "$RESET_ADMIN_PASSWORD" -eq 1 ]; then
         if [ ! -f "$CONFIG_FILE" ] && [ ! -f "$EXAMPLE_CONFIG_FILE" ]; then

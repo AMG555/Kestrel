@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"kestrel/internal/app"
+	"kestrel/internal/demo"
+	"kestrel/internal/doctor"
 	"kestrel/internal/config"
 	"kestrel/internal/database"
 	"kestrel/internal/logger"
@@ -24,6 +26,17 @@ import (
 )
 
 func main() {
+	isDoctorSubcommand := false
+	isDemoSubcommand := false
+	if len(os.Args) > 1 {
+		if os.Args[1] == "doctor" {
+			isDoctorSubcommand = true
+			os.Args = append(os.Args[:1], os.Args[2:]...)
+		} else if os.Args[1] == "demo" {
+			isDemoSubcommand = true
+			os.Args = append(os.Args[:1], os.Args[2:]...)
+		}
+	}
 	var configPath = flag.String("config", "config.yaml", "Path to the configuration file")
 	var httpsBootstrap = flag.Bool("https", false, "Enable HTTPS for the main site; uses an in-memory self-signed certificate when no cert/key is configured")
 	var httpBootstrap = flag.Bool("http", false, "Force plain HTTP for the main site, overriding TLS settings in the configuration file")
@@ -40,6 +53,8 @@ func main() {
 	var shareTTL = flag.Duration("share-ttl", 30*24*time.Hour, "Validity duration for the generated share permalink (e.g. 720h, 30d)")
 	var sharePassphrase = flag.String("share-passphrase", "", "Optional passphrase protection for the generated share permalink")
 	var shareBaseURL = flag.String("share-base-url", "", "Base URL for share links and badges (default: http(s)://<host>:<port>)")
+	var doctorFlag = flag.Bool("doctor", false, "Run diagnostic health checks on runtime, storage, isolation, and tools")
+	var demoFlag = flag.Bool("demo", false, "Run in one-command demo mode seeded with OWASP Juice Shop project, admin login, and findings")
 	flag.Parse()
 
 	// environment variable compatibility (for systemd/docker scenarios where args are not passed)
@@ -76,6 +91,15 @@ func main() {
 	}
 	if localConfig.Created {
 		termout.PrintConfigCreated()
+	}
+
+	if isDoctorSubcommand || *doctorFlag {
+		rep := doctor.RunDiagnostics(context.Background(), cfg)
+		doctor.PrintReport(os.Stdout, rep)
+		if rep.HasErrors {
+			os.Exit(1)
+		}
+		return
 	}
 
 	if *checkIsolation {
@@ -189,6 +213,29 @@ func main() {
 	application, err := app.New(cfg, log, cp)
 	if err != nil {
 		log.Fatal("application initialization failed", "error", err)
+	}
+
+	if isDemoSubcommand || *demoFlag {
+		baseURL := fmt.Sprintf("%s://%s:%d", scheme, cfg.Server.Host, port)
+		if cfg.Server.Host == "" || cfg.Server.Host == "0.0.0.0" {
+			baseURL = fmt.Sprintf("%s://localhost:%d", scheme, port)
+		}
+		demoDetails, err := demo.SeedDemoProject(application.DB(), application.Auth().JWTSecret(), baseURL)
+		if err != nil {
+			log.Warn("failed to fully seed demo project", zap.Error(err))
+		} else {
+			fmt.Println("\n" + strings.Repeat("=", 75))
+			fmt.Println("              KESTREL AUTOMATED PENTEST — DEMO MODE READY")
+			fmt.Println(strings.Repeat("=", 75))
+			fmt.Printf("  Target Target:     %s (OWASP Juice Shop)\n", demoDetails.TargetURL)
+			fmt.Printf("  Direct Web UI:     %s\n", demoDetails.DirectLoginURL)
+			fmt.Printf("  Admin Credentials: %s / %s\n", demoDetails.AdminUsername, demoDetails.AdminPassword)
+			fmt.Printf("  Report Permalink:  %s\n", demoDetails.ShareURL)
+			fmt.Printf("  Live Status Badge: %s\n", demoDetails.BadgeURL)
+			fmt.Println(strings.Repeat("=", 75))
+			fmt.Printf("  Server listening on %s. Explore the seeded findings in the UI!\n", baseURL)
+			fmt.Println(strings.Repeat("=", 75) + "\n")
+		}
 	}
 
 	// listen for signals in background

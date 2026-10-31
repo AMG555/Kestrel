@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  kestrel:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ghcr.io/amg555/kestrel:latest
+    container_name: kestrel-demo
+    restart: unless-stopped
+    command: ["demo", "-http"]
+    ports:
+      - "8080:8080"
+    environment:
+      - KESTREL_ENV=demo
+      - GIN_MODE=release
+    depends_on:
+      - juiceshop
+    security_opt:
+      - no-new-privileges:true
+
+  juiceshop:
+    image: bkimminich/juice-shop:latest
+    container_name: kestrel-demo-target
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
