@@ -173,7 +173,7 @@ func RunEngagementInit(cfg *config.Config, opts InitOptions) (*InitResult, error
 	}, nil
 }
 
-func parseTargetIntoScope(target string, cidrs *[]string, domains *[]string, urls *[]string) {
+func parseTargetIntoScope(target string, cidrs, domains, urls *[]string) {
 	// 1. Check if CIDR
 	if _, _, err := net.ParseCIDR(target); err == nil {
 		*cidrs = append(*cidrs, target)
