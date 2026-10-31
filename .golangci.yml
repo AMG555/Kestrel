@@ -20,7 +20,6 @@ linters:
     - godot           # comment punctuation
     - noctx           # http.NewRequest without context
     - bodyclose       # http response body close check
-    - exportloopref   # capture loop variables correctly (pre-1.22)
     - gocritic        # opinionated suggestions
     - revive          # fast, configurable linter
 

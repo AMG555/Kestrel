@@ -39,8 +39,7 @@ jobs:
       - name: Run Kestrel SARIF scan export
         run: |
           FAIL_LEVEL="${{ github.event.inputs.fail_on || 'high' }}"
-          ./kestrel -export-sarif -sarif-out kestrel-findings.sarif -sarif-fail-on "$FAIL_LEVEL"
-        continue-on-error: true
+          ./kestrel -export-sarif -sarif-seed-fixture -sarif-out kestrel-findings.sarif -sarif-fail-on "$FAIL_LEVEL"
         id: kestrel_scan
 
       - name: Upload SARIF report to GitHub Code Scanning

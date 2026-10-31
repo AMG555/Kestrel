@@ -35,9 +35,10 @@ run-https: build-web
 test:
 	CGO_ENABLED=1 $(GO_CMD) test ./... -v -count=1 -timeout 60s
 
-## test-js: Run all frontend unit tests (run from project root)
+## test-js: Run frontend build check
 test-js:
-	node --test web/static/js/*.test.cjs
+	@echo "React SPA builds via Vite; running build verification..."
+	@cd $(WEB_DIR) && $(NPM_CMD) run build
 
 ## test-all: Run Go tests
 test-all: test

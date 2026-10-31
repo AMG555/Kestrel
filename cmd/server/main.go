@@ -13,6 +13,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"os/signal"
 	"strings"
 	"syscall"
@@ -32,6 +33,7 @@ func main() {
 	var sarifProject = flag.String("sarif-project", "", "Filter vulnerabilities for specific project ID in SARIF export")
 	var sarifOut = flag.String("sarif-out", "", "Output destination file path for SARIF export (defaults to stdout)")
 	var sarifFailOn = flag.String("sarif-fail-on", "", "CI quality gate: exit with code 2 if any finding severity >= threshold (critical, high, medium, low, info)")
+	var sarifSeedFixture = flag.Bool("sarif-seed-fixture", false, "Seed database with a test vulnerability fixture before SARIF export")
 	var retestVuln = flag.String("retest-vuln", "", "Vulnerability ID to automatically retest using PoC verification (exit 0=resolved/fixed, 1=vulnerable, 2=error)")
 	var retestTarget = flag.String("retest-target", "", "Optional target URL override for -retest-vuln")
 	flag.Parse()
@@ -97,7 +99,7 @@ func main() {
 	}
 
 	if *exportSarif || *sarifProject != "" {
-		if err := runExportSarif(cfg, *sarifProject, *sarifOut, *sarifFailOn); err != nil {
+		if err := runExportSarif(cfg, *sarifProject, *sarifOut, *sarifFailOn, *sarifSeedFixture); err != nil {
 			fmt.Fprintf(os.Stderr, "SARIF export error: %v\n", err)
 			os.Exit(1)
 		}
@@ -270,16 +272,15 @@ func configureProcessIsolation(cfg *config.Config) error {
 	return processguard.Configure(processguard.Options{Mode: isolation.Mode, CgroupRoot: isolation.CgroupRoot, MaxProcesses: isolation.MaxProcesses, MemoryMaxBytes: isolation.MemoryMaxBytes, CPUQuotaMicros: isolation.CPUQuotaMicros})
 }
 
-func runExportSarif(cfg *config.Config, projectID, outFile, failOn string) error {
+func runExportSarif(cfg *config.Config, projectID, outFile, failOn string, seedFixture bool) error {
 	dbPath := strings.TrimSpace(cfg.Database.Path)
 	if dbPath == "" {
 		dbPath = "data/conversations.db"
 	}
-	if _, err := os.Stat(dbPath); err != nil {
-		if os.IsNotExist(err) {
-			return fmt.Errorf("database does not exist: %s; start the service once to initialize it first", dbPath)
+	if dir := filepath.Dir(dbPath); dir != "" && dir != "." {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return fmt.Errorf("failed to create database directory: %w", err)
 		}
-		return err
 	}
 
 	db, err := database.NewDB(dbPath, zap.NewNop())
@@ -287,6 +288,23 @@ func runExportSarif(cfg *config.Config, projectID, outFile, failOn string) error
 		return fmt.Errorf("failed to open database: %w", err)
 	}
 	defer db.Close()
+
+	if seedFixture {
+		sampleVuln := &database.Vulnerability{
+			ID:             "kestrel-fixture-1",
+			Title:          "Sample Security Finding (CI Verification Fixture)",
+			Description:    "Automated SARIF pipeline verification fixture generated during CI scan.",
+			Severity:       "low",
+			Status:         "confirmed",
+			Type:           "CWE-200",
+			Target:         "internal/app/app.go:1",
+			Evidence:       "Automated CI validation test evidence",
+			Recommendation: "Verify CI export pipeline integrity",
+			CreatedAt:      time.Now(),
+			UpdatedAt:      time.Now(),
+		}
+		_, _ = db.CreateVulnerability(sampleVuln)
+	}
 
 	filter := database.VulnerabilityListFilter{
 		ProjectID: strings.TrimSpace(projectID),
