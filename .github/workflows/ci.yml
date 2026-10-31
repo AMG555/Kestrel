@@ -13,6 +13,19 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine base revision for linting
+        id: base_rev
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "rev=origin/${{ github.base_ref }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ] && [ -n "${{ github.event.before }}" ]; then
+            echo "rev=${{ github.event.before }}" >> $GITHUB_OUTPUT
+          else
+            echo "rev=HEAD~1" >> $GITHUB_OUTPUT
+          fi
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -25,7 +38,7 @@ jobs:
         with:
           version: latest
           install-mode: goinstall
-          args: --timeout=5m
+          args: --new-from-rev=${{ steps.base_rev.outputs.rev }} --timeout=5m
 
   backend-test:
     name: Backend Tests (Go 1.26)
