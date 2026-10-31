@@ -60,7 +60,7 @@ func TestHandleConnectionDead_MarksLazyClientDisconnected(t *testing.T) {
 	cfg := config.ExternalMCPServerConfig{
 		Type:              "http",
 		URL:               "http://example.com/mcp",
-		ExternalMCPEnable: true,
+		ExternalMCPEnable: false,
 	}
 	m.mu.Lock()
 	m.configs[name] = cfg
