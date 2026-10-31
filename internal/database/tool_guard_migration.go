@@ -43,7 +43,7 @@ func (db *DB) migrateLegacyToolGuardBlocks() error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	rows, err := tx.Query(`SELECT id, tool_name, error, COALESCE(result, '') FROM tool_executions WHERE status = 'failed' AND error LIKE ?`, legacyToolGuardPrefix+"%")
 	if err != nil {
 		return err

@@ -112,18 +112,25 @@ func (g *EgressGuard) Policy() *ScopeFilePolicy {
 
 // CheckDestination checks if destination host/port is permitted.
 func (g *EgressGuard) CheckDestination(ctx context.Context, hostOrAddr string) error {
-	if g == nil || g.policy == nil {
+	if g == nil {
 		return nil
 	}
 
-	host := hostOrAddr
-	if h, _, err := net.SplitHostPort(hostOrAddr); err == nil {
-		host = h
+	host := ExtractHost(hostOrAddr)
+	if host == "" {
+		host = hostOrAddr
+		if h, _, err := net.SplitHostPort(hostOrAddr); err == nil {
+			host = h
+		}
 	}
 
-	// 0. Cloud instance metadata (IMDS) must NEVER be bypassed, even if host is in exempt list
+	// 0. Cloud instance metadata (IMDS) must NEVER be bypassed, even if host is in exempt list or policy is nil
 	if IsCloudMetadataEndpoint(host) {
 		return fmt.Errorf("%w: %s (cloud metadata endpoint IMDS access forbidden)", ErrScopeEgressBlocked, hostOrAddr)
+	}
+
+	if g.policy == nil {
+		return nil
 	}
 
 	// 1. Plumbing exemption check

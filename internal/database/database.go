@@ -920,7 +920,7 @@ func (db *DB) initTables() error {
 	if err != nil {
 		return fmt.Errorf("failed to begin schema tables transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	tableDDLs := []struct {
 		name string
@@ -1793,7 +1793,7 @@ func (db *DB) initKnowledgeTables() error {
 	if err != nil {
 		return fmt.Errorf("failed to begin knowledge tables transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	if _, err := tx.Exec(createKnowledgeBaseItemsTable); err != nil {
 		return fmt.Errorf("failed to create knowledge_base_items table: %w", err)

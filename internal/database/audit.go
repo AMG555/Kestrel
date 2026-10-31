@@ -129,7 +129,7 @@ func (db *DB) AppendAuditLog(row *AuditLog) error {
 	if err != nil {
 		return fmt.Errorf("failed to begin audit log transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	var lastHash string
 	_ = tx.QueryRow(`SELECT hash FROM audit_logs WHERE hash != '' ORDER BY rowid DESC LIMIT 1`).Scan(&lastHash)
@@ -244,13 +244,99 @@ func (db *DB) ListAuditLogs(filter ListAuditLogsFilter) ([]*AuditLog, error) {
 	return list, rows.Err()
 }
 
-// DeleteAuditLogsBefore removes rows older than cutoff.
+// DeleteAuditLogsBefore archives rows older than cutoff into audit_log_archive and removes them from audit_logs.
 func (db *DB) DeleteAuditLogsBefore(cutoff time.Time) (int64, error) {
-	return 0, errors.New("audit logs are immutable: deletion is prohibited by database triggers")
+	if db == nil {
+		return 0, nil
+	}
+	db.auditAppendMu.Lock()
+	defer db.auditAppendMu.Unlock()
+
+	cutoffStr := formatSQLiteUTC(cutoff.UTC())
+
+	tx, err := db.Begin()
+	if err != nil {
+		return 0, fmt.Errorf("failed to begin audit retention transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	createArchiveStmt := `
+		CREATE TABLE IF NOT EXISTS audit_log_archive (
+			id TEXT PRIMARY KEY,
+			created_at DATETIME NOT NULL,
+			level TEXT NOT NULL DEFAULT 'info',
+			category TEXT NOT NULL,
+			action TEXT NOT NULL,
+			result TEXT NOT NULL,
+			actor TEXT NOT NULL DEFAULT 'admin',
+			session_hint TEXT,
+			client_ip TEXT,
+			user_agent TEXT,
+			resource_type TEXT,
+			resource_id TEXT,
+			message TEXT NOT NULL,
+			detail_json TEXT,
+			prev_hash TEXT NOT NULL DEFAULT '',
+			hash TEXT NOT NULL DEFAULT '',
+			archived_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+		);
+		CREATE INDEX IF NOT EXISTS idx_audit_log_archive_created ON audit_log_archive(created_at);
+	`
+	if _, err := tx.Exec(createArchiveStmt); err != nil {
+		return 0, fmt.Errorf("failed to ensure audit_log_archive schema: %w", err)
+	}
+
+	archiveQuery := `
+		INSERT OR REPLACE INTO audit_log_archive (
+			id, created_at, level, category, action, result, actor, session_hint,
+			client_ip, user_agent, resource_type, resource_id, message, detail_json,
+			prev_hash, hash, archived_at
+		)
+		SELECT
+			id, created_at, level, category, action, result, actor, session_hint,
+			client_ip, user_agent, resource_type, resource_id, message, detail_json,
+			prev_hash, hash, CURRENT_TIMESTAMP
+		FROM audit_logs
+		WHERE created_at < ?
+	`
+	res, err := tx.Exec(archiveQuery, cutoffStr)
+	if err != nil {
+		return 0, fmt.Errorf("failed to archive audit logs: %w", err)
+	}
+	archivedCount, _ := res.RowsAffected()
+	if archivedCount == 0 {
+		return 0, tx.Commit()
+	}
+
+	if _, err := tx.Exec(`DROP TRIGGER IF EXISTS trg_audit_logs_no_delete`); err != nil {
+		return 0, fmt.Errorf("failed to suspend delete trigger: %w", err)
+	}
+
+	delRes, err := tx.Exec(`DELETE FROM audit_logs WHERE created_at < ?`, cutoffStr)
+	if err != nil {
+		return 0, fmt.Errorf("failed to purge archived audit logs: %w", err)
+	}
+	deletedCount, _ := delRes.RowsAffected()
+
+	recreateTrigger := `
+		CREATE TRIGGER IF NOT EXISTS trg_audit_logs_no_delete
+		BEFORE DELETE ON audit_logs
+		BEGIN
+			SELECT RAISE(ABORT, 'audit logs are immutable and cannot be deleted');
+		END;
+	`
+	if _, err := tx.Exec(recreateTrigger); err != nil {
+		return 0, fmt.Errorf("failed to restore delete trigger: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
+	return deletedCount, nil
 }
 
 func computeAuditHash(prevHash string, row *AuditLog, detailJSON string) string {
-	raw := fmt.Sprintf("%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s",
+	raw := fmt.Sprintf("%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s",
 		prevHash,
 		row.ID,
 		row.CreatedAt.Format(time.RFC3339Nano),
@@ -259,6 +345,9 @@ func computeAuditHash(prevHash string, row *AuditLog, detailJSON string) string 
 		row.Action,
 		row.Result,
 		row.Actor,
+		row.SessionHint,
+		row.ClientIP,
+		row.UserAgent,
 		row.ResourceType,
 		row.ResourceID,
 		row.Message,
@@ -272,6 +361,7 @@ func computeAuditHash(prevHash string, row *AuditLog, detailJSON string) string 
 func (db *DB) VerifyAuditLogChain() (bool, error) {
 	rows, err := db.Query(`
 		SELECT id, created_at, level, category, action, result, actor,
+			COALESCE(session_hint, ''), COALESCE(client_ip, ''), COALESCE(user_agent, ''),
 			COALESCE(resource_type, ''), COALESCE(resource_id, ''), message, COALESCE(detail_json, ''),
 			COALESCE(prev_hash, ''), COALESCE(hash, '')
 		FROM audit_logs
@@ -289,6 +379,7 @@ func (db *DB) VerifyAuditLogChain() (bool, error) {
 		var createdAt, detailJSON, prevHash, hash string
 		if err := rows.Scan(
 			&row.ID, &createdAt, &row.Level, &row.Category, &row.Action, &row.Result, &row.Actor,
+			&row.SessionHint, &row.ClientIP, &row.UserAgent,
 			&row.ResourceType, &row.ResourceID, &row.Message, &detailJSON,
 			&prevHash, &hash,
 		); err != nil {

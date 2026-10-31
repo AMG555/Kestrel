@@ -187,7 +187,7 @@ func (db *DB) initRBACTables() error {
 	if err != nil {
 		return fmt.Errorf("failed to begin rbac init transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	for _, stmt := range stmts {
 		if _, err := tx.Exec(stmt); err != nil {
@@ -1440,7 +1440,7 @@ func (db *DB) DeleteRBACResourceAssignmentWithDetails(id string) (*RBACResourceA
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	var row RBACResourceAssignment
 	var createdAt string

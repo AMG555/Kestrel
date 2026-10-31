@@ -97,7 +97,7 @@ func (s *SQLiteIndexer) Store(ctx context.Context, docs []*schema.Document, opts
 	if err != nil {
 		return nil, fmt.Errorf("sqlite indexer: begin tx: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	ids = make([]string, 0, len(docs))
 	for i, d := range docs {

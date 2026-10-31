@@ -310,7 +310,7 @@ func (db *DB) UpsertAssets(assets []*Asset, ownerUserID string, allowGlobal ...b
 	if err != nil {
 		return result, err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	now := time.Now()
 	for _, asset := range assets {
 		if asset == nil {
@@ -997,7 +997,7 @@ func (db *DB) UpdateAssetsBulk(ids []string, patch AssetBulkPatch, access RBACLi
 	if err != nil {
 		return 0, err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(unique)), ",")
 	idArgs := make([]interface{}, len(unique))
 	for i, id := range unique {
@@ -1080,7 +1080,7 @@ func (db *DB) DeleteAssets(ids []string, access RBACListAccess) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(unique)), ",")
 	args := make([]interface{}, len(unique))
 	for i, id := range unique {
@@ -1137,7 +1137,7 @@ func (db *DB) MergeAssets(primary *Asset, duplicateIDs []string, writeAccess, de
 	if err != nil {
 		return 0, err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	primaryQuery, primaryArgs := appendAssetAccess("SELECT COUNT(*) FROM assets WHERE id=?", []interface{}{primary.ID}, writeAccess, "assets")
 	var primaryCount int
 	if err := tx.QueryRow(primaryQuery, primaryArgs...).Scan(&primaryCount); err != nil || primaryCount != 1 {
@@ -1190,7 +1190,7 @@ func (db *DB) UpdateAssetsProject(ids []string, projectID string, access RBACLis
 	if err != nil {
 		return 0, err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(unique)), ",")
 	idArgs := make([]interface{}, len(unique))

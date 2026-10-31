@@ -67,7 +67,7 @@ func (db *DB) CreateBatchQueue(
 	if err != nil {
 		return fmt.Errorf("begin transaction failed: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	now := time.Now()
 	var nextRunAtValue interface{}
@@ -512,7 +512,7 @@ func (db *DB) ResetBatchQueueForRerun(queueID string) error {
 	if err != nil {
 		return fmt.Errorf("begin transaction failed: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	_, err = tx.Exec(
 		"UPDATE batch_task_queues SET status = ?, current_index = 0, started_at = NULL, completed_at = NULL, last_run_error = NULL, last_schedule_error = NULL WHERE id = ?",
@@ -575,7 +575,7 @@ func (db *DB) PrepareBatchSingleTaskRun(queueID, taskID string, taskIndex int, r
 	if err != nil {
 		return fmt.Errorf("begin transaction failed: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	if resetTask {
 		_, err = tx.Exec(
@@ -623,7 +623,7 @@ func (db *DB) DeleteBatchQueue(queueID string) error {
 	if err != nil {
 		return fmt.Errorf("begin transaction failed: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	// delete tasks (foreign key cascades automatically)
 	_, err = tx.Exec("DELETE FROM batch_tasks WHERE queue_id = ?", queueID)

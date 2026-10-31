@@ -12,6 +12,7 @@ var CloudMetadataEndpoints = []string{
 	"169.254.169.254",
 	"fd00:ec2::254",
 	"metadata.google.internal",
+	"metadata.azure.com",
 	"169.254.169.253",
 	"169.254.169.250",
 	"instance-data",
