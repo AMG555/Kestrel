@@ -56,16 +56,17 @@ func main() {
 	var findingArgID string
 	var findingArgStatus string
 	if len(os.Args) > 1 {
-		if os.Args[1] == "doctor" {
+		switch os.Args[1] {
+		case "doctor":
 			isDoctorSubcommand = true
 			os.Args = append(os.Args[:1], os.Args[2:]...)
-		} else if os.Args[1] == "demo" {
+		case "demo":
 			isDemoSubcommand = true
 			os.Args = append(os.Args[:1], os.Args[2:]...)
-		} else if os.Args[1] == "eval" {
+		case "eval":
 			isEvalSubcommand = true
 			os.Args = append(os.Args[:1], os.Args[2:]...)
-		} else if os.Args[1] == "init" {
+		case "init":
 			isInitSubcommand = true
 			if len(os.Args) > 2 && !strings.HasPrefix(os.Args[2], "-") {
 				initArgName = os.Args[2]
@@ -73,80 +74,118 @@ func main() {
 			} else {
 				os.Args = append(os.Args[:1], os.Args[2:]...)
 			}
-		} else if os.Args[1] == "import" && len(os.Args) > 2 {
+		case "import":
 			isImportSubcommand = true
-			if !strings.HasPrefix(os.Args[2], "-") {
+			if len(os.Args) > 2 && !strings.HasPrefix(os.Args[2], "-") {
 				importArgFile = os.Args[2]
 				os.Args = append(os.Args[:1], os.Args[3:]...)
-			} else {
+			} else if len(os.Args) > 2 {
 				os.Args = append(os.Args[:1], os.Args[2:]...)
 			}
-		} else if (os.Args[1] == "replay" || os.Args[1] == "retest") && len(os.Args) > 2 {
+		case "replay", "retest":
 			isReplaySubcommand = true
-			if !strings.HasPrefix(os.Args[2], "-") {
+			if len(os.Args) > 2 && !strings.HasPrefix(os.Args[2], "-") {
 				replayVulnID = os.Args[2]
 				os.Args = append(os.Args[:1], os.Args[3:]...)
-			} else {
+			} else if len(os.Args) > 2 {
 				os.Args = append(os.Args[:1], os.Args[2:]...)
 			}
-		} else if os.Args[1] == "export" && len(os.Args) > 2 {
-			sub := strings.ToLower(strings.TrimSpace(os.Args[2]))
-			if sub == "report" {
-				isExportReportSubcommand = true
-				if len(os.Args) > 3 && !strings.HasPrefix(os.Args[3], "-") {
-					exportReportArgOut = os.Args[3]
-					os.Args = append(os.Args[:1], os.Args[4:]...)
-				} else {
-					os.Args = append(os.Args[:1], os.Args[3:]...)
+		case "export":
+			if len(os.Args) > 2 {
+				sub := strings.ToLower(strings.TrimSpace(os.Args[2]))
+				switch sub {
+				case "report":
+					isExportReportSubcommand = true
+					if len(os.Args) > 3 && !strings.HasPrefix(os.Args[3], "-") {
+						exportReportArgOut = os.Args[3]
+						os.Args = append(os.Args[:1], os.Args[4:]...)
+					} else {
+						os.Args = append(os.Args[:1], os.Args[3:]...)
+					}
+				case "sarif":
+					isExportSarifSubcommand = true
+					if len(os.Args) > 3 && !strings.HasPrefix(os.Args[3], "-") {
+						exportSarifArgOut = os.Args[3]
+						os.Args = append(os.Args[:1], os.Args[4:]...)
+					} else {
+						os.Args = append(os.Args[:1], os.Args[3:]...)
+					}
+				default:
+					fmt.Fprintf(os.Stderr, "unknown export subcommand %q (supported: report, sarif)\n", os.Args[2])
+					os.Exit(2)
 				}
-			} else if sub == "sarif" {
-				isExportSarifSubcommand = true
-				if len(os.Args) > 3 && !strings.HasPrefix(os.Args[3], "-") {
-					exportSarifArgOut = os.Args[3]
-					os.Args = append(os.Args[:1], os.Args[4:]...)
-				} else {
-					os.Args = append(os.Args[:1], os.Args[3:]...)
-				}
+			} else {
+				fmt.Fprintln(os.Stderr, "export requires a subcommand: report or sarif (e.g. kestrel export report [out.md])")
+				os.Exit(2)
 			}
-		} else if os.Args[1] == "audit" && len(os.Args) > 2 {
-			sub := strings.ToLower(strings.TrimSpace(os.Args[2]))
-			if sub == "checkpoint" {
-				isAuditCheckpointSubcommand = true
-				if len(os.Args) > 3 && !strings.HasPrefix(os.Args[3], "-") {
-					auditArgPath = os.Args[3]
-					os.Args = append(os.Args[:1], os.Args[4:]...)
-				} else {
-					os.Args = append(os.Args[:1], os.Args[3:]...)
+		case "audit":
+			if len(os.Args) > 2 {
+				sub := strings.ToLower(strings.TrimSpace(os.Args[2]))
+				switch sub {
+				case "checkpoint":
+					isAuditCheckpointSubcommand = true
+					if len(os.Args) > 3 && !strings.HasPrefix(os.Args[3], "-") {
+						auditArgPath = os.Args[3]
+						os.Args = append(os.Args[:1], os.Args[4:]...)
+					} else {
+						os.Args = append(os.Args[:1], os.Args[3:]...)
+					}
+				case "verify":
+					isAuditVerifySubcommand = true
+					if len(os.Args) > 3 && !strings.HasPrefix(os.Args[3], "-") {
+						auditArgPath = os.Args[3]
+						os.Args = append(os.Args[:1], os.Args[4:]...)
+					} else {
+						os.Args = append(os.Args[:1], os.Args[3:]...)
+					}
+				default:
+					fmt.Fprintf(os.Stderr, "unknown audit subcommand %q (supported: checkpoint, verify)\n", os.Args[2])
+					os.Exit(2)
 				}
-			} else if sub == "verify" {
-				isAuditVerifySubcommand = true
-				if len(os.Args) > 3 && !strings.HasPrefix(os.Args[3], "-") {
-					auditArgPath = os.Args[3]
-					os.Args = append(os.Args[:1], os.Args[4:]...)
-				} else {
-					os.Args = append(os.Args[:1], os.Args[3:]...)
-				}
+			} else {
+				fmt.Fprintln(os.Stderr, "audit requires a subcommand: checkpoint or verify (e.g. kestrel audit checkpoint [file.json])")
+				os.Exit(2)
 			}
-		} else if os.Args[1] == "diff" && len(os.Args) > 2 {
+		case "diff":
 			isDiffSubcommand = true
 			switch {
 			case len(os.Args) > 3 && !strings.HasPrefix(os.Args[2], "-") && !strings.HasPrefix(os.Args[3], "-"):
 				diffArgBase = os.Args[2]
 				diffArgTarget = os.Args[3]
 				os.Args = append(os.Args[:1], os.Args[4:]...)
-			case !strings.HasPrefix(os.Args[2], "-"):
+			case len(os.Args) > 2 && !strings.HasPrefix(os.Args[2], "-"):
 				diffArgBase = os.Args[2]
 				os.Args = append(os.Args[:1], os.Args[3:]...)
 			default:
-				os.Args = append(os.Args[:1], os.Args[2:]...)
+				if len(os.Args) > 2 {
+					os.Args = append(os.Args[:1], os.Args[2:]...)
+				}
 			}
-		} else if (os.Args[1] == "finding" || os.Args[1] == "vuln") && len(os.Args) > 2 {
-			sub := strings.ToLower(strings.TrimSpace(os.Args[2]))
-			if sub == "status" && len(os.Args) > 4 {
-				isFindingStatusSubcommand = true
-				findingArgID = os.Args[3]
-				findingArgStatus = os.Args[4]
-				os.Args = append(os.Args[:1], os.Args[5:]...)
+		case "finding", "vuln":
+			if len(os.Args) > 2 {
+				sub := strings.ToLower(strings.TrimSpace(os.Args[2]))
+				if sub == "status" {
+					isFindingStatusSubcommand = true
+					switch {
+					case len(os.Args) > 4 && !strings.HasPrefix(os.Args[3], "-") && !strings.HasPrefix(os.Args[4], "-"):
+						findingArgID = os.Args[3]
+						findingArgStatus = os.Args[4]
+						os.Args = append(os.Args[:1], os.Args[5:]...)
+					case len(os.Args) > 3 && !strings.HasPrefix(os.Args[3], "-"):
+						findingArgID = os.Args[3]
+						os.Args = append(os.Args[:1], os.Args[4:]...)
+					default:
+						if len(os.Args) > 3 {
+							os.Args = append(os.Args[:1], os.Args[3:]...)
+						}
+					}
+				} else {
+					fmt.Fprintf(os.Stderr, "unknown finding subcommand %q (supported: status)\n", os.Args[2])
+					os.Exit(2)
+				}
+			} else {
+				fmt.Fprintln(os.Stderr, "finding requires a subcommand (e.g. kestrel finding status <vuln-id> <new-status>)")
+				os.Exit(2)
 			}
 		}
 	}
@@ -1120,6 +1159,10 @@ func meetsSeverityThreshold(severity, threshold string) (bool, error) {
 }
 
 func runRetestVuln(cfg *config.Config, vulnID, targetOverride string) error {
+	vulnID = strings.TrimSpace(vulnID)
+	if vulnID == "" {
+		return errors.New("target vulnerability ID is required (e.g. kestrel replay <vuln-id>)")
+	}
 	dbPath := strings.TrimSpace(cfg.Database.Path)
 	if dbPath == "" {
 		dbPath = "data/conversations.db"
