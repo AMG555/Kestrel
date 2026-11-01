@@ -227,14 +227,14 @@ func TestEgressGuard_WrapHTTPTransport_ProxyValidation(t *testing.T) {
 	}
 
 	// Request to out-of-scope host via transport proxy must be rejected before reaching proxy
-	reqOut, _ := http.NewRequest("GET", "https://out-of-scope.test/api", nil)
+	reqOut, _ := http.NewRequestWithContext(context.Background(), "GET", "https://out-of-scope.test/api", nil)
 	_, err := transport.Proxy(reqOut)
 	if err == nil {
 		t.Fatal("expected proxy check to reject out-of-scope request")
 	}
 
 	// Request to in-scope host passes proxy evaluation
-	reqIn, _ := http.NewRequest("GET", "https://in-scope.test/api", nil)
+	reqIn, _ := http.NewRequestWithContext(context.Background(), "GET", "https://in-scope.test/api", nil)
 	_, err = transport.Proxy(reqIn)
 	if err != nil {
 		t.Fatalf("expected proxy check to allow in-scope request, got: %v", err)
