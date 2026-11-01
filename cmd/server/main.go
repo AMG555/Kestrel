@@ -129,14 +129,15 @@ func main() {
 			}
 		} else if os.Args[1] == "diff" && len(os.Args) > 2 {
 			isDiffSubcommand = true
-			if len(os.Args) > 3 && !strings.HasPrefix(os.Args[2], "-") && !strings.HasPrefix(os.Args[3], "-") {
+			switch {
+			case len(os.Args) > 3 && !strings.HasPrefix(os.Args[2], "-") && !strings.HasPrefix(os.Args[3], "-"):
 				diffArgBase = os.Args[2]
 				diffArgTarget = os.Args[3]
 				os.Args = append(os.Args[:1], os.Args[4:]...)
-			} else if !strings.HasPrefix(os.Args[2], "-") {
+			case !strings.HasPrefix(os.Args[2], "-"):
 				diffArgBase = os.Args[2]
 				os.Args = append(os.Args[:1], os.Args[3:]...)
-			} else {
+			default:
 				os.Args = append(os.Args[:1], os.Args[2:]...)
 			}
 		} else if (os.Args[1] == "finding" || os.Args[1] == "vuln") && len(os.Args) > 2 {

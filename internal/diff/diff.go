@@ -127,13 +127,14 @@ func ComputeDiff(baseVulns, targetVulns []*database.Vulnerability, baseLabel, ta
 			baseIsFixed := isFixedStatus(baseItem.Status)
 			targetIsFixed := isFixedStatus(t.Status)
 
-			if baseIsFixed && !targetIsFixed {
+			switch {
+			case baseIsFixed && !targetIsFixed:
 				// Was fixed in base, but reappeared active -> REGRESSED
 				res.Regressed = append(res.Regressed, toDiffItem(t))
-			} else if targetIsFixed {
+			case targetIsFixed:
 				// Target explicitly marked fixed
 				res.Fixed = append(res.Fixed, toDiffItem(t))
-			} else {
+			default:
 				// Persistent active finding
 				res.Persistent = append(res.Persistent, toDiffItem(t))
 			}
