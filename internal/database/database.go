@@ -489,6 +489,12 @@ func (db *DB) initTables() error {
 		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		project_id TEXT,
 		fingerprint TEXT,
+		cve TEXT,
+		cwe TEXT,
+		cvss_score REAL,
+		cvss_vector TEXT,
+		epss_score REAL,
+		known_exploited INTEGER NOT NULL DEFAULT 0,
 		FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE SET NULL
 	);`
 
@@ -1649,6 +1655,12 @@ func (db *DB) migrateVulnerabilitiesTable() error {
 		{name: "evidence", stmt: "ALTER TABLE vulnerabilities ADD COLUMN evidence TEXT"},
 		{name: "retest_notes", stmt: "ALTER TABLE vulnerabilities ADD COLUMN retest_notes TEXT"},
 		{name: "fingerprint", stmt: "ALTER TABLE vulnerabilities ADD COLUMN fingerprint TEXT"},
+		{name: "cve", stmt: "ALTER TABLE vulnerabilities ADD COLUMN cve TEXT"},
+		{name: "cwe", stmt: "ALTER TABLE vulnerabilities ADD COLUMN cwe TEXT"},
+		{name: "cvss_score", stmt: "ALTER TABLE vulnerabilities ADD COLUMN cvss_score REAL"},
+		{name: "cvss_vector", stmt: "ALTER TABLE vulnerabilities ADD COLUMN cvss_vector TEXT"},
+		{name: "epss_score", stmt: "ALTER TABLE vulnerabilities ADD COLUMN epss_score REAL"},
+		{name: "known_exploited", stmt: "ALTER TABLE vulnerabilities ADD COLUMN known_exploited INTEGER NOT NULL DEFAULT 0"},
 	}
 
 	for _, col := range columns {
@@ -1669,6 +1681,23 @@ func (db *DB) migrateVulnerabilitiesTable() error {
 			}
 		}
 	}
+
+	createTransitionsTable := `
+	CREATE TABLE IF NOT EXISTS vulnerability_status_transitions (
+		id TEXT PRIMARY KEY,
+		vulnerability_id TEXT NOT NULL,
+		from_status TEXT NOT NULL,
+		to_status TEXT NOT NULL,
+		reason TEXT NOT NULL DEFAULT '',
+		actor_user_id TEXT NOT NULL DEFAULT '',
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (vulnerability_id) REFERENCES vulnerabilities(id) ON DELETE CASCADE
+	);
+	CREATE INDEX IF NOT EXISTS idx_vuln_status_transitions_vuln_id ON vulnerability_status_transitions(vulnerability_id, created_at DESC);`
+	if _, err := db.Exec(createTransitionsTable); err != nil {
+		return fmt.Errorf("create vulnerability_status_transitions table failed: %w", err)
+	}
+
 	return nil
 }
 

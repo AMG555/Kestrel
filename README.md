@@ -301,7 +301,7 @@ Re-executes tool executions verbatim and verifies whether a discovered vulnerabi
 ```
 
 ### 5. Audit-Ready Markdown Report Export (`kestrel export report`)
-Generates comprehensive client pentest assessment reports in Markdown, including executive summary, finding taxonomy, and verbatim forensic tool execution logs:
+Generates comprehensive client pentest assessment reports in Markdown, including executive summary, finding taxonomy (CVSS v3.1, EPSS, CISA KEV), remediation, and verbatim forensic tool execution logs:
 ```bash
 # Export Markdown report to file
 ./kestrel export report report.md --project="proj-acme-q4"
@@ -310,7 +310,30 @@ Generates comprehensive client pentest assessment reports in Markdown, including
 ./kestrel export report --project="proj-acme-q4"
 ```
 
-### 6. Benchmark Evaluation & Pre-Flight Doctor (`kestrel eval` / `kestrel doctor`)
+### 6. Retainer Scan Run Diffing (`kestrel diff`)
+Compares baseline scans against subsequent test runs across projects or raw scan files (Nuclei JSONL, Burp XML, Nmap XML) to detect Regressed, New, Fixed, and Persistent findings:
+```bash
+# Compare two scan files directly (terminal ASCII summary)
+./kestrel diff scan-q1.jsonl scan-q2.jsonl
+
+# Generate audit-ready Markdown diff report for retainer clients
+./kestrel diff proj-acme-q1 proj-acme-q2 --diff-format=markdown --diff-out=diff-report.md
+
+# CI/CD Regression Gate: exits 1 if any regression is detected
+./kestrel diff scan-baseline.xml scan-latest.xml
+```
+
+### 7. Audited Finding Lifecycle & State Machine (`kestrel finding status`)
+Manages finding transitions through strict lifecycle states (`suspected` -> `confirmed` -> `fixed` / `false_positive`) with an immutable hash-chained audit trail:
+```bash
+# Confirm finding with audited rationale
+./kestrel finding status <vuln-id> confirmed --reason="PoC verified manually in staging" --actor="analyst-1"
+
+# Mark resolved after re-testing
+./kestrel finding status <vuln-id> fixed --reason="Patched in release v2.4.1" --actor="lead-pentester"
+```
+
+### 8. Benchmark Evaluation & Pre-Flight Doctor (`kestrel eval` / `kestrel doctor`)
 ```bash
 # Run deterministic golden evaluation benchmark suite against OWASP targets
 ./kestrel eval

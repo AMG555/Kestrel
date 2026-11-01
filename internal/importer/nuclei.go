@@ -27,13 +27,22 @@ type nucleiResult struct {
 	Port       json.RawMessage `json:"port"`
 }
 
+type nucleiClassification struct {
+	CVEID       interface{} `json:"cve-id"`
+	CWEID       interface{} `json:"cwe-id"`
+	CVSSMetrics string      `json:"cvss-metrics"`
+	CVSSScore   float64     `json:"cvss-score"`
+	EPSSScore   float64     `json:"epss-score"`
+}
+
 type nucleiInfo struct {
-	Name        string      `json:"name"`
-	Author      interface{} `json:"author"`
-	Severity    string      `json:"severity"`
-	Description string      `json:"description"`
-	Remediation string      `json:"remediation"`
-	Tags        interface{} `json:"tags"`
+	Name           string                `json:"name"`
+	Author         interface{}           `json:"author"`
+	Severity       string                `json:"severity"`
+	Description    string                `json:"description"`
+	Remediation    string                `json:"remediation"`
+	Tags           interface{}           `json:"tags"`
+	Classification *nucleiClassification `json:"classification"`
 }
 
 // ParseNuclei parses Nuclei JSON or JSONL stream output into Assets and Vulnerabilities.
@@ -105,16 +114,52 @@ func ParseNuclei(data []byte, projectID string) ([]*database.Asset, []*database.
 			}
 		}
 
+		var cveStr, cweStr, cvssVector string
+		var cvssScore, epssScore float64
+		var isKEV bool
+
+		tags := parseStringOrSlice(res.Info.Tags)
+		for _, t := range tags {
+			lt := strings.ToLower(t)
+			if lt == "kev" || lt == "cisa" || lt == "cisa-kev" || lt == "known-exploited" {
+				isKEV = true
+				break
+			}
+		}
+
+		if res.Info.Classification != nil {
+			cves := parseStringOrSlice(res.Info.Classification.CVEID)
+			if len(cves) > 0 {
+				cveStr = strings.Join(cves, ", ")
+			}
+			cwes := parseStringOrSlice(res.Info.Classification.CWEID)
+			if len(cwes) > 0 {
+				cweStr = strings.Join(cwes, ", ")
+			}
+			cvssScore = res.Info.Classification.CVSSScore
+			cvssVector = res.Info.Classification.CVSSMetrics
+			epssScore = res.Info.Classification.EPSSScore
+			if epssScore >= 0.90 {
+				isKEV = true
+			}
+		}
+
 		v := &database.Vulnerability{
 			ProjectID:      projectID,
 			Title:          title,
 			Description:    res.Info.Description,
 			Severity:       sev,
-			Status:         "open",
+			Status:         "suspected",
 			Target:         targetStr,
 			Evidence:       evidence,
 			Recommendation: res.Info.Remediation,
 			Type:           res.Type,
+			CVE:            cveStr,
+			CWE:            cweStr,
+			CVSSScore:      cvssScore,
+			CVSSVector:     cvssVector,
+			EPSSScore:      epssScore,
+			KnownExploited: isKEV,
 			CreatedAt:      now,
 			UpdatedAt:      now,
 		}
@@ -185,4 +230,36 @@ func ParseNuclei(data []byte, projectID string) ([]*database.Asset, []*database.
 	}
 
 	return assets, vulns, nil
+}
+
+func parseStringOrSlice(v interface{}) []string {
+	if v == nil {
+		return nil
+	}
+	switch val := v.(type) {
+	case string:
+		if strings.TrimSpace(val) == "" {
+			return nil
+		}
+		parts := strings.Split(val, ",")
+		var out []string
+		for _, p := range parts {
+			if s := strings.TrimSpace(p); s != "" {
+				out = append(out, s)
+			}
+		}
+		return out
+	case []interface{}:
+		var out []string
+		for _, item := range val {
+			if s, ok := item.(string); ok && strings.TrimSpace(s) != "" {
+				out = append(out, strings.TrimSpace(s))
+			}
+		}
+		return out
+	case []string:
+		return val
+	default:
+		return nil
+	}
 }

@@ -95,6 +95,28 @@ func RenderMarkdownReport(opts MarkdownReportOptions) string {
 			if v.Target != "" {
 				sb.WriteString(fmt.Sprintf("- **Target:** `%s`\n", v.Target))
 			}
+			if v.CVE != "" {
+				cveStr := v.CVE
+				if v.CWE != "" {
+					cveStr += fmt.Sprintf(" (%s)", v.CWE)
+				}
+				sb.WriteString(fmt.Sprintf("- **CVE / Taxonomy:** `%s`\n", cveStr))
+			} else if v.CWE != "" {
+				sb.WriteString(fmt.Sprintf("- **CWE:** `%s`\n", v.CWE))
+			}
+			if v.CVSSScore > 0 || v.CVSSVector != "" {
+				scoreStr := fmt.Sprintf("%.1f", v.CVSSScore)
+				if v.CVSSVector != "" {
+					scoreStr += fmt.Sprintf(" (`%s`)", v.CVSSVector)
+				}
+				sb.WriteString(fmt.Sprintf("- **CVSS v3.1 Score:** %s\n", scoreStr))
+			}
+			if v.EPSSScore > 0 {
+				sb.WriteString(fmt.Sprintf("- **EPSS Probability:** `%.2f%%`\n", v.EPSSScore*100.0))
+			}
+			if v.KnownExploited {
+				sb.WriteString("- **CISA KEV:** ⚠️ **YES (Actively Exploited in the Wild)**\n")
+			}
 			sb.WriteString("\n")
 
 			if v.Description != "" {

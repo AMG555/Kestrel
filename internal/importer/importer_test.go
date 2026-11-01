@@ -34,7 +34,7 @@ const sampleNmapXML = `<?xml version="1.0" encoding="UTF-8"?>
   </host>
 </nmaprun>`
 
-const sampleNucleiJSONL = `{"template-id":"cve-2021-41773","info":{"name":"Apache 2.4.49 - Path Traversal","severity":"critical","description":"Path traversal flaw","remediation":"Upgrade Apache"},"type":"http","host":"http://192.168.1.10:80","matched-at":"http://192.168.1.10:80/icons/.%%32%65/etc/passwd","curl-command":"curl -X GET http://192.168.1.10/icons/.%%32%65/etc/passwd"}
+const sampleNucleiJSONL = `{"template-id":"cve-2021-41773","info":{"name":"Apache 2.4.49 - Path Traversal","severity":"critical","description":"Path traversal flaw","remediation":"Upgrade Apache","tags":["cve","rce","kev","cisa"],"classification":{"cve-id":["CVE-2021-41773"],"cwe-id":["CWE-22"],"cvss-metrics":"CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N","cvss-score":7.5,"epss-score":0.95}},"type":"http","host":"http://192.168.1.10:80","matched-at":"http://192.168.1.10:80/icons/.%%32%65/etc/passwd","curl-command":"curl -X GET http://192.168.1.10/icons/.%%32%65/etc/passwd"}
 {"template-id":"tech-detect","info":{"name":"Wappalyzer Tech Detection","severity":"info","description":"Tech detected"},"type":"http","host":"https://app.target.corp","matched-at":"https://app.target.corp","curl-command":"curl https://app.target.corp"}
 `
 
@@ -134,6 +134,33 @@ func TestImportData_NucleiAndBurp(t *testing.T) {
 	}
 	if nucleiRes.VulnsCreated != 2 {
 		t.Errorf("Nuclei VulnsCreated = %d, want 2", nucleiRes.VulnsCreated)
+	}
+
+	// Verify Nuclei classification fields persisted
+	vulns, err := db.ListVulnerabilities(10, 0, database.VulnerabilityListFilter{ProjectID: "proj-1"})
+	if err != nil {
+		t.Fatalf("ListVulnerabilities: %v", err)
+	}
+	foundApache := false
+	for _, v := range vulns {
+		if strings.Contains(v.Title, "Apache") {
+			foundApache = true
+			if v.CVE != "CVE-2021-41773" {
+				t.Errorf("expected CVE-2021-41773, got %q", v.CVE)
+			}
+			if v.CWE != "CWE-22" {
+				t.Errorf("expected CWE-22, got %q", v.CWE)
+			}
+			if v.CVSSScore != 7.5 {
+				t.Errorf("expected CVSSScore 7.5, got %v", v.CVSSScore)
+			}
+			if !v.KnownExploited {
+				t.Errorf("expected KnownExploited true, got false")
+			}
+		}
+	}
+	if !foundApache {
+		t.Errorf("expected to find Apache finding in imported vulnerabilities")
 	}
 
 	// 2. Import Burp

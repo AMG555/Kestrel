@@ -10,6 +10,7 @@ import (
 	"kestrel/internal/config"
 	"kestrel/internal/database"
 	"kestrel/internal/demo"
+	"kestrel/internal/diff"
 	"kestrel/internal/doctor"
 	"kestrel/internal/eval"
 	"kestrel/internal/importer"
@@ -42,12 +43,18 @@ func main() {
 	isInitSubcommand := false
 	isExportReportSubcommand := false
 	isExportSarifSubcommand := false
+	isDiffSubcommand := false
+	isFindingStatusSubcommand := false
 	var auditArgPath string
 	var replayVulnID string
 	var importArgFile string
 	var initArgName string
 	var exportReportArgOut string
 	var exportSarifArgOut string
+	var diffArgBase string
+	var diffArgTarget string
+	var findingArgID string
+	var findingArgStatus string
 	if len(os.Args) > 1 {
 		if os.Args[1] == "doctor" {
 			isDoctorSubcommand = true
@@ -120,6 +127,26 @@ func main() {
 					os.Args = append(os.Args[:1], os.Args[3:]...)
 				}
 			}
+		} else if os.Args[1] == "diff" && len(os.Args) > 2 {
+			isDiffSubcommand = true
+			if len(os.Args) > 3 && !strings.HasPrefix(os.Args[2], "-") && !strings.HasPrefix(os.Args[3], "-") {
+				diffArgBase = os.Args[2]
+				diffArgTarget = os.Args[3]
+				os.Args = append(os.Args[:1], os.Args[4:]...)
+			} else if !strings.HasPrefix(os.Args[2], "-") {
+				diffArgBase = os.Args[2]
+				os.Args = append(os.Args[:1], os.Args[3:]...)
+			} else {
+				os.Args = append(os.Args[:1], os.Args[2:]...)
+			}
+		} else if (os.Args[1] == "finding" || os.Args[1] == "vuln") && len(os.Args) > 2 {
+			sub := strings.ToLower(strings.TrimSpace(os.Args[2]))
+			if sub == "status" && len(os.Args) > 4 {
+				isFindingStatusSubcommand = true
+				findingArgID = os.Args[3]
+				findingArgStatus = os.Args[4]
+				os.Args = append(os.Args[:1], os.Args[5:]...)
+			}
 		}
 	}
 	var configPath = flag.String("config", "config.yaml", "Path to the configuration file")
@@ -158,6 +185,12 @@ func main() {
 	var initFlag = flag.Bool("init", false, "Initialize a new engagement with scope.yaml, project, and cryptographic audit anchor")
 	var initTargetFlag = flag.String("init-target", "", "Target domain, CIDR, or URL for the new engagement")
 	var initOutFlag = flag.String("init-out", "", "Directory to output scope.yaml and audit-checkpoint.json (defaults to current dir)")
+	var diffBaseFlag = flag.String("diff-base", "", "Baseline scan file or project ID for diff")
+	var diffTargetFlag = flag.String("diff-target", "", "Target scan file or project ID for diff")
+	var diffFormatFlag = flag.String("diff-format", "table", "Output format for diff (table, markdown, json)")
+	var diffOutFlag = flag.String("diff-out", "", "Optional destination file path for diff report")
+	var findingReasonFlag = flag.String("reason", "", "Optional rationale/notes for finding status transition")
+	var findingActorFlag = flag.String("actor", "cli-operator", "Actor user ID for audited finding status transition")
 	flag.Parse()
 
 	// Check bare subcommands from flag.Args()
@@ -427,6 +460,41 @@ func main() {
 				os.Exit(retestErr.exitCode)
 			}
 			fmt.Fprintf(os.Stderr, "Retest error: %v\n", err)
+			os.Exit(2)
+		}
+		return
+	}
+
+	if isDiffSubcommand || (*diffBaseFlag != "" && *diffTargetFlag != "") {
+		base := diffArgBase
+		if base == "" {
+			base = *diffBaseFlag
+		}
+		target := diffArgTarget
+		if target == "" {
+			target = *diffTargetFlag
+		}
+		format := strings.ToLower(strings.TrimSpace(*diffFormatFlag))
+		outFile := *diffOutFlag
+		if outFile == "" && *outFlag != "" {
+			outFile = *outFlag
+		}
+		if err := runDiffScans(cfg, base, target, format, outFile); err != nil {
+			var exitErr *diffExitError
+			if errors.As(err, &exitErr) {
+				os.Exit(exitErr.code)
+			}
+			fmt.Fprintf(os.Stderr, "Diff error: %v\n", err)
+			os.Exit(2)
+		}
+		return
+	}
+
+	if isFindingStatusSubcommand {
+		reason := *findingReasonFlag
+		actor := *findingActorFlag
+		if err := runFindingStatus(cfg, findingArgID, findingArgStatus, actor, reason); err != nil {
+			fmt.Fprintf(os.Stderr, "Finding status error: %v\n", err)
 			os.Exit(2)
 		}
 		return
@@ -711,6 +779,140 @@ func runImportScan(cfg *config.Config, filePath, format, projectID string) error
 			fmt.Fprintf(os.Stderr, "    - %s\n", e)
 		}
 	}
+	return nil
+}
+
+type diffExitError struct {
+	msg  string
+	code int
+}
+
+func (e *diffExitError) Error() string {
+	return e.msg
+}
+
+func runDiffScans(cfg *config.Config, baseInput, targetInput, format, outFile string) error {
+	baseInput = strings.TrimSpace(baseInput)
+	targetInput = strings.TrimSpace(targetInput)
+	if baseInput == "" || targetInput == "" {
+		return errors.New("both baseline and target scan/project identifiers are required for diff (e.g. kestrel diff scan1.xml scan2.xml)")
+	}
+
+	dbPath := strings.TrimSpace(cfg.Database.Path)
+	if dbPath == "" {
+		dbPath = "data/conversations.db"
+	}
+	db, _ := database.NewDB(dbPath, zap.NewNop())
+	if db != nil {
+		defer db.Close()
+	}
+
+	baseVulns, baseLabel, err := loadVulnsFromInput(db, baseInput)
+	if err != nil {
+		return fmt.Errorf("failed to load baseline %q: %w", baseInput, err)
+	}
+	targetVulns, targetLabel, err := loadVulnsFromInput(db, targetInput)
+	if err != nil {
+		return fmt.Errorf("failed to load target %q: %w", targetInput, err)
+	}
+
+	res := diff.ComputeDiff(baseVulns, targetVulns, baseLabel, targetLabel)
+
+	var outputContent string
+	switch format {
+	case "json":
+		b, err := diff.RenderJSON(res)
+		if err != nil {
+			return err
+		}
+		outputContent = string(b)
+	case "markdown", "md":
+		outputContent = diff.RenderMarkdown(res)
+	default:
+		outputContent = diff.RenderCLI(res)
+	}
+
+	if outFile != "" {
+		if err := os.WriteFile(outFile, []byte(outputContent), 0o644); err != nil {
+			return fmt.Errorf("failed to write diff output to %s: %w", outFile, err)
+		}
+		fmt.Fprintf(os.Stdout, "SUCCESS: Wrote run diff report to %s\n", outFile)
+	} else {
+		fmt.Fprint(os.Stdout, outputContent)
+	}
+
+	if res.Summary.RegressedCount > 0 {
+		return &diffExitError{
+			msg:  fmt.Sprintf("scan diff detected %d regressed finding(s)", res.Summary.RegressedCount),
+			code: 1,
+		}
+	}
+	return nil
+}
+
+func loadVulnsFromInput(db *database.DB, input string) ([]*database.Vulnerability, string, error) {
+	input = strings.TrimSpace(input)
+	if input == "" {
+		return nil, "", errors.New("empty scan/project identifier")
+	}
+
+	// 1. Check if input is a local file
+	if info, err := os.Stat(input); err == nil && !info.IsDir() {
+		data, err := os.ReadFile(input)
+		if err != nil {
+			return nil, input, fmt.Errorf("read file %s: %w", input, err)
+		}
+		fmtStr := importer.DetectFormat(data)
+		var vulns []*database.Vulnerability
+		switch fmtStr {
+		case importer.FormatNuclei:
+			_, vulns, err = importer.ParseNuclei(data, "")
+		case importer.FormatBurp:
+			_, vulns, err = importer.ParseBurp(data, "")
+		case importer.FormatNmap:
+			_, vulns, err = importer.ParseNmap(data, "")
+		default:
+			return nil, input, fmt.Errorf("unrecognized scan format in file %s (supported: nuclei, burp, nmap)", input)
+		}
+		return vulns, filepath.Base(input), err
+	}
+
+	// 2. Otherwise query database by project ID or name
+	if db == nil {
+		return nil, input, fmt.Errorf("database required to query project %q", input)
+	}
+	vulns, err := db.ListVulnerabilities(1000, 0, database.VulnerabilityListFilter{ProjectID: input})
+	if err != nil {
+		return nil, input, fmt.Errorf("failed to query vulnerabilities for project %q: %w", input, err)
+	}
+	label := input
+	if p, err := db.GetProject(input); err == nil && p != nil && p.Name != "" {
+		label = p.Name
+	}
+	return vulns, label, nil
+}
+
+func runFindingStatus(cfg *config.Config, vulnID, newStatus, actor, reason string) error {
+	vulnID = strings.TrimSpace(vulnID)
+	newStatus = strings.TrimSpace(newStatus)
+	if vulnID == "" || newStatus == "" {
+		return errors.New("both finding ID and target status are required (e.g. kestrel finding status <id> <status>)")
+	}
+
+	dbPath := strings.TrimSpace(cfg.Database.Path)
+	if dbPath == "" {
+		dbPath = "data/conversations.db"
+	}
+	db, err := database.NewDB(dbPath, zap.NewNop())
+	if err != nil {
+		return fmt.Errorf("failed to open database: %w", err)
+	}
+	defer db.Close()
+
+	if err := db.TransitionVulnerabilityStatus(vulnID, newStatus, actor, reason); err != nil {
+		return err
+	}
+	fmt.Fprintf(os.Stdout, "SUCCESS: Finding %s status transitioned to %q (actor: %s, audited)\n", vulnID, newStatus, actor)
 	return nil
 }
 

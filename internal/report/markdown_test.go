@@ -23,6 +23,12 @@ func TestRenderMarkdownReport_StructureAndEvidence(t *testing.T) {
 			Status:         "confirmed",
 			Type:           "CWE-639",
 			Target:         "https://pay.internal/api/v1/transfer/9921",
+			CVE:            "CVE-2024-9999",
+			CWE:            "CWE-639",
+			CVSSScore:      8.8,
+			CVSSVector:     "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H",
+			EPSSScore:      0.92,
+			KnownExploited: true,
 			Description:    "Arbitrary account balance drain via insecure direct object reference.",
 			Preconditions:  "Authenticated regular user account.",
 			ReproSteps:     "1. Send POST request with victim account id.\n2. Observe 200 OK transfer success.",
@@ -66,6 +72,18 @@ func TestRenderMarkdownReport_StructureAndEvidence(t *testing.T) {
 	if !strings.Contains(reportMD, "Arbitrary account balance drain via insecure direct object reference.") {
 		t.Errorf("missing vulnerability description")
 	}
+	if !strings.Contains(reportMD, "CVE-2024-9999") {
+		t.Errorf("missing CVE in report")
+	}
+	if !strings.Contains(reportMD, "CVSS v3.1 Score:** 8.8") {
+		t.Errorf("missing CVSS in report")
+	}
+	if !strings.Contains(reportMD, "EPSS Probability:** `92.00%`") {
+		t.Errorf("missing EPSS in report")
+	}
+	if !strings.Contains(reportMD, "CISA KEV:** ⚠️ **YES") {
+		t.Errorf("missing CISA KEV alert in report")
+	}
 	if !strings.Contains(reportMD, "HTTP/1.1 200 OK\r\n{\"transfer_id\":\"tx-999\",\"status\":\"executed\"}") {
 		t.Errorf("missing verbatim vulnerability evidence")
 	}
@@ -96,4 +114,3 @@ func TestRenderMarkdownReport_EmptyVulns(t *testing.T) {
 		t.Errorf("expected clean assessment note")
 	}
 }
-
