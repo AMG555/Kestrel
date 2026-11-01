@@ -3,6 +3,7 @@ package toolguard
 import (
 	"context"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
@@ -208,6 +209,35 @@ func TestEgressGuard_PlumbingExemptions(t *testing.T) {
 	// Unauthorized external target must be blocked
 	if err := guard.CheckDestination(context.Background(), "unauthorized-external.com:443"); err == nil {
 		t.Fatal("expected unauthorized-external.com to be blocked")
+	}
+}
+
+func TestEgressGuard_WrapHTTPTransport_ProxyValidation(t *testing.T) {
+	policy := &ScopeFilePolicy{
+		FailClosed:         true,
+		BlockCloudMetadata: true,
+		AllowLocalhost:     false,
+		InScopeDomains:     []string{"in-scope.test"},
+	}
+
+	guard := NewEgressGuard(policy)
+	transport := guard.WrapHTTPTransport(nil)
+	if transport == nil || transport.Proxy == nil {
+		t.Fatal("expected wrapped transport with non-nil proxy hook")
+	}
+
+	// Request to out-of-scope host via transport proxy must be rejected before reaching proxy
+	reqOut, _ := http.NewRequest("GET", "https://out-of-scope.test/api", nil)
+	_, err := transport.Proxy(reqOut)
+	if err == nil {
+		t.Fatal("expected proxy check to reject out-of-scope request")
+	}
+
+	// Request to in-scope host passes proxy evaluation
+	reqIn, _ := http.NewRequest("GET", "https://in-scope.test/api", nil)
+	_, err = transport.Proxy(reqIn)
+	if err != nil {
+		t.Fatalf("expected proxy check to allow in-scope request, got: %v", err)
 	}
 }
 

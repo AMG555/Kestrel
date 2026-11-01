@@ -205,11 +205,16 @@ func (g *EgressGuard) checkAndPinDestination(ctx context.Context, addr string) (
 		return addr, nil
 	}
 
-	// Verify all resolved IPs against forbidden IMDS
+	// Verify all resolved IPs against forbidden IMDS and scope policy (prevent DNS rebinding)
 	for _, ipAddr := range ips {
 		ipStr := ipAddr.IP.String()
 		if !g.AllowIMDS() && IsCloudMetadataEndpoint(ipStr) {
 			return "", fmt.Errorf("%w: %s resolves to cloud metadata endpoint %s", ErrScopeEgressBlocked, host, ipStr)
+		}
+		if g.policy != nil {
+			if err := g.CheckDestination(ctx, ipStr); err != nil {
+				return "", fmt.Errorf("%w: %s resolves to forbidden IP %s: %w", ErrScopeEgressBlocked, host, ipStr, err)
+			}
 		}
 	}
 
@@ -248,16 +253,20 @@ func (g *EgressGuard) WrapHTTPTransport(base *http.Transport) *http.Transport {
 	}
 
 	// Protect against proxy bypass: validate request URL host before proxying
-	origProxy := base.Proxy
-	if origProxy != nil {
-		base.Proxy = func(req *http.Request) (*url.URL, error) {
-			if g != nil && req != nil && req.URL != nil {
-				if err := g.CheckDestination(req.Context(), req.URL.Host); err != nil {
-					return nil, err
-				}
+	proxyFn := base.Proxy
+	if proxyFn == nil {
+		proxyFn = http.ProxyFromEnvironment
+	}
+	base.Proxy = func(req *http.Request) (*url.URL, error) {
+		if g != nil && req != nil && req.URL != nil {
+			if err := g.CheckDestination(req.Context(), req.URL.Host); err != nil {
+				return nil, err
 			}
-			return origProxy(req)
 		}
+		if proxyFn != nil {
+			return proxyFn(req)
+		}
+		return nil, nil
 	}
 
 	base.DialContext = g.WrapDialContext(base.DialContext)
@@ -274,6 +283,21 @@ func SetGlobalEgressGuard(guard *EgressGuard) {
 		// Hook into http.DefaultTransport
 		if defaultTransport, ok := http.DefaultTransport.(*http.Transport); ok {
 			defaultTransport.DialContext = guard.WrapDialContext(defaultTransport.DialContext)
+			origProxy := defaultTransport.Proxy
+			if origProxy == nil {
+				origProxy = http.ProxyFromEnvironment
+			}
+			defaultTransport.Proxy = func(req *http.Request) (*url.URL, error) {
+				if req != nil && req.URL != nil {
+					if err := guard.CheckDestination(req.Context(), req.URL.Host); err != nil {
+						return nil, err
+					}
+				}
+				if origProxy != nil {
+					return origProxy(req)
+				}
+				return nil, nil
+			}
 		}
 	}
 }

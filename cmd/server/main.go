@@ -867,7 +867,7 @@ func runExportSarif(cfg *config.Config, projectID, outFile, failOn string, seedF
 	}
 
 	if outFile != "" {
-		if err := os.WriteFile(outFile, sarifData, 0644); err != nil {
+		if err := os.WriteFile(outFile, sarifData, 0o644); err != nil {
 			return fmt.Errorf("failed to write SARIF output to %s: %w", outFile, err)
 		}
 		fmt.Fprintf(os.Stderr, "Exported %d vulnerabilities to SARIF: %s\n", len(vulns), outFile)

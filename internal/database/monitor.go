@@ -263,95 +263,6 @@ func (db *DB) LoadToolExecutionsWithPagination(offset, limit int, status, toolNa
 	return executions, nil
 }
 
-// GetToolExecutionsForProject retrieves tool executions associated with a project (or all if projectID is empty).
-func (db *DB) GetToolExecutionsForProject(projectID string, limit int) ([]*mcp.ToolExecution, error) {
-	if limit <= 0 {
-		limit = 100
-	}
-	if limit > 1000 {
-		limit = 1000
-	}
-
-	var query string
-	var args []interface{}
-	if strings.TrimSpace(projectID) == "" {
-		query = `
-			SELECT id, tool_name, arguments, status, result, error, start_time, end_time, duration_ms, COALESCE(owner_user_id, ''), COALESCE(conversation_id, '')
-			FROM tool_executions
-			ORDER BY start_time DESC LIMIT ?
-		`
-		args = append(args, limit)
-	} else {
-		query = `
-			SELECT te.id, te.tool_name, te.arguments, te.status, te.result, te.error, te.start_time, te.end_time, te.duration_ms, COALESCE(te.owner_user_id, ''), COALESCE(te.conversation_id, '')
-			FROM tool_executions te
-			LEFT JOIN conversations c ON c.id = te.conversation_id
-			WHERE c.project_id = ? OR te.conversation_id = ?
-			ORDER BY te.start_time DESC LIMIT ?
-		`
-		args = append(args, strings.TrimSpace(projectID), strings.TrimSpace(projectID), limit)
-	}
-
-	rows, err := db.Query(query, args...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var executions []*mcp.ToolExecution
-	for rows.Next() {
-		var exec mcp.ToolExecution
-		var argsJSON string
-		var resultJSON sql.NullString
-		var errorText sql.NullString
-		var endTime sql.NullTime
-		var durationMs sql.NullInt64
-
-		err := rows.Scan(
-			&exec.ID,
-			&exec.ToolName,
-			&argsJSON,
-			&exec.Status,
-			&resultJSON,
-			&errorText,
-			&exec.StartTime,
-			&endTime,
-			&durationMs,
-			&exec.OwnerUserID,
-			&exec.ConversationID,
-		)
-		if err != nil {
-			db.logger.Warn("failed to load execution records", zap.Error(err))
-			continue
-		}
-
-		if err := json.Unmarshal([]byte(argsJSON), &exec.Arguments); err != nil {
-			exec.Arguments = make(map[string]interface{})
-		}
-
-		if resultJSON.Valid && resultJSON.String != "" {
-			var result mcp.ToolResult
-			if err := json.Unmarshal([]byte(resultJSON.String), &result); err == nil {
-				exec.Result = &result
-			}
-		}
-
-		if errorText.Valid {
-			exec.Error = errorText.String
-		}
-		if endTime.Valid {
-			exec.EndTime = &endTime.Time
-		}
-		if durationMs.Valid {
-			exec.Duration = time.Duration(durationMs.Int64) * time.Millisecond
-		}
-
-		executions = append(executions, &exec)
-	}
-
-	return executions, nil
-}
-
 func toolExecutionsFilterSQL(status, toolName string) (string, []interface{}) {
 	args := []interface{}{}
 	conditions := []string{}
@@ -1215,4 +1126,93 @@ func (db *DB) DecreaseToolStats(toolName string, totalCalls, successCalls, faile
 	}
 
 	return nil
+}
+
+// GetToolExecutionsForProject retrieves tool executions associated with a project (or all if projectID is empty).
+func (db *DB) GetToolExecutionsForProject(projectID string, limit int) ([]*mcp.ToolExecution, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	if limit > 1000 {
+		limit = 1000
+	}
+
+	var query string
+	var args []interface{}
+	if strings.TrimSpace(projectID) == "" {
+		query = `
+			SELECT id, tool_name, arguments, status, result, error, start_time, end_time, duration_ms, COALESCE(owner_user_id, ''), COALESCE(conversation_id, '')
+			FROM tool_executions
+			ORDER BY start_time DESC LIMIT ?
+		`
+		args = append(args, limit)
+	} else {
+		query = `
+			SELECT te.id, te.tool_name, te.arguments, te.status, te.result, te.error, te.start_time, te.end_time, te.duration_ms, COALESCE(te.owner_user_id, ''), COALESCE(te.conversation_id, '')
+			FROM tool_executions te
+			LEFT JOIN conversations c ON c.id = te.conversation_id
+			WHERE c.project_id = ? OR te.conversation_id = ?
+			ORDER BY te.start_time DESC LIMIT ?
+		`
+		args = append(args, strings.TrimSpace(projectID), strings.TrimSpace(projectID), limit)
+	}
+
+	rows, err := db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var executions []*mcp.ToolExecution
+	for rows.Next() {
+		var exec mcp.ToolExecution
+		var argsJSON string
+		var resultJSON sql.NullString
+		var errorText sql.NullString
+		var endTime sql.NullTime
+		var durationMs sql.NullInt64
+
+		err := rows.Scan(
+			&exec.ID,
+			&exec.ToolName,
+			&argsJSON,
+			&exec.Status,
+			&resultJSON,
+			&errorText,
+			&exec.StartTime,
+			&endTime,
+			&durationMs,
+			&exec.OwnerUserID,
+			&exec.ConversationID,
+		)
+		if err != nil {
+			db.logger.Warn("failed to load execution records", zap.Error(err))
+			continue
+		}
+
+		if err := json.Unmarshal([]byte(argsJSON), &exec.Arguments); err != nil {
+			exec.Arguments = make(map[string]interface{})
+		}
+
+		if resultJSON.Valid && resultJSON.String != "" {
+			var result mcp.ToolResult
+			if err := json.Unmarshal([]byte(resultJSON.String), &result); err == nil {
+				exec.Result = &result
+			}
+		}
+
+		if errorText.Valid {
+			exec.Error = errorText.String
+		}
+		if endTime.Valid {
+			exec.EndTime = &endTime.Time
+		}
+		if durationMs.Valid {
+			exec.Duration = time.Duration(durationMs.Int64) * time.Millisecond
+		}
+
+		executions = append(executions, &exec)
+	}
+
+	return executions, nil
 }

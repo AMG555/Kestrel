@@ -283,6 +283,7 @@ func (db *DB) DeleteAuditLogsBefore(cutoff time.Time) (int64, error) {
 			archived_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 		);
 		CREATE INDEX IF NOT EXISTS idx_audit_log_archive_created ON audit_log_archive(created_at);
+		CREATE UNIQUE INDEX IF NOT EXISTS uq_audit_log_archive_prev_hash ON audit_log_archive(prev_hash) WHERE prev_hash != '';
 		CREATE TRIGGER IF NOT EXISTS trg_audit_archive_no_update
 		BEFORE UPDATE ON audit_log_archive
 		BEGIN

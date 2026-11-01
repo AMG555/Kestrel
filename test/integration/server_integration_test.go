@@ -36,7 +36,7 @@ func TestIntegration_ServerBootLoginAndAuditContinuity(t *testing.T) {
 	log := logger.New("error", "")
 
 	configFile := filepath.Join(tempDir, "config.yaml")
-	_ = os.WriteFile(configFile, []byte(""), 0644)
+	_ = os.WriteFile(configFile, []byte(""), 0o644)
 
 	// 2. Boot App
 	application, err := app.New(cfg, log, configFile)

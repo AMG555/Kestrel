@@ -96,3 +96,4 @@ func TestRenderMarkdownReport_EmptyVulns(t *testing.T) {
 		t.Errorf("expected clean assessment note")
 	}
 }
+
