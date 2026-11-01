@@ -172,7 +172,7 @@ func TestTryReconnect_SkipsWhenConnecting(t *testing.T) {
 func TestStartClientAutoReconnect_SkipsWhenDisabled(t *testing.T) {
 	logger := zap.NewNop()
 	m := NewExternalMCPManager(logger)
-	m.stopRefresh = make(chan struct{})
+	defer m.StopAll()
 
 	name := "stopped"
 	m.mu.Lock()
